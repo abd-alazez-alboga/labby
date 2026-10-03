@@ -22,6 +22,8 @@
 ## Milestones
 - Milestones are implemented **strictly in order**. Never start milestone N+1 before milestone N is fully finished.
 - A milestone is finished only when: all its tickets are implemented, its acceptance criteria pass, **and an independent review agent has audited the implementation** (SRS conformance, structure conformance, tests present and passing, no mess left in the codebase) and its findings are resolved.
+- The review audit is performed by the **`labby-review` skill, invoked automatically** when a milestone's last implementation ticket is done — the user never has to ask. A `Fail` goes through `labby-fix` and a passing re-audit before the milestone counts. On pass, the tracker records the commit hash as the **review baseline** for the next milestone's audit range.
+- Project skills: `/labby-task` (ticket + ad-hoc work), `/labby-review` (audits), `/labby-fix` (resolve review findings), `/labby-next-session` (session handoff). Prefer them over improvising the same workflows.
 - Within a milestone, tickets follow the dependency/parallelism plan in the milestone file — independent tickets may be implemented simultaneously by parallel agents.
 - Every ticket must satisfy its own acceptance criteria before it counts as done.
 

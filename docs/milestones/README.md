@@ -27,7 +27,8 @@
 - **Current milestone:** M1 — Foundation & scaffolding (`todo`, not started)
 - **In progress now:** nothing
 - **Blockers:** none
-- **Last session note:** planning phase complete — SRS, use cases, and all milestone files written; implementation not started.
+- **Review baseline:** none yet (M1's audit range starts at the repo's first commit)
+- **Last session note:** planning phase complete — SRS, use cases, milestone files, and project skills written; implementation not started.
 
 ---
 
