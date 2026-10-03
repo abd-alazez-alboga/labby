@@ -1,0 +1,45 @@
+:root {
+    /* Logo */
+    --labby-logo-purple: #592D87;
+    --labby-logo-charcoal: #231F20;
+
+    /* Purples */
+    --labby-purple-900: #3D0B57;
+    /* deep, banner gradient start */
+    --labby-purple-800: #430C68;
+    /* dark */
+    --labby-purple-700: #59128A;
+    /* primary: buttons, banner */
+    --labby-purple-600: #631A95;
+    /* mid */
+    --labby-purple-500: #7A2DAE;
+    /* button gradient end */
+    --labby-purple-450: #8A2FB3;
+    /* bright gradient end */
+    --labby-purple-400: #9B3FC4;
+    /* accent */
+
+    /* Lilacs & lavenders */
+    --labby-lavender-300: #CDBDFF;
+    --labby-lavender-200: #D9CCFF;
+    --labby-lilac-200: #E8DCF0;
+    /* headline accent */
+    --labby-lilac-100: #EBD8F7;
+    /* tags */
+    --labby-lavender-100: #EFE9FF;
+
+    /* Backgrounds */
+    --labby-bg-tint: #F5EEF9;
+    --labby-bg-light: #FAF7FC;
+    --labby-white: #FFFFFF;
+
+    /* Text */
+    --labby-text: #141018;
+    --labby-text-secondary: #463C58;
+    --labby-text-muted: #6E6780;
+    --labby-text-subtle: #B7AECB;
+
+    /* Gradients */
+    --labby-gradient-hero: linear-gradient(135deg, #3D0B57 0%, #59128A 100%);
+    --labby-gradient-button: linear-gradient(135deg, #59128A 0%, #7A2DAE 100%);
+}
