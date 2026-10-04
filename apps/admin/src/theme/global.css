@@ -1,0 +1,193 @@
+/*
+ * Global shell styles. Colors come exclusively from the Labby tokens
+ * defined in ./tokens.css (ported from /assets/theme/colors.scss).
+ * Layout uses CSS logical properties so RTL (Arabic) mirrors for free.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--labby-bg-light);
+  color: var(--labby-text);
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    Tahoma,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--labby-purple-700);
+}
+
+/* ---------- App shell layout ---------- */
+
+.app-shell {
+  display: flex;
+  height: 100%;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.app-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+/* ---------- Sidenav ---------- */
+
+.sidenav {
+  inline-size: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--labby-gradient-hero);
+  color: var(--labby-white);
+}
+
+.sidenav__brand {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem 1rem;
+}
+
+.sidenav__logo {
+  inline-size: 120px;
+  block-size: auto;
+}
+
+.sidenav__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+.sidenav__link {
+  display: block;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  color: var(--labby-lavender-100);
+  text-decoration: none;
+}
+
+.sidenav__link:hover {
+  background: var(--labby-purple-600);
+  color: var(--labby-white);
+}
+
+.sidenav__link--active {
+  background: var(--labby-purple-500);
+  color: var(--labby-white);
+}
+
+/* ---------- Navbar ---------- */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--labby-white);
+  border-block-end: 1px solid var(--labby-lilac-200);
+}
+
+.navbar__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--labby-text-secondary);
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--labby-purple-700);
+  border-radius: 8px;
+  background: var(--labby-white);
+  color: var(--labby-purple-700);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--labby-bg-tint);
+}
+
+.btn--primary {
+  background: var(--labby-gradient-button);
+  border: none;
+  color: var(--labby-white);
+}
+
+/* ---------- Pages ---------- */
+
+.page__title {
+  margin-block-start: 0;
+  color: var(--labby-purple-900);
+}
+
+.page__subtitle {
+  color: var(--labby-text-muted);
+}
+
+.card {
+  background: var(--labby-white);
+  border: 1px solid var(--labby-lilac-200);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+/* ---------- Fatal error (config failed to load) ---------- */
+
+.fatal-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  block-size: 100%;
+  padding: 2rem;
+  text-align: center;
+  background: var(--labby-bg-tint);
+  color: var(--labby-text);
+}
+
+.fatal-error__title {
+  margin: 0;
+  color: var(--labby-purple-900);
+}
+
+.fatal-error__detail {
+  color: var(--labby-text-muted);
+  font-size: 0.875rem;
+}
+
+/* ---------- Loading fallback ---------- */
+
+.loading {
+  padding: 2rem;
+  color: var(--labby-text-muted);
+}

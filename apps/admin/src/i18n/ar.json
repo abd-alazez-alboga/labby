@@ -1,0 +1,21 @@
+{
+  "app": {
+    "title": "لوحة تحكم لابي"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم"
+  },
+  "language": {
+    "switchTo": "English",
+    "switchLabel": "تغيير اللغة"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "placeholder": "تصل لوحة تحكم المشرف في مرحلة لاحقة."
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "body": "الصفحة التي تبحث عنها غير موجودة.",
+    "backToDashboard": "العودة إلى لوحة التحكم"
+  }
+}

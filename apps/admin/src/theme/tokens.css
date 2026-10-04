@@ -1,0 +1,41 @@
+/*
+ * Labby brand tokens.
+ * Ported from /assets/theme/colors.scss — that file is the source of truth.
+ * Do not add or rename tokens here without updating the source file first.
+ */
+:root {
+  /* Logo */
+  --labby-logo-purple: #592d87;
+  --labby-logo-charcoal: #231f20;
+
+  /* Purples */
+  --labby-purple-900: #3d0b57; /* deep, banner gradient start */
+  --labby-purple-800: #430c68; /* dark */
+  --labby-purple-700: #59128a; /* primary: buttons, banner */
+  --labby-purple-600: #631a95; /* mid */
+  --labby-purple-500: #7a2dae; /* button gradient end */
+  --labby-purple-450: #8a2fb3; /* bright gradient end */
+  --labby-purple-400: #9b3fc4; /* accent */
+
+  /* Lilacs & lavenders */
+  --labby-lavender-300: #cdbdff;
+  --labby-lavender-200: #d9ccff;
+  --labby-lilac-200: #e8dcf0; /* headline accent */
+  --labby-lilac-100: #ebd8f7; /* tags */
+  --labby-lavender-100: #efe9ff;
+
+  /* Backgrounds */
+  --labby-bg-tint: #f5eef9;
+  --labby-bg-light: #faf7fc;
+  --labby-white: #ffffff;
+
+  /* Text */
+  --labby-text: #141018;
+  --labby-text-secondary: #463c58;
+  --labby-text-muted: #6e6780;
+  --labby-text-subtle: #b7aecb;
+
+  /* Gradients */
+  --labby-gradient-hero: linear-gradient(135deg, #3d0b57 0%, #59128a 100%);
+  --labby-gradient-button: linear-gradient(135deg, #59128a 0%, #7a2dae 100%);
+}
