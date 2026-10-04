@@ -120,6 +120,17 @@ a {
   color: var(--labby-text-secondary);
 }
 
+.navbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.navbar__user {
+  color: var(--labby-text-secondary);
+  font-size: 0.9rem;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -140,6 +151,109 @@ a {
   background: var(--labby-gradient-button);
   border: none;
   color: var(--labby-white);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---------- Login ---------- */
+
+.login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 100%;
+  padding: 1.5rem;
+  background: var(--labby-gradient-hero);
+}
+
+.login__card {
+  inline-size: 100%;
+  max-inline-size: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: var(--labby-white);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.login__logo {
+  inline-size: 56px;
+  block-size: auto;
+  align-self: center;
+}
+
+.login__title {
+  margin: 0;
+  text-align: center;
+  font-size: 1.35rem;
+  color: var(--labby-purple-900);
+}
+
+.login__subtitle {
+  margin: 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--labby-text-muted);
+}
+
+.login__notice {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--labby-bg-tint);
+  color: var(--labby-text-secondary);
+  font-size: 0.875rem;
+}
+
+.login__error {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--labby-purple-400);
+  border-radius: 8px;
+  background: var(--labby-lilac-100);
+  color: var(--labby-purple-800);
+  font-size: 0.875rem;
+}
+
+.login__submit {
+  padding-block: 0.6rem;
+}
+
+.login__footer {
+  display: flex;
+  justify-content: center;
+  margin-block-start: 0.25rem;
+}
+
+/* ---------- Form fields ---------- */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.form-field label {
+  font-size: 0.875rem;
+  color: var(--labby-text-secondary);
+}
+
+.form-field input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--labby-lilac-200);
+  border-radius: 8px;
+  background: var(--labby-white);
+  color: var(--labby-text);
+  font: inherit;
+}
+
+.form-field input:focus {
+  outline: 2px solid var(--labby-purple-400);
+  outline-offset: 1px;
 }
 
 /* ---------- Pages ---------- */

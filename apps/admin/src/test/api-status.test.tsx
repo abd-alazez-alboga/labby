@@ -1,21 +1,36 @@
 import { screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { renderShell, TEST_CONFIG } from './test-utils';
+import {
+  jsonResponse,
+  renderShell,
+  seedStoredSession,
+  stubFetchRoutes,
+  TEST_CONFIG,
+  TEST_USER,
+} from './test-utils';
 
 describe('API status (meta smoke call)', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    seedStoredSession(); // the shell is behind the auth guard since M2-T5
+    window.history.pushState({}, '', '/');
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it('shows the backend version when the meta call succeeds', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ name: 'labby-backend', version: '0.1.0' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
+    const fetchMock = stubFetchRoutes((method, path) => {
+      if (method === 'GET' && path === '/api/v1/meta') {
+        return jsonResponse(200, { name: 'labby-backend', version: '0.1.0' });
+      }
+      if (method === 'GET' && path === '/api/v1/users/me') {
+        return jsonResponse(200, TEST_USER);
+      }
+      return null;
+    });
 
     renderShell();
 

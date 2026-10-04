@@ -14,6 +14,22 @@
     "switchTo": "العربية",
     "switchLabel": "Switch language"
   },
+  "auth": {
+    "loginTitle": "Sign in",
+    "loginSubtitle": "Admin access only",
+    "phoneLabel": "Phone number",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "logout": "Log out",
+    "sessionExpired": "Your session has expired. Please sign in again.",
+    "errors": {
+      "invalidCredentials": "Incorrect phone number or password.",
+      "notAdmin": "This is not an admin account.",
+      "throttled": "Too many attempts — please wait and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
   "dashboard": {
     "title": "Dashboard",
     "placeholder": "The admin dashboard arrives in a later milestone."

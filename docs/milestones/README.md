@@ -25,7 +25,7 @@
 ## Current state
 
 - **Current milestone:** M2 — Auth & accounts (`in_progress`)
-- **In progress now:** M2-T2/T3/T4/T5 running in parallel (4 agents) against backend/docs/api/auth-v1.yaml. T1 done.
+- **In progress now:** M2-T6 (auth integration). T2–T5 signed off 2026-10-04 (207 tests green across the monorepo). T6 scope: real SMS gateway wiring (NEEDS owner token+endpoint), termsAccepted contract/backend/apps addition, 409 contract alignment, seeded-account dev verification, real-device SMS runs. Note for owner: palette lacks error/success tokens.
 - **Blockers:** none. Owner still owes a one-time manual emulator run of the rider/driver apps (headless box couldn't; documented partial in review-M01).
 - **Review baseline:** `372a53f` (M2's audit range = 372a53f..HEAD at its close)
 - **Last session note:** M1 done end-to-end: audit "Pass with comments" → 9 findings fixed in 372a53f → re-audit Pass (see docs/reviews/review-M01.md). RN apps are Expo SDK 57. Remember: M2-T6 needs the owner's SMS gateway token/endpoint.
@@ -73,11 +73,11 @@ Statuses live here (milestone files describe content only, they are never edited
 | Ticket | Title | Status |
 |---|---|---|
 | M2-T1 | Auth contract & migrations | done |
-| M2-T2 | Auth backend | in_progress |
-| M2-T3 | Rider app auth screens | in_progress |
-| M2-T4 | Driver app auth screens | in_progress |
-| M2-T5 | Admin login | in_progress |
-| M2-T6 | Auth integration (real SMS) | todo |
+| M2-T2 | Auth backend | done |
+| M2-T3 | Rider app auth screens | done |
+| M2-T4 | Driver app auth screens | done |
+| M2-T5 | Admin login | done |
+| M2-T6 | Auth integration (real SMS) | in_progress |
 | M2-T7 | Review audit | todo |
 
 ### M3 — RBAC & admin foundation

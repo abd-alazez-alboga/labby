@@ -1,0 +1,116 @@
+import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+
+import { ApiError } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
+import { LanguageSwitcher } from '../layout/LanguageSwitcher';
+
+type LoginErrorKey =
+  | 'auth.errors.invalidCredentials'
+  | 'auth.errors.notAdmin'
+  | 'auth.errors.throttled'
+  | 'auth.errors.generic';
+
+/** Maps the contract's login failures (auth-v1.yaml) to user-facing messages. */
+function mapLoginError(error: unknown): LoginErrorKey {
+  if (error instanceof ApiError) {
+    if (error.status === 401) {
+      return 'auth.errors.invalidCredentials';
+    }
+    if (error.status === 403) {
+      return 'auth.errors.notAdmin';
+    }
+    if (error.status === 429) {
+      return 'auth.errors.throttled';
+    }
+  }
+  return 'auth.errors.generic';
+}
+
+export default function LoginPage() {
+  const { t } = useTranslation();
+  const { user, sessionExpired, login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [errorKey, setErrorKey] = useState<LoginErrorKey | null>(null);
+
+  // Where the guard sent us from — restored after a successful login.
+  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/';
+
+  // Already signed in (direct visit to /login): go straight home.
+  if (user) {
+    return <Navigate to={from} replace />;
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setErrorKey(null);
+    try {
+      await login(phone.trim(), password);
+      navigate(from, { replace: true });
+    } catch (error) {
+      setErrorKey(mapLoginError(error));
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="login">
+      <form className="login__card" onSubmit={(event) => void handleSubmit(event)}>
+        <img className="login__logo" src="/images/labby-icon.png" alt="Labby" />
+        <h1 className="login__title">{t('auth.loginTitle')}</h1>
+        <p className="login__subtitle">{t('auth.loginSubtitle')}</p>
+
+        {sessionExpired && errorKey === null ? (
+          <p className="login__notice" role="status">
+            {t('auth.sessionExpired')}
+          </p>
+        ) : null}
+        {errorKey !== null ? (
+          <p className="login__error" role="alert">
+            {t(errorKey)}
+          </p>
+        ) : null}
+
+        <div className="form-field">
+          <label htmlFor="login-phone">{t('auth.phoneLabel')}</label>
+          <input
+            id="login-phone"
+            type="tel"
+            dir="ltr"
+            autoComplete="tel"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            required
+            disabled={submitting}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="login-password">{t('auth.passwordLabel')}</label>
+          <input
+            id="login-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+            disabled={submitting}
+          />
+        </div>
+
+        <button className="btn btn--primary login__submit" type="submit" disabled={submitting}>
+          {submitting ? t('auth.submitting') : t('auth.submit')}
+        </button>
+
+        <div className="login__footer">
+          <LanguageSwitcher />
+        </div>
+      </form>
+    </div>
+  );
+}

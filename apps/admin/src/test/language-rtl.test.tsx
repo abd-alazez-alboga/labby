@@ -3,11 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import i18n from '../i18n/i18n';
-import { renderShell } from './test-utils';
+import { renderShell, seedStoredSession } from './test-utils';
 
 describe('language switching', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');
+    window.sessionStorage.clear();
+    seedStoredSession(); // the shell is behind the auth guard since M2-T5
     window.history.pushState({}, '', '/');
   });
 
