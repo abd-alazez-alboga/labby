@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:labby-backend}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/labby}
+    username: ${DB_USERNAME:labby}
+    password: ${DB_PASSWORD:labby}
+  jpa:
+    # Flyway owns the schema; Hibernate only validates it.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: ${FLYWAY_LOCATIONS:classpath:db/migration}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${ACTUATOR_ENDPOINTS:health,info}
+  endpoint:
+    health:
+      probes:
+        enabled: ${ACTUATOR_HEALTH_PROBES_ENABLED:true}
+
+springdoc:
+  # Scan only the controller package; everything else never shows up in the API docs.
+  packages-to-scan: com.labby.backend.controller
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
+    path: ${SPRINGDOC_API_DOCS_PATH:/v3/api-docs}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+    path: ${SPRINGDOC_SWAGGER_UI_PATH:/swagger-ui.html}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.labby.backend: ${LOG_LEVEL_APP:INFO}

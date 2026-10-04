@@ -1,0 +1,10 @@
+# Production profile: JSON logs (see logback-spring.xml), no stack traces in HTTP responses.
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.labby.backend: ${LOG_LEVEL_APP:INFO}

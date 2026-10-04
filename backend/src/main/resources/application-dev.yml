@@ -1,0 +1,5 @@
+# Local development profile: human-readable logs (see logback-spring.xml), verbose app logging.
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.labby.backend: ${LOG_LEVEL_APP:DEBUG}
