@@ -139,6 +139,7 @@ export default function RegisterScreen() {
         registrationToken,
         password,
         name: name.trim(),
+        termsAccepted,
       });
       await signIn(session);
       // The (auth) group guard redirects into the app once signed in.

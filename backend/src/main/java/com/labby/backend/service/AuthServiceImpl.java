@@ -122,6 +122,7 @@ public class AuthServiceImpl implements AuthService {
                   .phone(phone)
                   .passwordHash(passwordEncoder.encode(request.password()))
                   .name(request.name())
+                  .termsAcceptedAt(Instant.now())
                   .build());
     } catch (DataIntegrityViolationException ex) {
       throw new ResourceAlreadyExistsException("Phone is already registered");

@@ -63,6 +63,7 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
       registrationToken: 'reg-token-1',
       password: 'supersecret1',
       name: 'New Rider',
+      termsAccepted: true,
     });
     // Tokens landed in the secure store.
     expect(await getStoredTokens()).toEqual({

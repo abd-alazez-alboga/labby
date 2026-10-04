@@ -74,6 +74,12 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
 
     fireEvent.changeText(screen.getByTestId('register-name'), 'New Driver');
     fireEvent.changeText(screen.getByTestId('register-password'), 'password8');
+
+    // Completing without consent is blocked client-side (UC-S-01 step 4).
+    fireEvent.press(screen.getByTestId('register-complete'));
+    expect(contract.requestsTo('POST /api/v1/auth/register/complete')).toHaveLength(0);
+
+    fireEvent.press(screen.getByTestId('register-terms'));
     fireEvent.press(screen.getByTestId('register-complete'));
 
     await waitFor(() => expect(getSession()).not.toBeNull());
@@ -83,6 +89,7 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
       registrationToken: 'reg-token-1',
       password: 'password8',
       name: 'New Driver',
+      termsAccepted: true,
     });
     expect(getSession()).toMatchObject({ accessToken: 'access-1' });
   });

@@ -34,11 +34,13 @@ export function registerVerify(
   });
 }
 
-/** POST /api/v1/auth/register/complete — 201 session | 400 invalid token. */
+/** POST /api/v1/auth/register/complete — 201 session | 400 invalid token / terms. */
 export function registerComplete(input: {
   registrationToken: string;
   password: string;
   name: string;
+  /** Must be true; the backend stores the consent timestamp (UC-S-01 step 4). */
+  termsAccepted: boolean;
 }): Promise<AuthTokensResponse> {
   return apiFetch<AuthTokensResponse>('/api/v1/auth/register/complete', {
     method: 'POST',

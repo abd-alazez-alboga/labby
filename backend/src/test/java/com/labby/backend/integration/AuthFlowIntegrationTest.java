@@ -3,6 +3,7 @@ package com.labby.backend.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.labby.backend.dto.AuthTokensResponseDto;
+import com.labby.backend.dto.RegisterVerifyResponseDto;
 import com.labby.backend.dto.UserProfileDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.ClientType;
@@ -172,5 +173,56 @@ class AuthFlowIntegrationTest extends AbstractAuthIntegrationTest {
         .isEqualTo(HttpStatus.OK);
     assertThat(tryLogin(phone, "Secret123!", ClientType.ADMIN).getStatusCode())
         .isEqualTo(HttpStatus.FORBIDDEN);
+  }
+
+  @Test
+  @DisplayName("register complete requires explicit terms acceptance")
+  void shouldRejectRegisterCompleteWhenTermsNotAccepted() {
+    String phone = "+963911100042";
+    restTemplate.postForEntity("/api/v1/auth/register/start", Map.of("phone", phone), Void.class);
+    ResponseEntity<RegisterVerifyResponseDto> verify =
+        restTemplate.postForEntity(
+            "/api/v1/auth/register/verify",
+            Map.of("phone", phone, "code", lastCodeFor(phone)),
+            RegisterVerifyResponseDto.class);
+    assertThat(verify.getBody()).isNotNull();
+    String token = verify.getBody().registrationToken();
+
+    ResponseEntity<String> missing =
+        restTemplate.postForEntity(
+            "/api/v1/auth/register/complete",
+            Map.of("registrationToken", token, "password", "Secret123!", "name", "No Terms"),
+            String.class);
+    assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+    ResponseEntity<String> declined =
+        restTemplate.postForEntity(
+            "/api/v1/auth/register/complete",
+            Map.of(
+                "registrationToken",
+                token,
+                "password",
+                "Secret123!",
+                "name",
+                "No Terms",
+                "termsAccepted",
+                false),
+            String.class);
+    assertThat(declined.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+    ResponseEntity<AuthTokensResponseDto> accepted =
+        restTemplate.postForEntity(
+            "/api/v1/auth/register/complete",
+            Map.of(
+                "registrationToken",
+                token,
+                "password",
+                "Secret123!",
+                "name",
+                "With Terms",
+                "termsAccepted",
+                true),
+            AuthTokensResponseDto.class);
+    assertThat(accepted.getStatusCode()).isEqualTo(HttpStatus.CREATED);
   }
 }

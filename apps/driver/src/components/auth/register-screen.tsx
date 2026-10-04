@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import {
   BodyText,
+  CheckboxRow,
   ErrorBanner,
   Field,
   FormScreen,
@@ -41,6 +42,7 @@ export function RegisterScreen() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [registrationToken, setRegistrationToken] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -110,6 +112,10 @@ export function RegisterScreen() {
       setFieldErrorKey('auth.validation.password');
       return;
     }
+    if (!termsAccepted) {
+      setFieldErrorKey('auth.validation.terms');
+      return;
+    }
     setFieldErrorKey(null);
     setErrorKey(null);
     setBusy(true);
@@ -118,6 +124,7 @@ export function RegisterScreen() {
         registrationToken,
         password,
         name: name.trim(),
+        termsAccepted,
       });
       await applySession(tokens);
       // Navigation happens via the auth guards in the root layout.
@@ -233,6 +240,15 @@ export function RegisterScreen() {
                 : null
             }
             testID="register-password"
+          />
+          <CheckboxRow
+            label={t('auth.register.termsLabel')}
+            checked={termsAccepted}
+            onToggle={() => setTermsAccepted((value) => !value)}
+            error={
+              fieldErrorKey === 'auth.validation.terms' ? t(fieldErrorKey) : null
+            }
+            testID="register-terms"
           />
           <PrimaryButton
             title={t('auth.register.completeCta')}

@@ -73,6 +73,46 @@ export function Field({
   );
 }
 
+export function CheckboxRow({
+  label,
+  checked,
+  onToggle,
+  error,
+  testID,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  error?: string | null;
+  testID?: string;
+}) {
+  const { direction } = useLocale();
+  const textAlign = direction === 'rtl' ? 'right' : 'left';
+
+  return (
+    <View style={styles.field}>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+        onPress={onToggle}
+        style={[
+          styles.checkboxRow,
+          direction === 'rtl' ? styles.checkboxRowRtl : null,
+        ]}
+        testID={testID}
+      >
+        <View style={[styles.checkbox, checked ? styles.checkboxChecked : null]}>
+          {checked ? <Text style={styles.checkboxMark}>✓</Text> : null}
+        </View>
+        <Text style={[styles.checkboxLabel, { textAlign }]}>{label}</Text>
+      </Pressable>
+      {error ? (
+        <Text style={[styles.fieldError, { textAlign }]}>{error}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function PrimaryButton({
   title,
   onPress,
@@ -258,6 +298,38 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 13,
     marginTop: spacing.xs,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  checkboxRowRtl: {
+    flexDirection: 'row-reverse',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.sm / 2,
+    borderWidth: 1,
+    borderColor: colors.lavender200,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.purple700,
+    borderColor: colors.purple700,
+  },
+  checkboxMark: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  checkboxLabel: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
   },
   primaryButton: {
     // Solid fallback for --labby-gradient-button.

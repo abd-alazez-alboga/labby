@@ -75,6 +75,9 @@ public class User {
   @Column(name = "deleted_at")
   private Instant deletedAt;
 
+  @Column(name = "terms_accepted_at")
+  private Instant termsAcceptedAt;
+
   @PrePersist
   void onCreate() {
     Instant now = Instant.now();

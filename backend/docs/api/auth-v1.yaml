@@ -63,7 +63,8 @@ paths:
       summary: Complete a new registration
       description: >
         Creates the account (state `active`), grants the `rider` role (every account gets it,
-        USR-01), stores the bcrypt password hash, and returns a session. The Driver app
+        USR-01), stores the bcrypt password hash and the Terms-of-Service consent timestamp
+        (UC-S-01 step 4; termsAccepted must be true), and returns a session. The Driver app
         additionally routes the user into the driver-application flow (M5) after this.
       requestBody:
         required: true
@@ -76,7 +77,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AuthTokensResponse' }
-        '400': { description: Invalid/expired registration token or validation failure }
+        '400': { description: Invalid/expired registration token, terms not accepted, or validation failure }
+        '409': { description: Phone was registered by a concurrent request (race) }
 
   /api/v1/auth/login:
     post:
@@ -354,11 +356,12 @@ components:
         registrationToken: { type: [string, 'null'], description: Present only when mode=new }
     RegisterCompleteRequest:
       type: object
-      required: [registrationToken, password, name]
+      required: [registrationToken, password, name, termsAccepted]
       properties:
         registrationToken: { type: string }
         password: { $ref: '#/components/schemas/Password' }
         name: { type: string, maxLength: 100 }
+        termsAccepted: { type: boolean, description: Must be true; consent timestamp is stored }
     LoginRequest:
       type: object
       required: [phone, password, client]

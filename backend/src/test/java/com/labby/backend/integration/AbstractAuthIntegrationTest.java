@@ -122,9 +122,14 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
         restTemplate.postForEntity(
             "/api/v1/auth/register/complete",
             Map.of(
-                "registrationToken", verify.getBody().registrationToken(),
-                "password", password,
-                "name", name),
+                "registrationToken",
+                verify.getBody().registrationToken(),
+                "password",
+                password,
+                "name",
+                name,
+                "termsAccepted",
+                true),
             AuthTokensResponseDto.class);
     assertThat(complete.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(complete.getBody()).isNotNull();

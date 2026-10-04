@@ -49,6 +49,8 @@ export interface RegisterCompleteRequest {
   registrationToken: string;
   password: string;
   name: string;
+  /** Must be true; the backend stores the consent timestamp (UC-S-01 step 4). */
+  termsAccepted: boolean;
 }
 
 export interface LoginRequest {

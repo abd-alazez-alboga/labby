@@ -25,10 +25,10 @@
 ## Current state
 
 - **Current milestone:** M2 — Auth & accounts (`in_progress`)
-- **In progress now:** M2-T6 (auth integration). T2–T5 signed off 2026-10-04 (207 tests green across the monorepo). T6 scope: real SMS gateway wiring (NEEDS owner token+endpoint), termsAccepted contract/backend/apps addition, 409 contract alignment, seeded-account dev verification, real-device SMS runs. Note for owner: palette lacks error/success tokens.
-- **Blockers:** none. Owner still owes a one-time manual emulator run of the rider/driver apps (headless box couldn't; documented partial in review-M01).
+- **In progress now:** M2-T6 (auth integration) — Parts A+B DONE and committed (`add terms consent and verify auth flows live`): termsAccepted end-to-end (migration V3, DTO @AssertTrue, consent timestamp, contract updated incl. 409-race alignment, rider wiring, driver CheckboxRow; backend 78 / rider 49 / driver 50 / admin 32 tests green) + live dev verification passed (seeder's 4 accounts in DB with roles+consent, API logins incl. 403/401 paths, real-browser admin login as seeded +963900000004 "Dev Admin"). **Remaining = Part C only:** wire the real SMS gateway and run register + password-reset + 2FA with real SMS (owner does the app side on their device while backend runs via `make -C backend db-up && make -C backend run`).
+- **Blockers:** Part C BLOCKED on owner input: SMS gateway app NAME + HTTP endpoint URL + API token (env-only, never commit; `.env.example` documents SMS_GATEWAY_URL/SMS_GATEWAY_TOKEN). Owner also still owes the one-time manual emulator run of the rider/driver apps (from review-M01).
 - **Review baseline:** `372a53f` (M2's audit range = 372a53f..HEAD at its close)
-- **Last session note:** M1 done end-to-end: audit "Pass with comments" → 9 findings fixed in 372a53f → re-audit Pass (see docs/reviews/review-M01.md). RN apps are Expo SDK 57. Remember: M2-T6 needs the owner's SMS gateway token/endpoint.
+- **Last session note (2026-10-04):** M1 review_passed. M2: T1–T5 done (contract-first, 4 parallel agents), T6 parts A+B done. Facts a cold session needs: RN apps are Expo SDK 57; seeded dev accounts per backend/docs/SEEDING.md (password `Password1!`, admin is +963900000004); dev boot needs a JWT_SECRET env (any long value) since .env isn't committed; after T6 finishes, T7 = automatic /labby-review audit over 372a53f..HEAD, then labby-fix if needed, then M3. Owner notes pending: palette lacks error/success tokens (driver added local danger/success in its tokens.ts); the T2 backend's deviations are documented in its design decisions (409 race, Checkstyle scoped to handwritten sources).
 
 ---
 

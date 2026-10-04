@@ -49,8 +49,8 @@ public class DevDataSeeder implements ApplicationRunner {
       }
       UUID userId = UUID.randomUUID();
       jdbcTemplate.update(
-          "INSERT INTO users (user_id, phone, password_hash, name, language, state)"
-              + " VALUES (?, ?, ?, ?, 'en', 'active')",
+          "INSERT INTO users (user_id, phone, password_hash, name, language, state,"
+              + " terms_accepted_at) VALUES (?, ?, ?, ?, 'en', 'active', now())",
           userId,
           account.phone(),
           passwordEncoder.encode(SEED_PASSWORD),
