@@ -21,6 +21,9 @@ export const translations = {
       direction: 'Layout direction',
       rtlNote:
         'Switching language updates text immediately. A full right-to-left layout flip is applied on the next app restart.',
+      apiChecking: 'Checking backend…',
+      apiOffline: 'Backend unreachable',
+      apiVersionLabel: 'Backend version:',
     },
   },
   ar: {
@@ -41,6 +44,9 @@ export const translations = {
       direction: 'اتجاه الواجهة',
       rtlNote:
         'يتم تحديث النصوص فور تغيير اللغة. يُطبَّق الاتجاه الكامل من اليمين إلى اليسار بعد إعادة تشغيل التطبيق.',
+      apiChecking: 'جارٍ فحص الخادم…',
+      apiOffline: 'تعذر الوصول إلى الخادم',
+      apiVersionLabel: 'إصدار الخادم:',
     },
   },
 } as const;

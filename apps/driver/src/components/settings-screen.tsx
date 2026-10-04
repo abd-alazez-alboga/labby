@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ApiStatus } from './api-status';
 import { useLocale } from '../i18n/LocaleProvider';
 import { SUPPORTED_LANGUAGES } from '../i18n';
 import type { Language } from '../i18n';
@@ -61,6 +62,7 @@ export function SettingsScreen() {
       <Text style={[styles.restartNote, { textAlign }]}>
         {t('settings.restartNote')}
       </Text>
+      <ApiStatus />
     </View>
   );
 }

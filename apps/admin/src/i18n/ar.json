@@ -5,6 +5,11 @@
   "nav": {
     "dashboard": "لوحة التحكم"
   },
+  "api": {
+    "checking": "جارٍ فحص الخادم…",
+    "version": "الخادم الإصدار {{version}}",
+    "offline": "تعذر الوصول إلى الخادم"
+  },
   "language": {
     "switchTo": "English",
     "switchLabel": "تغيير اللغة"

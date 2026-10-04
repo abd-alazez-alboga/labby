@@ -25,7 +25,7 @@
 ## Current state
 
 - **Current milestone:** M1 — Foundation & scaffolding (`in_progress`)
-- **In progress now:** M1-T6 (cross-client integration smoke). T2–T5 signed off 2026-10-04; owner still owes a manual emulator run for the rider/driver apps (headless box couldn't). Decision: RN apps use **Expo** SDK 57 (owner, 2026-10-04).
+- **In progress now:** M1-T7 review audit (labby-review over all of M1). T6 signed off 2026-10-04. Owner still owes a manual emulator run for the rider/driver apps (headless box couldn't). Decision: RN apps use **Expo** SDK 57 (owner, 2026-10-04).
 - **Blockers:** none
 - **Review baseline:** none yet (M1's audit range starts at the repo's first commit)
 - **Last session note:** planning phase complete — SRS, use cases, milestone files, and project skills written; implementation not started.
@@ -66,8 +66,8 @@ Statuses live here (milestone files describe content only, they are never edited
 | M1-T3 | Admin web shell | done |
 | M1-T4 | Rider app shell | done |
 | M1-T5 | Driver app shell | done |
-| M1-T6 | Cross-client integration smoke | in_progress |
-| M1-T7 | Review audit | todo |
+| M1-T6 | Cross-client integration smoke | done |
+| M1-T7 | Review audit | in_progress |
 
 ### M2 — Auth & accounts
 | Ticket | Title | Status |

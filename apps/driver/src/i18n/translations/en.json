@@ -15,6 +15,9 @@
     "direction": "Layout direction",
     "ltr": "Left to right",
     "rtl": "Right to left",
-    "restartNote": "Full right-to-left mirroring is applied after the app restarts."
+    "restartNote": "Full right-to-left mirroring is applied after the app restarts.",
+    "apiChecking": "Checking backend…",
+    "apiOffline": "Backend unreachable",
+    "apiVersion": "Backend version: {{version}}"
   }
 }

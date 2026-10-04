@@ -5,6 +5,11 @@
   "nav": {
     "dashboard": "Dashboard"
   },
+  "api": {
+    "checking": "Checking API…",
+    "version": "API v{{version}}",
+    "offline": "API unreachable"
+  },
   "language": {
     "switchTo": "العربية",
     "switchLabel": "Switch language"

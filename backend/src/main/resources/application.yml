@@ -41,3 +41,8 @@ logging:
   level:
     root: ${LOG_LEVEL:INFO}
     com.labby.backend: ${LOG_LEVEL_APP:INFO}
+
+labby:
+  cors:
+    # Comma-separated browser origins allowed to call /api/** (admin dashboard).
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

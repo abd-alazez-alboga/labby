@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 
+import { ApiStatus } from './ApiStatus';
+
 /**
  * Sidenav placeholder with the Labby brand.
  * Logo files under public/images/ are copies — the source of truth is
@@ -25,6 +27,9 @@ export function Sidenav() {
           {t('nav.dashboard')}
         </NavLink>
       </nav>
+      <div className="sidenav__footer">
+        <ApiStatus />
+      </div>
     </aside>
   );
 }

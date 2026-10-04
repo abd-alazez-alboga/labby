@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ApiStatus } from '../components/api-status';
 import { type AppLocale, SUPPORTED_LOCALES } from '../i18n/translations';
 import { useLocale } from '../i18n/locale-context';
 import { colors, fontSize, radius, spacing } from '../theme/tokens';
@@ -48,6 +49,7 @@ export default function SettingsScreen() {
         </View>
         <Text style={[styles.note, isRTL && styles.textRtl]}>{t('settings.rtlNote')}</Text>
       </View>
+      <ApiStatus />
     </View>
   );
 }

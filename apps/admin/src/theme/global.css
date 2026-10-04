@@ -191,3 +191,19 @@ a {
   padding: 2rem;
   color: var(--labby-text-muted);
 }
+
+/* ---------- API status (sidenav footer) ---------- */
+
+.sidenav__footer {
+  margin-block-start: auto;
+  padding: 0.75rem 1rem;
+}
+
+.api-status {
+  font-size: 0.75rem;
+  color: var(--labby-text-subtle);
+}
+
+.api-status--offline {
+  color: var(--labby-lilac-100);
+}
