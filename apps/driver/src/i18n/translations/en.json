@@ -1,0 +1,20 @@
+{
+  "app": {
+    "name": "Labby Driver"
+  },
+  "home": {
+    "title": "Welcome to Labby Driver",
+    "subtitle": "Your trips will appear here once rides go live.",
+    "goToSettings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "english": "English",
+    "arabic": "العربية",
+    "direction": "Layout direction",
+    "ltr": "Left to right",
+    "rtl": "Right to left",
+    "restartNote": "Full right-to-left mirroring is applied after the app restarts."
+  }
+}

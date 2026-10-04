@@ -25,7 +25,7 @@
 ## Current state
 
 - **Current milestone:** M1 — Foundation & scaffolding (`in_progress`)
-- **In progress now:** nothing — M1-T1 done; next: M1-T2/T3/T4/T5 (parallel group per M01 dependency plan)
+- **In progress now:** M1-T6 (cross-client integration smoke). T2–T5 signed off 2026-10-04; owner still owes a manual emulator run for the rider/driver apps (headless box couldn't). Decision: RN apps use **Expo** SDK 57 (owner, 2026-10-04).
 - **Blockers:** none
 - **Review baseline:** none yet (M1's audit range starts at the repo's first commit)
 - **Last session note:** planning phase complete — SRS, use cases, milestone files, and project skills written; implementation not started.
@@ -62,11 +62,11 @@ Statuses live here (milestone files describe content only, they are never edited
 | Ticket | Title | Status |
 |---|---|---|
 | M1-T1 | Monorepo layout & root tooling | done |
-| M1-T2 | Backend skeleton | todo |
-| M1-T3 | Admin web shell | todo |
-| M1-T4 | Rider app shell | todo |
-| M1-T5 | Driver app shell | todo |
-| M1-T6 | Cross-client integration smoke | todo |
+| M1-T2 | Backend skeleton | done |
+| M1-T3 | Admin web shell | done |
+| M1-T4 | Rider app shell | done |
+| M1-T5 | Driver app shell | done |
+| M1-T6 | Cross-client integration smoke | in_progress |
 | M1-T7 | Review audit | todo |
 
 ### M2 — Auth & accounts
