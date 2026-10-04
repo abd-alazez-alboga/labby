@@ -24,11 +24,11 @@
 
 ## Current state
 
-- **Current milestone:** M1 — Foundation & scaffolding (`in_progress`)
-- **In progress now:** M1-T7 review audit (labby-review over all of M1). T6 signed off 2026-10-04. Owner still owes a manual emulator run for the rider/driver apps (headless box couldn't). Decision: RN apps use **Expo** SDK 57 (owner, 2026-10-04).
-- **Blockers:** none
-- **Review baseline:** none yet (M1's audit range starts at the repo's first commit)
-- **Last session note:** planning phase complete — SRS, use cases, milestone files, and project skills written; implementation not started.
+- **Current milestone:** M1 complete (`review_passed`, 2026-10-04); next up: M2 — Auth & accounts (`todo`, not started)
+- **In progress now:** nothing
+- **Blockers:** none. Owner still owes a one-time manual emulator run of the rider/driver apps (headless box couldn't; documented partial in review-M01).
+- **Review baseline:** `372a53f` (M2's audit range = 372a53f..HEAD at its close)
+- **Last session note:** M1 done end-to-end: audit "Pass with comments" → 9 findings fixed in 372a53f → re-audit Pass (see docs/reviews/review-M01.md). RN apps are Expo SDK 57. Remember: M2-T6 needs the owner's SMS gateway token/endpoint.
 
 ---
 
@@ -36,7 +36,7 @@
 
 | # | Milestone | File | Status |
 |---|---|---|---|
-| M1 | Foundation & scaffolding | `M01-foundation.md` | in_progress |
+| M1 | Foundation & scaffolding | `M01-foundation.md` | review_passed |
 | M2 | Auth & accounts | `M02-auth.md` | todo |
 | M3 | RBAC & admin foundation | `M03-rbac.md` | todo |
 | M4 | Regions & pricing config | `M04-regions.md` | todo |
@@ -67,7 +67,7 @@ Statuses live here (milestone files describe content only, they are never edited
 | M1-T4 | Rider app shell | done |
 | M1-T5 | Driver app shell | done |
 | M1-T6 | Cross-client integration smoke | done |
-| M1-T7 | Review audit | in_progress |
+| M1-T7 | Review audit | review_passed |
 
 ### M2 — Auth & accounts
 | Ticket | Title | Status |

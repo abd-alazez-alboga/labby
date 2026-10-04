@@ -157,3 +157,40 @@ All run on this machine during the audit (Docker available; headless — no emul
 | ArchUnit violation probe (isolated copy) | gate **fails correctly** — 2 rules violated, build fails |
 | Live boot probe | backend vs compose Postgres: health UP, Swagger 200, `/api/v1/meta` → `{"name":"labby-backend","version":"0.1.0"}` |
 | Live browser probe (admin) | shows "API v0.1.0" from the running backend; offline state shown when backend absent; EN↔AR flip sets `dir=rtl`/`lang=ar`, mirrors layout, persists choice |
+
+## Re-audit (372a53f)
+
+_Re-audited 2026-10-04 · fix commit `372a53f` ("fix m01 review findings") · HEAD = `372a53f`, working tree clean_
+
+### Finding resolution
+
+| Finding | Status | Evidence |
+|---|---|---|
+| **H1** flaky admin `language-rtl` test | **resolved** | Both tests in `apps/admin/src/test/language-rtl.test.tsx` now `await screen.findByText('The admin dashboard arrives in a later milestone.')` before interacting, matching the suggested fix. Admin suite run **3×**: 15/15 passed every run (RTL test 620 ms / 641 ms / 865 ms — well inside the window now that the lazy chunk is awaited). |
+| **H2** rider/driver meta call not on boot | **resolved** | `ApiStatus` is now mounted on `apps/rider/src/screens/home-screen.tsx:29` and `apps/driver/src/components/home-screen.tsx:36` (settings placement kept). `ApiStatus` fires `getMeta()` in a mount `useEffect`, so the smoke call fires at app boot. Coverage: dedicated `api-status` suites in both apps prove the ok and offline states; the home screen renders with `ApiStatus` mounted in `home-screen.test.tsx` (rider) and `shell.test.tsx` (driver, real route tree), kept deterministic by the new pending-fetch stub in each jest setup. Note: no test asserts `ApiStatus` specifically *on* the home screen — placement is source-verified; a one-line `findByTestId('api-status-…')` in the home tests would lock it in (nitpick, non-blocking). |
+| **W1** no typecheck in client `check` gates | **resolved** | `check` now chains typecheck in all three: admin `lint && format:check && typecheck && test` (`typecheck: tsc -b`), rider and driver `lint && typecheck && test` (`tsc --noEmit`). **Probe-verified in scratch copies** (outside the repo, node_modules symlinked, tsbuildinfo removed): a deliberate `const x: number = "not a number"` made `npm run typecheck` exit 2 in admin, rider, and driver. `&&` chaining means `check` fails with it. |
+| **W2** stale root README getting-started | **resolved** | `README.md:31-41` now gives the real quick-start; every claim verified: `make backend-check/admin-check/rider-check/driver-check` targets exist in the root Makefile, `db-up`/`run` in `backend/Makefile`, Vite default port 5173, Expo `~57.0.26` in both RN apps, all four sub-project README links resolve. |
+| **Info 1** CORS origins not trimmed | **resolved** | `CorsConfig.java:20-21` now maps `String::trim` over the split entries. |
+| **Info 2** hardcoded `"0.1.0"` in backend tests | **resolved** | `MetaIntegrationTest` now injects `BuildProperties` and asserts against `getName()`/`getVersion()` — the only test that was coupled to the real version. `MetaControllerTest`/`MetaServiceImplTest` still contain the literal `"0.1.0"`, but only as *mocked stub data* (the mock returns it and the test asserts pass-through), so a version bump cannot break them; no change needed there. |
+| **Info 3** rider version 1.0.0 | **resolved** | `apps/rider/package.json` → `0.1.0`; now aligned with backend, admin, driver, and rider `app.config.ts`. |
+| **Info 4** driver jest act()/i18next noise | **resolved** | Pending-fetch default stub added in `apps/driver/jest.setup.js` and `apps/rider/jest-setup.ts` (api-status suites override per test via `globalThis.fetch`); driver run shows no `act(...)` warning and no i18next re-init `console.error`. The remaining i18next Locize `console.info` banner is upstream promo output and was not part of the finding. |
+| **Info 5** missing `.githooks`/`make install-hooks` | **agreed ignored** | Deliberately not implemented for M1, per the original finding's own assessment ("Acceptable for M1; worth adding") and owner agreement. Recorded here so it is deferred, not silently dropped — revisit when backend tooling is next touched. |
+
+### Fix-commit hygiene
+
+- `372a53f` touches only files tied to the findings above plus this report file itself; no unrelated changes.
+- Commit message is short and imperative with **no attribution** of any kind; diff contains no secrets.
+- Incidental widening inside the fix: the api-status tests switched `global.fetch` → `globalThis.fetch` so the suite-level stub and per-test overrides compose — in scope for Info 4/H2, behavior-equivalent.
+
+### Test runs (this re-audit, all on this machine)
+
+| Command | Result |
+|---|---|
+| `apps/admin` suite ×3 (1× `npm run check` incl. new typecheck, 2× `npm run test`) | **green 3/3** — 15/15 tests each run; H1 test no longer flaky |
+| `make -C backend check` | **green** — 12/12 (7 ArchUnit, 3 integration incl. Testcontainers Postgres, 2 unit), Spotless + Checkstyle clean, BUILD SUCCESS |
+| `apps/rider npm run check` | **green** — lint + `tsc --noEmit` + 8 tests / 4 suites |
+| `apps/driver npm run check` | **green** — lint + `tsc --noEmit` + 10 tests / 4 suites, no act() noise |
+| root `make check` | **green** — exit 0 across backend + all three clients (previously exit 2 on the H1 flake) |
+| Typecheck probe (scratch copies, deliberate type error) | gate **fails correctly** in admin, rider, and driver (exit 2 each) |
+
+Re-audit verdict: Pass
