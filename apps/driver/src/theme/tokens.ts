@@ -38,6 +38,13 @@ export const colors = {
   textSecondary: '#463C58',
   textMuted: '#6E6780',
   textSubtle: '#B7AECB',
+
+  // Semantic feedback (RN-only addition for M2 form states; not in
+  // colors.scss, which holds brand colors only — replace if design adds them).
+  danger: '#B3261E',
+  dangerBg: '#FCEEEE',
+  success: '#1E7A46',
+  successBg: '#EAF6EF',
 } as const;
 
 /**

@@ -1,12 +1,21 @@
+import { Link } from 'expo-router';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ApiStatus } from './api-status';
+import { useOptionalAuth } from '../auth/AuthProvider';
 import { useLocale } from '../i18n/LocaleProvider';
 import { SUPPORTED_LANGUAGES } from '../i18n';
 import type { Language } from '../i18n';
 import { colors, radius, spacing } from '../theme/tokens';
+
+const ACCOUNT_LINKS = [
+  { href: '/profile-edit', labelKey: 'account.editProfile' },
+  { href: '/change-password', labelKey: 'account.changePassword' },
+  { href: '/change-phone', labelKey: 'account.changePhone' },
+  { href: '/delete-account', labelKey: 'account.deleteAccount' },
+] as const;
 
 const LANGUAGE_LABEL_KEYS: Record<Language, string> = {
   en: 'settings.english',
@@ -16,10 +25,42 @@ const LANGUAGE_LABEL_KEYS: Record<Language, string> = {
 export function SettingsScreen() {
   const { t } = useTranslation();
   const { language, direction, setLanguage } = useLocale();
+  // Optional: unit tests render this screen without an AuthProvider, and
+  // the account section only makes sense for a signed-in session anyway.
+  const auth = useOptionalAuth();
   const textAlign = direction === 'rtl' ? 'right' : 'left';
 
   return (
     <View style={styles.container} testID="settings-screen">
+      {auth?.status === 'signedIn' && auth.user ? (
+        <>
+          <Text style={[styles.sectionLabel, { textAlign }]}>
+            {t('account.section')}
+          </Text>
+          <View style={styles.accountList}>
+            {ACCOUNT_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={[styles.accountLink, { textAlign }]}
+                testID={`settings-link-${item.href.slice(1)}`}
+              >
+                {t(item.labelKey)}
+              </Link>
+            ))}
+            <Pressable
+              accessibilityRole="button"
+              testID="settings-logout"
+              onPress={() => auth.signOut()}
+              style={styles.logoutRow}
+            >
+              <Text style={[styles.logoutText, { textAlign }]}>
+                {t('account.logout')}
+              </Text>
+            </Pressable>
+          </View>
+        </>
+      ) : null}
       <Text style={[styles.sectionLabel, { textAlign }]}>
         {t('settings.language')}
       </Text>
@@ -129,5 +170,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.md,
+  },
+  accountList: {
+    backgroundColor: colors.white,
+    borderColor: colors.lilac200,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  accountLink: {
+    color: colors.text,
+    fontSize: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomColor: colors.lilac200,
+    borderBottomWidth: 1,
+  },
+  logoutRow: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  logoutText: {
+    color: colors.danger,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

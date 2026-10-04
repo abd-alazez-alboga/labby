@@ -1,0 +1,217 @@
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import {
+  BodyText,
+  ErrorBanner,
+  Field,
+  FormScreen,
+  InfoBanner,
+  PrimaryButton,
+  ScreenTitle,
+  TextButton,
+  errorKeyFor,
+} from './ui';
+import { useCooldown } from './use-cooldown';
+import {
+  passwordResetComplete,
+  passwordResetStart,
+  passwordResetVerify,
+} from '../../api/auth';
+import {
+  OTP_PATTERN,
+  OTP_RESEND_COOLDOWN_SECONDS,
+  PASSWORD_MIN_LENGTH,
+  PHONE_PATTERN,
+} from '../../api/auth-types';
+
+type Step = 'phone' | 'code' | 'password' | 'done';
+
+/**
+ * UC-S-04 — 3-step password reset. The start step always answers 204
+ * (no account enumeration, NFR-S3), so the UI shows a neutral
+ * "if this number is registered" message.
+ */
+export function ForgotPasswordScreen() {
+  const { t } = useTranslation();
+  const router = useRouter();
+
+  const [step, setStep] = useState<Step>('phone');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const cooldown = useCooldown();
+
+  const sendCode = async (isResend: boolean) => {
+    const trimmed = phone.trim();
+    if (!PHONE_PATTERN.test(trimmed)) {
+      setFieldErrorKey('auth.validation.phone');
+      return;
+    }
+    setFieldErrorKey(null);
+    setErrorKey(null);
+    setBusy(true);
+    try {
+      await passwordResetStart(trimmed);
+      cooldown.start(OTP_RESEND_COOLDOWN_SECONDS);
+      setCode('');
+      if (!isResend) setStep('code');
+    } catch (error) {
+      // The contract keeps this neutral (204 even on unknown phones);
+      // anything else is a transport/server failure.
+      setErrorKey(errorKeyFor(error, {}));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    if (!OTP_PATTERN.test(code.trim())) {
+      setFieldErrorKey('auth.validation.code');
+      return;
+    }
+    setFieldErrorKey(null);
+    setErrorKey(null);
+    setBusy(true);
+    try {
+      const result = await passwordResetVerify(phone.trim(), code.trim());
+      setResetToken(result.resetToken);
+      setStep('password');
+    } catch (error) {
+      setErrorKey(
+        errorKeyFor(error, {
+          400: 'auth.otp.wrongCode',
+          410: 'auth.otp.expired',
+        }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const complete = async () => {
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      setFieldErrorKey('auth.validation.password');
+      return;
+    }
+    setFieldErrorKey(null);
+    setErrorKey(null);
+    setBusy(true);
+    try {
+      await passwordResetComplete(resetToken, newPassword);
+      setStep('done');
+    } catch (error) {
+      setErrorKey(errorKeyFor(error, { 400: 'auth.reset.invalid' }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <FormScreen testID={`reset-step-${step}`}>
+      <ScreenTitle>{t('auth.reset.title')}</ScreenTitle>
+      {errorKey ? (
+        <ErrorBanner testID="reset-error">{t(errorKey)}</ErrorBanner>
+      ) : null}
+
+      {step === 'phone' ? (
+        <>
+          <Field
+            label={t('auth.fields.phone')}
+            placeholder={t('auth.fields.phonePlaceholder')}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            value={phone}
+            onChangeText={setPhone}
+            error={
+              fieldErrorKey === 'auth.validation.phone' ? t(fieldErrorKey) : null
+            }
+            testID="reset-phone"
+          />
+          <PrimaryButton
+            title={t('auth.reset.phoneCta')}
+            onPress={() => sendCode(false)}
+            busy={busy}
+            testID="reset-send-code"
+          />
+        </>
+      ) : null}
+
+      {step === 'code' ? (
+        <>
+          <BodyText testID="reset-neutral-note">
+            {t('auth.reset.neutralSent')}
+          </BodyText>
+          <Field
+            label={t('auth.fields.code')}
+            keyboardType="number-pad"
+            maxLength={6}
+            value={code}
+            onChangeText={setCode}
+            error={
+              fieldErrorKey === 'auth.validation.code' ? t(fieldErrorKey) : null
+            }
+            testID="reset-code"
+          />
+          <PrimaryButton
+            title={t('auth.reset.verifyCta')}
+            onPress={verifyCode}
+            busy={busy}
+            testID="reset-verify"
+          />
+          <TextButton
+            title={
+              cooldown.active
+                ? t('auth.otp.resendIn', { seconds: cooldown.remaining })
+                : t('auth.otp.resend')
+            }
+            onPress={() => sendCode(true)}
+            disabled={cooldown.active || busy}
+            testID="reset-resend"
+          />
+        </>
+      ) : null}
+
+      {step === 'password' ? (
+        <>
+          <Field
+            label={t('auth.fields.newPassword')}
+            secureTextEntry
+            autoCapitalize="none"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            error={
+              fieldErrorKey === 'auth.validation.password'
+                ? t(fieldErrorKey)
+                : null
+            }
+            testID="reset-new-password"
+          />
+          <PrimaryButton
+            title={t('auth.reset.completeCta')}
+            onPress={complete}
+            busy={busy}
+            testID="reset-complete"
+          />
+        </>
+      ) : null}
+
+      {step === 'done' ? (
+        <>
+          <InfoBanner testID="reset-done">{t('auth.reset.doneTitle')}</InfoBanner>
+          <BodyText>{t('auth.reset.doneBody')}</BodyText>
+          <PrimaryButton
+            title={t('auth.login.title')}
+            onPress={() => router.replace('/login')}
+            testID="reset-go-login"
+          />
+        </>
+      ) : null}
+    </FormScreen>
+  );
+}

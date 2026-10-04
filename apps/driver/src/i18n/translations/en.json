@@ -19,5 +19,127 @@
     "apiChecking": "Checking backend…",
     "apiOffline": "Backend unreachable",
     "apiVersion": "Backend version: {{version}}"
+  },
+  "auth": {
+    "welcome": {
+      "title": "Drive with Labby",
+      "subtitle": "Log in or create an account to start driving.",
+      "login": "Log in",
+      "register": "Create account"
+    },
+    "fields": {
+      "phone": "Phone number",
+      "phonePlaceholder": "+963XXXXXXXXX",
+      "password": "Password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "name": "Full name",
+      "code": "Verification code"
+    },
+    "validation": {
+      "phone": "Enter a valid phone number.",
+      "passwordRequired": "Enter your password.",
+      "password": "The password must be at least 8 characters.",
+      "name": "Enter your name.",
+      "code": "Enter the 6-digit code."
+    },
+    "otp": {
+      "sentTo": "We sent a 6-digit code to {{phone}}.",
+      "resend": "Resend code",
+      "resendIn": "Resend code ({{seconds}}s)",
+      "wrongCode": "That code is not correct. Try again.",
+      "expired": "That code expired or was tried too many times. Request a new one.",
+      "rateLimited": "Too many codes requested. Please wait before trying again."
+    },
+    "login": {
+      "title": "Log in",
+      "submit": "Log in",
+      "invalidCredentials": "Phone number or password is incorrect.",
+      "noRole": "This account cannot access the Labby Driver app.",
+      "tooManyAttempts": "Too many failed attempts. Try again later.",
+      "forgot": "Forgot password?",
+      "noAccount": "New to Labby? Create an account"
+    },
+    "register": {
+      "title": "Create account",
+      "phoneCta": "Send code",
+      "verifyCta": "Verify",
+      "completeCta": "Create account",
+      "detailsHint": "Choose your name and a password of at least 8 characters.",
+      "phoneTaken": "This phone number is already registered. Log in instead.",
+      "goToLogin": "Go to log in",
+      "invalidToken": "Your verification expired. Please start over.",
+      "startOver": "Start over",
+      "reactivatedTitle": "Welcome back — your account has been reactivated.",
+      "reactivatedBody": "Your rides, wallet, and ratings are all still here. Log in with your old password, or reset it if you forgot it."
+    },
+    "reset": {
+      "title": "Reset password",
+      "phoneCta": "Send code",
+      "neutralSent": "If this number is registered, we sent it a 6-digit code.",
+      "verifyCta": "Verify",
+      "completeCta": "Set new password",
+      "doneTitle": "Password changed.",
+      "doneBody": "All other sessions were signed out. Log in with your new password.",
+      "invalid": "The reset could not be completed. Please start over."
+    },
+    "errors": {
+      "network": "Something went wrong. Check your connection and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "gate": {
+    "title": "Become a Labby driver",
+    "body": "Your account does not have an active driver role yet. The driver application will open right here soon — stay tuned.",
+    "signedInAs": "Signed in as {{name}}",
+    "logout": "Log out"
+  },
+  "account": {
+    "section": "Account",
+    "editProfile": "Edit profile",
+    "changePassword": "Change password",
+    "changePhone": "Change phone number",
+    "deleteAccount": "Delete account",
+    "logout": "Log out",
+    "profile": {
+      "title": "Edit profile",
+      "save": "Save",
+      "saved": "Profile updated.",
+      "language": "Account language",
+      "photo": "Profile photo",
+      "photoOnFile": "A profile photo is on file.",
+      "choosePhoto": "Choose photo",
+      "photoSet": "Profile photo updated.",
+      "photoError": "That image cannot be used (unsupported type or size). Try another one."
+    },
+    "password": {
+      "title": "Change password",
+      "codeHint": "Changing your password needs a verification code sent to your phone.",
+      "sendCode": "Send verification code",
+      "codeSent": "We sent a code to your phone.",
+      "submit": "Change password",
+      "invalid": "Wrong current password or verification code.",
+      "done": "Password changed. All other sessions were signed out."
+    },
+    "phone": {
+      "title": "Change phone number",
+      "newPhone": "New phone number",
+      "startCta": "Continue",
+      "verifyCta": "Verify",
+      "taken": "That phone number is already in use.",
+      "currentCodeHint": "Enter the code we sent to your current phone.",
+      "newCodeHint": "Enter the code we sent to your new phone.",
+      "restart": "The code expired or was tried too many times. Start the phone change again.",
+      "done": "Phone number updated.",
+      "changeAgain": "Change it again"
+    },
+    "delete": {
+      "title": "Delete account",
+      "consequences": "Deleting your account signs you out everywhere and ends your access immediately. Your rides, wallet, and ratings are kept, and registering again with the same phone number reactivates your account.",
+      "sendCode": "Send verification code",
+      "confirm": "Delete my account",
+      "wrongCode": "Wrong or expired verification code.",
+      "blocked": "Your account cannot be deleted right now — finish any active ride and settle your balance first."
+    }
   }
 }

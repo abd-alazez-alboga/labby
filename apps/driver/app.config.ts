@@ -43,6 +43,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-localization',
+    'expo-secure-store',
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'Labby Driver uses your photo library to set your profile photo.',
+      },
+    ],
     [
       'expo-splash-screen',
       {
