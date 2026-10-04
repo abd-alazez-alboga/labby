@@ -1,0 +1,59 @@
+# --- Env & secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.jks
+*.keystore
+*.p12
+google-services.json
+GoogleService-Info.plist
+firebase-service-account*.json
+
+# --- Java / Maven ---
+target/
+*.class
+*.jar
+!**/maven-wrapper.jar
+*.war
+hs_err_pid*
+
+# --- Node ---
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# --- React Native / Expo ---
+.expo/
+.expo-shared/
+*.ipa
+*.apk
+*.aab
+android/.gradle/
+android/app/build/
+android/local.properties
+ios/Pods/
+ios/build/
+*.xcworkspace/xcuserdata/
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Logs & misc ---
+*.log
+logs/
+
+# --- Claude local ---
+.claude/settings.local.json

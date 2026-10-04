@@ -24,8 +24,8 @@
 
 ## Current state
 
-- **Current milestone:** M1 — Foundation & scaffolding (`todo`, not started)
-- **In progress now:** nothing
+- **Current milestone:** M1 — Foundation & scaffolding (`in_progress`)
+- **In progress now:** nothing — M1-T1 done; next: M1-T2/T3/T4/T5 (parallel group per M01 dependency plan)
 - **Blockers:** none
 - **Review baseline:** none yet (M1's audit range starts at the repo's first commit)
 - **Last session note:** planning phase complete — SRS, use cases, milestone files, and project skills written; implementation not started.
@@ -36,7 +36,7 @@
 
 | # | Milestone | File | Status |
 |---|---|---|---|
-| M1 | Foundation & scaffolding | `M01-foundation.md` | todo |
+| M1 | Foundation & scaffolding | `M01-foundation.md` | in_progress |
 | M2 | Auth & accounts | `M02-auth.md` | todo |
 | M3 | RBAC & admin foundation | `M03-rbac.md` | todo |
 | M4 | Regions & pricing config | `M04-regions.md` | todo |
@@ -61,7 +61,7 @@ Statuses live here (milestone files describe content only, they are never edited
 ### M1 — Foundation & scaffolding
 | Ticket | Title | Status |
 |---|---|---|
-| M1-T1 | Monorepo layout & root tooling | todo |
+| M1-T1 | Monorepo layout & root tooling | done |
 | M1-T2 | Backend skeleton | todo |
 | M1-T3 | Admin web shell | todo |
 | M1-T4 | Rider app shell | todo |
