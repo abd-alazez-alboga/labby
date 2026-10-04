@@ -24,8 +24,8 @@
 
 ## Current state
 
-- **Current milestone:** M1 complete (`review_passed`, 2026-10-04); next up: M2 — Auth & accounts (`todo`, not started)
-- **In progress now:** nothing
+- **Current milestone:** M2 — Auth & accounts (`in_progress`)
+- **In progress now:** M2-T2/T3/T4/T5 running in parallel (4 agents) against backend/docs/api/auth-v1.yaml. T1 done.
 - **Blockers:** none. Owner still owes a one-time manual emulator run of the rider/driver apps (headless box couldn't; documented partial in review-M01).
 - **Review baseline:** `372a53f` (M2's audit range = 372a53f..HEAD at its close)
 - **Last session note:** M1 done end-to-end: audit "Pass with comments" → 9 findings fixed in 372a53f → re-audit Pass (see docs/reviews/review-M01.md). RN apps are Expo SDK 57. Remember: M2-T6 needs the owner's SMS gateway token/endpoint.
@@ -37,7 +37,7 @@
 | # | Milestone | File | Status |
 |---|---|---|---|
 | M1 | Foundation & scaffolding | `M01-foundation.md` | review_passed |
-| M2 | Auth & accounts | `M02-auth.md` | todo |
+| M2 | Auth & accounts | `M02-auth.md` | in_progress |
 | M3 | RBAC & admin foundation | `M03-rbac.md` | todo |
 | M4 | Regions & pricing config | `M04-regions.md` | todo |
 | M5 | Driver onboarding | `M05-driver-onboarding.md` | todo |
@@ -72,11 +72,11 @@ Statuses live here (milestone files describe content only, they are never edited
 ### M2 — Auth & accounts
 | Ticket | Title | Status |
 |---|---|---|
-| M2-T1 | Auth contract & migrations | todo |
-| M2-T2 | Auth backend | todo |
-| M2-T3 | Rider app auth screens | todo |
-| M2-T4 | Driver app auth screens | todo |
-| M2-T5 | Admin login | todo |
+| M2-T1 | Auth contract & migrations | done |
+| M2-T2 | Auth backend | in_progress |
+| M2-T3 | Rider app auth screens | in_progress |
+| M2-T4 | Driver app auth screens | in_progress |
+| M2-T5 | Admin login | in_progress |
 | M2-T6 | Auth integration (real SMS) | todo |
 | M2-T7 | Review audit | todo |
 

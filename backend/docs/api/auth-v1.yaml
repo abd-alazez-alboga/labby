@@ -1,0 +1,450 @@
+openapi: 3.1.0
+info:
+  title: Labby Auth & Accounts API (M2 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M2. Client tickets (M2-T3/T4/T5) build against this
+    document; the backend (M2-T2) must implement it exactly. Springdoc output is the living
+    mirror once implemented — on conflict after T2 lands, the implementation is the truth.
+    SRS: AUTH-01..07, USR-01..07, ES-01/02. All responses are JSON; errors use the global
+    ErrorResponse shape from M1 (status, message, fieldErrors?).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Auth
+  - name: Me
+
+paths:
+  /api/v1/auth/register/start:
+    post:
+      tags: [Auth]
+      summary: Request a registration OTP for a phone number
+      description: >
+        Sends a 6-digit OTP (purpose `register`) via SMS. Rate limits (AUTH-04): 60s resend
+        cooldown, max 5 codes/phone/hour -> 429. If the phone belongs to an active or
+        suspended account -> 409. A deleted account's phone is allowed (reactivation path).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterStartRequest' }
+      responses:
+        '204': { description: OTP sent }
+        '409': { description: Phone already registered to a usable account }
+        '429': { description: Resend cooldown or hourly cap hit }
+
+  /api/v1/auth/register/verify:
+    post:
+      tags: [Auth]
+      summary: Verify the registration OTP
+      description: >
+        On success for a NEW phone -> mode `new` + short-lived registrationToken for
+        /register/complete. For a DELETED account's phone -> the account is reactivated
+        immediately (mode `reactivated`, no token; history/wallet/ratings intact — USR-07);
+        the user then logs in with their old password or uses password reset.
+        Wrong code -> 400 (attempts counted, max 5 per code); expired -> 410.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterVerifyRequest' }
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegisterVerifyResponse' }
+        '400': { description: Wrong code (attempt counted) }
+        '410': { description: Code expired or attempts exhausted — request a new one }
+
+  /api/v1/auth/register/complete:
+    post:
+      tags: [Auth]
+      summary: Complete a new registration
+      description: >
+        Creates the account (state `active`), grants the `rider` role (every account gets it,
+        USR-01), stores the bcrypt password hash, and returns a session. The Driver app
+        additionally routes the user into the driver-application flow (M5) after this.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterCompleteRequest' }
+      responses:
+        '201':
+          description: Account created, session issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokensResponse' }
+        '400': { description: Invalid/expired registration token or validation failure }
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with phone + password
+      description: >
+        Never OTP-gated (AUTH-05). `client` names the calling app; the account must hold a
+        role valid for it: rider app -> rider role; driver app -> rider or driver role (an
+        account without the driver role sees the apply-to-drive gate in-app); admin -> admin
+        role, else 403. Deleted accounts behave as nonexistent (401). A suspended role still
+        logs in — enforcement happens per feature (USR-04). Repeated failures are throttled
+        (429, NFR-S3).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Session issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokensResponse' }
+        '401': { description: Bad credentials or deleted account (indistinguishable) }
+        '403': { description: Account holds no role valid for this client }
+        '429': { description: Too many failed attempts }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate the refresh token
+      description: Old refresh token is revoked; a new pair is issued. Reuse of a revoked token revokes the whole family (401).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: New pair
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokensResponse' }
+        '401': { description: Unknown, expired, or revoked token }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Invalidate the current session
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '204': { description: Refresh token revoked }
+
+  /api/v1/auth/password-reset/start:
+    post:
+      tags: [Auth]
+      summary: Request a password-reset OTP
+      description: >
+        Always 204 whether or not the phone exists (no account enumeration, NFR-S3); an OTP
+        (purpose `reset`) is sent only when it does. AUTH-04 limits apply (429 on cooldown/cap
+        — only for phones that exist, surfaced identically as 204 to stay neutral; the
+        implementation simply skips sending).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordResetStartRequest' }
+      responses:
+        '204': { description: If the phone exists, a code was sent }
+
+  /api/v1/auth/password-reset/verify:
+    post:
+      tags: [Auth]
+      summary: Verify the reset OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordResetVerifyRequest' }
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordResetVerifyResponse' }
+        '400': { description: Wrong code (attempt counted) }
+        '410': { description: Code expired or attempts exhausted }
+
+  /api/v1/auth/password-reset/complete:
+    post:
+      tags: [Auth]
+      summary: Set a new password after a verified reset
+      description: All existing sessions (refresh tokens) are revoked (AUTH-03).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordResetCompleteRequest' }
+      responses:
+        '204': { description: Password changed, sessions revoked }
+        '400': { description: Invalid/expired reset token or weak password }
+
+  /api/v1/users/me/2fa/request:
+    post:
+      tags: [Me]
+      summary: Request a 2FA OTP for a sensitive operation
+      description: Sends an OTP (purpose `2fa`) to the account's own phone. AUTH-04 limits -> 429.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Code sent }
+        '429': { description: Cooldown or hourly cap }
+
+  /api/v1/users/me:
+    get:
+      tags: [Me]
+      summary: Get the own profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+    put:
+      tags: [Me]
+      summary: Update name and language
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProfileRequest' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+    delete:
+      tags: [Me]
+      summary: Soft-delete the own account (2FA)
+      description: >
+        State -> `deleted`, data retained, sessions revoked; re-registering the phone
+        reactivates (USR-07). Blocked while preconditions fail (e.g. active ride, driver debt
+        below floor — enforced from the milestones that introduce them) -> 409.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeleteAccountRequest' }
+      responses:
+        '204': { description: Account soft-deleted }
+        '400': { description: Wrong/expired OTP }
+        '409': { description: Deletion blocked by an active precondition }
+
+  /api/v1/users/me/password:
+    put:
+      tags: [Me]
+      summary: Change password (2FA)
+      description: Requires current password AND a valid 2FA OTP; other sessions revoked (AUTH-05).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '204': { description: Changed; other sessions revoked }
+        '400': { description: Wrong current password or OTP }
+
+  /api/v1/users/me/phone-change/start:
+    post:
+      tags: [Me]
+      summary: 'Phone change step 1: declare the new phone'
+      description: New phone must not belong to an active/suspended account (409). Sends OTP to the CURRENT phone.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PhoneChangeStartRequest' }
+      responses:
+        '204': { description: Code sent to the current phone }
+        '409': { description: New phone already in use }
+
+  /api/v1/users/me/phone-change/verify-current:
+    post:
+      tags: [Me]
+      summary: 'Phone change step 2: prove the current phone'
+      description: On success, sends an OTP to the NEW phone.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PhoneChangeVerifyRequest' }
+      responses:
+        '204': { description: Code sent to the new phone }
+        '400': { description: Wrong code }
+        '410': { description: Expired / attempts exhausted — restart the flow }
+
+  /api/v1/users/me/phone-change/complete:
+    post:
+      tags: [Me]
+      summary: 'Phone change step 3: prove the new phone'
+      description: Phone updated; identity continuity preserved (rides, wallet, ratings untouched). Nothing mutates on failure (ES-02).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PhoneChangeVerifyRequest' }
+      responses:
+        '200':
+          description: Updated profile with the new phone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '400': { description: Wrong code }
+        '410': { description: Expired / attempts exhausted — restart the flow }
+
+  /api/v1/users/me/photo:
+    put:
+      tags: [Me]
+      summary: Upload/replace the profile photo
+      description: Multipart image; stored privately, served via permission-checked URLs (NFR-S2).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+              required: [file]
+      responses:
+        '200':
+          description: Updated profile (photoUrl set)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '400': { description: Unsupported type or size }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Phone: { type: string, pattern: '^\+?[0-9]{8,15}$', examples: ['+963900000001'] }
+    OtpCode: { type: string, pattern: '^[0-9]{6}$' }
+    Password: { type: string, minLength: 8, maxLength: 72 }
+
+    RegisterStartRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+    RegisterVerifyRequest:
+      type: object
+      required: [phone, code]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+        code: { $ref: '#/components/schemas/OtpCode' }
+    RegisterVerifyResponse:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [new, reactivated] }
+        registrationToken: { type: [string, 'null'], description: Present only when mode=new }
+    RegisterCompleteRequest:
+      type: object
+      required: [registrationToken, password, name]
+      properties:
+        registrationToken: { type: string }
+        password: { $ref: '#/components/schemas/Password' }
+        name: { type: string, maxLength: 100 }
+    LoginRequest:
+      type: object
+      required: [phone, password, client]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+        password: { type: string }
+        client: { type: string, enum: [rider, driver, admin] }
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    AuthTokensResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresInSeconds, user]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresInSeconds: { type: integer }
+        user: { $ref: '#/components/schemas/UserProfile' }
+    PasswordResetStartRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+    PasswordResetVerifyRequest:
+      type: object
+      required: [phone, code]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+        code: { $ref: '#/components/schemas/OtpCode' }
+    PasswordResetVerifyResponse:
+      type: object
+      required: [resetToken]
+      properties:
+        resetToken: { type: string }
+    PasswordResetCompleteRequest:
+      type: object
+      required: [resetToken, newPassword]
+      properties:
+        resetToken: { type: string }
+        newPassword: { $ref: '#/components/schemas/Password' }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, otpCode, newPassword]
+      properties:
+        currentPassword: { type: string }
+        otpCode: { $ref: '#/components/schemas/OtpCode' }
+        newPassword: { $ref: '#/components/schemas/Password' }
+    PhoneChangeStartRequest:
+      type: object
+      required: [newPhone]
+      properties:
+        newPhone: { $ref: '#/components/schemas/Phone' }
+    PhoneChangeVerifyRequest:
+      type: object
+      required: [code]
+      properties:
+        code: { $ref: '#/components/schemas/OtpCode' }
+    DeleteAccountRequest:
+      type: object
+      required: [otpCode]
+      properties:
+        otpCode: { $ref: '#/components/schemas/OtpCode' }
+    UpdateProfileRequest:
+      type: object
+      required: [name, language]
+      properties:
+        name: { type: string, maxLength: 100 }
+        language: { type: string, enum: [en, ar] }
+    RoleAssignment:
+      type: object
+      required: [role, state]
+      properties:
+        role: { type: string, enum: [rider, driver, admin] }
+        state: { type: string, enum: [active, suspended] }
+    UserProfile:
+      type: object
+      required: [id, phone, name, language, state, roles]
+      properties:
+        id: { type: string, format: uuid }
+        phone: { $ref: '#/components/schemas/Phone' }
+        name: { type: string }
+        language: { type: string, enum: [en, ar] }
+        photoUrl: { type: [string, 'null'] }
+        state: { type: string, enum: [active, suspended, deleted] }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/RoleAssignment' }
