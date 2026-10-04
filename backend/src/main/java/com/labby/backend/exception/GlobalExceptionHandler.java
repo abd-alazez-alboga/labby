@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /** Maps exceptions to JSON {@link ErrorResponse} payloads. */
 @Slf4j
@@ -36,6 +37,16 @@ public class GlobalExceptionHandler {
         .body(
             ErrorResponse.ofValidation(
                 status.value(), status.getReasonPhrase(), "Validation failed", fieldErrors));
+  }
+
+  /** Oversized multipart uploads map to 400 per the auth contract (photo upload). */
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.of(
+                status.value(), status.getReasonPhrase(), "Uploaded file is too large"));
   }
 
   /** Catch-all: never leak internals, always log. */

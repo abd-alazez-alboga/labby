@@ -1,0 +1,87 @@
+package com.labby.backend.model;
+
+import com.labby.backend.enums.Role;
+import com.labby.backend.enums.RoleState;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+/** A role held by an account with its own state — role-level granularity per USR-01/USR-04. */
+@Entity
+@Table(name = "role_assignments")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
+public class RoleAssignment {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Column(name = "role_assignment_id")
+  private UUID id;
+
+  @Column(name = "user_id", nullable = false)
+  private UUID userId;
+
+  @Column(name = "role", nullable = false, length = 16)
+  private Role role;
+
+  @Builder.Default
+  @Column(name = "state", nullable = false, length = 16)
+  private RoleState state = RoleState.ACTIVE;
+
+  @Column(name = "granted_at", nullable = false)
+  private Instant grantedAt;
+
+  @Column(name = "created_at", nullable = false)
+  private Instant createdAt;
+
+  @Column(name = "updated_at", nullable = false)
+  private Instant updatedAt;
+
+  @PrePersist
+  void onCreate() {
+    Instant now = Instant.now();
+    createdAt = now;
+    updatedAt = now;
+    if (grantedAt == null) {
+      grantedAt = now;
+    }
+  }
+
+  @PreUpdate
+  void onUpdate() {
+    updatedAt = Instant.now();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof RoleAssignment that)) {
+      return false;
+    }
+    return id != null && id.equals(that.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(id);
+  }
+}
