@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ApiStatus } from '../components/api-status';
 import { useLocale } from '../i18n/locale-context';
 import { colors, fontSize, radius, spacing } from '../theme/tokens';
 
@@ -25,6 +26,7 @@ export default function HomeScreen() {
       >
         <Text style={styles.settingsButtonLabel}>{t('home.openSettings')}</Text>
       </Pressable>
+      <ApiStatus />
     </View>
   );
 }

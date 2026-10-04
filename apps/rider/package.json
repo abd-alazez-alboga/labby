@@ -1,6 +1,6 @@
 {
   "name": "labby-rider",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -9,8 +9,9 @@
     "ios": "expo start --ios",
     "test": "jest --ci",
     "lint": "expo lint",
-    "check": "npm run lint && npm run test",
-    "build": "expo export --platform android --output-dir dist && tsc --noEmit"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "build": "expo export --platform android --output-dir dist && tsc --noEmit",
+    "typecheck": "tsc --noEmit"
   },
   "jest": {
     "preset": "jest-expo",

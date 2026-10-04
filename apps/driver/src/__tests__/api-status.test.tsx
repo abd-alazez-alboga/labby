@@ -14,11 +14,11 @@ describe('ApiStatus (meta smoke call)', () => {
 
   afterEach(() => {
     // @ts-expect-error -- test-managed global
-    delete global.fetch;
+    delete globalThis.fetch;
   });
 
   it('shows the backend version when the meta call succeeds', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
       text: async () => JSON.stringify({ name: 'labby-backend', version: '0.1.0' }),
@@ -32,14 +32,14 @@ describe('ApiStatus (meta smoke call)', () => {
 
     expect(await screen.findByTestId('api-status-ok')).toBeTruthy();
     expect(screen.getByText('Backend version: 0.1.0')).toBeTruthy();
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/meta'),
       expect.anything(),
     );
   });
 
   it('shows a friendly offline state when the backend is unreachable', async () => {
-    global.fetch = jest
+    globalThis.fetch = jest
       .fn()
       .mockRejectedValue(new TypeError('Network request failed')) as unknown as typeof fetch;
 

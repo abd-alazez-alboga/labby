@@ -15,6 +15,9 @@ describe('language switching', () => {
     const user = userEvent.setup();
     renderShell();
 
+    // Wait for the lazy-loaded dashboard chunk before interacting — clicking
+    // earlier races the Suspense resolution and makes the test flaky (H1).
+    await screen.findByText('The admin dashboard arrives in a later milestone.');
     expect(document.documentElement.getAttribute('dir')).toBe('ltr');
 
     await user.click(screen.getByRole('button', { name: 'Switch language' }));
@@ -30,6 +33,7 @@ describe('language switching', () => {
     const user = userEvent.setup();
     renderShell();
 
+    await screen.findByText('The admin dashboard arrives in a later milestone.');
     await user.click(screen.getByRole('button', { name: 'Switch language' }));
     expect(document.documentElement.getAttribute('dir')).toBe('rtl');
 

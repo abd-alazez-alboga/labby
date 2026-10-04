@@ -28,13 +28,17 @@ OSRM for maps and routing.
 
 ## Getting started
 
-Root `make help` lists everything. Per sub-project (each section is filled in by its
-scaffolding ticket):
+Root `make help` lists everything; `make check` runs every sub-project's gate.
 
-- **Backend** — arrives with M1-T2 (`make backend-check`, docker-compose Postgres).
-- **Admin dashboard** — arrives with M1-T3.
-- **Rider app** — arrives with M1-T4.
-- **Driver app** — arrives with M1-T5.
+- **Backend** ([backend/README.md](backend/README.md)) — `make -C backend db-up` (compose
+  Postgres), then `make -C backend run`; health at `:8080/actuator/health`, Swagger at
+  `/swagger-ui.html`. Gate: `make backend-check`.
+- **Admin dashboard** ([apps/admin/README.md](apps/admin/README.md)) — `cd apps/admin &&
+  npm install && npm run dev` → `http://localhost:5173`. Gate: `make admin-check`.
+- **Rider app** ([apps/rider/README.md](apps/rider/README.md)) — `cd apps/rider &&
+  npm install && npx expo start` (Expo SDK 57). Gate: `make rider-check`.
+- **Driver app** ([apps/driver/README.md](apps/driver/README.md)) — `cd apps/driver &&
+  npm install && npx expo start`. Gate: `make driver-check`.
 
 ## Project skills (Claude)
 

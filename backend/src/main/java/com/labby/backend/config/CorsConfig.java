@@ -1,5 +1,6 @@
 package com.labby.backend.config;
 
+import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
@@ -16,7 +17,8 @@ public class CorsConfig implements WebMvcConfigurer {
   private final String[] allowedOrigins;
 
   public CorsConfig(@Value("${labby.cors.allowed-origins}") String allowedOrigins) {
-    this.allowedOrigins = allowedOrigins.split(",");
+    this.allowedOrigins =
+        Arrays.stream(allowedOrigins.split(",")).map(String::trim).toArray(String[]::new);
   }
 
   @Override

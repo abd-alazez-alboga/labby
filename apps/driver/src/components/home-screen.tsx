@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { ApiStatus } from './api-status';
 import { useLocale } from '../i18n/LocaleProvider';
 import { colors, gradients, radius, spacing } from '../theme/tokens';
 
@@ -32,6 +33,7 @@ export function HomeScreen() {
         <Link href="/settings" style={styles.settingsLink} testID="settings-link">
           {t('home.goToSettings')}
         </Link>
+        <ApiStatus />
       </View>
     </View>
   );
