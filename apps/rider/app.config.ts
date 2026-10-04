@@ -43,6 +43,13 @@ const config: ExpoConfig = {
       },
     ],
     'expo-localization',
+    'expo-secure-store',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Labby uses your photos to set your profile picture.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

@@ -1,0 +1,234 @@
+/**
+ * Typed client for the M2 auth & accounts contract
+ * (backend/docs/api/auth-v1.yaml). DTO names and shapes mirror the
+ * OpenAPI components 1:1 — the backend is built in parallel against the
+ * same document, so this module is the single place the rider app knows
+ * about auth endpoints.
+ */
+import { apiFetch } from './http-client';
+
+// ---------------------------------------------------------------------------
+// Schemas
+
+export type AppLanguage = 'en' | 'ar';
+export type AccountState = 'active' | 'suspended' | 'deleted';
+export type RoleName = 'rider' | 'driver' | 'admin';
+export type LoginClient = 'rider' | 'driver' | 'admin';
+
+export interface RoleAssignment {
+  role: RoleName;
+  state: 'active' | 'suspended';
+}
+
+export interface UserProfile {
+  id: string;
+  phone: string;
+  name: string;
+  language: AppLanguage;
+  photoUrl?: string | null;
+  state: AccountState;
+  roles: RoleAssignment[];
+}
+
+export interface AuthTokensResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresInSeconds: number;
+  user: UserProfile;
+}
+
+export type RegisterVerifyMode = 'new' | 'reactivated';
+
+export interface RegisterVerifyResponse {
+  mode: RegisterVerifyMode;
+  /** Present only when mode === 'new'. */
+  registrationToken?: string | null;
+}
+
+export interface RegisterCompleteRequest {
+  registrationToken: string;
+  password: string;
+  name: string;
+}
+
+export interface LoginRequest {
+  phone: string;
+  password: string;
+  client: LoginClient;
+}
+
+export interface PasswordResetVerifyResponse {
+  resetToken: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+export interface UpdateProfileRequest {
+  name: string;
+  language: AppLanguage;
+}
+
+/** Local image selected for the profile photo (React Native file descriptor). */
+export interface ProfilePhotoFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+// ---------------------------------------------------------------------------
+// Client-side validation helpers (mirror the contract patterns)
+
+export const PHONE_PATTERN = /^\+?[0-9]{8,15}$/;
+export const OTP_PATTERN = /^[0-9]{6}$/;
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 72;
+export const NAME_MAX_LENGTH = 100;
+
+export function isValidPhone(phone: string): boolean {
+  return PHONE_PATTERN.test(phone);
+}
+
+export function isValidOtp(code: string): boolean {
+  return OTP_PATTERN.test(code);
+}
+
+export function isValidPassword(password: string): boolean {
+  return password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH;
+}
+
+// ---------------------------------------------------------------------------
+// Auth endpoints
+
+export function registerStart(phone: string): Promise<void> {
+  return apiFetch<void>('/api/v1/auth/register/start', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export function registerVerify(phone: string, code: string): Promise<RegisterVerifyResponse> {
+  return apiFetch<RegisterVerifyResponse>('/api/v1/auth/register/verify', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code }),
+  });
+}
+
+export function registerComplete(request: RegisterCompleteRequest): Promise<AuthTokensResponse> {
+  return apiFetch<AuthTokensResponse>('/api/v1/auth/register/complete', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export function login(request: LoginRequest): Promise<AuthTokensResponse> {
+  return apiFetch<AuthTokensResponse>('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export function logout(refreshToken: string): Promise<void> {
+  return apiFetch<void>('/api/v1/auth/logout', {
+    method: 'POST',
+    auth: true,
+    body: JSON.stringify({ refreshToken }),
+  });
+}
+
+export function passwordResetStart(phone: string): Promise<void> {
+  return apiFetch<void>('/api/v1/auth/password-reset/start', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export function passwordResetVerify(
+  phone: string,
+  code: string,
+): Promise<PasswordResetVerifyResponse> {
+  return apiFetch<PasswordResetVerifyResponse>('/api/v1/auth/password-reset/verify', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code }),
+  });
+}
+
+export function passwordResetComplete(resetToken: string, newPassword: string): Promise<void> {
+  return apiFetch<void>('/api/v1/auth/password-reset/complete', {
+    method: 'POST',
+    body: JSON.stringify({ resetToken, newPassword }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Me endpoints
+
+export function request2faCode(): Promise<void> {
+  return apiFetch<void>('/api/v1/users/me/2fa/request', { method: 'POST', auth: true });
+}
+
+export function getMe(): Promise<UserProfile> {
+  return apiFetch<UserProfile>('/api/v1/users/me', { auth: true });
+}
+
+export function updateProfile(request: UpdateProfileRequest): Promise<UserProfile> {
+  return apiFetch<UserProfile>('/api/v1/users/me', {
+    method: 'PUT',
+    auth: true,
+    body: JSON.stringify(request),
+  });
+}
+
+export function deleteAccount(otpCode: string): Promise<void> {
+  return apiFetch<void>('/api/v1/users/me', {
+    method: 'DELETE',
+    auth: true,
+    body: JSON.stringify({ otpCode }),
+  });
+}
+
+export function changePassword(request: ChangePasswordRequest): Promise<void> {
+  return apiFetch<void>('/api/v1/users/me/password', {
+    method: 'PUT',
+    auth: true,
+    body: JSON.stringify(request),
+  });
+}
+
+export function phoneChangeStart(newPhone: string): Promise<void> {
+  return apiFetch<void>('/api/v1/users/me/phone-change/start', {
+    method: 'POST',
+    auth: true,
+    body: JSON.stringify({ newPhone }),
+  });
+}
+
+export function phoneChangeVerifyCurrent(code: string): Promise<void> {
+  return apiFetch<void>('/api/v1/users/me/phone-change/verify-current', {
+    method: 'POST',
+    auth: true,
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function phoneChangeComplete(code: string): Promise<UserProfile> {
+  return apiFetch<UserProfile>('/api/v1/users/me/phone-change/complete', {
+    method: 'POST',
+    auth: true,
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function uploadProfilePhoto(file: ProfilePhotoFile): Promise<UserProfile> {
+  const form = new FormData();
+  // React Native's FormData accepts a {uri, name, type} file descriptor.
+  form.append('file', file as unknown as Blob);
+  return apiFetch<UserProfile>('/api/v1/users/me/photo', {
+    method: 'PUT',
+    auth: true,
+    body: form,
+  });
+}

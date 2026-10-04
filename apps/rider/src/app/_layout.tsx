@@ -2,31 +2,26 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 
-import { LocaleProvider, useLocale } from '../i18n/locale-context';
-import { colors } from '../theme/tokens';
+import { AuthProvider } from '../auth/auth-context';
+import { LocaleProvider } from '../i18n/locale-context';
 
-function RootStack() {
-  const { t } = useLocale();
-  return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.purple700 },
-        headerTintColor: colors.white,
-        headerTitleStyle: { fontWeight: '700' },
-        contentStyle: { backgroundColor: colors.bgLight },
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: t('common.appName') }} />
-      <Stack.Screen name="settings" options={{ title: t('settings.title') }} />
-    </Stack>
-  );
-}
-
+/**
+ * Root layout: providers + the two route groups. The (auth) and (app)
+ * group layouts own their headers and redirect based on the auth state,
+ * so the root stack is header-less. LocaleProvider and AuthProvider both
+ * render null until their persisted state is restored, which keeps the
+ * native splash screen visible.
+ */
 export default function RootLayout() {
   return (
     <LocaleProvider>
-      <StatusBar style="light" />
-      <RootStack />
+      <AuthProvider>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(app)" />
+        </Stack>
+      </AuthProvider>
     </LocaleProvider>
   );
 }
