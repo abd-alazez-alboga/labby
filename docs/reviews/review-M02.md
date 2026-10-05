@@ -167,3 +167,30 @@ start-over paths. Rider covers its equivalents; the gaps are admin + driver.
 Cross-boundary checks (consolidator): OpenAPI paths ⇔ backend mappings ⇔ rider/driver/admin
 call sets align exactly; `git log -p 372a53f..HEAD` contains no token-like values (only
 `change-me` placeholders and a unit-test literal).
+
+---
+
+## Resolution (2026-10-05, commits 9d8ebed…98839d0)
+
+Owner decisions: W2 → keep purpose `2fa` and document the deviation (a `register`-purpose code on
+the new phone could be consumed by a real registration; UC-S-06 updated). W4 → implement the
+revocation check. Info 5 → distinct suspended copy now; reason display deferred until the contract
+carries suspension reasons. Info 3 → remove dead wiring only, no new resend UX.
+
+| Finding | Outcome | Where |
+|---|---|---|
+| H1 suspended-role login untested | Fixed — integration test asserts login 200 + `roles[].state == suspended` | `AuthFlowIntegrationTest.shouldLoginWithSuspendedRoleStateExposed` (9d8ebed) |
+| W1 RTL double-flip (both apps) | Fixed — `flipRows` (`locale RTL && !I18nManager.isRTL`) now keys every structural override (rows, toggle positions) in rider and driver | 464fe53, f528beb |
+| W2 phone-change OTP purpose | Accepted deviation, documented in UC-S-06 | docs/use-cases/shared.md (9d8ebed) |
+| W3 usable JWT-secret default | Fixed — no fallback; boot fails fast; tests supply their own | application.yml, AbstractIntegrationTest (9d8ebed) |
+| W4 access-token revocation window | Fixed — JwtAuthFilter checks the `sid` session row via a new `SessionService` (ArchUnit-compliant); logout test proves immediate 401 | 9d8ebed |
+| W5 transient-failure sign-outs | Fixed in rider AND driver — refresh clears the session only on contract 401; rider launch keeps tokens on network failure; pinned by tests in both apps | 464fe53, f528beb |
+| W6 missing T6-UX tests | Fixed — admin reveal-toggle test; driver escape-hatch + register start-over + change-password start-over tests | 98839d0, f528beb |
+| Info 1 register/complete 409 | Fixed in both apps — routes to the phone-taken → login path, tested | 464fe53, f528beb |
+| Info 2 logout with stale access token | Fixed in driver + admin (authed client) with a mid-logout rotation guard; **rider half was a false positive** (already authed) — rider gained the rotation guard | 464fe53, f528beb, 98839d0 |
+| Info 3 dead cooldown wiring | Fixed — removed from rider change-phone; no new resend UX added | 464fe53 |
+| Info 4 unused i18n keys | Fixed — `common.back`, `common.cancel`, `changePassword.sendCode` removed (EN+AR) | 464fe53 |
+| Info 5 suspended-driver gate copy | Fixed — distinct EN+AR copy keyed on suspended driver role; reason display deferred (recorded in tracker) | f528beb |
+
+Post-fix suites: backend 81/81 (`make check`, incl. spotless/checkstyle/ArchUnit), rider 54/54,
+driver 54/54, admin 33/33 — all with lint/typecheck/format green.
