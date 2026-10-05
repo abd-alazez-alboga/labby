@@ -19,7 +19,6 @@ import com.labby.backend.model.User;
 import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
-import com.labby.backend.util.UserMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Duration;
@@ -64,7 +63,7 @@ public class MeServiceImpl implements MeService {
   private final PasswordEncoder passwordEncoder;
   private final StorageProvider storageProvider;
   private final StorageProperties storageProperties;
-  private final UserMapper userMapper;
+  private final ProfileService profileService;
 
   @Override
   @Transactional(readOnly = true)
@@ -255,7 +254,7 @@ public class MeServiceImpl implements MeService {
   }
 
   private UserProfileDto toProfile(User user) {
-    return userMapper.toProfileDto(user, roleAssignmentRepository.findByUserId(user.getId()));
+    return profileService.profileFor(user, roleAssignmentRepository.findByUserId(user.getId()));
   }
 
   private static String contentTypeOf(String key) {

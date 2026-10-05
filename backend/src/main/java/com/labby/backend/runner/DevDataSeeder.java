@@ -1,5 +1,6 @@
 package com.labby.backend.runner;
 
+import com.labby.backend.util.RbacIds;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,6 @@ public class DevDataSeeder implements ApplicationRunner {
   private record SeedAccount(String phone, String name, List<String> roles) {}
 
   private static final String SEED_PASSWORD = "Password1!";
-  private static final String SUPER_ADMIN_ROLE_ID = "00000000-0000-0000-0000-000000000001";
   private static final List<SeedAccount> SEED_ACCOUNTS =
       List.of(
           new SeedAccount("+963900000001", "Dev Rider", List.of("rider")),
@@ -61,10 +61,10 @@ public class DevDataSeeder implements ApplicationRunner {
           // Admins carry exactly one RBAC role (V4 CHECK); dev admins are Super Admins.
           jdbcTemplate.update(
               "INSERT INTO role_assignments (user_id, role, state, admin_role_id)"
-                  + " VALUES (?, ?, 'active', ?::uuid)",
+                  + " VALUES (?, ?, 'active', ?)",
               userId,
               role,
-              SUPER_ADMIN_ROLE_ID);
+              RbacIds.SUPER_ADMIN_ROLE_ID);
         } else {
           jdbcTemplate.update(
               "INSERT INTO role_assignments (user_id, role, state) VALUES (?, ?, 'active')",

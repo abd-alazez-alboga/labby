@@ -435,9 +435,23 @@ components:
     RoleAssignment:
       type: object
       required: [role, state]
+      description: >
+        On the `admin` assignment only (M3, RBAC-03), `rbacRole` and `permissions` expose the
+        admin's single RBAC role and its `domain:action` codes so the admin UI can gate
+        routes/menus; both fields are absent on rider/driver assignments. Enforcement stays
+        server-side per request — the UI picks up role edits on its next profile fetch.
       properties:
         role: { type: string, enum: [rider, driver, admin] }
         state: { type: string, enum: [active, suspended] }
+        rbacRole:
+          type: [object, 'null']
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+        permissions:
+          type: [array, 'null']
+          items: { type: string, examples: ['users:view'] }
     UserProfile:
       type: object
       required: [id, phone, name, language, state, roles]
