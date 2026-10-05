@@ -50,6 +50,13 @@ const config: ExpoConfig = {
         photosPermission: 'Labby uses your photos to set your profile picture.',
       },
     ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Labby uses your location to find your operating region and nearby rides.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

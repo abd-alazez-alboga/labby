@@ -18,6 +18,18 @@ export const translations = {
       subtitle: 'Your ride, your way.',
       openSettings: 'Settings',
     },
+    region: {
+      finding: 'Finding your area…',
+      outsideTitle: 'Outside our service area',
+      outsideBody: "We don't operate in your area yet. We're expanding — please check back soon.",
+      permissionDeniedTitle: 'Location needed',
+      permissionDeniedBody:
+        'We use your location to find your operating region and show the right services and prices. Allow location access to continue.',
+      errorTitle: "Couldn't check your area",
+      errorBody: 'Something went wrong while finding your region. Check your connection and try again.',
+      retry: 'Try again',
+      openSettings: 'Open settings',
+    },
     welcome: {
       tagline: 'Your ride, your way.',
       createAccount: 'Create account',
@@ -166,6 +178,18 @@ export const translations = {
       welcome: 'أهلاً بك في لابي',
       subtitle: 'رحلتك، على طريقتك.',
       openSettings: 'الإعدادات',
+    },
+    region: {
+      finding: 'جارٍ تحديد منطقتك…',
+      outsideTitle: 'خارج منطقة الخدمة',
+      outsideBody: 'لا نقدم خدماتنا في منطقتك بعد. نحن نتوسع — يرجى المحاولة لاحقًا.',
+      permissionDeniedTitle: 'الموقع مطلوب',
+      permissionDeniedBody:
+        'نستخدم موقعك لتحديد منطقة التشغيل وعرض الخدمات والأسعار الصحيحة. اسمح بالوصول إلى الموقع للمتابعة.',
+      errorTitle: 'تعذر فحص منطقتك',
+      errorBody: 'حدث خطأ أثناء تحديد منطقتك. تحقق من اتصالك وحاول مرة أخرى.',
+      retry: 'حاول مرة أخرى',
+      openSettings: 'فتح الإعدادات',
     },
     welcome: {
       tagline: 'رحلتك، على طريقتك.',

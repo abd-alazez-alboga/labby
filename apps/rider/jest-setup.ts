@@ -21,6 +21,16 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// expo-location touches native GPS. Defaults stay PENDING (same convention
+// as the fetch stub below) so boot-time region resolution is inert unless a
+// suite overrides these mocks per test.
+jest.mock('expo-location', () => ({
+  Accuracy: { Balanced: 3 },
+  requestForegroundPermissionsAsync: jest.fn(() => new Promise(() => {})),
+  getCurrentPositionAsync: jest.fn(() => new Promise(() => {})),
+  watchPositionAsync: jest.fn(() => new Promise(() => {})),
+}));
+
 // expo-localization touches native code; tests pin the device locale to EN.
 jest.mock('expo-localization', () => ({
   getLocales: () => [{ languageCode: 'en' }],

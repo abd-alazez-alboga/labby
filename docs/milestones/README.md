@@ -97,7 +97,7 @@ Statuses live here (milestone files describe content only, they are never edited
 | M4-T1 | Regions contract & migrations | done |
 | M4-T2 | Regions backend | done |
 | M4-T3 | Admin UI: regions & zone drawing | done |
-| M4-T4 | Apps: region resolution | in_progress |
+| M4-T4 | Apps: region resolution | done |
 | M4-T5 | Regions integration | todo |
 | M4-T6 | Review audit | todo |
 

@@ -52,6 +52,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Labby Driver uses your location to find your operating region and ride requests.',
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         image: './assets/images/labby-logo-white.png',

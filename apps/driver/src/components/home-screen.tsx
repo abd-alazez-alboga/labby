@@ -1,10 +1,11 @@
 import { Link } from 'expo-router';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ApiStatus } from './api-status';
 import { useLocale } from '../i18n/LocaleProvider';
+import { useOptionalRegion } from '../region/RegionProvider';
 import { colors, gradients, radius, spacing } from '../theme/tokens';
 
 // Brand asset copied from /assets/images/labby-logo-white.png (source of truth).
@@ -14,6 +15,14 @@ export function HomeScreen() {
   const { t } = useTranslation();
   const { direction } = useLocale();
   const textAlign = direction === 'rtl' ? 'right' : 'left';
+  // Null when rendered without the provider (provider-less unit tests).
+  const region = useOptionalRegion();
+  // Outside the operating area, location denied or unresolved-with-no-cache:
+  // these replace the region line with the matching state card (M4-T4).
+  const blocked =
+    region && region.status !== 'resolved' && region.status !== 'loading'
+      ? region
+      : null;
 
   return (
     <View style={styles.container} testID="home-screen">
@@ -30,6 +39,44 @@ export function HomeScreen() {
         </Text>
       </View>
       <View style={styles.body}>
+        {blocked ? (
+          <View style={styles.regionCard} testID={`region-${blocked.status}`}>
+            <Text style={[styles.regionTitle, { textAlign }]}>
+              {t(`region.${blocked.status}Title`)}
+            </Text>
+            <Text style={[styles.regionBody, { textAlign }]}>
+              {t(`region.${blocked.status}Body`)}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.regionButton}
+              onPress={blocked.retry}
+              testID="region-retry"
+            >
+              <Text style={styles.regionButtonLabel}>{t('region.retry')}</Text>
+            </Pressable>
+            {blocked.status === 'permissionDenied' && (
+              <Pressable
+                accessibilityRole="button"
+                style={styles.regionButtonSecondary}
+                onPress={blocked.openLocationSettings}
+                testID="region-open-settings"
+              >
+                <Text style={styles.regionButtonSecondaryLabel}>
+                  {t('region.openSettings')}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        ) : region?.status === 'resolved' && region.config ? (
+          <Text style={styles.regionBadge} testID="region-badge">
+            {`${region.config.name} · ${region.config.currency}`}
+          </Text>
+        ) : region ? (
+          <Text style={styles.regionLoading} testID="region-loading">
+            {t('region.finding')}
+          </Text>
+        ) : null}
         <Link href="/settings" style={styles.settingsLink} testID="settings-link">
           {t('home.goToSettings')}
         </Link>
@@ -74,6 +121,58 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: spacing.lg,
     alignItems: 'center',
+    gap: spacing.md,
+  },
+  regionCard: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  regionTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  regionBody: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  regionButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.purple700,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  regionButtonLabel: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  regionButtonSecondary: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.purple700,
+  },
+  regionButtonSecondaryLabel: {
+    color: colors.purple700,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  regionBadge: {
+    color: colors.purple700,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  regionLoading: {
+    color: colors.textSecondary,
+    fontSize: 14,
   },
   settingsLink: {
     // Solid fallback for --labby-gradient-button.

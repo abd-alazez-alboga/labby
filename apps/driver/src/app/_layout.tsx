@@ -10,6 +10,7 @@ import { loadStoredSession, updateSessionUser } from '../auth/session';
 import { initI18n } from '../i18n';
 import type { Language } from '../i18n';
 import { LocaleProvider } from '../i18n/LocaleProvider';
+import { RegionProvider } from '../region/RegionProvider';
 import { colors } from '../theme/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -112,8 +113,11 @@ export default function RootLayout() {
   return (
     <LocaleProvider initialLanguage={language}>
       <AuthProvider>
-        <StatusBar style="light" />
-        <AppStack />
+        {/* Region resolution (M4-T4) — only active for a signed-in driver. */}
+        <RegionProvider>
+          <StatusBar style="light" />
+          <AppStack />
+        </RegionProvider>
       </AuthProvider>
     </LocaleProvider>
   );

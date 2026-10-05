@@ -7,6 +7,17 @@
     "subtitle": "Your trips will appear here once rides go live.",
     "goToSettings": "Settings"
   },
+  "region": {
+    "finding": "Finding your area…",
+    "outsideTitle": "Outside our service area",
+    "outsideBody": "We don't operate in this area yet. We're expanding — please check back soon.",
+    "permissionDeniedTitle": "Location needed",
+    "permissionDeniedBody": "We use your location to find your operating region and the right pricing. Allow location access to continue.",
+    "errorTitle": "Couldn't check your area",
+    "errorBody": "Something went wrong while finding your region. Check your connection and try again.",
+    "retry": "Try again",
+    "openSettings": "Open settings"
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",

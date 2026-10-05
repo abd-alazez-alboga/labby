@@ -21,6 +21,8 @@ export interface MockReply {
 export interface RecordedCall {
   method: string;
   path: string;
+  /** Query-string parameters (e.g. lat/lng of GET /regions/resolve). */
+  query: Record<string, string>;
   body: unknown;
   headers: Record<string, string>;
 }
@@ -39,7 +41,9 @@ export function mockApi(routes: Record<string, MockReply | MockReply[]>): MockAp
   }
   const calls: RecordedCall[] = [];
   const fetchMock = jest.fn(async (input: unknown, init?: RequestInit) => {
-    const path = new URL(String(input)).pathname;
+    const url = new URL(String(input));
+    const path = url.pathname;
+    const query = Object.fromEntries(url.searchParams.entries());
     const method = (init?.method ?? 'GET').toUpperCase();
     const headers = (init?.headers ?? {}) as Record<string, string>;
     let body: unknown;
@@ -52,7 +56,7 @@ export function mockApi(routes: Record<string, MockReply | MockReply[]>): MockAp
     } else if (init?.body) {
       body = init.body;
     }
-    calls.push({ method, path, body, headers });
+    calls.push({ method, path, query, body, headers });
 
     const queue = queues.get(`${method} ${path}`);
     if (!queue || queue.length === 0) {
