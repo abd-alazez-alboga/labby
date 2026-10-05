@@ -84,6 +84,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
         rbacRoleRepository
             .findById(request.roleId())
             .orElseThrow(() -> new InvalidRequestException("Unknown role"));
+    requireSuperAdminActorForSuperAdminGrant(actorUserId, role.getId());
     Optional<User> existing = userRepository.findByPhone(request.phone());
     if (existing.isEmpty()) {
       return createFreshAdmin(actorUserId, request, role);
@@ -119,6 +120,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
             .orElseThrow(() -> new InvalidRequestException("Unknown role"));
     RbacRole oldRole = rbacRoleRepository.findById(assignment.getAdminRoleId()).orElse(null);
     if (!newRole.getId().equals(assignment.getAdminRoleId())) {
+      requireSuperAdminActorForSuperAdminGrant(actorUserId, newRole.getId());
       requireNotLastActiveSuperAdmin(
           assignment, "The last active Super Admin cannot lose the role");
       Map<String, Object> before = stateSnapshot(assignment, oldRole);
@@ -220,6 +222,25 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     return userRepository
         .findById(userId)
         .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+  }
+
+  // Escalation guard (review-M03 W2): admins:manage alone must not reach full access, so
+  // granting the Super Admin role requires an active Super Admin actor.
+  private void requireSuperAdminActorForSuperAdminGrant(UUID actorUserId, UUID grantedRoleId) {
+    if (!RbacIds.SUPER_ADMIN_ROLE_ID.equals(grantedRoleId)) {
+      return;
+    }
+    boolean actorIsActiveSuperAdmin =
+        roleAssignmentRepository
+            .findByUserIdAndRole(actorUserId, Role.ADMIN)
+            .map(
+                actor ->
+                    RbacIds.SUPER_ADMIN_ROLE_ID.equals(actor.getAdminRoleId())
+                        && actor.getState() == RoleState.ACTIVE)
+            .orElse(false);
+    if (!actorIsActiveSuperAdmin) {
+      throw new ConflictException("Only a Super Admin can assign the Super Admin role");
+    }
   }
 
   private void requireNotLastActiveSuperAdmin(RoleAssignment assignment, String message) {

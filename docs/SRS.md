@@ -104,8 +104,8 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 
 | ID | Requirement | Ver |
 |---|---|---|
-| RBAC-01 | Super Admin: seeded system role, irremovable, permission set immutable (full access); manages admin accounts and roles. | V1 |
-| RBAC-02 | Role management: create/edit/delete custom roles by ticking permissions from the catalog (`role_permissions` junction). Changing a role instantly affects every admin holding it. System roles (`is_system`) are undeletable. | V1 |
+| RBAC-01 | Super Admin: seeded system role, irremovable, permission set immutable (full access); manages admin accounts and roles. Only an active Super Admin may grant the Super Admin role (escalation guard, owner decision 2026-10-05). | V1 |
+| RBAC-02 | Role management: create/edit/delete custom roles by ticking permissions from the catalog (`role_permissions` junction). Changing a role instantly affects every admin holding it. System roles (`is_system`) are undeletable. An admin may never edit the role they themselves hold (escalation guard, owner decision 2026-10-05). | V1 |
 | RBAC-03 | Every admin API endpoint enforces its required permission server-side; admin UI additionally hides unauthorized functions. | V1 |
 | RBAC-04 | Predefined, editable **Support** role ships by default: ride/user read access + ticket, report, and lost-item handling; no system config, no financial config. | V1 |
 | RBAC-05 | Append-only audit log of all admin actions (actor, action, target, before/after where sensible, timestamp); viewable by Super Admin, filterable. | V1 |

@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /** Maps exceptions to JSON {@link ErrorResponse} payloads. */
@@ -65,6 +66,16 @@ public class GlobalExceptionHandler {
         .body(
             ErrorResponse.of(
                 status.value(), status.getReasonPhrase(), "Uploaded file is too large"));
+  }
+
+  /** Malformed path/query params (e.g. a non-UUID id) are 400 per the contracts, not 500. */
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.of(
+                status.value(), status.getReasonPhrase(), "Malformed request parameter"));
   }
 
   /** Catch-all: never leak internals, always log. */

@@ -256,6 +256,110 @@ class RbacAdminIntegrationTest extends AbstractAuthIntegrationTest {
   }
 
   @Test
+  @DisplayName("malformed UUID path/query params are 400 per the contract, never 500")
+  void shouldRejectMalformedUuidParams() {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963933000071", RbacIds.SUPER_ADMIN_ROLE_ID);
+    String token = superAdmin.accessToken();
+
+    assertThat(
+            send("/api/v1/admin/admins/not-a-uuid/deactivate", HttpMethod.POST, null, token)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(
+            send(
+                    "/api/v1/admin/roles/not-a-uuid",
+                    HttpMethod.PUT,
+                    Map.of("name", "X", "permissions", List.of("users:view")),
+                    token)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(get("/api/v1/admin/audit-log?actorId=not-a-uuid", token).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  @DisplayName("escalation guards: Super Admin grants need a Super Admin actor; no own-role edits")
+  void shouldBlockPermissionSelfEscalation() {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963933000081", RbacIds.SUPER_ADMIN_ROLE_ID);
+    String saToken = superAdmin.accessToken();
+
+    ResponseEntity<Map<String, Object>> managers =
+        restTemplate.exchange(
+            "/api/v1/admin/roles",
+            HttpMethod.POST,
+            authorized(
+                Map.of(
+                    "name",
+                    "Managers",
+                    "permissions",
+                    List.of("admins:manage", "admins:view", "roles:manage", "roles:view")),
+                saToken),
+            new ParameterizedTypeReference<>() {});
+    UUID managersId = UUID.fromString(String.valueOf(managers.getBody().get("id")));
+    AuthTokensResponseDto manager = registerAdmin("+963933000082", managersId);
+    String mToken = manager.accessToken();
+
+    // admins:manage alone cannot mint a Super Admin — neither fresh nor by role change.
+    assertThat(
+            send(
+                    "/api/v1/admin/admins",
+                    HttpMethod.POST,
+                    Map.of(
+                        "phone",
+                        "+963933000083",
+                        "name",
+                        "Mallory",
+                        "roleId",
+                        RbacIds.SUPER_ADMIN_ROLE_ID),
+                    mToken)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+    assertThat(
+            send(
+                    "/api/v1/admin/admins/" + manager.user().id() + "/role",
+                    HttpMethod.PUT,
+                    Map.of("roleId", RbacIds.SUPER_ADMIN_ROLE_ID),
+                    mToken)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+
+    // roles:manage alone cannot widen the actor's own role…
+    assertThat(
+            send(
+                    "/api/v1/admin/roles/" + managersId,
+                    HttpMethod.PUT,
+                    Map.of("name", "Managers", "permissions", List.of("admins:manage")),
+                    mToken)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+
+    // …but other roles stay editable, and a real Super Admin can still grant the role.
+    ResponseEntity<Map<String, Object>> clerks =
+        restTemplate.exchange(
+            "/api/v1/admin/roles",
+            HttpMethod.POST,
+            authorized(Map.of("name", "Clerks", "permissions", List.of("rides:view")), saToken),
+            new ParameterizedTypeReference<>() {});
+    UUID clerksId = UUID.fromString(String.valueOf(clerks.getBody().get("id")));
+    assertThat(
+            send(
+                    "/api/v1/admin/roles/" + clerksId,
+                    HttpMethod.PUT,
+                    Map.of("name", "Clerks", "permissions", List.of("rides:view", "users:view")),
+                    mToken)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+    assertThat(
+            send(
+                    "/api/v1/admin/admins/" + manager.user().id() + "/role",
+                    HttpMethod.PUT,
+                    Map.of("roleId", RbacIds.SUPER_ADMIN_ROLE_ID),
+                    saToken)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
   @DisplayName("UC-A-02 E1: the last active Super Admin is protected; a second one unblocks")
   void shouldProtectLastSuperAdmin() {
     AuthTokensResponseDto superAdmin = registerAdmin("+963933000041", RbacIds.SUPER_ADMIN_ROLE_ID);

@@ -49,8 +49,9 @@ paths:
         /auth/password-reset/verify + /complete endpoints (auth-v1.yaml), then logs in with
         phone + password. Phone already an account (E1) -> that account is granted the admin
         role with the given RBAC role instead of a duplicate; no OTP is sent (the owner keeps
-        their password). Phone already an admin -> 409. Admin accounts are never
-        self-registered.
+        their password). Phone already an admin -> 409. Granting the Super Admin role requires
+        the ACTOR to be an active Super Admin -> otherwise 409 (escalation guard). Admin
+        accounts are never self-registered.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -64,7 +65,10 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/CreateAdminResponse' }
         '400': { description: Validation failure or unknown roleId }
-        '409': { description: Phone already holds the admin role }
+        '409':
+          description: >-
+            Phone already holds the admin role, or a non-Super-Admin actor tried to grant the
+            Super Admin role
 
   /api/v1/admin/admins/{userId}/role:
     put:
@@ -74,7 +78,8 @@ paths:
       description: >
         Replaces the single role; effective immediately (next authorized request evaluates the
         new permission set — no re-login). Moving the LAST active Super Admin to another role
-        -> 409 (RBAC-01).
+        -> 409 (RBAC-01). Granting the Super Admin role requires the ACTOR to be an active
+        Super Admin -> otherwise 409 (escalation guard).
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -91,7 +96,10 @@ paths:
               schema: { $ref: '#/components/schemas/AdminAccount' }
         '400': { description: Unknown roleId }
         '404': { description: No admin account for userId }
-        '409': { description: Would demote the last active Super Admin }
+        '409':
+          description: >-
+            Would demote the last active Super Admin, or a non-Super-Admin actor tried to
+            grant the Super Admin role
 
   /api/v1/admin/admins/{userId}/deactivate:
     post:
@@ -171,7 +179,8 @@ paths:
       description: >
         Changes apply instantly to every admin holding the role (RBAC-02). Super Admin is
         fully immutable; system roles (`isSystem`) keep their name but Support's permission
-        set IS editable (RBAC-04) -> violations 409.
+        set IS editable (RBAC-04) -> violations 409. An admin may never edit the role they
+        themselves hold (escalation guard) -> 409.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: roleId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -188,7 +197,10 @@ paths:
               schema: { $ref: '#/components/schemas/Role' }
         '400': { description: Validation failure or unknown permission code }
         '404': { description: Unknown roleId }
-        '409': { description: Super Admin immutable, system-role rename, or duplicate name }
+        '409':
+          description: >-
+            Super Admin immutable, system-role rename, duplicate name, or the actor's own
+            role
     delete:
       tags: [Roles]
       summary: Delete a custom role

@@ -5,6 +5,7 @@ import com.labby.backend.dto.PermissionDto;
 import com.labby.backend.dto.RoleDto;
 import com.labby.backend.dto.UpdateRoleRequestDto;
 import com.labby.backend.enums.Permission;
+import com.labby.backend.enums.Role;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
@@ -82,6 +83,16 @@ public class RbacRoleServiceImpl implements RbacRoleService {
             .orElseThrow(() -> new ResourceNotFoundException("Role", roleId));
     if (RbacIds.SUPER_ADMIN_ROLE_ID.equals(role.getId())) {
       throw new ConflictException("The Super Admin role is immutable");
+    }
+    // Escalation guard (review-M03 W2): roles:manage alone must not reach full access, so an
+    // admin may never edit the role they themselves hold.
+    boolean ownRole =
+        roleAssignmentRepository
+            .findByUserIdAndRole(actorUserId, Role.ADMIN)
+            .map(actor -> roleId.equals(actor.getAdminRoleId()))
+            .orElse(false);
+    if (ownRole) {
+      throw new ConflictException("Admins cannot edit their own role");
     }
     boolean renamed = !role.getName().equals(request.name());
     if (renamed && role.isSystem()) {
