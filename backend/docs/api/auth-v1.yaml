@@ -443,6 +443,14 @@ components:
       properties:
         role: { type: string, enum: [rider, driver, admin] }
         state: { type: string, enum: [active, suspended] }
+        suspensionReason:
+          type: [string, 'null']
+          enum: [document_expired, null]
+          description: >
+            Why the role is suspended (USR-04), present only while suspended. M5 adds
+            `document_expired` (DRV-04 auto-suspension, lifted by an approved renewal — see
+            onboarding-v1.yaml); null for suspensions recorded before a reason existed. More
+            reasons arrive with their milestones (rating USR-05, manual USR-06).
         rbacRole:
           type: [object, 'null']
           required: [id, name]

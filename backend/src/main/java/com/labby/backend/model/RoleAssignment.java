@@ -2,6 +2,7 @@ package com.labby.backend.model;
 
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
+import com.labby.backend.enums.SuspensionReason;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -48,6 +49,10 @@ public class RoleAssignment {
   /** The single RBAC role of an admin assignment (SRS §5.1); NULL on non-admin rows (V4 CHECK). */
   @Column(name = "admin_role_id")
   private UUID adminRoleId;
+
+  /** Why the role is suspended (USR-04); set only while suspended (V6 CHECK). */
+  @Column(name = "suspension_reason", length = 32)
+  private SuspensionReason suspensionReason;
 
   @Column(name = "granted_at", nullable = false)
   private Instant grantedAt;

@@ -78,7 +78,7 @@ class MeServiceImplTest {
             otpService,
             passwordEncoder,
             storageProvider,
-            new StorageProperties("/tmp/labby-test", 5_242_880),
+            new StorageProperties("/tmp/labby-test", 5_242_880, 10_485_760, 300),
             new ProfileServiceImpl(userMapper, rbacRoleRepository));
     userId = UUID.randomUUID();
     user =

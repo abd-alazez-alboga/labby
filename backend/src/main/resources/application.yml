@@ -74,3 +74,7 @@ labby:
     # Private upload root (NFR-S2); photos are served only through authenticated endpoints.
     dir: ${STORAGE_DIR:./data/uploads}
     photo-max-bytes: ${STORAGE_PHOTO_MAX_BYTES:5242880}
+    # Driver documents (image or PDF) and vehicle photos (M5).
+    driver-file-max-bytes: ${STORAGE_DRIVER_FILE_MAX_BYTES:10485760}
+    # Lifetime of expiring file-access URLs minted for permission-checked viewers (NFR-S2).
+    url-ttl-seconds: ${STORAGE_URL_TTL_SECONDS:300}

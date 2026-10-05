@@ -1,0 +1,960 @@
+openapi: 3.1.0
+info:
+  title: Labby Driver Onboarding API (M5 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M5. The driver app (M5-T3) and the admin UI (M5-T4) build
+    against this document; the backend (M5-T2) must implement it exactly — on conflict after T2
+    lands, the implementation is the truth. SRS: DRV-01..04, USR-01 (driver role activates on
+    approval), USR-04 (suspension with reason), NFR-S2 (private files); UC-D-01..03/18/19,
+    UC-A-10..12.
+
+
+    **Owner decisions (2026-10-05).** "Personal details" = the account's name + profile photo
+    (edited through the existing /users/me endpoints; a profile photo is REQUIRED to submit).
+    Each document is ONE file — JPEG, PNG or PDF. A vehicle has 1..4 photos (JPEG/PNG; the first
+    is the one riders see). A plate already on ANOTHER driver's active vehicle is flagged
+    (`duplicatePlate`) and BLOCKS approval (409) until resolved by requesting changes or
+    rejecting (UC-D-01 E3, UC-A-10 E1).
+
+
+    **Application state machine (DRV-02).** `submitted → under_review → needs_changes →
+    under_review → … → approved | rejected`. `start-review` moves submitted → under_review; the
+    three decisions are only legal from `under_review`; a resubmission returns the application
+    to `under_review` (UC-D-02). After `rejected` the applicant may reapply with a full new
+    submission (UC-D-03 A2; earlier rows stay as history). Concurrent decisions on the same
+    application/vehicle/document are serialized: the loser gets 409 (optimistic lock).
+
+
+    **Review items.** An application is reviewed per item: `personal` (name + photo), each of the
+    four `document`s, and the `vehicle` (details + photos). `request-changes` flags items with a
+    note each; the applicant resubmits EXACTLY the flagged items (anything else → 400).
+    Unflagged items stay `pending` and are approved with the application.
+
+
+    **Driver role (USR-01, USR-04, DRV-04).** Approval grants the `driver` role (active) and makes
+    the application's vehicle the single active vehicle with the admin-assigned service types.
+    When an approved, current document (driver's ID/licence, or the active vehicle's
+    registration/insurance) passes its expiry date, the driver role is suspended with
+    `suspensionReason: document_expired` (visible on /users/me, see auth-v1.yaml). Approving the
+    renewal lifts that suspension once no current document is expired; suspensions for any other
+    reason are never lifted here. Reminders go out 30 and 7 days before expiry. Dates are
+    calendar dates: a document is valid THROUGH its `expiresOn` and expired once today is later;
+    "today" is the operating timezone's date (Asia/Damascus for the launch market, configurable
+    in T2). Entry (submit, resubmit, switch, renewal) requires `expiresOn` after today (E2), and
+    approval is refused (409) if any reviewed document has expired meanwhile.
+
+
+    **Files (NFR-S2).** Uploads go through `POST /driver/files` and are then referenced by
+    `fileId`; the type is detected from the content (magic bytes), not the client header. Files
+    are never publicly reachable: every response that shows a file carries a `FileRef` whose `url`
+    is minted only after the endpoint's own authentication + permission check (applicant → own
+    files; admin → `driver-review:view`) and EXPIRES (`urlExpiresAt`, default 5 min). `url` may
+    be API-relative (`/api/v1/files/{token}`, resolve against the API base URL) or absolute
+    (future object-store providers) — clients resolve it with the URL constructor and refetch
+    the owning resource for fresh URLs once expired. `GET /api/v1/files/{token}` needs no Bearer
+    token (the admin viewer loads files via `<img src>`): the signed, short-lived token IS the
+    capability; any invalid, tampered or expired token is a plain 404.
+
+
+    **Notifications.** Every stage change is queued for the applicant behind the notification
+    seam (table `notification_outbox`; delivered to the center + push in M6). Event keys:
+    `driver_application.submitted`, `driver_application.under_review`,
+    `driver_application.needs_changes`, `driver_application.approved`,
+    `driver_application.rejected`, `vehicle_switch.submitted`, `vehicle_switch.approved`,
+    `vehicle_switch.rejected`, `document_renewal.submitted`, `document_renewal.approved`,
+    `document_renewal.rejected`, `document.expiry_reminder` (params: documentType, expiresOn,
+    daysLeft 30|7), `driver.suspended` (params: reason), `driver.reinstated`.
+
+
+    **Permissions & audit.** Admin endpoints enforce `x-required-permission` server-side
+    (RBAC-03) using the existing catalog: reads under `driver-review:view`, decisions under
+    `driver-review:decide`. Every admin mutation is audit-logged (RBAC-05) with actions
+    `driver_application.start_review`, `driver_application.request_changes`,
+    `driver_application.approve`, `driver_application.reject`, `vehicle.approve`,
+    `vehicle.reject`, `document.approve`, `document.reject`. System actions (expiry suspension,
+    reinstatement) have no admin actor: they are recorded on the role assignment + the
+    notification outbox. Driver endpoints need any authenticated account (the applicant acts on
+    their own data only). Errors use the global ErrorResponse shape from M1 (status, message,
+    fieldErrors?); per-item validation errors are keyed like `documents[insurance].expiresOn`,
+    `vehicle.photoFileIds`, `profilePhoto`.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Files
+  - name: DriverApplication
+  - name: DriverVehicles
+  - name: DriverDocuments
+  - name: AdminApplications
+  - name: AdminVehicleReviews
+  - name: AdminDocuments
+
+paths:
+  /api/v1/files/{token}:
+    get:
+      tags: [Files]
+      summary: Open a private file through an expiring URL (NFR-S2)
+      description: >
+        No Bearer token: the signed token is the capability. Served with
+        `Cache-Control: private, no-store`, `Content-Disposition: inline` and
+        `X-Content-Type-Options: nosniff`.
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The file bytes, with their stored media type
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            application/pdf: { schema: { type: string, format: binary } }
+        '404': { description: Token malformed, tampered with, expired, or file gone }
+
+  /api/v1/driver/files:
+    post:
+      tags: [Files]
+      summary: Upload a document file or vehicle photo
+      description: >
+        `document` accepts JPEG, PNG or PDF; `vehicle_photo` accepts JPEG or PNG. Max size
+        `STORAGE_DRIVER_FILE_MAX_BYTES` (default 10 MiB). The returned `fileId` is usable only
+        by the uploader.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, kind]
+              properties:
+                file: { type: string, format: binary }
+                kind: { $ref: '#/components/schemas/FileKind' }
+      responses:
+        '201':
+          description: Stored privately
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadedFile' }
+        '400': { description: Empty/unreadable file, unsupported type, or PDF as a vehicle photo }
+        '413': { description: File too large }
+
+  /api/v1/driver/application:
+    get:
+      tags: [DriverApplication]
+      summary: Read the own driver application with stage history (UC-D-03)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The application
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverApplication' }
+        '404': { description: The account has never applied }
+    post:
+      tags: [DriverApplication]
+      summary: Submit (or, after rejection, resubmit in full) a driver application (UC-D-01)
+      description: >
+        Exactly one document of each of the four types; all four expiries must be after today
+        (E2); every fileId must be the caller's own upload of the right kind; the account must
+        have a profile photo. Missing/invalid items → 400 with per-item fieldErrors (E1). A
+        plate on another driver's active vehicle is accepted and flagged (E3).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApplicationSubmitRequest' }
+      responses:
+        '201':
+          description: Application `submitted`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverApplication' }
+        '400': { description: Per-item validation failure }
+        '409': { description: An application is already open or approved }
+
+  /api/v1/driver/application/resubmit:
+    post:
+      tags: [DriverApplication]
+      summary: Resubmit only the flagged items (UC-D-02)
+      description: >
+        Only while `needs_changes`. The body must contain exactly the flagged items: each flagged
+        document type in `documents`, `vehicle` iff the vehicle is flagged,
+        `confirmPersonalDetails: true` iff the personal item is flagged (the name/photo
+        themselves are edited through /users/me first). The application returns to
+        `under_review`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApplicationResubmitRequest' }
+      responses:
+        '200':
+          description: Application back `under_review`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverApplication' }
+        '400': { description: Missing flagged items, unflagged items included, or validation failure }
+        '404': { description: The account has never applied }
+        '409': { description: Application is not `needs_changes` }
+
+  /api/v1/driver/vehicles:
+    get:
+      tags: [DriverVehicles]
+      summary: List the own vehicles with their documents, newest first
+      description: >
+        Includes the active vehicle, a switch under review, and past (inactive or rejected)
+        vehicles with their review notes (UC-D-18 E1).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The vehicles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VehicleWithDocuments' }
+    post:
+      tags: [DriverVehicles]
+      summary: Submit a vehicle switch (UC-D-18)
+      description: >
+        Approved drivers only. The new vehicle + its registration and insurance are reviewed;
+        the current vehicle stays active until the switch is approved. One switch at a time.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleSwitchRequest' }
+      responses:
+        '201':
+          description: Switch submitted (vehicle `pending`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleWithDocuments' }
+        '400': { description: Validation failure }
+        '409': { description: Not an approved driver, or a switch is already under review }
+
+  /api/v1/driver/documents:
+    get:
+      tags: [DriverDocuments]
+      summary: The current document slots with expiry and renewal state (UC-D-19)
+      description: >
+        Four slots for an approved driver: ID, licence, and the ACTIVE vehicle's registration
+        and insurance. 409 before approval (the application view covers that phase).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DocumentSlot' }
+        '409': { description: Not an approved driver }
+
+  /api/v1/driver/documents/{type}/renewal:
+    post:
+      tags: [DriverDocuments]
+      summary: Submit a renewed document (UC-D-19)
+      description: >
+        Registration/insurance renew the active vehicle's document. Expiry must be after today.
+        Allowed while the driver role is suspended for expiry (that is how it gets lifted).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: type, in: path, required: true, schema: { $ref: '#/components/schemas/DocumentType' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentRenewalRequest' }
+      responses:
+        '201':
+          description: Renewal `pending`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '400': { description: Validation failure (expiry not in the future, bad file) }
+        '409': { description: Not an approved driver, or a renewal of this slot is already pending }
+
+  /api/v1/admin/driver-applications:
+    get:
+      tags: [AdminApplications]
+      summary: Application queue (UC-A-10)
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          description: Repeatable; default `submitted` + `under_review`. Oldest submission first.
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/ApplicationStatus' }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        '200':
+          description: Page of applications
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApplicationSummaryPage' }
+
+  /api/v1/admin/driver-applications/{applicationId}:
+    get:
+      tags: [AdminApplications]
+      summary: Application detail with documents, vehicle and history
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/ApplicationId' }
+      responses:
+        '200':
+          description: The application
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDriverApplication' }
+        '404': { description: Unknown application }
+
+  /api/v1/admin/driver-applications/{applicationId}/start-review:
+    post:
+      tags: [AdminApplications]
+      summary: Move a submitted application to under_review
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/ApplicationId' }
+      responses:
+        '200':
+          description: Now `under_review`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDriverApplication' }
+        '404': { description: Unknown application }
+        '409': { description: Not `submitted` (or a concurrent decision won) }
+
+  /api/v1/admin/driver-applications/{applicationId}/request-changes:
+    post:
+      tags: [AdminApplications]
+      summary: Request per-item changes (→ needs_changes)
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/ApplicationId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestChangesRequest' }
+      responses:
+        '200':
+          description: Now `needs_changes`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDriverApplication' }
+        '400': { description: No items, duplicate items, missing notes }
+        '404': { description: Unknown application }
+        '409': { description: Not `under_review` (or a concurrent decision won) }
+
+  /api/v1/admin/driver-applications/{applicationId}/approve:
+    post:
+      tags: [AdminApplications]
+      summary: Approve — assign service types, activate the vehicle and the driver role
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/ApplicationId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveRequest' }
+      responses:
+        '200':
+          description: Now `approved`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDriverApplication' }
+        '400': { description: Unknown/disabled service type, or one outside an active region }
+        '404': { description: Unknown application }
+        '409':
+          description: >
+            Not `under_review`, duplicate plate unresolved, a document has expired meanwhile, or
+            a concurrent decision won
+
+  /api/v1/admin/driver-applications/{applicationId}/reject:
+    post:
+      tags: [AdminApplications]
+      summary: Reject with a reason
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/ApplicationId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonRequest' }
+      responses:
+        '200':
+          description: Now `rejected`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDriverApplication' }
+        '400': { description: Missing reason }
+        '404': { description: Unknown application }
+        '409': { description: Not `under_review` (or a concurrent decision won) }
+
+  /api/v1/admin/assignable-service-types:
+    get:
+      tags: [AdminApplications]
+      summary: Service types an approval may assign
+      description: >
+        Enabled service types of ACTIVE regions, so a reviewer without `pricing:view` can still
+        assign them. Vehicles are not bound to a region.
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Region-then-name sorted
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ServiceTypeRef' }
+
+  /api/v1/admin/vehicle-reviews:
+    get:
+      tags: [AdminVehicleReviews]
+      summary: Vehicle-switch queue (UC-A-11)
+      description: Pending switch vehicles of approved drivers, oldest first.
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VehicleReviewSummary' }
+
+  /api/v1/admin/vehicle-reviews/{vehicleId}:
+    get:
+      tags: [AdminVehicleReviews]
+      summary: Switch detail — new vehicle, its documents, the current active vehicle
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/VehicleId' }
+      responses:
+        '200':
+          description: The switch
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleReview' }
+        '404': { description: Unknown vehicle, or not a switch candidate }
+
+  /api/v1/admin/vehicle-reviews/{vehicleId}/approve:
+    post:
+      tags: [AdminVehicleReviews]
+      summary: Approve the switch — the new vehicle becomes the single active one
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/VehicleId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveRequest' }
+      responses:
+        '200':
+          description: Approved and active; the old vehicle is now inactive
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleReview' }
+        '400': { description: Unknown/disabled service type }
+        '404': { description: Unknown vehicle, or not a switch candidate }
+        '409': { description: Not pending, duplicate plate, expired document, or a concurrent decision won }
+
+  /api/v1/admin/vehicle-reviews/{vehicleId}/reject:
+    post:
+      tags: [AdminVehicleReviews]
+      summary: Reject the switch — the driver keeps the current vehicle
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/VehicleId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonRequest' }
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleReview' }
+        '400': { description: Missing reason }
+        '404': { description: Unknown vehicle, or not a switch candidate }
+        '409': { description: Not pending, or a concurrent decision won }
+
+  /api/v1/admin/document-renewals:
+    get:
+      tags: [AdminDocuments]
+      summary: Pending renewal queue (UC-A-12)
+      description: Oldest submission first.
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DocumentRenewal' }
+
+  /api/v1/admin/document-renewals/{documentId}:
+    get:
+      tags: [AdminDocuments]
+      summary: One pending renewal beside the document it replaces (fresh file URLs)
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/DocumentId' }
+      responses:
+        '200':
+          description: The renewal
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentRenewal' }
+        '404': { description: Unknown document, or not a pending renewal }
+
+  /api/v1/admin/document-renewals/{documentId}/approve:
+    post:
+      tags: [AdminDocuments]
+      summary: Approve a renewal — replaces the current document, may lift an expiry suspension
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/DocumentId' }
+      responses:
+        '200':
+          description: Approved; the previous document is now `superseded`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentRenewal' }
+        '404': { description: Unknown document, or not a pending renewal }
+        '409': { description: Renewal has itself expired meanwhile, or a concurrent decision won }
+
+  /api/v1/admin/document-renewals/{documentId}/reject:
+    post:
+      tags: [AdminDocuments]
+      summary: Reject a renewal with a reason (the current document stays)
+      x-required-permission: 'driver-review:decide'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/DocumentId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonRequest' }
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentRenewal' }
+        '400': { description: Missing reason }
+        '404': { description: Unknown document, or not a pending renewal }
+        '409': { description: Concurrent decision won }
+
+  /api/v1/admin/document-expiries:
+    get:
+      tags: [AdminDocuments]
+      summary: Expiry dashboard — upcoming within the horizon, and already expired (UC-A-12)
+      description: >
+        Covers approved CURRENT documents only (driver ID/licence + active vehicle's
+        registration/insurance of approved drivers). Sorted by expiry date ascending.
+      x-required-permission: 'driver-review:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: horizonDays
+          in: query
+          description: Upcoming = expires within this many days from today (the UI offers 7 and 30).
+          schema: { type: integer, minimum: 1, maximum: 30, default: 30 }
+      responses:
+        '200':
+          description: The dashboard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExpiryDashboard' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    ApplicationId:
+      name: applicationId
+      in: path
+      required: true
+      description: The driver profile id
+      schema: { type: string, format: uuid }
+    VehicleId: { name: vehicleId, in: path, required: true, schema: { type: string, format: uuid } }
+    DocumentId: { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    ApplicationStatus:
+      type: string
+      enum: [submitted, under_review, needs_changes, approved, rejected]
+    ReviewStatus:
+      type: string
+      description: >
+        Per item. `superseded` applies to documents only (replaced by an approved renewal);
+        the personal item is never `rejected` (rejection is application-level).
+      enum: [pending, changes_requested, approved, rejected, superseded]
+    DocumentType:
+      type: string
+      enum: [government_id, drivers_license, vehicle_registration, insurance]
+    FileKind:
+      type: string
+      enum: [document, vehicle_photo]
+    UploadedFile:
+      type: object
+      required: [fileId, kind, contentType, sizeBytes]
+      properties:
+        fileId: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/FileKind' }
+        contentType: { type: string, enum: [image/jpeg, image/png, application/pdf] }
+        sizeBytes: { type: integer }
+    FileRef:
+      type: object
+      description: A private file with a freshly minted, expiring URL (NFR-S2).
+      required: [fileId, contentType, url, urlExpiresAt]
+      properties:
+        fileId: { type: string, format: uuid }
+        contentType: { type: string, enum: [image/jpeg, image/png, application/pdf] }
+        url: { type: string, description: 'API-relative (/api/v1/files/{token}) or absolute' }
+        urlExpiresAt: { type: string, format: date-time }
+    DocumentInput:
+      type: object
+      required: [type, number, expiresOn, fileId]
+      properties:
+        type: { $ref: '#/components/schemas/DocumentType' }
+        number: { type: string, minLength: 1, maxLength: 50 }
+        expiresOn: { type: string, format: date, description: Must be after today (UC-D-01 E2) }
+        fileId: { type: string, format: uuid, description: Own upload of kind `document` }
+    DocumentRenewalRequest:
+      type: object
+      required: [number, expiresOn, fileId]
+      properties:
+        number: { type: string, minLength: 1, maxLength: 50 }
+        expiresOn: { type: string, format: date, description: Must be after today }
+        fileId: { type: string, format: uuid }
+    VehicleInput:
+      type: object
+      required: [make, model, year, color, plate, seats, photoFileIds]
+      properties:
+        make: { type: string, minLength: 1, maxLength: 50 }
+        model: { type: string, minLength: 1, maxLength: 50 }
+        year: { type: integer, minimum: 1980, description: At most next calendar year }
+        color: { type: string, minLength: 1, maxLength: 30 }
+        plate:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Free text (Arabic allowed); stored upper-cased with whitespace removed
+        seats: { type: integer, minimum: 1, maximum: 8 }
+        photoFileIds:
+          type: array
+          minItems: 1
+          maxItems: 4
+          uniqueItems: true
+          description: Own uploads of kind `vehicle_photo`; order kept, the first is shown to riders
+          items: { type: string, format: uuid }
+    ApplicationSubmitRequest:
+      type: object
+      required: [documents, vehicle]
+      properties:
+        documents:
+          type: array
+          minItems: 4
+          maxItems: 4
+          description: Exactly one of each DocumentType
+          items: { $ref: '#/components/schemas/DocumentInput' }
+        vehicle: { $ref: '#/components/schemas/VehicleInput' }
+    ApplicationResubmitRequest:
+      type: object
+      properties:
+        confirmPersonalDetails:
+          type: boolean
+          description: Required true iff the personal item is flagged; must be absent/false otherwise
+        documents:
+          type: array
+          maxItems: 4
+          description: Exactly the flagged document types
+          items: { $ref: '#/components/schemas/DocumentInput' }
+        vehicle:
+          description: Required iff the vehicle is flagged; must be absent otherwise
+          oneOf:
+            - { $ref: '#/components/schemas/VehicleInput' }
+            - { type: 'null' }
+    VehicleSwitchRequest:
+      type: object
+      required: [vehicle, documents]
+      properties:
+        vehicle: { $ref: '#/components/schemas/VehicleInput' }
+        documents:
+          type: array
+          minItems: 2
+          maxItems: 2
+          description: Exactly one `vehicle_registration` and one `insurance`
+          items: { $ref: '#/components/schemas/DocumentInput' }
+    ServiceTypeRef:
+      type: object
+      required: [id, regionId, regionName, nameEn, nameAr]
+      properties:
+        id: { type: string, format: uuid }
+        regionId: { type: string, format: uuid }
+        regionName: { type: string }
+        nameEn: { type: string }
+        nameAr: { type: string }
+    Document:
+      type: object
+      required: [id, type, number, expiresOn, file, reviewStatus]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/DocumentType' }
+        vehicleId: { type: [string, 'null'], format: uuid }
+        number: { type: string }
+        expiresOn: { type: string, format: date }
+        file: { $ref: '#/components/schemas/FileRef' }
+        reviewStatus: { $ref: '#/components/schemas/ReviewStatus' }
+        reviewNote: { type: [string, 'null'], description: Change-request note or rejection reason }
+        submittedAt: { type: string, format: date-time }
+    Vehicle:
+      type: object
+      required: [id, make, model, year, color, plate, seats, photos, reviewStatus, active, serviceTypes]
+      properties:
+        id: { type: string, format: uuid }
+        make: { type: string }
+        model: { type: string }
+        year: { type: integer }
+        color: { type: string }
+        plate: { type: string }
+        seats: { type: integer }
+        photos:
+          type: array
+          items: { $ref: '#/components/schemas/FileRef' }
+        reviewStatus: { $ref: '#/components/schemas/ReviewStatus' }
+        reviewNote: { type: [string, 'null'] }
+        active: { type: boolean }
+        serviceTypes:
+          type: array
+          description: Assigned at approval; empty before
+          items: { $ref: '#/components/schemas/ServiceTypeRef' }
+        submittedAt: { type: string, format: date-time }
+    VehicleWithDocuments:
+      allOf:
+        - { $ref: '#/components/schemas/Vehicle' }
+        - type: object
+          required: [documents]
+          properties:
+            documents:
+              type: array
+              description: The vehicle's current registration + insurance
+              items: { $ref: '#/components/schemas/Document' }
+    PersonalItem:
+      type: object
+      required: [name, reviewStatus]
+      properties:
+        name: { type: string, description: The account name }
+        photo:
+          description: The account's profile photo
+          oneOf:
+            - { $ref: '#/components/schemas/FileRef' }
+            - { type: 'null' }
+        reviewStatus: { type: string, enum: [pending, changes_requested, approved] }
+        reviewNote: { type: [string, 'null'] }
+    ApplicationEvent:
+      type: object
+      required: [toStatus, at]
+      properties:
+        fromStatus:
+          oneOf:
+            - { $ref: '#/components/schemas/ApplicationStatus' }
+            - { type: 'null' }
+        toStatus: { $ref: '#/components/schemas/ApplicationStatus' }
+        note: { type: [string, 'null'] }
+        at: { type: string, format: date-time }
+    DriverApplication:
+      type: object
+      description: The applicant's view (UC-D-03). Items carry their own review notes.
+      required: [id, status, submittedAt, personal, documents, vehicle, history]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/ApplicationStatus' }
+        submittedAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        rejectionReason: { type: [string, 'null'] }
+        personal: { $ref: '#/components/schemas/PersonalItem' }
+        documents:
+          type: array
+          description: The application's four current documents
+          items: { $ref: '#/components/schemas/Document' }
+        vehicle: { $ref: '#/components/schemas/Vehicle' }
+        history:
+          type: array
+          description: Oldest first
+          items: { $ref: '#/components/schemas/ApplicationEvent' }
+    Applicant:
+      type: object
+      required: [userId, name, phone]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+    AdminDriverApplication:
+      allOf:
+        - { $ref: '#/components/schemas/DriverApplication' }
+        - type: object
+          required: [applicant, duplicatePlate]
+          properties:
+            applicant: { $ref: '#/components/schemas/Applicant' }
+            duplicatePlate:
+              type: boolean
+              description: The plate is on ANOTHER driver's active vehicle; blocks approval
+    ApplicationSummary:
+      type: object
+      required: [id, applicant, status, submittedAt, plate, duplicatePlate]
+      properties:
+        id: { type: string, format: uuid }
+        applicant: { $ref: '#/components/schemas/Applicant' }
+        status: { $ref: '#/components/schemas/ApplicationStatus' }
+        submittedAt: { type: string, format: date-time }
+        plate: { type: string }
+        duplicatePlate: { type: boolean }
+    ApplicationSummaryPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ApplicationSummary' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    ReviewItemRef:
+      type: object
+      required: [item]
+      properties:
+        item: { type: string, enum: [personal, document, vehicle] }
+        documentType:
+          description: Required iff item = document
+          oneOf:
+            - { $ref: '#/components/schemas/DocumentType' }
+            - { type: 'null' }
+    RequestChangesRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          description: Each item at most once
+          items:
+            allOf:
+              - { $ref: '#/components/schemas/ReviewItemRef' }
+              - type: object
+                required: [note]
+                properties:
+                  note: { type: string, minLength: 1, maxLength: 1000 }
+        note:
+          type: [string, 'null']
+          maxLength: 1000
+          description: Optional overall note, recorded in the stage history
+    ApproveRequest:
+      type: object
+      required: [serviceTypeIds]
+      properties:
+        serviceTypeIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          description: From /admin/assignable-service-types
+          items: { type: string, format: uuid }
+    ReasonRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    VehicleReviewSummary:
+      type: object
+      required: [vehicleId, driver, make, model, plate, submittedAt, duplicatePlate]
+      properties:
+        vehicleId: { type: string, format: uuid }
+        driver: { $ref: '#/components/schemas/Applicant' }
+        make: { type: string }
+        model: { type: string }
+        plate: { type: string }
+        submittedAt: { type: string, format: date-time }
+        duplicatePlate: { type: boolean }
+    VehicleReview:
+      type: object
+      required: [driver, vehicle, duplicatePlate]
+      properties:
+        driver: { $ref: '#/components/schemas/Applicant' }
+        vehicle: { $ref: '#/components/schemas/VehicleWithDocuments' }
+        currentVehicle:
+          description: The driver's active vehicle (until the switch is approved)
+          oneOf:
+            - { $ref: '#/components/schemas/Vehicle' }
+            - { type: 'null' }
+        duplicatePlate: { type: boolean }
+    DocumentSlot:
+      type: object
+      required: [type, current]
+      properties:
+        type: { $ref: '#/components/schemas/DocumentType' }
+        vehicleId: { type: [string, 'null'], format: uuid }
+        current: { $ref: '#/components/schemas/Document' }
+        expired: { type: boolean, description: 'today > current.expiresOn' }
+        renewal:
+          description: Pending renewal, or the latest rejected one with its reason
+          oneOf:
+            - { $ref: '#/components/schemas/Document' }
+            - { type: 'null' }
+    DocumentRenewal:
+      type: object
+      required: [driver, renewal, current, driverSuspended]
+      properties:
+        driver: { $ref: '#/components/schemas/Applicant' }
+        renewal: { $ref: '#/components/schemas/Document' }
+        current: { $ref: '#/components/schemas/Document' }
+        driverSuspended:
+          type: boolean
+          description: The driver role is suspended for document expiry
+    ExpiryRow:
+      type: object
+      required: [document, driver, daysLeft, driverSuspended, renewalPending]
+      properties:
+        document: { $ref: '#/components/schemas/Document' }
+        driver: { $ref: '#/components/schemas/Applicant' }
+        daysLeft: { type: integer, description: 'expiresOn − today; negative once expired' }
+        driverSuspended: { type: boolean }
+        renewalPending: { type: boolean }
+        reminder30SentAt: { type: [string, 'null'], format: date-time }
+        reminder7SentAt: { type: [string, 'null'], format: date-time }
+    ExpiryDashboard:
+      type: object
+      required: [horizonDays, upcoming, expired]
+      properties:
+        horizonDays: { type: integer }
+        upcoming:
+          type: array
+          items: { $ref: '#/components/schemas/ExpiryRow' }
+        expired:
+          type: array
+          items: { $ref: '#/components/schemas/ExpiryRow' }

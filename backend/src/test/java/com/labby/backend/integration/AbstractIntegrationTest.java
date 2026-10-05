@@ -1,5 +1,6 @@
 package com.labby.backend.integration;
 
+import java.nio.file.Path;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -34,5 +35,9 @@ public abstract class AbstractIntegrationTest {
     registry.add("spring.datasource.password", POSTGRES::getPassword);
     // application.yml deliberately has no jwt-secret default; tests supply their own.
     registry.add("labby.auth.jwt-secret", () -> "labby-integration-test-secret-0123456789abcdef");
+    // Private uploads go to a temp dir, never into the working tree.
+    registry.add(
+        "labby.storage.dir",
+        () -> Path.of(System.getProperty("java.io.tmpdir"), "labby-it-uploads").toString());
   }
 }

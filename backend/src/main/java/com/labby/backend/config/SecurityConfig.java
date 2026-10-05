@@ -22,9 +22,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Deny-by-default, stateless security (NFR-S3). Whitelist: auth endpoints, public meta, health, and
- * the API docs. Everything else needs a valid Bearer access token. Method-level security is enabled
- * for the role/permission checks of later milestones.
+ * Deny-by-default, stateless security (NFR-S3). Whitelist: auth endpoints, public meta, health, the
+ * API docs, and expiring file URLs (their signed token is the capability — NFR-S2, M5). Everything
+ * else needs a valid Bearer access token. Method-level security is enabled for the role/permission
+ * checks of later milestones.
  */
 @Configuration
 @EnableWebSecurity
@@ -59,6 +60,7 @@ public class SecurityConfig {
                 auth.requestMatchers(
                         "/api/v1/auth/**",
                         "/api/v1/meta",
+                        "/api/v1/files/*",
                         "/actuator/health",
                         "/actuator/health/**",
                         "/swagger-ui.html",
