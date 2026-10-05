@@ -1,6 +1,7 @@
 package com.labby.backend.runner;
 
 import com.labby.backend.enums.Permission;
+import com.labby.backend.util.RbacIds;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -24,8 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RbacCatalogSeeder implements ApplicationRunner {
 
-  private static final String SUPER_ADMIN_ROLE_ID = "00000000-0000-0000-0000-000000000001";
-
   private final JdbcTemplate jdbcTemplate;
 
   @Override
@@ -41,9 +40,9 @@ public class RbacCatalogSeeder implements ApplicationRunner {
     }
     int granted =
         jdbcTemplate.update(
-            "INSERT INTO role_permissions (role_id, permission_id) SELECT ?::uuid, permission_id"
+            "INSERT INTO role_permissions (role_id, permission_id) SELECT ?, permission_id"
                 + " FROM permissions ON CONFLICT DO NOTHING",
-            SUPER_ADMIN_ROLE_ID);
+            RbacIds.SUPER_ADMIN_ROLE_ID);
     if (inserted > 0 || granted > 0) {
       log.info(
           "RBAC catalog sync: {} permissions added, {} Super Admin grants added",

@@ -45,6 +45,10 @@ public class RoleAssignment {
   @Column(name = "state", nullable = false, length = 16)
   private RoleState state = RoleState.ACTIVE;
 
+  /** The single RBAC role of an admin assignment (SRS §5.1); NULL on non-admin rows (V4 CHECK). */
+  @Column(name = "admin_role_id")
+  private UUID adminRoleId;
+
   @Column(name = "granted_at", nullable = false)
   private Instant grantedAt;
 

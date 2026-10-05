@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.exception.ErrorResponse;
 import com.labby.backend.security.JwtAuthFilter;
 import com.labby.backend.security.JwtService;
+import com.labby.backend.service.PermissionService;
 import com.labby.backend.service.SessionService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,6 +37,7 @@ public class SecurityConfig {
    * @param http the builder
    * @param jwtService parses Bearer access tokens for the auth filter
    * @param sessionService checks the token's session is not revoked (UC-S-03)
+   * @param permissionService resolves admin {@code domain:action} authorities per request (RBAC-03)
    * @param objectMapper serializes the 401 error body
    * @return the chain
    * @throws Exception from the builder
@@ -45,6 +47,7 @@ public class SecurityConfig {
       HttpSecurity http,
       JwtService jwtService,
       SessionService sessionService,
+      PermissionService permissionService,
       ObjectMapper objectMapper)
       throws Exception {
     http.csrf(csrf -> csrf.disable())
@@ -68,7 +71,7 @@ public class SecurityConfig {
         .httpBasic(basic -> basic.disable())
         .formLogin(form -> form.disable())
         .addFilterBefore(
-            new JwtAuthFilter(jwtService, sessionService),
+            new JwtAuthFilter(jwtService, sessionService, permissionService),
             UsernamePasswordAuthenticationFilter.class);
     return http.build();
   }
