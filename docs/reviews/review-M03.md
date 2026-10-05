@@ -102,3 +102,58 @@ Post-fix backend gate: `make check` green — 120 tests, 0 failures, BUILD SUCCE
 | Admin app | `cd apps/admin && npm run check` | **green** — 13 files, 56 tests passed (lint + typecheck + tests), exit 0. |
 | Rider app | not run | `git diff --stat 26d780f..HEAD -- apps/rider` is empty — untouched by M3. |
 | Driver app | not run | `git diff --stat 26d780f..HEAD -- apps/driver` is empty — untouched by M3. |
+
+## Re-audit (2026-10-05, independent)
+
+**Range:** `ff1740f..HEAD` (`c9c4197` fixes, `a3ce6a9` docs/tracker). **Verdict: Pass.**
+
+Verified against full files, not hunks:
+
+- **W1 — resolved.** `GlobalExceptionHandler.java:72-79` adds a
+  `MethodArgumentTypeMismatchException` handler (correct import,
+  `org.springframework.web.method.annotation`) → 400 "Malformed request parameter". Spring
+  resolves the most specific handler, so it takes precedence over the catch-all
+  `Exception` handler without shadowing the existing validation/body/403 handlers; the
+  catch-all's logging behavior is unchanged. Covers path params and typed query params
+  (`actorId`, `from`/`to`) alike. `shouldRejectMalformedUuidParams` asserts 400 on an
+  admins path param, a roles path param, and an audit-log query param.
+- **W2 — resolved per the owner's decision.** Grant guard
+  (`AdminAccountServiceImpl.requireSuperAdminActorForSuperAdminGrant`, lines 229-244):
+  fires only for the Super Admin role id, requires the actor's own admin assignment to be
+  Super Admin **and** `ACTIVE` (suspended or missing-assignment actors → 409 — correct
+  defense-in-depth beyond the auth filter). Called in `createAdmin` (line 87) *before* the
+  existing-phone branch, so both the fresh-create and grant-to-existing (E1) paths are
+  guarded, and in `changeRole` (line 123) inside the actually-changing branch — a no-op
+  "change" to the role the target already holds stays a silent no-op, which escalates
+  nothing. Own-role guard (`RbacRoleServiceImpl.updateRole:87-96`): placed after the Super
+  Admin immutability check, so a Super Admin editing anything still gets the correct
+  "immutable" 409 for the Super Admin role and remains free to edit Support (RBAC-04
+  preserved — Super Admin's own role id is the Super Admin role, never the edit target).
+  `deleteRole` needs no guard: an actor's own role is always assigned, so the existing
+  assigned-role 409 covers it.
+- **Tests meaningful, nothing weakened.** The range only *adds* two tests (verified via
+  `git diff` — no existing assertion touched). `shouldBlockPermissionSelfEscalation`
+  covers the negative space properly: non-Super-Admin with `admins:manage` blocked on both
+  grant paths (409), own-role edit blocked (409), *other* custom role still editable
+  (200), and a genuine Super Admin still grants the role (200).
+- **Contract and SRS consistent with the code.** `rbac-v1.yaml` documents both guards as
+  409 on exactly the three affected operations (create admin, change role, update role);
+  SRS RBAC-01/02 rows record the guards with the owner-decision date. Tracker (`a3ce6a9`)
+  reflects the resolution and marks T5 `in_progress`; no drift found.
+
+**Test run:** `cd backend && make check` — green: 120 tests, 0 failures (both new tests
+confirmed passing in the surefire report for `RbacAdminIntegrationTest`, 9/9), Spotless 0
+changes needed, Checkstyle 0 violations, BUILD SUCCESS in 2:02 min.
+`git diff --stat ff1740f..HEAD -- apps/` is empty — no client app touched, suites not
+re-run (admin suite was green at the main audit).
+
+**New findings:** none at Warning or above. One Info-level note for the record:
+the two implemented guards close both W2 paths as decided, but an admin holding
+`roles:manage` **and** `admins:manage` together can still self-escalate by *creating* a
+new full-catalog role (`RbacRoleServiceImpl.createRole:54` has no own-role concept —
+correctly, the role is new) and then assigning it to themselves via `changeRole` (not the
+Super Admin role, so the grant guard rightly stays silent). This is outside the owner's
+decided guard set and both actions are permission-checked and audited; it only means the
+original W2 observation that these two permissions are *jointly* equivalent to full
+access still stands — relevant if they are ever granted together to a non-Super-Admin
+role. No action required for M3. — security, certainty High.
