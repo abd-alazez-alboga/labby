@@ -76,6 +76,24 @@ None.
 - The catch-all 500 `@ExceptionHandler(Exception.class)` pattern predates M3 (W1 only concerns the new UUID path params that now hit it).
 - Backlog items recorded at M2 close (rider cold-start refresh handling, لابي→لبي rename, palette error/success tokens) are untouched by this range, as expected.
 
+## Resolution (2026-10-05, via /labby-fix)
+
+Owner decisions: fix W1; add guards for W2 (not accept-as-design). Both implemented in
+`c9c4197` and validated against live code first:
+
+- **W1 — fixed.** `MethodArgumentTypeMismatchException` handler added to
+  `GlobalExceptionHandler` → 400 "Malformed request parameter"; covered by
+  `shouldRejectMalformedUuidParams` (path params on admins + roles, query param on audit-log).
+- **W2 — fixed.** Two guards, both 409, contract + SRS updated in the same commit
+  (RBAC-01/02 rows note the owner decision): granting the Super Admin role now requires an
+  active Super Admin actor (`AdminAccountServiceImpl`, create + role-change paths), and an
+  admin can no longer edit the role they themselves hold (`RbacRoleServiceImpl.updateRole`).
+  Covered by `shouldBlockPermissionSelfEscalation`, including the negative space (other
+  custom roles stay editable; a real Super Admin can still grant the role).
+- Info findings 1–4: left as recorded — no code change requested.
+
+Post-fix backend gate: `make check` green — 120 tests, 0 failures, BUILD SUCCESS.
+
 ## Test run results
 
 | Suite | Command | Result |
