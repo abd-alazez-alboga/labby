@@ -53,6 +53,7 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
 
     await fireEvent.changeText(screen.getByTestId('register-name'), 'New Rider');
     await fireEvent.changeText(screen.getByTestId('register-password'), 'supersecret1');
+    await fireEvent.changeText(screen.getByTestId('register-confirm-password'), 'supersecret1');
     await fireEvent.press(screen.getByTestId('register-terms'));
     await fireEvent.press(screen.getByTestId('register-complete'));
 
@@ -85,6 +86,7 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
 
     await fireEvent.changeText(screen.getByTestId('register-name'), 'New Rider');
     await fireEvent.changeText(screen.getByTestId('register-password'), 'supersecret1');
+    await fireEvent.changeText(screen.getByTestId('register-confirm-password'), 'supersecret1');
     await fireEvent.press(screen.getByTestId('register-complete'));
 
     expect(await screen.findByTestId('register-terms-error')).toBeOnTheScreen();
@@ -236,6 +238,7 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
 
     await fireEvent.changeText(screen.getByTestId('register-name'), 'New Rider');
     await fireEvent.changeText(screen.getByTestId('register-password'), 'supersecret1');
+    await fireEvent.changeText(screen.getByTestId('register-confirm-password'), 'supersecret1');
     await fireEvent.press(screen.getByTestId('register-terms'));
     await fireEvent.press(screen.getByTestId('register-complete'));
 

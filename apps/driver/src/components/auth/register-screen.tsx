@@ -41,6 +41,7 @@ export function RegisterScreen() {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [registrationToken, setRegistrationToken] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
@@ -110,6 +111,10 @@ export function RegisterScreen() {
     }
     if (password.length < PASSWORD_MIN_LENGTH) {
       setFieldErrorKey('auth.validation.password');
+      return;
+    }
+    if (confirmPassword !== password) {
+      setFieldErrorKey('auth.validation.confirm');
       return;
     }
     if (!termsAccepted) {
@@ -240,6 +245,19 @@ export function RegisterScreen() {
                 : null
             }
             testID="register-password"
+          />
+          <Field
+            label={t('auth.fields.confirmPassword')}
+            secureTextEntry
+            autoCapitalize="none"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            error={
+              fieldErrorKey === 'auth.validation.confirm'
+                ? t(fieldErrorKey)
+                : null
+            }
+            testID="register-confirm-password"
           />
           <CheckboxRow
             label={t('auth.register.termsLabel')}

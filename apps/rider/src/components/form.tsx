@@ -3,7 +3,8 @@
  * labelled text input with error line, primary/secondary buttons, error and
  * success banners. All are RTL-aware through useLocale().isRTL.
  */
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -23,17 +24,50 @@ export interface FormFieldProps extends TextInputProps {
   testID?: string;
 }
 
-export function FormField({ label, error, testID, style, ...inputProps }: FormFieldProps) {
-  const { isRTL } = useLocale();
+export function FormField({
+  label,
+  error,
+  testID,
+  style,
+  secureTextEntry,
+  ...inputProps
+}: FormFieldProps) {
+  const { t, isRTL } = useLocale();
+  const [revealed, setRevealed] = useState(false);
   return (
     <View style={styles.field}>
       <Text style={[styles.label, isRTL && styles.textRtl]}>{label}</Text>
-      <TextInput
-        style={[styles.input, isRTL && styles.inputRtl, error ? styles.inputError : null, style]}
-        placeholderTextColor={colors.textSubtle}
-        testID={testID}
-        {...inputProps}
-      />
+      <View style={styles.inputWrap}>
+        <TextInput
+          style={[
+            styles.input,
+            isRTL && styles.inputRtl,
+            error ? styles.inputError : null,
+            secureTextEntry ? (isRTL ? styles.inputWithToggleRtl : styles.inputWithToggle) : null,
+            style,
+          ]}
+          placeholderTextColor={colors.textSubtle}
+          secureTextEntry={secureTextEntry ? !revealed : undefined}
+          testID={testID}
+          {...inputProps}
+        />
+        {secureTextEntry ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={revealed ? t('common.hidePassword') : t('common.showPassword')}
+            onPress={() => setRevealed((v) => !v)}
+            style={[styles.revealToggle, isRTL && styles.revealToggleRtl]}
+            hitSlop={spacing.sm}
+            testID={testID ? `${testID}-reveal` : undefined}
+          >
+            <Ionicons
+              name={revealed ? 'eye-off-outline' : 'eye-outline'}
+              size={fontSize.xl}
+              color={colors.textSecondary}
+            />
+          </Pressable>
+        ) : null}
+      </View>
       {error ? (
         <Text style={[styles.errorText, isRTL && styles.textRtl]} testID={testID ? `${testID}-error` : undefined}>
           {error}
@@ -139,6 +173,23 @@ const styles = StyleSheet.create({
   inputRtl: {
     textAlign: 'right',
     writingDirection: 'rtl',
+  },
+  inputWrap: {
+    justifyContent: 'center',
+  },
+  inputWithToggle: {
+    paddingEnd: spacing.xl + spacing.md,
+  },
+  inputWithToggleRtl: {
+    paddingStart: spacing.xl + spacing.md,
+  },
+  revealToggle: {
+    position: 'absolute',
+    end: spacing.md,
+  },
+  revealToggleRtl: {
+    end: undefined,
+    start: spacing.md,
   },
   inputError: {
     borderColor: '#C0392B',

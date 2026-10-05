@@ -6,8 +6,9 @@ import { mockApi, seedSignedInSession } from '../../../test-utils/mock-api';
 import { renderWithProviders } from '../../../test-utils/render';
 import ChangePasswordScreen from '../change-password-screen';
 
+const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -16,7 +17,21 @@ const secureStoreMock = require('expo-secure-store') as { __reset: () => void };
 const REQUEST_2FA = 'POST /api/v1/users/me/2fa/request';
 const CHANGE = 'PUT /api/v1/users/me/password';
 
-describe('ChangePasswordScreen (UC-S-05)', () => {
+/** Walks the wizard to the OTP step: current password → Continue (sends code). */
+async function passCurrentStep(current = 'oldpassword1') {
+  await fireEvent.changeText(screen.getByTestId('change-password-current'), current);
+  await fireEvent.press(screen.getByTestId('change-password-continue'));
+  expect(await screen.findByTestId('change-password-otp-code-input')).toBeOnTheScreen();
+}
+
+/** Enters the OTP and verifies, landing on the new-password step. */
+async function passOtpStep(code = '123456') {
+  await fireEvent.changeText(screen.getByTestId('change-password-otp-code-input'), code);
+  await fireEvent.press(screen.getByTestId('change-password-otp-verify'));
+  expect(await screen.findByTestId('change-password-new')).toBeOnTheScreen();
+}
+
+describe('ChangePasswordScreen (UC-S-05, staged)', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     secureStoreMock.__reset();
@@ -24,7 +39,7 @@ describe('ChangePasswordScreen (UC-S-05)', () => {
     await seedSignedInSession();
   });
 
-  it('changes the password with current password + 2FA OTP', async () => {
+  it('changes the password through current → OTP → new + confirm steps', async () => {
     const api = mockApi({
       [REQUEST_2FA]: { status: 204 },
       [CHANGE]: { status: 204 },
@@ -33,10 +48,10 @@ describe('ChangePasswordScreen (UC-S-05)', () => {
     await renderWithProviders(<ChangePasswordScreen />);
     expect(await screen.findByTestId('change-password-screen')).toBeOnTheScreen();
 
-    await fireEvent.press(screen.getByTestId('change-password-send-code'));
-    await fireEvent.changeText(screen.getByTestId('change-password-current'), 'oldpassword1');
-    await fireEvent.changeText(screen.getByTestId('change-password-otp'), '123456');
+    await passCurrentStep();
+    await passOtpStep();
     await fireEvent.changeText(screen.getByTestId('change-password-new'), 'newpassword1');
+    await fireEvent.changeText(screen.getByTestId('change-password-confirm'), 'newpassword1');
     await fireEvent.press(screen.getByTestId('change-password-submit'));
 
     expect(await screen.findByTestId('change-password-done')).toBeOnTheScreen();
@@ -47,7 +62,38 @@ describe('ChangePasswordScreen (UC-S-05)', () => {
     });
   });
 
-  it('shows the rejection message on 400 (wrong current password or OTP)', async () => {
+  it('requires the current password before sending a code', async () => {
+    const api = mockApi({ [REQUEST_2FA]: { status: 204 } });
+
+    await renderWithProviders(<ChangePasswordScreen />);
+    expect(await screen.findByTestId('change-password-screen')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByTestId('change-password-continue'));
+
+    expect(await screen.findByText('Enter your current password.')).toBeOnTheScreen();
+    expect(api.callsTo('POST', '/api/v1/users/me/2fa/request')).toHaveLength(0);
+  });
+
+  it('rejects a mismatched confirmation without calling the API', async () => {
+    const api = mockApi({
+      [REQUEST_2FA]: { status: 204 },
+      [CHANGE]: { status: 204 },
+    });
+
+    await renderWithProviders(<ChangePasswordScreen />);
+    expect(await screen.findByTestId('change-password-screen')).toBeOnTheScreen();
+
+    await passCurrentStep();
+    await passOtpStep();
+    await fireEvent.changeText(screen.getByTestId('change-password-new'), 'newpassword1');
+    await fireEvent.changeText(screen.getByTestId('change-password-confirm'), 'different1');
+    await fireEvent.press(screen.getByTestId('change-password-submit'));
+
+    expect(await screen.findByText('Passwords do not match.')).toBeOnTheScreen();
+    expect(api.callsTo('PUT', '/api/v1/users/me/password')).toHaveLength(0);
+  });
+
+  it('shows the rejection message on 400 and offers start over', async () => {
     mockApi({
       [REQUEST_2FA]: { status: 204 },
       [CHANGE]: { status: 400, body: { status: 400, message: 'wrong' } },
@@ -56,9 +102,10 @@ describe('ChangePasswordScreen (UC-S-05)', () => {
     await renderWithProviders(<ChangePasswordScreen />);
     expect(await screen.findByTestId('change-password-screen')).toBeOnTheScreen();
 
-    await fireEvent.changeText(screen.getByTestId('change-password-current'), 'oldpassword1');
-    await fireEvent.changeText(screen.getByTestId('change-password-otp'), '000000');
+    await passCurrentStep();
+    await passOtpStep('000000');
     await fireEvent.changeText(screen.getByTestId('change-password-new'), 'newpassword1');
+    await fireEvent.changeText(screen.getByTestId('change-password-confirm'), 'newpassword1');
     await fireEvent.press(screen.getByTestId('change-password-submit'));
 
     expect(
@@ -66,6 +113,9 @@ describe('ChangePasswordScreen (UC-S-05)', () => {
         'The current password or the code is wrong. Please check both and try again.',
       ),
     ).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByTestId('change-password-start-over'));
+    expect(await screen.findByTestId('change-password-current')).toBeOnTheScreen();
   });
 
   it('shows the cap message when the 2FA code request is throttled (429)', async () => {
@@ -76,10 +126,23 @@ describe('ChangePasswordScreen (UC-S-05)', () => {
     await renderWithProviders(<ChangePasswordScreen />);
     expect(await screen.findByTestId('change-password-screen')).toBeOnTheScreen();
 
-    await fireEvent.press(screen.getByTestId('change-password-send-code'));
+    await fireEvent.changeText(screen.getByTestId('change-password-current'), 'oldpassword1');
+    await fireEvent.press(screen.getByTestId('change-password-continue'));
 
     expect(
       await screen.findByText('Too many codes requested. Please wait and try again later.'),
     ).toBeOnTheScreen();
+  });
+
+  it('signs out to the reset flow via the forgot-password link', async () => {
+    mockApi({ 'POST /api/v1/auth/logout': { status: 204 } });
+
+    await renderWithProviders(<ChangePasswordScreen />);
+    expect(await screen.findByTestId('change-password-screen')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByTestId('change-password-forgot'));
+
+    expect(await screen.findByTestId('change-password-screen')).toBeOnTheScreen();
+    expect(mockReplace).toHaveBeenCalledWith('/forgot-password');
   });
 });

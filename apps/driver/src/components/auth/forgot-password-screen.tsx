@@ -41,6 +41,7 @@ export function ForgotPasswordScreen() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -97,6 +98,10 @@ export function ForgotPasswordScreen() {
   const complete = async () => {
     if (newPassword.length < PASSWORD_MIN_LENGTH) {
       setFieldErrorKey('auth.validation.password');
+      return;
+    }
+    if (confirmPassword !== newPassword) {
+      setFieldErrorKey('auth.validation.confirm');
       return;
     }
     setFieldErrorKey(null);
@@ -191,6 +196,19 @@ export function ForgotPasswordScreen() {
                 : null
             }
             testID="reset-new-password"
+          />
+          <Field
+            label={t('auth.fields.confirmPassword')}
+            secureTextEntry
+            autoCapitalize="none"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            error={
+              fieldErrorKey === 'auth.validation.confirm'
+                ? t(fieldErrorKey)
+                : null
+            }
+            testID="reset-confirm-password"
           />
           <PrimaryButton
             title={t('auth.reset.completeCta')}

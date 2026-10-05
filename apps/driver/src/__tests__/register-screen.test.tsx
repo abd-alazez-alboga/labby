@@ -74,6 +74,10 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
 
     fireEvent.changeText(screen.getByTestId('register-name'), 'New Driver');
     fireEvent.changeText(screen.getByTestId('register-password'), 'password8');
+    fireEvent.changeText(
+      screen.getByTestId('register-confirm-password'),
+      'password8',
+    );
 
     // Completing without consent is blocked client-side (UC-S-01 step 4).
     fireEvent.press(screen.getByTestId('register-complete'));

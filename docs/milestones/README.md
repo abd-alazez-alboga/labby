@@ -17,7 +17,7 @@
 
 | Input | Needed for | Status |
 |---|---|---|
-| SMS gateway app token + endpoint | M2-T6 (auth integration) | pending |
+| SMS gateway app token + endpoint | M2-T6 (auth integration) | received (Traccar cloud; values in backend/.env, never committed) |
 | Firebase service-account JSON + RN app configs | M6-T5 (realtime integration) | pending |
 
 ---
@@ -25,10 +25,10 @@
 ## Current state
 
 - **Current milestone:** M2 — Auth & accounts (`in_progress`)
-- **In progress now:** M2-T6 (auth integration) — Parts A+B DONE and committed (`add terms consent and verify auth flows live`): termsAccepted end-to-end (migration V3, DTO @AssertTrue, consent timestamp, contract updated incl. 409-race alignment, rider wiring, driver CheckboxRow; backend 78 / rider 49 / driver 50 / admin 32 tests green) + live dev verification passed (seeder's 4 accounts in DB with roles+consent, API logins incl. 403/401 paths, real-browser admin login as seeded +963900000004 "Dev Admin"). **Remaining = Part C only:** wire the real SMS gateway and run register + password-reset + 2FA with real SMS (owner does the app side on their device while backend runs via `make -C backend db-up && make -C backend run`).
-- **Blockers:** Part C BLOCKED on owner input: SMS gateway app NAME + HTTP endpoint URL + API token (env-only, never commit; `.env.example` documents SMS_GATEWAY_URL/SMS_GATEWAY_TOKEN). Owner also still owes the one-time manual emulator run of the rider/driver apps (from review-M01).
+- **In progress now:** M2-T7 (review audit) is next — T6 is DONE. Part C completed 2026-10-05 with live SMS verification on a real device: Traccar SMS Gateway wired in cloud mode (`POST https://www.traccar.org/sms/`, raw token in Authorization header — no Bearer, body `{to, message}`); OTP SMS wording delivery-tested and deliberately avoids "verification"/"التحقق" (the carrier silently drops SMS containing those words — see OtpServiceImpl.buildMessage comment); Arabic brand name is **لبي** per owner (apps' AR translations still say لابي — rename suggested as separate task). Live-verified flows: register (OTP 204→verify 200→complete 201), 2FA change-password incl. wrong-current-password 400, logout/login, password reset, delete→reactivate; also witnessed live: OTP hourly cap (5/h, silently swallowed on reset-start per anti-enumeration), login throttle counting. Owner UX feedback mid-T6 led to committed UX fixes in all three frontends: show-password eye on every password field (rider/driver field primitives + admin login), confirm-password with match validation (register + reset + change), change-password restructured into a staged wizard (current pwd + forgot-password escape hatch → 2FA OTP step → new+confirm). New RN deps: @expo/vector-icons, expo-font, expo-asset. Tests green: backend 80 (incl. new SmsGatewaySenderTest pinning the Traccar request shape), rider 52, driver 50, admin 32.
+- **Blockers:** none. Known caveat for T7: the change-password contract validates current password + OTP only in the single final call, so a wrong current password surfaces at the end of the wizard (separate verify endpoint would be a contract change — review may weigh in). Owner still owes the one-time manual driver-app device run (from review-M01; rider app was exercised live in T6).
 - **Review baseline:** `372a53f` (M2's audit range = 372a53f..HEAD at its close)
-- **Last session note (2026-10-04):** M1 review_passed. M2: T1–T5 done (contract-first, 4 parallel agents), T6 parts A+B done. Facts a cold session needs: RN apps are Expo SDK 57; seeded dev accounts per backend/docs/SEEDING.md (password `Password1!`, admin is +963900000004); dev boot needs a JWT_SECRET env (any long value) since .env isn't committed; after T6 finishes, T7 = automatic /labby-review audit over 372a53f..HEAD, then labby-fix if needed, then M3. Owner notes pending: palette lacks error/success tokens (driver added local danger/success in its tokens.ts); the T2 backend's deviations are documented in its design decisions (409 race, Checkstyle scoped to handwritten sources).
+- **Last session note (2026-10-05):** M2 T1–T6 done; next = T7 automatic /labby-review audit over 372a53f..HEAD, then labby-fix if needed, then M3. Facts a cold session needs: RN apps are Expo SDK 57; seeded dev accounts per backend/docs/SEEDING.md (password `Password1!`, admin is +963900000004); dev boot needs backend/.env (JWT_SECRET + SMS_GATEWAY_URL/TOKEN, gitignored — owner has values); run backend with `set -a && . ./.env && set +a && make run`; owner's dev machine LAN IP 10.119.76.100, Expo apps need `LABBY_API_BASE_URL=http://10.119.76.100:8080`; owner's phone may run NordVPN which blocks LAN. Owner notes pending: palette lacks error/success tokens (driver added local danger/success in its tokens.ts); T2 backend deviations documented in its design decisions (409 race, Checkstyle scoped to handwritten sources); app-wide لابي→لبي rename pending.
 
 ---
 
@@ -77,7 +77,7 @@ Statuses live here (milestone files describe content only, they are never edited
 | M2-T3 | Rider app auth screens | done |
 | M2-T4 | Driver app auth screens | done |
 | M2-T5 | Admin login | done |
-| M2-T6 | Auth integration (real SMS) | in_progress |
+| M2-T6 | Auth integration (real SMS) | done |
 | M2-T7 | Review audit | todo |
 
 ### M3 — RBAC & admin foundation

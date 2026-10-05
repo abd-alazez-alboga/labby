@@ -52,6 +52,7 @@ describe('ForgotPasswordScreen (UC-S-04)', () => {
     expect(await screen.findByTestId('forgot-step-password')).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByTestId('forgot-new-password'), 'brandnewpass1');
+    await fireEvent.changeText(screen.getByTestId('forgot-confirm-password'), 'brandnewpass1');
     await fireEvent.press(screen.getByTestId('forgot-complete'));
     expect(await screen.findByTestId('forgot-step-done')).toBeOnTheScreen();
 
@@ -109,6 +110,7 @@ describe('ForgotPasswordScreen (UC-S-04)', () => {
     expect(await screen.findByTestId('forgot-step-password')).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByTestId('forgot-new-password'), 'brandnewpass1');
+    await fireEvent.changeText(screen.getByTestId('forgot-confirm-password'), 'brandnewpass1');
     await fireEvent.press(screen.getByTestId('forgot-complete'));
 
     expect(await screen.findByTestId('forgot-complete-error')).toBeOnTheScreen();

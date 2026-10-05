@@ -47,6 +47,8 @@ export default function RegisterScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
@@ -126,10 +128,12 @@ export default function RegisterScreen() {
   const complete = async () => {
     const nameOk = name.trim().length > 0 && name.trim().length <= NAME_MAX_LENGTH;
     const passwordOk = isValidPassword(password);
+    const confirmOk = confirmPassword === password;
     setNameError(nameOk ? null : t('register.nameInvalid'));
     setPasswordError(passwordOk ? null : t('auth.passwordInvalid'));
+    setConfirmError(confirmOk ? null : t('auth.passwordMismatch'));
     setTermsError(termsAccepted ? null : t('register.termsRequired'));
-    if (!nameOk || !passwordOk || !termsAccepted || !registrationToken) {
+    if (!nameOk || !passwordOk || !confirmOk || !termsAccepted || !registrationToken) {
       return;
     }
     setBusy(true);
@@ -254,6 +258,15 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             error={passwordError}
             testID="register-password"
+          />
+          <FormField
+            label={t('auth.confirmPasswordLabel')}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            error={confirmError}
+            testID="register-confirm-password"
           />
           <Pressable
             accessibilityRole="checkbox"

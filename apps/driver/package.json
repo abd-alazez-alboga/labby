@@ -14,9 +14,12 @@
     "build": "npm run typecheck && expo export --platform android --output-dir dist"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.26",
+    "expo-asset": "~57.0.18",
     "expo-constants": "~57.0.20",
+    "expo-font": "~57.0.4",
     "expo-image-picker": "~57.0.20",
     "expo-linking": "~57.0.11",
     "expo-localization": "~57.0.2",

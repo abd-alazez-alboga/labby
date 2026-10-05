@@ -34,7 +34,10 @@
       "currentPassword": "Current password",
       "newPassword": "New password",
       "name": "Full name",
-      "code": "Verification code"
+      "code": "Verification code",
+      "confirmPassword": "Confirm password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
     },
     "validation": {
       "phone": "Enter a valid phone number.",
@@ -42,7 +45,8 @@
       "password": "The password must be at least 8 characters.",
       "name": "Enter your name.",
       "code": "Enter the 6-digit code.",
-      "terms": "You must accept the Terms of Service to continue."
+      "terms": "You must accept the Terms of Service to continue.",
+      "confirm": "Passwords do not match."
     },
     "otp": {
       "sentTo": "We sent a 6-digit code to {{phone}}.",
@@ -121,7 +125,11 @@
       "codeSent": "We sent a code to your phone.",
       "submit": "Change password",
       "invalid": "Wrong current password or verification code.",
-      "done": "Password changed. All other sessions were signed out."
+      "done": "Password changed. All other sessions were signed out.",
+      "continue": "Continue",
+      "forgotLink": "Forgot your password?",
+      "newTitle": "Choose a new password",
+      "startOver": "Start over"
     },
     "phone": {
       "title": "Change phone number",

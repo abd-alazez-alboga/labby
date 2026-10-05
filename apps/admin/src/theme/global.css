@@ -251,6 +251,30 @@ a {
   font: inherit;
 }
 
+.form-field__password {
+  position: relative;
+  display: flex;
+}
+
+.form-field__password input {
+  flex: 1;
+  padding-inline-end: 2.4rem;
+}
+
+.form-field__reveal {
+  position: absolute;
+  inset-inline-end: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  padding: 0.3rem;
+  border: none;
+  background: none;
+  color: var(--labby-text-secondary);
+  cursor: pointer;
+}
+
 .form-field input:focus {
   outline: 2px solid var(--labby-purple-400);
   outline-offset: 1px;

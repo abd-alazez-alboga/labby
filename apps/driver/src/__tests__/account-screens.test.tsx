@@ -47,19 +47,25 @@ describe('account screens (UC-S-05/06/07/09/10)', () => {
       });
       renderScreen(ChangePasswordScreen);
 
-      fireEvent.press(screen.getByTestId('change-password-send-code'));
+      fireEvent.changeText(
+        screen.getByTestId('change-password-current'),
+        'oldpass99',
+      );
+      fireEvent.press(screen.getByTestId('change-password-continue'));
       await screen.findByTestId('change-password-code-sent');
       expect(
         contract.requestsTo('POST /api/v1/users/me/2fa/request')[0].headers
           .Authorization,
       ).toBe('Bearer access-1');
 
-      fireEvent.changeText(
-        screen.getByTestId('change-password-current'),
-        'oldpass99',
-      );
-      fireEvent.changeText(screen.getByTestId('change-password-new'), 'newpass99');
       fireEvent.changeText(screen.getByTestId('change-password-code'), '123456');
+      fireEvent.press(screen.getByTestId('change-password-verify'));
+      await screen.findByTestId('change-password-new');
+      fireEvent.changeText(screen.getByTestId('change-password-new'), 'newpass99');
+      fireEvent.changeText(
+        screen.getByTestId('change-password-confirm'),
+        'newpass99',
+      );
       fireEvent.press(screen.getByTestId('change-password-submit'));
 
       await screen.findByTestId('change-password-done');
@@ -87,8 +93,16 @@ describe('account screens (UC-S-05/06/07/09/10)', () => {
         screen.getByTestId('change-password-current'),
         'oldpass99',
       );
-      fireEvent.changeText(screen.getByTestId('change-password-new'), 'newpass99');
+      fireEvent.press(screen.getByTestId('change-password-continue'));
+      await screen.findByTestId('change-password-code-sent');
       fireEvent.changeText(screen.getByTestId('change-password-code'), '000000');
+      fireEvent.press(screen.getByTestId('change-password-verify'));
+      await screen.findByTestId('change-password-new');
+      fireEvent.changeText(screen.getByTestId('change-password-new'), 'newpass99');
+      fireEvent.changeText(
+        screen.getByTestId('change-password-confirm'),
+        'newpass99',
+      );
       fireEvent.press(screen.getByTestId('change-password-submit'));
 
       await screen.findByTestId('change-password-error');
@@ -107,7 +121,11 @@ describe('account screens (UC-S-05/06/07/09/10)', () => {
       });
       renderScreen(ChangePasswordScreen);
 
-      fireEvent.press(screen.getByTestId('change-password-send-code'));
+      fireEvent.changeText(
+        screen.getByTestId('change-password-current'),
+        'oldpass99',
+      );
+      fireEvent.press(screen.getByTestId('change-password-continue'));
       await screen.findByTestId('change-password-error');
       expect(
         screen.getByText('Too many codes requested. Please wait before trying again.'),

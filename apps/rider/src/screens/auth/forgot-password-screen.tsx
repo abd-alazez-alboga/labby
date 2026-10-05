@@ -35,6 +35,8 @@ export default function ForgotPasswordScreen() {
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -90,12 +92,11 @@ export default function ForgotPasswordScreen() {
   };
 
   const complete = async () => {
-    if (!isValidPassword(newPassword)) {
-      setPasswordError(t('auth.passwordInvalid'));
-      return;
-    }
-    setPasswordError(null);
-    if (!resetToken) {
+    const passwordOk = isValidPassword(newPassword);
+    const confirmOk = confirmPassword === newPassword;
+    setPasswordError(passwordOk ? null : t('auth.passwordInvalid'));
+    setConfirmError(confirmOk ? null : t('auth.passwordMismatch'));
+    if (!passwordOk || !confirmOk || !resetToken) {
       return;
     }
     setBusy(true);
@@ -174,6 +175,15 @@ export default function ForgotPasswordScreen() {
             autoCapitalize="none"
             error={passwordError}
             testID="forgot-new-password"
+          />
+          <FormField
+            label={t('auth.confirmPasswordLabel')}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            error={confirmError}
+            testID="forgot-confirm-password"
           />
           <Button
             label={t('forgot.submit')}

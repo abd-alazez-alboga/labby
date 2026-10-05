@@ -89,7 +89,7 @@ class OtpServiceImplTest {
 
     ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
     verify(smsSender).send(eq(PHONE), message.capture());
-    assertThat(message.getValue()).contains("رمز التحقق");
+    assertThat(message.getValue()).contains("رمز لبي");
   }
 
   @Test

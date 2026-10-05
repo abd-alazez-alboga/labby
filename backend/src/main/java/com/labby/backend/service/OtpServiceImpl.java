@@ -97,9 +97,11 @@ public class OtpServiceImpl implements OtpService {
 
   private String buildMessage(String code, Language language) {
     long minutes = Math.max(1, otpProperties.expirySeconds() / 60);
+    // Wording is delivery-tested (M2-T6): carriers filter OTP-style messages containing
+    // "verification"/"التحقق", so neither variant may use those words.
     if (language == Language.AR) {
-      return "رمز التحقق الخاص بك في لابي هو %s. صالح لمدة %d دقائق.".formatted(code, minutes);
+      return "رمز لبي الخاص بك هو %s. صالح لمدة %d دقائق.".formatted(code, minutes);
     }
-    return "%s is your Labby verification code. It expires in %d minutes.".formatted(code, minutes);
+    return "Your Labby code is %s. It expires in %d minutes.".formatted(code, minutes);
   }
 }

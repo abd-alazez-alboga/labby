@@ -11,8 +11,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 /**
- * Token-authenticated HTTP call to the owner-operated SMS gateway app (ES-01): POST {@code
- * SMS_GATEWAY_URL} with body {@code {phone, message}}. Message bodies are never logged — they carry
+ * Token-authenticated HTTP call to the owner-operated Traccar SMS Gateway app (ES-01): POST {@code
+ * SMS_GATEWAY_URL} with body {@code {to, message}} and the raw token in the Authorization header
+ * (Traccar's HTTP SMS API uses no Bearer prefix). Message bodies are never logged — they carry
  * OTPs.
  */
 @Slf4j
@@ -25,7 +26,7 @@ public class SmsGatewaySender implements SmsSender {
     this.restClient =
         restClientBuilder
             .baseUrl(smsProperties.gatewayUrl())
-            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + smsProperties.gatewayToken())
+            .defaultHeader(HttpHeaders.AUTHORIZATION, smsProperties.gatewayToken())
             .build();
   }
 
@@ -35,7 +36,7 @@ public class SmsGatewaySender implements SmsSender {
       restClient
           .post()
           .contentType(MediaType.APPLICATION_JSON)
-          .body(Map.of("phone", phone, "message", message))
+          .body(Map.of("to", phone, "message", message))
           .retrieve()
           .toBodilessEntity();
     } catch (RestClientException ex) {

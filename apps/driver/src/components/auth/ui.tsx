@@ -1,4 +1,6 @@
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -53,19 +55,59 @@ export function FormScreen({
 export function Field({
   label,
   error,
+  secureTextEntry,
+  testID,
   ...inputProps
 }: TextInputProps & { label: string; error?: string | null }) {
   const { direction } = useLocale();
+  const { t } = useTranslation();
+  const [revealed, setRevealed] = useState(false);
   const textAlign = direction === 'rtl' ? 'right' : 'left';
 
   return (
     <View style={styles.field}>
       <Text style={[styles.label, { textAlign }]}>{label}</Text>
-      <TextInput
-        style={[styles.input, { textAlign }, error ? styles.inputError : null]}
-        placeholderTextColor={colors.textSubtle}
-        {...inputProps}
-      />
+      <View style={styles.inputWrap}>
+        <TextInput
+          style={[
+            styles.input,
+            { textAlign },
+            error ? styles.inputError : null,
+            secureTextEntry
+              ? direction === 'rtl'
+                ? styles.inputWithToggleRtl
+                : styles.inputWithToggle
+              : null,
+          ]}
+          placeholderTextColor={colors.textSubtle}
+          secureTextEntry={secureTextEntry ? !revealed : undefined}
+          testID={testID}
+          {...inputProps}
+        />
+        {secureTextEntry ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              revealed
+                ? t('auth.fields.hidePassword')
+                : t('auth.fields.showPassword')
+            }
+            onPress={() => setRevealed((v) => !v)}
+            style={[
+              styles.revealToggle,
+              direction === 'rtl' ? styles.revealToggleRtl : null,
+            ]}
+            hitSlop={spacing.sm}
+            testID={testID ? `${testID}-reveal` : undefined}
+          >
+            <Ionicons
+              name={revealed ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={colors.textSecondary}
+            />
+          </Pressable>
+        ) : null}
+      </View>
       {error ? (
         <Text style={[styles.fieldError, { textAlign }]}>{error}</Text>
       ) : null}
@@ -293,6 +335,23 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: colors.danger,
+  },
+  inputWrap: {
+    justifyContent: 'center',
+  },
+  inputWithToggle: {
+    paddingEnd: spacing.xl + spacing.md,
+  },
+  inputWithToggleRtl: {
+    paddingStart: spacing.xl + spacing.md,
+  },
+  revealToggle: {
+    position: 'absolute',
+    end: spacing.md,
+  },
+  revealToggleRtl: {
+    end: undefined,
+    start: spacing.md,
   },
   fieldError: {
     color: colors.danger,

@@ -35,6 +35,7 @@ export default function LoginPage() {
   const location = useLocation();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordRevealed, setPasswordRevealed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorKey, setErrorKey] = useState<LoginErrorKey | null>(null);
 
@@ -92,15 +93,51 @@ export default function LoginPage() {
         </div>
         <div className="form-field">
           <label htmlFor="login-password">{t('auth.passwordLabel')}</label>
-          <input
-            id="login-password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            disabled={submitting}
-          />
+          <div className="form-field__password">
+            <input
+              id="login-password"
+              type={passwordRevealed ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              disabled={submitting}
+            />
+            <button
+              type="button"
+              className="form-field__reveal"
+              aria-label={t(passwordRevealed ? 'auth.hidePassword' : 'auth.showPassword')}
+              aria-pressed={passwordRevealed}
+              onClick={() => setPasswordRevealed((v) => !v)}
+            >
+              {passwordRevealed ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <path d="M3 3l18 18M10.6 10.7a2.5 2.5 0 0 0 3.5 3.5M6.6 6.7C4.1 8.3 2.5 10.6 2 12c1.3 3.3 5.3 7 10 7 1.8 0 3.5-.5 5-1.4M9.9 4.3A10 10 0 0 1 12 5c4.7 0 8.7 3.7 10 7-.4 1-1.3 2.4-2.6 3.7" />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <path d="M2 12c1.3-3.3 5.3-7 10-7s8.7 3.7 10 7c-1.3 3.3-5.3 7-10 7S3.3 15.3 2 12Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
         <button className="btn btn--primary login__submit" type="submit" disabled={submitting}>

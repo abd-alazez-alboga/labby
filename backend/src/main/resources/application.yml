@@ -65,8 +65,8 @@ labby:
     resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60}
     max-per-phone-per-hour: ${OTP_MAX_PER_PHONE_PER_HOUR:5}
   sms:
-    # Owner-operated SMS gateway (ES-01); all environments send real SMS.
-    gateway-url: ${SMS_GATEWAY_URL:http://192.168.0.0:8082}
+    # Owner-operated Traccar SMS Gateway (ES-01); all environments send real SMS.
+    gateway-url: ${SMS_GATEWAY_URL:https://www.traccar.org/sms/}
     gateway-token: ${SMS_GATEWAY_TOKEN:change-me}
   storage:
     # Private upload root (NFR-S2); photos are served only through authenticated endpoints.

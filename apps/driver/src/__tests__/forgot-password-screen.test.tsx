@@ -64,6 +64,10 @@ describe('ForgotPasswordScreen (UC-S-04)', () => {
     ).toEqual({ phone: PHONE, code: '123456' });
 
     fireEvent.changeText(screen.getByTestId('reset-new-password'), 'newpass99');
+    fireEvent.changeText(
+      screen.getByTestId('reset-confirm-password'),
+      'newpass99',
+    );
     fireEvent.press(screen.getByTestId('reset-complete'));
     await screen.findByTestId('reset-step-done');
     expect(
@@ -133,6 +137,10 @@ describe('ForgotPasswordScreen (UC-S-04)', () => {
     await screen.findByTestId('reset-step-password');
 
     fireEvent.changeText(screen.getByTestId('reset-new-password'), 'newpass99');
+    fireEvent.changeText(
+      screen.getByTestId('reset-confirm-password'),
+      'newpass99',
+    );
     fireEvent.press(screen.getByTestId('reset-complete'));
 
     await screen.findByTestId('reset-error');

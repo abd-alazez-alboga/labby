@@ -19,6 +19,8 @@
     "loginSubtitle": "Admin access only",
     "phoneLabel": "Phone number",
     "passwordLabel": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "submit": "Sign in",
     "submitting": "Signing in…",
     "logout": "Log out",
