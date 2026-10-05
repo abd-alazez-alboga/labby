@@ -24,7 +24,7 @@
 
 ## Current state
 
-- **Current milestone:** M2 — Auth & accounts: **review_passed** (2026-10-05). Next: **M3 — RBAC & admin foundation** (`todo`, not started).
+- **Current milestone:** M2 — Auth & accounts: **review_passed** (2026-10-05). Next: **M3 — RBAC & admin foundation** (`todo`, not started). **M3 execution plan (owner-approved):** T1 then T2∥T3 are implemented by CLOUD sessions (branch → PR → CI green → owner squash-merges, per the amended CLAUDE.md git rules); T4 (integration, needs live backend + browser) and T5 (review audit) run LOCALLY. CI is live in `.github/workflows/ci.yml` (backend `make check` + three `npm run check` jobs on every push/PR).
 - **In progress now:** nothing — M2 closed. The T7 audit (report `docs/reviews/review-M02.md`) returned Pass with comments; all findings were fixed via labby-fix (commits `9d8ebed`…`98839d0`) and the independent re-audit over `c222351..26d780f` **passed**. Owner decisions recorded: phone-change new-phone OTP stays purpose `2fa` (documented in UC-S-06); access-token revocation enforced per request via `SessionService` sid check; suspended-driver gate shows distinct copy with suspension-REASON display deferred until a milestone whose contract carries reasons; no resend UX in phone-change. JWT_SECRET has NO default — backend refuses to boot without it (value lives in gitignored backend/.env). Suites at close: backend 81, rider 54, driver 54, admin 33 — all green incl. lint/format/ArchUnit.
 - **Blockers:** none. Owner still owes the one-time manual driver-app device run (from review-M01; the rider app was exercised live on a device in T6).
 - **Review baseline:** `26d780f` (M3's audit range = 26d780f..HEAD at its close)

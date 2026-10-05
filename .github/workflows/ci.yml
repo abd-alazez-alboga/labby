@@ -1,0 +1,75 @@
+# Full quality gate on every push to main and every PR (the same gate the
+# milestone rules demand locally): backend `make check` (spotless + checkstyle
+# + unit/integration/ArchUnit via Testcontainers) and `npm run check`
+# (lint + typecheck + tests) in each frontend.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Backend gate (format, checkstyle, unit + integration + ArchUnit)
+        run: make -C backend check
+
+  rider:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/rider
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/rider/package-lock.json
+      - run: npm ci
+      - name: Rider gate (lint + typecheck + tests)
+        run: npm run check
+
+  driver:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/driver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/driver/package-lock.json
+      - run: npm ci
+      - name: Driver gate (lint + typecheck + tests)
+        run: npm run check
+
+  admin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/admin/package-lock.json
+      - run: npm ci
+      - name: Admin gate (lint + format + typecheck + tests)
+        run: npm run check
