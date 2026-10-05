@@ -8,6 +8,7 @@ import com.labby.backend.runner.RbacCatalogSeeder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,18 @@ class RbacMigrationIntegrationTest extends AbstractIntegrationTest {
 
   @Autowired private JdbcTemplate jdbcTemplate;
   @Autowired private RbacCatalogSeeder rbacCatalogSeeder;
+
+  @AfterEach
+  void cleanOwnRows() {
+    // audit_log rows are undeletable by design (append-only trigger) and reference users, so
+    // they would poison other suites' `DELETE FROM users` cleanup in the shared container.
+    // TRUNCATE bypasses row-level triggers; then this class's own fixtures can be removed.
+    jdbcTemplate.execute("TRUNCATE audit_log");
+    jdbcTemplate.update(
+        "DELETE FROM role_assignments WHERE user_id IN"
+            + " (SELECT user_id FROM users WHERE name = 'RBAC Test User')");
+    jdbcTemplate.update("DELETE FROM users WHERE name = 'RBAC Test User'");
+  }
 
   @Test
   @DisplayName("Super Admin and Support are seeded as system roles")
