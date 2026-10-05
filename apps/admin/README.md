@@ -50,6 +50,30 @@ for configuration.
 `src/api/client.ts` is the typed fetch wrapper all future API services build
 on; it reads `apiBaseUrl` from the runtime config. No endpoints exist yet.
 
+## Permissions (RBAC, M3-T3)
+
+UI gating uses the **same `domain:action` permission strings the backend
+enforces** (`backend/docs/api/rbac-v1.yaml`, `enums/Permission.java`). The
+pattern for every admin screen:
+
+- `usePermissions()` (`src/auth/usePermissions.ts`) — `can('users:view')`
+  for menus and controls (the sidenav and all mutating buttons/forms use it).
+- `<RequirePermission permission="…">` (`src/auth/RequirePermission.tsx`) —
+  wraps each permissioned route; without the permission the 403 page renders.
+- `src/api/rbac.ts` — typed calls for the M3 admin/role/audit endpoints.
+
+The signed-in admin's permission set comes from their profile: the active
+`admin` role assignment on `GET /users/me` carries `rbacRole` +
+`permissions` (M3-T2 backend; absent fields = no permissions, deny by
+default). `src/auth/permissions.ts` is the only reader of that shape.
+
+**Propagation of role edits:** the backend evaluates permissions per
+request, so a role edit affects every holder's API access instantly. The
+UI reads permissions from the profile, which is fetched at login and
+re-fetched on every page load — so another admin's screens update **on
+their next page refresh**, without re-login. UI gating is cosmetic either
+way; the server-side check is the enforcement (RBAC-03).
+
 ## i18n & RTL
 
 i18next + react-i18next with bundled EN (`src/i18n/en.json`) and AR

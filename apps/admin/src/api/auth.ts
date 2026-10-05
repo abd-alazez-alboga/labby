@@ -11,6 +11,14 @@ export type Role = 'rider' | 'driver' | 'admin';
 export interface RoleAssignment {
   role: Role;
   state: 'active' | 'suspended';
+  /**
+   * RBAC fields, present on the `admin` assignment once the M3-T2 backend
+   * lands: the single RBAC role and its `domain:action` permission codes.
+   * The UI must treat them as absent = no admin permissions (deny by
+   * default) — see ../auth/permissions.ts, the only reader.
+   */
+  rbacRole?: { id: string; name: string } | null;
+  permissions?: string[];
 }
 
 export interface UserProfile {

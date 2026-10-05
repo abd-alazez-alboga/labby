@@ -3,12 +3,16 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import { AuthProvider } from '../auth/AuthContext';
 import { RequireAuth } from '../auth/RequireAuth';
+import { RequirePermission } from '../auth/RequirePermission';
 import { AppLayout } from '../layout/AppLayout';
 
 // Lazy-loaded routes: this is the pattern every future feature page follows.
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
+const AdminsPage = lazy(() => import('../pages/AdminsPage'));
+const RolesPage = lazy(() => import('../pages/RolesPage'));
+const AuditLogPage = lazy(() => import('../pages/AuditLogPage'));
 
 export function App() {
   return (
@@ -31,6 +35,37 @@ export function App() {
                 element={
                   <Suspense fallback={<div className="loading" />}>
                     <DashboardPage />
+                  </Suspense>
+                }
+              />
+              {/* Permissioned routes: guard + page share the backend's code. */}
+              <Route
+                path="admins"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="admins:view">
+                      <AdminsPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="roles"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="roles:view">
+                      <RolesPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="audit-log"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="audit:view">
+                      <AuditLogPage />
+                    </RequirePermission>
                   </Suspense>
                 }
               />

@@ -29,6 +29,33 @@ export const TEST_SESSION: StoredSession = {
   user: TEST_USER,
 };
 
+export const SUPER_ADMIN_ROLE_ID = '00000000-0000-4000-8000-000000000001';
+
+/**
+ * An admin profile whose active admin role assignment carries the given
+ * permission codes, the shape the M3-T2 backend adds to /users/me.
+ */
+export function adminUser(permissions: string[], roleName = 'Test Role'): UserProfile {
+  return {
+    ...TEST_USER,
+    // Distinct from any fixture row text — the navbar renders this name.
+    name: 'Signed-in Admin',
+    roles: [
+      {
+        role: 'admin',
+        state: 'active',
+        rbacRole: { id: SUPER_ADMIN_ROLE_ID, name: roleName },
+        permissions,
+      },
+    ],
+  };
+}
+
+/** Seeds the stored session for `user` AND stubs its /users/me revalidation answer. */
+export function sessionFor(user: UserProfile): StoredSession {
+  return { ...TEST_SESSION, user };
+}
+
 /** Puts a session into sessionStorage, as a previous login would have. */
 export function seedStoredSession(session: StoredSession = TEST_SESSION): void {
   window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
