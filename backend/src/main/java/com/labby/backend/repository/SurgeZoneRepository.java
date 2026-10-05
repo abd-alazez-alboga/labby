@@ -14,6 +14,12 @@ public interface SurgeZoneRepository extends JpaRepository<SurgeZone, UUID> {
 
   boolean existsByRegionId(UUID regionId);
 
+  boolean existsByRegionIdAndNameIgnoreCase(UUID regionId, String name);
+
+  boolean existsByRegionIdAndNameIgnoreCaseAndIdNot(UUID regionId, String name, UUID id);
+
+  long countByRegionId(UUID regionId);
+
   /**
    * The region's zones whose polygon covers the point (pickup-zone lookup for M9). ST_Covers so a
    * point exactly ON the zone edge surges; outside every zone means 1.0× (PRC-02 A1).

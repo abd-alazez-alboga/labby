@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -76,6 +77,19 @@ public class GlobalExceptionHandler {
         .body(
             ErrorResponse.of(
                 status.value(), status.getReasonPhrase(), "Malformed request parameter"));
+  }
+
+  /** Missing required query params (e.g. resolve without lat/lng) are 400 per the contracts. */
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<ErrorResponse> handleMissingParameter(
+      MissingServletRequestParameterException ex) {
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.of(
+                status.value(),
+                status.getReasonPhrase(),
+                "Missing request parameter: " + ex.getParameterName()));
   }
 
   /** Catch-all: never leak internals, always log. */

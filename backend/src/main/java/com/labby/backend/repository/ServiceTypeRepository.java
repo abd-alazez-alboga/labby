@@ -13,4 +13,10 @@ public interface ServiceTypeRepository extends JpaRepository<ServiceType, UUID> 
   List<ServiceType> findByRegionIdAndEnabledTrueOrderByNameEnAsc(UUID regionId);
 
   boolean existsByRegionIdAndNameEnIgnoreCase(UUID regionId, String nameEn);
+
+  boolean existsByRegionIdAndNameEnIgnoreCaseAndIdNot(UUID regionId, String nameEn, UUID id);
+
+  boolean existsByRegionIdAndEnabledTrue(UUID regionId);
+
+  long countByRegionId(UUID regionId);
 }

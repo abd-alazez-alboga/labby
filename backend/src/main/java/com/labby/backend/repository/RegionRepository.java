@@ -30,4 +30,51 @@ public interface RegionRepository extends JpaRepository<Region, UUID> {
           """,
       nativeQuery = true)
   List<Region> findActiveRegionsCovering(@Param("lat") double lat, @Param("lng") double lng);
+
+  /**
+   * True when another region's boundary overlaps the candidate boundary (M4-T2 rule: region
+   * boundaries may not overlap). Interiors must be disjoint — ST_Intersects AND NOT ST_Touches — so
+   * true overlap AND full containment are both caught, while regions sharing only a border line
+   * stay legal (the resolve query breaks that tie by name).
+   *
+   * @param excludedRegionId the region being edited (its own boundary never conflicts); pass a nil
+   *     UUID when creating
+   * @param boundaryWkt the candidate boundary as WKT, SRID 4326
+   * @return true when any other region's boundary overlaps it
+   */
+  @Query(
+      value =
+          """
+          SELECT EXISTS (
+            SELECT 1 FROM regions
+            WHERE region_id <> :excludedRegionId
+              AND boundary IS NOT NULL
+              AND ST_Intersects(boundary, ST_GeomFromText(:boundaryWkt, 4326))
+              AND NOT ST_Touches(boundary, ST_GeomFromText(:boundaryWkt, 4326))
+          )
+          """,
+      nativeQuery = true)
+  boolean existsBoundaryOverlapping(
+      @Param("excludedRegionId") UUID excludedRegionId, @Param("boundaryWkt") String boundaryWkt);
+
+  /**
+   * True when the region's boundary fully covers the polygon (surge zones must lie within their
+   * region, UC-A-08/M4-T2). A region without a boundary covers nothing.
+   *
+   * @param regionId the region
+   * @param polygonWkt the candidate polygon as WKT, SRID 4326
+   * @return true when the boundary covers the polygon
+   */
+  @Query(
+      value =
+          """
+          SELECT CASE
+                   WHEN boundary IS NULL THEN false
+                   ELSE ST_Covers(boundary, ST_GeomFromText(:polygonWkt, 4326))
+                 END
+          FROM regions
+          WHERE region_id = :regionId
+          """,
+      nativeQuery = true)
+  boolean boundaryCovers(@Param("regionId") UUID regionId, @Param("polygonWkt") String polygonWkt);
 }
