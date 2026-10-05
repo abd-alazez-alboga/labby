@@ -18,7 +18,7 @@ Passwords are bcrypt-hashed at seed time.
 | `+963900000001` | `Password1!` | rider | Rider-app flows |
 | `+963900000002` | `Password1!` | rider + driver | Driver-app flows (gate open) |
 | `+963900000003` | `Password1!` | rider | Driver-app gate closed (no driver role) |
-| `+963900000004` | `Password1!` | admin | Admin-dashboard login (M2-T5) |
+| `+963900000004` | `Password1!` | admin | Admin-dashboard login (M2-T5); **Super Admin** RBAC role since M3 |
 
 These phone numbers are reserved dev fixtures (not real). The list grows in later milestones
 (vehicles, regions, rides) — each milestone's seeder additions are documented here.

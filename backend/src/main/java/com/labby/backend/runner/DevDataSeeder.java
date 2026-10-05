@@ -27,6 +27,7 @@ public class DevDataSeeder implements ApplicationRunner {
   private record SeedAccount(String phone, String name, List<String> roles) {}
 
   private static final String SEED_PASSWORD = "Password1!";
+  private static final String SUPER_ADMIN_ROLE_ID = "00000000-0000-0000-0000-000000000001";
   private static final List<SeedAccount> SEED_ACCOUNTS =
       List.of(
           new SeedAccount("+963900000001", "Dev Rider", List.of("rider")),
@@ -56,10 +57,20 @@ public class DevDataSeeder implements ApplicationRunner {
           passwordEncoder.encode(SEED_PASSWORD),
           account.name());
       for (String role : account.roles()) {
-        jdbcTemplate.update(
-            "INSERT INTO role_assignments (user_id, role, state) VALUES (?, ?, 'active')",
-            userId,
-            role);
+        if ("admin".equals(role)) {
+          // Admins carry exactly one RBAC role (V4 CHECK); dev admins are Super Admins.
+          jdbcTemplate.update(
+              "INSERT INTO role_assignments (user_id, role, state, admin_role_id)"
+                  + " VALUES (?, ?, 'active', ?::uuid)",
+              userId,
+              role,
+              SUPER_ADMIN_ROLE_ID);
+        } else {
+          jdbcTemplate.update(
+              "INSERT INTO role_assignments (user_id, role, state) VALUES (?, ?, 'active')",
+              userId,
+              role);
+        }
       }
       log.info("Seeded dev account {} ({})", account.phone(), String.join("+", account.roles()));
     }
