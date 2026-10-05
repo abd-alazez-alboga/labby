@@ -87,7 +87,8 @@ paths:
       description: >
         Full-bundle replace (absent optional fields clear). Applies to NEW rides only. An
         ACTIVE region may not un-fill mandatory config -> 409; boundary edits that would make
-        the region overlap another region -> 409 (M4-T2 rule).
+        the region overlap another region -> 409 (M4-T2 rule). Shrinking the boundary does NOT
+        re-validate existing surge zones (deliberate, owner ruling pending before M9).
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }

@@ -94,6 +94,10 @@ public class RegionServiceImpl implements RegionService {
     }
     Polygon boundary = GeoJson.toPolygon(request.boundary());
     requireNoBoundaryOverlap(regionId, boundary);
+    // DELIBERATE (review-M04 W2, owner ruling pending): shrinking the boundary does NOT
+    // re-validate existing surge zones — zones that fall outside remain untouched, while zone
+    // create/update enforce containment strictly. Must be ruled on before M9 computes
+    // multipliers from these zones (tracked in the status tracker's owner-inputs table).
     Map<String, Object> before = snapshot(region);
     applyBundle(region, request, boundary, actorUserId);
     if (region.getState() == RegionState.ACTIVE) {
