@@ -194,3 +194,13 @@ carries suspension reasons. Info 3 → remove dead wiring only, no new resend UX
 
 Post-fix suites: backend 81/81 (`make check`, incl. spotless/checkstyle/ArchUnit), rider 54/54,
 driver 54/54, admin 33/33 — all with lint/typecheck/format green.
+
+## Re-audit (2026-10-05, fix range `c222351..26d780f`)
+
+Independent re-audit verdict: **Pass**. All 12 findings verified resolved or properly documented
+as owner decisions, against live code with fresh suite runs (backend 81/81 incl. ArchUnit 7/7,
+rider 54/54, driver 54/54, admin 33/33). One Low-severity residual noted as non-blocking
+follow-up (NEW-1): on a cold start with no cached profile, a transiently failing refresh (5xx)
+still surfaces as a generic 401 and clears the rider session — fix is to distinguish "session
+dead" from "server trouble" in `apiFetch`'s refresh-failure error. Recorded in the tracker
+backlog. **M2 → review_passed; new review baseline `26d780f`.**
