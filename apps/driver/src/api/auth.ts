@@ -66,11 +66,12 @@ export function login(
 }
 
 /** POST /api/v1/auth/logout — revokes the refresh token server-side. */
-export function logout(refreshToken: string, accessToken: string): Promise<void> {
-  return apiFetch<void>('/api/v1/auth/logout', {
+export function logout(refreshToken: string): Promise<void> {
+  // authFetch so an expired access token gets its one refresh before the
+  // revocation call — otherwise the server-side revoke silently 401s.
+  return authFetch<void>('/api/v1/auth/logout', {
     method: 'POST',
     body: { refreshToken },
-    headers: { Authorization: `Bearer ${accessToken}` },
   });
 }
 

@@ -59,7 +59,7 @@ export function Field({
   testID,
   ...inputProps
 }: TextInputProps & { label: string; error?: string | null }) {
-  const { direction } = useLocale();
+  const { direction, flipRows } = useLocale();
   const { t } = useTranslation();
   const [revealed, setRevealed] = useState(false);
   const textAlign = direction === 'rtl' ? 'right' : 'left';
@@ -74,7 +74,7 @@ export function Field({
             { textAlign },
             error ? styles.inputError : null,
             secureTextEntry
-              ? direction === 'rtl'
+              ? flipRows
                 ? styles.inputWithToggleRtl
                 : styles.inputWithToggle
               : null,
@@ -95,7 +95,7 @@ export function Field({
             onPress={() => setRevealed((v) => !v)}
             style={[
               styles.revealToggle,
-              direction === 'rtl' ? styles.revealToggleRtl : null,
+              flipRows ? styles.revealToggleRtl : null,
             ]}
             hitSlop={spacing.sm}
             testID={testID ? `${testID}-reveal` : undefined}
@@ -128,7 +128,7 @@ export function CheckboxRow({
   error?: string | null;
   testID?: string;
 }) {
-  const { direction } = useLocale();
+  const { direction, flipRows } = useLocale();
   const textAlign = direction === 'rtl' ? 'right' : 'left';
 
   return (
@@ -137,10 +137,7 @@ export function CheckboxRow({
         accessibilityRole="checkbox"
         accessibilityState={{ checked }}
         onPress={onToggle}
-        style={[
-          styles.checkboxRow,
-          direction === 'rtl' ? styles.checkboxRowRtl : null,
-        ]}
+        style={[styles.checkboxRow, flipRows ? styles.checkboxRowRtl : null]}
         testID={testID}
       >
         <View style={[styles.checkbox, checked ? styles.checkboxChecked : null]}>

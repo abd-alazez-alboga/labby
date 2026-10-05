@@ -241,4 +241,66 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
     fireEvent.press(screen.getByTestId('register-reactivated-login'));
     expect(await screen.findByTestId('login-route')).toBeTruthy();
   });
+
+  it('offers start-over when the registration token expired (400 on complete)', async () => {
+    const contract = installContractFetch({
+      'POST /api/v1/auth/register/start': { status: 204 },
+      'POST /api/v1/auth/register/verify': {
+        status: 200,
+        body: { mode: 'new', registrationToken: 'reg-token-1' },
+      },
+      'POST /api/v1/auth/register/complete': {
+        status: 400,
+        body: { status: 400, message: 'token expired' },
+      },
+    });
+    await reachCodeStep(contract);
+    fireEvent.changeText(screen.getByTestId('register-code'), '123456');
+    fireEvent.press(screen.getByTestId('register-verify'));
+    await screen.findByTestId('register-step-details');
+
+    fireEvent.changeText(screen.getByTestId('register-name'), 'New Driver');
+    fireEvent.changeText(screen.getByTestId('register-password'), 'password8');
+    fireEvent.changeText(
+      screen.getByTestId('register-confirm-password'),
+      'password8',
+    );
+    fireEvent.press(screen.getByTestId('register-terms'));
+    fireEvent.press(screen.getByTestId('register-complete'));
+
+    fireEvent.press(await screen.findByTestId('register-start-over'));
+    expect(await screen.findByTestId('register-step-phone')).toBeTruthy();
+    expect(getSession()).toBeNull();
+  });
+
+  it('routes a complete-step 409 (concurrent registration) to the phone-taken path', async () => {
+    const contract = installContractFetch({
+      'POST /api/v1/auth/register/start': { status: 204 },
+      'POST /api/v1/auth/register/verify': {
+        status: 200,
+        body: { mode: 'new', registrationToken: 'reg-token-1' },
+      },
+      'POST /api/v1/auth/register/complete': {
+        status: 409,
+        body: { status: 409, message: 'phone already registered' },
+      },
+    });
+    await reachCodeStep(contract);
+    fireEvent.changeText(screen.getByTestId('register-code'), '123456');
+    fireEvent.press(screen.getByTestId('register-verify'));
+    await screen.findByTestId('register-step-details');
+
+    fireEvent.changeText(screen.getByTestId('register-name'), 'New Driver');
+    fireEvent.changeText(screen.getByTestId('register-password'), 'password8');
+    fireEvent.changeText(
+      screen.getByTestId('register-confirm-password'),
+      'password8',
+    );
+    fireEvent.press(screen.getByTestId('register-terms'));
+    fireEvent.press(screen.getByTestId('register-complete'));
+
+    expect(await screen.findByTestId('register-step-phone')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('register-go-login'));
+    expect(await screen.findByTestId('login-route')).toBeTruthy();
+  });
 });

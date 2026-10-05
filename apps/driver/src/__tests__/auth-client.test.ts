@@ -91,6 +91,28 @@ describe('authFetch (bearer + refresh-on-401)', () => {
     expect(await SecureStore.getItemAsync(SESSION_STORAGE_KEY)).toBeNull();
   });
 
+  it('keeps the session when the refresh fails transiently (5xx)', async () => {
+    const user = driverUser();
+    await seedSession(user, '1');
+    const contract = installContractFetch({
+      'GET /api/v1/users/me': {
+        status: 401,
+        body: { status: 401, message: 'expired' },
+      },
+      'POST /api/v1/auth/refresh': {
+        status: 500,
+        body: { status: 500, message: 'flaky' },
+      },
+    });
+
+    await expect(getMyProfile()).rejects.toMatchObject({ status: 401 });
+
+    expect(contract.requestsTo('POST /api/v1/auth/refresh')).toHaveLength(1);
+    // The session survives server trouble: only a contract 401 signs out.
+    expect(getSession()).not.toBeNull();
+    expect(await SecureStore.getItemAsync(SESSION_STORAGE_KEY)).not.toBeNull();
+  });
+
   it('rejects immediately with 401 when no session is stored', async () => {
     installContractFetch({});
     await expect(getMyProfile()).rejects.toBeInstanceOf(ApiError);

@@ -101,8 +101,13 @@ async function rotateRefreshToken(): Promise<StoredSession | null> {
     };
     await saveSession(rotated);
     return rotated;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      // Contract 401: the refresh token is invalid/revoked — session is dead.
+      return null;
+    }
+    // Transient trouble (network, 5xx): keep the session, fail this request.
+    throw error;
   }
 }
 
@@ -128,7 +133,13 @@ export async function authFetch<T>(
       throw error;
     }
 
-    const rotated = await refreshStoredSession();
+    let rotated: StoredSession | null;
+    try {
+      rotated = await refreshStoredSession();
+    } catch {
+      // Refresh failed transiently: keep the session, surface the original 401.
+      throw error;
+    }
     if (!rotated) {
       await clearSession();
       throw error;

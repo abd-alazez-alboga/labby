@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { renderRouter, screen } from 'expo-router/testing-library';
 import { fireEvent, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 
 import { clearSession, getSession } from '../auth/session';
 import { AuthProvider } from '../auth/AuthProvider';
@@ -109,6 +110,9 @@ describe('account screens (UC-S-05/06/07/09/10)', () => {
       expect(
         screen.getByText('Wrong current password or verification code.'),
       ).toBeTruthy();
+
+      fireEvent.press(screen.getByTestId('change-password-start-over'));
+      expect(await screen.findByTestId('change-password-current')).toBeTruthy();
     });
 
     it('shows the rate-limit error when the 2FA request answers 429', async () => {
@@ -130,6 +134,32 @@ describe('account screens (UC-S-05/06/07/09/10)', () => {
       expect(
         screen.getByText('Too many codes requested. Please wait before trying again.'),
       ).toBeTruthy();
+    });
+
+    it('forgot-password escape hatch signs out into the reset flow', async () => {
+      await seedSession(driverUser(), '1');
+      const contract = installContractFetch({
+        'POST /api/v1/auth/logout': { status: 204 },
+      });
+      renderRouter(
+        {
+          index: () => (
+            <LocaleProvider initialLanguage="en">
+              <AuthProvider>
+                <ChangePasswordScreen />
+              </AuthProvider>
+            </LocaleProvider>
+          ),
+          'forgot-password': () => <Text testID="forgot-route">reset</Text>,
+        },
+        { initialUrl: '/' },
+      );
+
+      fireEvent.press(screen.getByTestId('change-password-forgot'));
+
+      expect(await screen.findByTestId('forgot-route')).toBeTruthy();
+      await waitFor(() => expect(getSession()).toBeNull());
+      expect(contract.requestsTo('POST /api/v1/auth/logout')).toHaveLength(1);
     });
   });
 

@@ -97,6 +97,8 @@
   "gate": {
     "title": "Become a Labby driver",
     "body": "Your account does not have an active driver role yet. The driver application will open right here soon — stay tuned.",
+    "suspendedTitle": "Driver access suspended",
+    "suspendedBody": "Your driver access is currently suspended, so driving functions are unavailable. Contact support for details.",
     "signedInAs": "Signed in as {{name}}",
     "logout": "Log out"
   },

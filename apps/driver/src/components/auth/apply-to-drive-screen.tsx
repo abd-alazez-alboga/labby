@@ -12,14 +12,20 @@ const logoWhite = require('../../../assets/images/labby-logo-white.png');
 
 /**
  * The driver gate (M2-T4): shown to signed-in accounts WITHOUT an active
- * `driver` role. The real driver-application flow arrives in M5 — this is
- * a placeholder with logout as the only action.
+ * `driver` role. A SUSPENDED driver role gets its own copy (UC-S-02 E2;
+ * the suspension reason arrives with a later milestone's contract — the
+ * deferral is recorded in the tracker). The real driver-application flow
+ * arrives in M5 — this is a placeholder with logout as the only action.
  */
 export function ApplyToDriveScreen() {
   const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const { direction } = useLocale();
   const textAlign = direction === 'rtl' ? 'right' : 'left';
+  const driverSuspended =
+    user?.roles.some(
+      (assignment) => assignment.role === 'driver' && assignment.state === 'suspended',
+    ) ?? false;
 
   return (
     <View style={styles.container} testID="apply-to-drive-screen">
@@ -30,9 +36,11 @@ export function ApplyToDriveScreen() {
           resizeMode="contain"
           accessibilityLabel={t('app.name')}
         />
-        <Text style={[styles.title, { textAlign }]}>{t('gate.title')}</Text>
+        <Text style={[styles.title, { textAlign }]}>
+          {t(driverSuspended ? 'gate.suspendedTitle' : 'gate.title')}
+        </Text>
         <Text style={[styles.subtitle, { textAlign }]} testID="gate-body">
-          {t('gate.body')}
+          {t(driverSuspended ? 'gate.suspendedBody' : 'gate.body')}
         </Text>
       </View>
       <View style={styles.body}>

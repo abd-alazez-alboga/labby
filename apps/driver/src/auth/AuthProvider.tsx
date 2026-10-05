@@ -49,12 +49,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     const active = getSession();
-    await clearSession();
     if (active) {
-      // Best-effort server-side revocation (UC-S-03); local sign-out
-      // already happened and must not depend on the network.
-      logout(active.refreshToken, active.accessToken).catch(() => {});
+      // Best-effort server-side revocation (UC-S-03) through the refreshing
+      // client, while the session is still available to it; local sign-out
+      // happens regardless of the outcome.
+      try {
+        await logout(active.refreshToken);
+        // If the call triggered a refresh, the pair rotated mid-logout and
+        // the server revoked only the stale token — revoke the live one too.
+        const latest = getSession();
+        if (latest && latest.refreshToken !== active.refreshToken) {
+          await logout(latest.refreshToken);
+        }
+      } catch {
+        // ignore — the token also dies server-side at its expiry
+      }
     }
+    await clearSession();
   }, []);
 
   const value = useMemo<AuthContextValue>(

@@ -134,7 +134,15 @@ export function RegisterScreen() {
       await applySession(tokens);
       // Navigation happens via the auth guards in the root layout.
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 400: 'auth.register.invalidToken' }));
+      const key = errorKeyFor(error, {
+        400: 'auth.register.invalidToken',
+        // Concurrent registration won the race — the phone is now taken.
+        409: 'auth.register.phoneTaken',
+      });
+      if (key === 'auth.register.phoneTaken') {
+        setStep('phone');
+      }
+      setErrorKey(key);
     } finally {
       setBusy(false);
     }
