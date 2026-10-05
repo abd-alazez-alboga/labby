@@ -11,7 +11,7 @@ import com.labby.backend.enums.Language;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
-import com.labby.backend.exception.BusinessRuleViolationException;
+import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
@@ -90,7 +90,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     }
     User user = existing.get();
     if (user.getState() == AccountState.DELETED) {
-      throw new BusinessRuleViolationException(
+      throw new ConflictException(
           "The phone belongs to a deleted account; it must be reactivated first");
     }
     if (roleAssignmentRepository.existsByUserIdAndRole(user.getId(), Role.ADMIN)) {
@@ -230,7 +230,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
         && roleAssignmentRepository.countByRoleAndAdminRoleIdAndState(
                 Role.ADMIN, RbacIds.SUPER_ADMIN_ROLE_ID, RoleState.ACTIVE)
             <= 1) {
-      throw new BusinessRuleViolationException(message);
+      throw new ConflictException(message);
     }
   }
 

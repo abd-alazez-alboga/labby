@@ -14,7 +14,7 @@ import com.labby.backend.dto.CreateRoleRequestDto;
 import com.labby.backend.dto.RoleDto;
 import com.labby.backend.dto.UpdateRoleRequestDto;
 import com.labby.backend.enums.Permission;
-import com.labby.backend.exception.BusinessRuleViolationException;
+import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.RbacPermission;
@@ -120,7 +120,7 @@ class RbacRoleServiceImplTest {
                     ACTOR,
                     RbacIds.SUPER_ADMIN_ROLE_ID,
                     new UpdateRoleRequestDto("Super Admin", List.of())))
-        .isInstanceOf(BusinessRuleViolationException.class);
+        .isInstanceOf(ConflictException.class);
   }
 
   @Test
@@ -136,7 +136,7 @@ class RbacRoleServiceImplTest {
                     ACTOR,
                     RbacIds.SUPPORT_ROLE_ID,
                     new UpdateRoleRequestDto("Helpdesk", List.of())))
-        .isInstanceOf(BusinessRuleViolationException.class);
+        .isInstanceOf(ConflictException.class);
 
     when(rbacPermissionRepository.findByCodeIn(List.of("users:view")))
         .thenReturn(List.of(permission("users:view")));
@@ -172,14 +172,14 @@ class RbacRoleServiceImplTest {
     when(rbacRoleRepository.findWithPermissionsById(RbacIds.SUPPORT_ROLE_ID))
         .thenReturn(Optional.of(role(RbacIds.SUPPORT_ROLE_ID, "Support", true)));
     assertThatThrownBy(() -> service.deleteRole(ACTOR, RbacIds.SUPPORT_ROLE_ID))
-        .isInstanceOf(BusinessRuleViolationException.class);
+        .isInstanceOf(ConflictException.class);
 
     UUID assignedId = UUID.randomUUID();
     when(rbacRoleRepository.findWithPermissionsById(assignedId))
         .thenReturn(Optional.of(role(assignedId, "Ops", false)));
     when(roleAssignmentRepository.existsByAdminRoleId(assignedId)).thenReturn(true);
     assertThatThrownBy(() -> service.deleteRole(ACTOR, assignedId))
-        .isInstanceOf(BusinessRuleViolationException.class);
+        .isInstanceOf(ConflictException.class);
     verify(rbacRoleRepository, never()).delete(any());
 
     UUID freeId = UUID.randomUUID();

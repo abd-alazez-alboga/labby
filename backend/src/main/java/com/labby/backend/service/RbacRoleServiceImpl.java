@@ -5,7 +5,7 @@ import com.labby.backend.dto.PermissionDto;
 import com.labby.backend.dto.RoleDto;
 import com.labby.backend.dto.UpdateRoleRequestDto;
 import com.labby.backend.enums.Permission;
-import com.labby.backend.exception.BusinessRuleViolationException;
+import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.RbacPermission;
@@ -81,11 +81,11 @@ public class RbacRoleServiceImpl implements RbacRoleService {
             .findWithPermissionsById(roleId)
             .orElseThrow(() -> new ResourceNotFoundException("Role", roleId));
     if (RbacIds.SUPER_ADMIN_ROLE_ID.equals(role.getId())) {
-      throw new BusinessRuleViolationException("The Super Admin role is immutable");
+      throw new ConflictException("The Super Admin role is immutable");
     }
     boolean renamed = !role.getName().equals(request.name());
     if (renamed && role.isSystem()) {
-      throw new BusinessRuleViolationException("System roles cannot be renamed");
+      throw new ConflictException("System roles cannot be renamed");
     }
     if (renamed && rbacRoleRepository.existsByNameIgnoreCase(request.name())) {
       throw new ResourceAlreadyExistsException("Role", "name", request.name());
@@ -114,11 +114,10 @@ public class RbacRoleServiceImpl implements RbacRoleService {
             .findWithPermissionsById(roleId)
             .orElseThrow(() -> new ResourceNotFoundException("Role", roleId));
     if (role.isSystem()) {
-      throw new BusinessRuleViolationException("System roles cannot be deleted");
+      throw new ConflictException("System roles cannot be deleted");
     }
     if (roleAssignmentRepository.existsByAdminRoleId(roleId)) {
-      throw new BusinessRuleViolationException(
-          "The role is still assigned to admins; reassign them first");
+      throw new ConflictException("The role is still assigned to admins; reassign them first");
     }
     Map<String, Object> before = snapshot(role);
     role.getPermissions().clear();

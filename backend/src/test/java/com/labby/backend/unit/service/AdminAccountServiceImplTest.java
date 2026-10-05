@@ -20,7 +20,7 @@ import com.labby.backend.enums.Language;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
-import com.labby.backend.exception.BusinessRuleViolationException;
+import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
@@ -205,7 +205,7 @@ class AdminAccountServiceImplTest {
     assertThatThrownBy(
             () ->
                 service.createAdmin(ACTOR, new CreateAdminRequestDto(PHONE, "X", support.getId())))
-        .isInstanceOf(BusinessRuleViolationException.class);
+        .isInstanceOf(ConflictException.class);
   }
 
   @Test
@@ -228,9 +228,9 @@ class AdminAccountServiceImplTest {
             () ->
                 service.changeRole(
                     ACTOR, userId, new ChangeAdminRoleRequestDto(RbacIds.SUPPORT_ROLE_ID)))
-        .isInstanceOf(BusinessRuleViolationException.class);
+        .isInstanceOf(ConflictException.class);
     assertThatThrownBy(() -> service.deactivate(ACTOR, userId))
-        .isInstanceOf(BusinessRuleViolationException.class);
+        .isInstanceOf(ConflictException.class);
   }
 
   @Test
