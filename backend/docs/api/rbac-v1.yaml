@@ -11,8 +11,11 @@ info:
     named in its `x-required-permission` server-side (RBAC-03) — missing permission -> 403.
     Permission codes are `domain:action` strings shared verbatim with the frontend; the
     catalog is code-seeded (enums/Permission.java + V4). Every mutating call here is written
-    to the append-only audit log (RBAC-05). Errors use the global ErrorResponse shape from M1
-    (status, message, fieldErrors?).
+    to the append-only audit log (RBAC-05). The signed-in admin's OWN role and permission set
+    is served on the /users/me profile (auth-v1.yaml RoleAssignment.rbacRole/.permissions) for
+    UI route/menu gating; it refreshes on the next profile fetch while server-side enforcement
+    reacts instantly. Errors use the global ErrorResponse shape from M1 (status, message,
+    fieldErrors?).
 servers:
   - url: http://localhost:8080
 tags:

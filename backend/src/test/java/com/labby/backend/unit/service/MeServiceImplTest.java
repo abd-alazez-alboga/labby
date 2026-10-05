@@ -23,11 +23,13 @@ import com.labby.backend.exception.GoneException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.model.User;
+import com.labby.backend.repository.RbacRoleRepository;
 import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.MeServiceImpl;
 import com.labby.backend.service.OtpService;
+import com.labby.backend.service.ProfileServiceImpl;
 import com.labby.backend.service.StorageProvider;
 import com.labby.backend.util.UserMapper;
 import java.util.List;
@@ -58,6 +60,8 @@ class MeServiceImplTest {
   @Mock private StorageProvider storageProvider;
 
   private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
+  @Mock private RbacRoleRepository rbacRoleRepository;
+
   private final UserMapper userMapper = Mappers.getMapper(UserMapper.class);
 
   private MeServiceImpl meService;
@@ -75,7 +79,7 @@ class MeServiceImplTest {
             passwordEncoder,
             storageProvider,
             new StorageProperties("/tmp/labby-test", 5_242_880),
-            userMapper);
+            new ProfileServiceImpl(userMapper, rbacRoleRepository));
     userId = UUID.randomUUID();
     user =
         User.builder()

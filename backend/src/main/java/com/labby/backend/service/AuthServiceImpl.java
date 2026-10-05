@@ -31,7 +31,6 @@ import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.security.JwtService;
-import com.labby.backend.util.UserMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -71,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
   private final JwtService jwtService;
   private final PasswordEncoder passwordEncoder;
   private final LoginThrottle loginThrottle;
-  private final UserMapper userMapper;
+  private final ProfileService profileService;
   private final AuthProperties authProperties;
 
   @Override
@@ -263,7 +262,7 @@ public class AuthServiceImpl implements AuthService {
         accessToken,
         refreshToken,
         authProperties.accessTtlSeconds(),
-        userMapper.toProfileDto(user, roles));
+        profileService.profileFor(user, roles));
   }
 
   private static boolean holdsRoleForClient(List<RoleAssignment> roles, ClientType client) {

@@ -300,6 +300,39 @@ class RbacAdminIntegrationTest extends AbstractAuthIntegrationTest {
   }
 
   @Test
+  @DisplayName("/users/me exposes the admin's own RBAC role and permissions for UI gating")
+  void shouldExposeOwnPermissionsOnProfile() {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963933000061", RbacIds.SUPER_ADMIN_ROLE_ID);
+
+    ResponseEntity<Map<String, Object>> created =
+        restTemplate.exchange(
+            "/api/v1/admin/roles",
+            HttpMethod.POST,
+            authorized(
+                Map.of("name", "Gated", "permissions", List.of("audit:view")),
+                superAdmin.accessToken()),
+            new ParameterizedTypeReference<>() {});
+    UUID roleId = UUID.fromString(String.valueOf(created.getBody().get("id")));
+    AuthTokensResponseDto gated = registerAdmin("+963933000062", roleId);
+
+    // The login response already carries the enrichment…
+    ResponseEntity<String> me = get("/api/v1/users/me", gated.accessToken());
+    assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(me.getBody()).contains("\"rbacRole\"").contains("\"Gated\"").contains("audit:view");
+    // …and the rider assignment stays bare (fields absent, not null).
+    assertThat(me.getBody()).doesNotContain("\"rbacRole\":null");
+
+    // After a role edit, the next profile fetch reflects the new set (UI refresh semantics).
+    send(
+        "/api/v1/admin/roles/" + roleId,
+        HttpMethod.PUT,
+        Map.of("name", "Gated", "permissions", List.of("admins:view")),
+        superAdmin.accessToken());
+    ResponseEntity<String> refreshed = get("/api/v1/users/me", gated.accessToken());
+    assertThat(refreshed.getBody()).contains("admins:view").doesNotContain("audit:view");
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   @DisplayName("every mutating admin action writes an audit entry; filters work (UC-A-04)")
   void shouldAuditEveryMutation() {
