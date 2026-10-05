@@ -49,17 +49,12 @@ export function refreshSession(
   return client.post<AuthTokensResponse>('/api/v1/auth/refresh', { refreshToken });
 }
 
-/** POST /auth/logout — revokes the refresh token (bearer-authenticated). */
-export function logout(
-  client: ApiClient,
-  accessToken: string,
-  refreshToken: string,
-): Promise<void> {
-  return client.post<void>(
-    '/api/v1/auth/logout',
-    { refreshToken },
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
+/**
+ * POST /auth/logout — revokes the refresh token. Expects the AUTHED client so
+ * an expired access token gets its one refresh before the revocation call.
+ */
+export function logout(client: ApiClient, refreshToken: string): Promise<void> {
+  return client.post<void>('/api/v1/auth/logout', { refreshToken });
 }
 
 /** GET /users/me — the own profile (used to revalidate a restored session). */

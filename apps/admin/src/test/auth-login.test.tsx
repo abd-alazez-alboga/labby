@@ -153,4 +153,27 @@ describe('admin login', () => {
     expect(screen.getByLabelText('رقم الهاتف')).toBeInTheDocument();
     expect(screen.getByLabelText('كلمة المرور')).toBeInTheDocument();
   });
+
+  it('toggles password visibility with an accessible reveal button', async () => {
+    stubFetchRoutes(() => null);
+    const user = userEvent.setup();
+    renderShell();
+
+    const password = await screen.findByLabelText('Password');
+    expect(password).toHaveAttribute('type', 'password');
+
+    const reveal = screen.getByRole('button', { name: 'Show password' });
+    expect(reveal).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(reveal);
+    expect(password).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Hide password' }));
+    expect(password).toHaveAttribute('type', 'password');
+    expect(screen.getByRole('button', { name: 'Show password' })).toBeInTheDocument();
+  });
 });

@@ -93,13 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const session = sessionRef.current;
     if (session) {
       try {
-        await logoutRequest(rawClient, session.accessToken, session.refreshToken);
+        await logoutRequest(apiClient, session.refreshToken);
+        // If the call triggered a refresh, the pair rotated mid-logout and
+        // the server revoked only the stale token — revoke the live one too.
+        const latest = sessionRef.current;
+        if (latest && latest.refreshToken !== session.refreshToken) {
+          await logoutRequest(apiClient, latest.refreshToken);
+        }
       } catch {
         // Best-effort revocation: clearing the local session must never fail.
       }
     }
     endSession(false);
-  }, [rawClient, endSession]);
+  }, [apiClient, endSession]);
 
   // Revalidate a restored session once on mount: refreshes the profile and,
   // via the authed client, rotates stale tokens or expires the session.
