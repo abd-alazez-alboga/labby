@@ -3,7 +3,10 @@
     "title": "Labby Admin"
   },
   "nav": {
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "admins": "Admins",
+    "roles": "Roles",
+    "auditLog": "Audit log"
   },
   "api": {
     "checking": "Checking API…",
@@ -13,6 +16,12 @@
   "language": {
     "switchTo": "العربية",
     "switchLabel": "Switch language"
+  },
+  "common": {
+    "loading": "Loading…",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close"
   },
   "auth": {
     "loginTitle": "Sign in",
@@ -40,5 +49,170 @@
     "title": "Page not found",
     "body": "The page you are looking for does not exist.",
     "backToDashboard": "Back to dashboard"
+  },
+  "forbidden": {
+    "title": "No access",
+    "body": "Your role does not include permission to view this page.",
+    "backToDashboard": "Back to dashboard"
+  },
+  "admins": {
+    "title": "Admin accounts",
+    "createTitle": "Create admin",
+    "createHint": "A new phone number receives an SMS to set a password. An existing account is granted the admin role and keeps its password.",
+    "phoneLabel": "Phone number",
+    "nameLabel": "Name",
+    "roleLabel": "Role",
+    "rolePlaceholder": "Choose a role",
+    "createSubmit": "Create admin",
+    "creating": "Creating…",
+    "createdNotice": "Admin created. A set-password SMS was sent to the new admin.",
+    "grantedExistingNotice": "The existing account was granted the admin role. It keeps its name and password.",
+    "changeRoleFor": "Change role of {{name}}",
+    "deactivate": "Deactivate",
+    "deactivateConfirm": "Deactivate this admin?",
+    "reactivate": "Reactivate",
+    "columns": {
+      "name": "Name",
+      "phone": "Phone",
+      "role": "Role",
+      "state": "State",
+      "grantedAt": "Admin since",
+      "actions": "Actions"
+    },
+    "states": {
+      "active": "Active",
+      "suspended": "Deactivated"
+    },
+    "errors": {
+      "loadFailed": "Could not load the admin accounts.",
+      "rolesUnavailable": "The role list could not be loaded, so role selection is unavailable.",
+      "alreadyAdmin": "This phone number already belongs to an admin.",
+      "conflict": "Not allowed: this would leave Labby without an active Super Admin.",
+      "validation": "The request was rejected — check the values and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "roles": {
+    "title": "Roles",
+    "create": "New role",
+    "edit": "Edit",
+    "view": "View",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this role?",
+    "system": "System",
+    "custom": "Custom",
+    "builderCreateTitle": "New role",
+    "builderEditTitle": "Edit role: {{name}}",
+    "builderViewTitle": "Role: {{name}}",
+    "immutableHint": "Super Admin is a system role with full, unchangeable access.",
+    "systemNameHint": "System roles keep their name; the permission set is editable.",
+    "nameLabel": "Role name",
+    "permissionsLegend": "Permissions",
+    "save": "Save role",
+    "saving": "Saving…",
+    "columns": {
+      "name": "Name",
+      "type": "Type",
+      "permissions": "Permissions",
+      "assignedAdmins": "Admins",
+      "actions": "Actions"
+    },
+    "errors": {
+      "loadFailed": "Could not load the roles and permission catalog.",
+      "conflict": "Not allowed: duplicate name or a protected system role.",
+      "deleteBlocked": "This role cannot be deleted — it is a system role or still assigned to admins.",
+      "validation": "The request was rejected — check the values and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "subtitle": "Every admin action, newest first. Entries are append-only and cannot be changed.",
+    "apply": "Apply filters",
+    "empty": "No entries match the current filters.",
+    "beforeAfter": "Before / after",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{page}} of {{total}} — {{items}} entries",
+    "filters": {
+      "actorId": "Actor ID",
+      "action": "Action",
+      "targetType": "Target type",
+      "targetId": "Target ID",
+      "from": "From",
+      "to": "To"
+    },
+    "columns": {
+      "when": "When",
+      "actor": "Actor",
+      "action": "Action",
+      "target": "Target",
+      "details": "Details"
+    },
+    "errors": {
+      "loadFailed": "Could not load the audit log."
+    }
+  },
+  "permissionDomains": {
+    "users": "Users",
+    "rides": "Rides",
+    "regions": "Regions",
+    "pricing": "Pricing",
+    "driver-review": "Driver review",
+    "support": "Support",
+    "settlements": "Settlements",
+    "promos": "Promotions",
+    "analytics": "Analytics",
+    "audit": "Audit",
+    "admins": "Admin accounts",
+    "roles": "Roles"
+  },
+  "permissionCodes": {
+    "users": {
+      "view": "View users",
+      "suspend": "Suspend users"
+    },
+    "rides": {
+      "view": "View rides"
+    },
+    "regions": {
+      "view": "View regions",
+      "edit": "Edit regions"
+    },
+    "pricing": {
+      "view": "View pricing",
+      "edit": "Edit pricing"
+    },
+    "driver-review": {
+      "view": "View driver applications",
+      "decide": "Decide driver applications"
+    },
+    "support": {
+      "view": "View support tickets",
+      "handle": "Handle support tickets"
+    },
+    "settlements": {
+      "view": "View settlements",
+      "record": "Record settlements"
+    },
+    "promos": {
+      "view": "View promotions",
+      "manage": "Manage promotions"
+    },
+    "analytics": {
+      "view": "View analytics",
+      "export": "Export analytics"
+    },
+    "audit": {
+      "view": "View the audit log"
+    },
+    "admins": {
+      "view": "View admin accounts",
+      "manage": "Manage admin accounts"
+    },
+    "roles": {
+      "view": "View roles",
+      "manage": "Manage roles"
+    }
   }
 }
