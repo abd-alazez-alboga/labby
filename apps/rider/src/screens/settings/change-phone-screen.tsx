@@ -11,7 +11,6 @@ import { ApiError } from '../../api/http-client';
 import { useAuth } from '../../auth/auth-context';
 import { Button, ErrorBanner, FormField, SuccessBanner } from '../../components/form';
 import { OtpStep } from '../../components/otp-step';
-import { useCooldown } from '../../hooks/use-cooldown';
 import { useLocale } from '../../i18n/locale-context';
 import { colors, fontSize, spacing } from '../../theme/tokens';
 
@@ -27,7 +26,6 @@ type Step = 'newPhone' | 'verifyCurrent' | 'verifyNew' | 'done';
 export default function ChangePhoneScreen() {
   const { t, isRTL } = useLocale();
   const { user, setUser } = useAuth();
-  const cooldown = useCooldown();
 
   const [step, setStep] = useState<Step>('newPhone');
   const [newPhone, setNewPhone] = useState('');
@@ -54,7 +52,6 @@ export default function ChangePhoneScreen() {
     setBusy(true);
     try {
       await phoneChangeStart(trimmedPhone);
-      cooldown.start();
       setOtpError(null);
       setStep('verifyCurrent');
     } catch (error) {
@@ -77,7 +74,6 @@ export default function ChangePhoneScreen() {
     try {
       await phoneChangeVerifyCurrent(code);
       // Success → the backend sent a code to the NEW phone.
-      cooldown.start();
       setStep('verifyNew');
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {

@@ -26,7 +26,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
  * Photo: pick with expo-image-picker → PUT multipart → updated profile.
  */
 export default function ProfileEditScreen() {
-  const { t, isRTL, setLocale } = useLocale();
+  const { t, isRTL, setLocale, flipRows } = useLocale();
   const { user, setUser } = useAuth();
 
   const [name, setName] = useState(user?.name ?? '');
@@ -141,7 +141,7 @@ export default function ProfileEditScreen() {
       />
 
       <Text style={[styles.sectionTitle, isRTL && styles.textRtl]}>{t('settings.language')}</Text>
-      <View style={[styles.row, isRTL && styles.rowRtl]}>
+      <View style={[styles.row, flipRows && styles.rowRtl]}>
         {SUPPORTED_LOCALES.map((candidate) => {
           const selected = candidate === language;
           return (

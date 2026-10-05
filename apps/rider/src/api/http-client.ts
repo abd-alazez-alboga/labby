@@ -103,9 +103,14 @@ async function doRefresh(): Promise<string | null> {
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: tokens.refreshToken }),
     });
-    if (!response.ok) {
+    if (response.status === 401) {
+      // Only a contract 401 means the refresh token is invalid/revoked.
       await clearTokens();
       emitSessionExpired();
+      return null;
+    }
+    if (!response.ok) {
+      // Transient server trouble (5xx/429): keep the tokens, fail this request.
       return null;
     }
     const pair = (await response.json()) as { accessToken: string; refreshToken: string };

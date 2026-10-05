@@ -28,6 +28,7 @@ import {
   type AuthTokensResponse,
   type UserProfile,
 } from '../api/auth';
+import { ApiError } from '../api/http-client';
 import {
   addSessionExpiredListener,
   clearTokens,
@@ -127,8 +128,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserState(fresh);
           setStatus('signedIn');
         }
-      } catch {
-        await clearTokens();
+      } catch (error) {
+        // Only an auth rejection invalidates the session; a network failure
+        // (offline launch) keeps the tokens for the next start.
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          await clearTokens();
+        }
         if (!cancelled) setStatus('signedOut');
       }
     })();
@@ -171,6 +176,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // regardless of network state.
       try {
         await apiLogout(tokens.refreshToken);
+        // If the call triggered a refresh, the pair rotated mid-logout and the
+        // server revoked only the stale token — revoke the live one too.
+        const latest = await getStoredTokens();
+        if (latest && latest.refreshToken !== tokens.refreshToken) {
+          await apiLogout(latest.refreshToken);
+        }
       } catch {
         // ignore — token expires server-side anyway
       }

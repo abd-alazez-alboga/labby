@@ -20,7 +20,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
  * sync), account section (profile, password, phone, delete) and logout.
  */
 export default function SettingsScreen() {
-  const { t, locale, isRTL, direction, setLocale } = useLocale();
+  const { t, locale, isRTL, direction, setLocale, flipRows } = useLocale();
   const { user, setUser, signOut } = useAuth();
   const router = useRouter();
 
@@ -54,7 +54,7 @@ export default function SettingsScreen() {
       testID="settings-screen"
     >
       {user ? (
-        <View style={[styles.profileCard, isRTL && styles.rowRtl]} testID="settings-profile-card">
+        <View style={[styles.profileCard, flipRows && styles.rowRtl]} testID="settings-profile-card">
           {user.photoUrl ? (
             <Image
               source={{ uri: user.photoUrl }}
@@ -75,7 +75,7 @@ export default function SettingsScreen() {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, isRTL && styles.textRtl]}>{t('settings.language')}</Text>
-        <View style={[styles.row, isRTL && styles.rowRtl]}>
+        <View style={[styles.row, flipRows && styles.rowRtl]}>
           {SUPPORTED_LOCALES.map((candidate) => {
             const selected = candidate === locale;
             return (
@@ -94,7 +94,7 @@ export default function SettingsScreen() {
             );
           })}
         </View>
-        <View style={[styles.directionRow, isRTL && styles.rowRtl]}>
+        <View style={[styles.directionRow, flipRows && styles.rowRtl]}>
           <Text style={[styles.directionLabel, isRTL && styles.textRtl]}>
             {t('settings.direction')}
           </Text>
@@ -114,7 +114,7 @@ export default function SettingsScreen() {
             testID={`settings-${row.key}`}
             style={({ pressed }) => [
               styles.navRow,
-              isRTL && styles.rowRtl,
+              flipRows && styles.rowRtl,
               pressed && styles.navRowPressed,
             ]}
             onPress={() => router.push(row.href)}

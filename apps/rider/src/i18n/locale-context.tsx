@@ -54,6 +54,14 @@ export interface LocaleContextValue {
   locale: AppLocale;
   isRTL: boolean;
   direction: 'ltr' | 'rtl';
+  /**
+   * Whether row/position styles must be flipped MANUALLY: true only while the
+   * locale is RTL but the native layout has not restarted into RTL yet. Once
+   * `I18nManager.isRTL` is live, React Native mirrors rows and logical
+   * start/end itself — flipping again would undo it. Key structural overrides
+   * (row-reverse, absolute start/end) on this; text alignment stays on isRTL.
+   */
+  flipRows: boolean;
   t: (key: string, options?: TranslateOptions) => string;
   setLocale: (locale: AppLocale) => Promise<void>;
 }
@@ -107,16 +115,23 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     [locale],
   );
 
-  const value = useMemo<LocaleContextValue>(
-    () => ({
+  const value = useMemo<LocaleContextValue>(() => {
+    let nativeRTL = false;
+    try {
+      nativeRTL = I18nManager.isRTL;
+    } catch {
+      // native module unavailable in some test environments
+    }
+    const isRTL = locale === 'ar';
+    return {
       locale,
-      isRTL: locale === 'ar',
-      direction: locale === 'ar' ? 'rtl' : 'ltr',
+      isRTL,
+      direction: isRTL ? 'rtl' : 'ltr',
+      flipRows: isRTL && !nativeRTL,
       t,
       setLocale,
-    }),
-    [locale, t, setLocale],
-  );
+    };
+  }, [locale, t, setLocale]);
 
   if (!ready) {
     return null; // splash screen stays visible until the stored language is applied

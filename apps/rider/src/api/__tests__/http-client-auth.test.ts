@@ -86,6 +86,26 @@ describe('apiFetch auth handling', () => {
     unsubscribe();
   });
 
+  it('keeps the tokens when the refresh fails transiently (5xx)', async () => {
+    await saveTokens({ accessToken: 'stale-access', refreshToken: 'live-refresh' });
+    const expired = jest.fn();
+    const unsubscribe = addSessionExpiredListener(expired);
+    mockApi({
+      'GET /api/v1/users/me': { status: 401, body: { status: 401, message: 'expired' } },
+      'POST /api/v1/auth/refresh': { status: 500, body: { status: 500, message: 'flaky' } },
+    });
+
+    await expect(apiFetch('/api/v1/users/me', { auth: true })).rejects.toThrow(ApiError);
+
+    // The session survives server trouble: only a contract 401 signs the user out.
+    expect(expired).not.toHaveBeenCalled();
+    expect(await getStoredTokens()).toEqual({
+      accessToken: 'stale-access',
+      refreshToken: 'live-refresh',
+    });
+    unsubscribe();
+  });
+
   it('does not refresh on 401 of an unauthenticated request', async () => {
     const api = mockApi({
       'POST /api/v1/auth/login': { status: 401, body: { status: 401, message: 'bad' } },

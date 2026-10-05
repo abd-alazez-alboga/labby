@@ -246,4 +246,27 @@ describe('RegisterScreen (UC-S-01 / UC-S-08)', () => {
     await fireEvent.press(screen.getByTestId('register-start-over'));
     expect(await screen.findByTestId('register-step-phone')).toBeOnTheScreen();
   });
+
+  it('routes a complete-step 409 (concurrent registration) to the phone-taken path', async () => {
+    mockApi({
+      [START]: { status: 204 },
+      [VERIFY]: { status: 200, body: { mode: 'new', registrationToken: 'reg-token-1' } },
+      [COMPLETE]: { status: 409, body: { status: 409, message: 'phone already registered' } },
+    });
+
+    await goToOtpStep();
+    await fireEvent.changeText(screen.getByTestId('register-otp-code-input'), '123456');
+    await fireEvent.press(screen.getByTestId('register-otp-verify'));
+    expect(await screen.findByTestId('register-step-details')).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByTestId('register-name'), 'New Rider');
+    await fireEvent.changeText(screen.getByTestId('register-password'), 'supersecret1');
+    await fireEvent.changeText(screen.getByTestId('register-confirm-password'), 'supersecret1');
+    await fireEvent.press(screen.getByTestId('register-terms'));
+    await fireEvent.press(screen.getByTestId('register-complete'));
+
+    expect(await screen.findByTestId('register-phone-taken')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId('register-go-login'));
+    expect(mockReplace).toHaveBeenCalledWith('/login');
+  });
 });

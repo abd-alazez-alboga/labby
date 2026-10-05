@@ -32,7 +32,7 @@ export function FormField({
   secureTextEntry,
   ...inputProps
 }: FormFieldProps) {
-  const { t, isRTL } = useLocale();
+  const { t, isRTL, flipRows } = useLocale();
   const [revealed, setRevealed] = useState(false);
   return (
     <View style={styles.field}>
@@ -43,7 +43,11 @@ export function FormField({
             styles.input,
             isRTL && styles.inputRtl,
             error ? styles.inputError : null,
-            secureTextEntry ? (isRTL ? styles.inputWithToggleRtl : styles.inputWithToggle) : null,
+            secureTextEntry
+              ? flipRows
+                ? styles.inputWithToggleRtl
+                : styles.inputWithToggle
+              : null,
             style,
           ]}
           placeholderTextColor={colors.textSubtle}
@@ -56,7 +60,7 @@ export function FormField({
             accessibilityRole="button"
             accessibilityLabel={revealed ? t('common.hidePassword') : t('common.showPassword')}
             onPress={() => setRevealed((v) => !v)}
-            style={[styles.revealToggle, isRTL && styles.revealToggleRtl]}
+            style={[styles.revealToggle, flipRows && styles.revealToggleRtl]}
             hitSlop={spacing.sm}
             testID={testID ? `${testID}-reveal` : undefined}
           >

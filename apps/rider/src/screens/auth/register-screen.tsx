@@ -32,7 +32,7 @@ type Step = 'phone' | 'otp' | 'details' | 'reactivated';
  * - expired registrationToken on complete (400) → start over
  */
 export default function RegisterScreen() {
-  const { t, isRTL } = useLocale();
+  const { t, isRTL, flipRows } = useLocale();
   const { signIn } = useAuth();
   const router = useRouter();
   const cooldown = useCooldown();
@@ -151,6 +151,10 @@ export default function RegisterScreen() {
       if (error instanceof ApiError && error.status === 400) {
         setTokenExpired(true);
         setCompleteError(t('register.tokenExpired'));
+      } else if (error instanceof ApiError && error.status === 409) {
+        // Concurrent registration won the race — the phone is now taken.
+        setPhoneTaken(true);
+        setStep('phone');
       } else {
         setCompleteError(t('common.networkError'));
       }
@@ -272,7 +276,7 @@ export default function RegisterScreen() {
             accessibilityRole="checkbox"
             accessibilityState={{ checked: termsAccepted }}
             onPress={() => setTermsAccepted((v) => !v)}
-            style={[styles.termsRow, isRTL && styles.rowRtl]}
+            style={[styles.termsRow, flipRows && styles.rowRtl]}
             testID="register-terms"
           >
             <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
