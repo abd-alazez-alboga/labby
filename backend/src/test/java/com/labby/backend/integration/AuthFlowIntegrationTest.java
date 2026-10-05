@@ -9,6 +9,7 @@ import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.ClientType;
 import com.labby.backend.enums.Language;
 import com.labby.backend.enums.Role;
+import com.labby.backend.enums.RoleState;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -224,5 +225,52 @@ class AuthFlowIntegrationTest extends AbstractAuthIntegrationTest {
                 true),
             AuthTokensResponseDto.class);
     assertThat(accepted.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+  }
+
+  @Test
+  @DisplayName("suspended-role login succeeds with the role state exposed (UC-S-02 E2)")
+  void shouldLoginWithSuspendedRoleStateExposed() {
+    String phone = "+963911100040";
+    register(phone, "Secret123!", "Suspended Rider");
+    jdbcTemplate.update(
+        "UPDATE role_assignments SET state = 'suspended'"
+            + " WHERE user_id = (SELECT user_id FROM users WHERE phone = ?)",
+        phone);
+
+    AuthTokensResponseDto session = login(phone, "Secret123!", ClientType.RIDER);
+
+    assertThat(session.user().roles()).hasSize(1);
+    assertThat(session.user().roles().get(0).role()).isEqualTo(Role.RIDER);
+    assertThat(session.user().roles().get(0).state()).isEqualTo(RoleState.SUSPENDED);
+  }
+
+  @Test
+  @DisplayName("logout invalidates the session's access token immediately (UC-S-03)")
+  void shouldRejectAccessTokenAfterLogout() {
+    String phone = "+963911100041";
+    AuthTokensResponseDto session = register(phone, "Secret123!", "Logout Check");
+
+    ResponseEntity<UserProfileDto> before =
+        restTemplate.exchange(
+            "/api/v1/users/me",
+            HttpMethod.GET,
+            new HttpEntity<>(bearer(session.accessToken())),
+            UserProfileDto.class);
+    assertThat(before.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    ResponseEntity<Void> logout =
+        restTemplate.postForEntity(
+            "/api/v1/auth/logout",
+            authorized(Map.of("refreshToken", session.refreshToken()), session.accessToken()),
+            Void.class);
+    assertThat(logout.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    ResponseEntity<String> after =
+        restTemplate.exchange(
+            "/api/v1/users/me",
+            HttpMethod.GET,
+            new HttpEntity<>(bearer(session.accessToken())),
+            String.class);
+    assertThat(after.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 }

@@ -52,7 +52,9 @@ labby:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   auth:
     # HS256 signing secret; must be >= 32 bytes (NFR-S1). Never commit a real value.
-    jwt-secret: ${JWT_SECRET:change-me-to-a-long-random-secret}
+    # No default on purpose: a usable fallback would be a repo-committed signing secret.
+    # Boot fails fast when JWT_SECRET is unset (dev values live in .env, never committed).
+    jwt-secret: ${JWT_SECRET}
     access-ttl-seconds: ${JWT_ACCESS_TTL_SECONDS:900}
     refresh-ttl-seconds: ${JWT_REFRESH_TTL_SECONDS:1209600}
     # Per phone+IP failed-login throttling (NFR-S3).

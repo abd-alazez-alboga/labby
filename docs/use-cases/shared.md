@@ -72,7 +72,7 @@ ID convention: `UC-S-xx` (shared), referenced from `rider.md` (`UC-R-xx`), `driv
 1. User requests change, enters new phone.
 2. System checks the new phone isn't held by an active/suspended account.
 3. OTP (purpose `2fa`) sent to the **current** phone and verified.
-4. OTP (purpose `register`) sent to the **new** phone and verified.
+4. OTP (purpose `2fa`) sent to the **new** phone and verified. *(Deliberate deviation from the original `register` purpose, owner-approved at M2 review: a `register`-purpose code on the new phone could be consumed by a genuine registration attempt for that number; `2fa` scopes it to this logged-in flow.)*
 5. Phone updated; identity continuity preserved (rides, wallet, ratings untouched).
 **Exceptions:** E1 New phone already in use → rejected. E2 Either OTP fails per AUTH-04 → change aborted, nothing mutated.
 **SRS:** AUTH-05, ES-02

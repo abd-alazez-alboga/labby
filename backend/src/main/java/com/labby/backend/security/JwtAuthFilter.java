@@ -1,5 +1,6 @@
 package com.labby.backend.security;
 
+import com.labby.backend.service.SessionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,9 +15,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Resolves a Bearer access token into the SecurityContext. Invalid or absent tokens simply leave
- * the request anonymous; the deny-by-default chain then answers 401. Deliberately NOT a
- * {@code @Component}: it is built and registered only inside the security chain, never as a
- * standalone servlet filter.
+ * the request anonymous; the deny-by-default chain then answers 401. The token's {@code sid} claim
+ * is checked against the refresh-token row so a revoked session (logout, password change, delete,
+ * reuse-revocation) invalidates its access tokens immediately (UC-S-03), not after the access TTL.
+ * Deliberately NOT a {@code @Component}: it is built and registered only inside the security chain,
+ * never as a standalone servlet filter.
  */
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
@@ -24,6 +27,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
   private static final String BEARER_PREFIX = "Bearer ";
 
   private final JwtService jwtService;
+  private final SessionService sessionService;
 
   @Override
   protected void doFilterInternal(
@@ -35,6 +39,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     if (header != null && header.startsWith(BEARER_PREFIX)) {
       jwtService
           .parseAccessToken(header.substring(BEARER_PREFIX.length()))
+          .filter(claims -> sessionService.isSessionLive(claims.sessionId()))
           .ifPresent(
               claims -> {
                 var authorities = claims.roles().stream().map(SimpleGrantedAuthority::new).toList();

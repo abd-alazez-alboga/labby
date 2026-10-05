@@ -28,5 +28,7 @@ public abstract class AbstractIntegrationTest {
     registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
+    // application.yml deliberately has no jwt-secret default; tests supply their own.
+    registry.add("labby.auth.jwt-secret", () -> "labby-integration-test-secret-0123456789abcdef");
   }
 }

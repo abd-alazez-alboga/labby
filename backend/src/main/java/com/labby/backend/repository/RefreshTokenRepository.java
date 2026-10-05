@@ -14,6 +14,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
   Optional<RefreshToken> findByTokenHash(String tokenHash);
 
+  /** Whether the session behind an access token's {@code sid} claim is still live (UC-S-03). */
+  boolean existsByIdAndRevokedAtIsNull(UUID id);
+
   @Modifying
   @Query(
       "update RefreshToken t set t.revokedAt = :now"
