@@ -1,0 +1,377 @@
+openapi: 3.1.0
+info:
+  title: Labby RBAC & Admin Foundation API (M3 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M3. The admin UI ticket (M3-T3) builds against this
+    document; the backend (M3-T2) must implement it exactly. Springdoc output is the living
+    mirror once implemented — on conflict after T2 lands, the implementation is the truth.
+    SRS: RBAC-01..05, AUTH-06. All endpoints require a bearer token belonging to an account
+    with an ACTIVE admin role assignment; each endpoint additionally enforces the permission
+    named in its `x-required-permission` server-side (RBAC-03) — missing permission -> 403.
+    Permission codes are `domain:action` strings shared verbatim with the frontend; the
+    catalog is code-seeded (enums/Permission.java + V4). Every mutating call here is written
+    to the append-only audit log (RBAC-05). Errors use the global ErrorResponse shape from M1
+    (status, message, fieldErrors?).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Admins
+  - name: Roles
+  - name: Audit
+
+paths:
+  /api/v1/admin/admins:
+    get:
+      tags: [Admins]
+      summary: List admin accounts
+      x-required-permission: 'admins:view'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: All admin accounts (accounts holding the admin role, any state)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminAccount' }
+    post:
+      tags: [Admins]
+      summary: Create an admin account (UC-A-01)
+      x-required-permission: 'admins:manage'
+      description: >
+        Assigns exactly ONE role. New phone -> a user row is created (state `active`,
+        placeholder unusable password) and a set-password OTP (purpose `reset`) is sent to the
+        phone (AUTH-06); the new admin sets their password via the existing
+        /auth/password-reset/verify + /complete endpoints (auth-v1.yaml), then logs in with
+        phone + password. Phone already an account (E1) -> that account is granted the admin
+        role with the given RBAC role instead of a duplicate; no OTP is sent (the owner keeps
+        their password). Phone already an admin -> 409. Admin accounts are never
+        self-registered.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdminRequest' }
+      responses:
+        '201':
+          description: Admin created or role granted to the existing account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateAdminResponse' }
+        '400': { description: Validation failure or unknown roleId }
+        '409': { description: Phone already holds the admin role }
+
+  /api/v1/admin/admins/{userId}/role:
+    put:
+      tags: [Admins]
+      summary: Change an admin's role (UC-A-02)
+      x-required-permission: 'admins:manage'
+      description: >
+        Replaces the single role; effective immediately (next authorized request evaluates the
+        new permission set — no re-login). Moving the LAST active Super Admin to another role
+        -> 409 (RBAC-01).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeAdminRoleRequest' }
+      responses:
+        '200':
+          description: Updated admin account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAccount' }
+        '400': { description: Unknown roleId }
+        '404': { description: No admin account for userId }
+        '409': { description: Would demote the last active Super Admin }
+
+  /api/v1/admin/admins/{userId}/deactivate:
+    post:
+      tags: [Admins]
+      summary: Deactivate an admin (UC-A-02)
+      x-required-permission: 'admins:manage'
+      description: >
+        Suspends the admin ROLE assignment (state -> `suspended`): admin API access is cut,
+        any other roles the account holds (e.g. rider) are untouched. Deactivating the last
+        active Super Admin -> 409.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Updated admin account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAccount' }
+        '404': { description: No admin account for userId }
+        '409': { description: Would deactivate the last active Super Admin }
+
+  /api/v1/admin/admins/{userId}/reactivate:
+    post:
+      tags: [Admins]
+      summary: Reactivate a deactivated admin (UC-A-02)
+      x-required-permission: 'admins:manage'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Updated admin account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAccount' }
+        '404': { description: No admin account for userId }
+
+  /api/v1/admin/roles:
+    get:
+      tags: [Roles]
+      summary: List roles with their permission sets (UC-A-03)
+      x-required-permission: 'roles:view'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: All roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Role' }
+    post:
+      tags: [Roles]
+      summary: Create a custom role
+      x-required-permission: 'roles:manage'
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRoleRequest' }
+      responses:
+        '201':
+          description: Created role
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '400': { description: Validation failure or unknown permission code }
+        '409': { description: Role name already exists }
+
+  /api/v1/admin/roles/{roleId}:
+    put:
+      tags: [Roles]
+      summary: Edit a role's name/permissions
+      x-required-permission: 'roles:manage'
+      description: >
+        Changes apply instantly to every admin holding the role (RBAC-02). Super Admin is
+        fully immutable; system roles (`isSystem`) keep their name but Support's permission
+        set IS editable (RBAC-04) -> violations 409.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: roleId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoleRequest' }
+      responses:
+        '200':
+          description: Updated role
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '400': { description: Validation failure or unknown permission code }
+        '404': { description: Unknown roleId }
+        '409': { description: Super Admin immutable, system-role rename, or duplicate name }
+    delete:
+      tags: [Roles]
+      summary: Delete a custom role
+      x-required-permission: 'roles:manage'
+      description: System roles are undeletable; a role still assigned to admins is blocked until they are reassigned (RBAC-02).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: roleId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Unknown roleId }
+        '409': { description: System role, or role still assigned to admins }
+
+  /api/v1/admin/permissions:
+    get:
+      tags: [Roles]
+      summary: The permission catalog for the role-builder checklist (UC-A-03)
+      x-required-permission: 'roles:view'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Catalog, stable order, groupable by domain
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Permission' }
+
+  /api/v1/admin/audit-log:
+    get:
+      tags: [Audit]
+      summary: Query the append-only audit log (UC-A-04)
+      x-required-permission: 'audit:view'
+      description: Newest first. All filters optional and combinable. Entries are immutable; no mutation endpoint exists (RBAC-05).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: actorId, in: query, schema: { type: string, format: uuid } }
+        - { name: action, in: query, schema: { type: string }, description: 'Exact action key, e.g. `admin.create`' }
+        - { name: targetType, in: query, schema: { type: string } }
+        - { name: targetId, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        '200':
+          description: Page of entries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditLogPage' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Phone: { type: string, pattern: '^\+?[0-9]{8,15}$', examples: ['+963900000005'] }
+    PermissionCode:
+      type: string
+      description: '`domain:action` authority string, shared verbatim with the frontend'
+      enum:
+        - 'users:view'
+        - 'users:suspend'
+        - 'rides:view'
+        - 'regions:view'
+        - 'regions:edit'
+        - 'pricing:view'
+        - 'pricing:edit'
+        - 'driver-review:view'
+        - 'driver-review:decide'
+        - 'support:view'
+        - 'support:handle'
+        - 'settlements:view'
+        - 'settlements:record'
+        - 'promos:view'
+        - 'promos:manage'
+        - 'analytics:view'
+        - 'analytics:export'
+        - 'audit:view'
+        - 'admins:view'
+        - 'admins:manage'
+        - 'roles:view'
+        - 'roles:manage'
+
+    Permission:
+      type: object
+      required: [code, domain]
+      properties:
+        code: { $ref: '#/components/schemas/PermissionCode' }
+        domain: { type: string, examples: ['users'] }
+
+    Role:
+      type: object
+      required: [id, name, isSystem, permissions, assignedAdminCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 50 }
+        isSystem: { type: boolean, description: 'Super Admin + Support; undeletable (RBAC-02)' }
+        permissions:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionCode' }
+        assignedAdminCount: { type: integer, description: Admins currently holding this role }
+
+    RoleSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    CreateRoleRequest:
+      type: object
+      required: [name, permissions]
+      properties:
+        name: { type: string, maxLength: 50 }
+        permissions:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionCode' }
+
+    UpdateRoleRequest:
+      type: object
+      required: [name, permissions]
+      properties:
+        name: { type: string, maxLength: 50 }
+        permissions:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionCode' }
+
+    AdminAccount:
+      type: object
+      required: [id, phone, name, state, role, grantedAt]
+      properties:
+        id: { type: string, format: uuid, description: The user id }
+        phone: { $ref: '#/components/schemas/Phone' }
+        name: { type: string }
+        state:
+          type: string
+          enum: [active, suspended]
+          description: State of the admin ROLE assignment (deactivated = suspended)
+        role: { $ref: '#/components/schemas/RoleSummary' }
+        grantedAt: { type: string, format: date-time }
+
+    CreateAdminRequest:
+      type: object
+      required: [phone, name, roleId]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+        name: { type: string, maxLength: 100, description: Ignored in `granted_existing` mode (account keeps its name) }
+        roleId: { type: string, format: uuid }
+
+    CreateAdminResponse:
+      type: object
+      required: [mode, admin]
+      properties:
+        mode:
+          type: string
+          enum: [created, granted_existing]
+          description: '`created` = new account + set-password OTP sent; `granted_existing` = admin role granted to the existing account (UC-A-01 E1)'
+        admin: { $ref: '#/components/schemas/AdminAccount' }
+
+    ChangeAdminRoleRequest:
+      type: object
+      required: [roleId]
+      properties:
+        roleId: { type: string, format: uuid }
+
+    AuditLogEntry:
+      type: object
+      required: [id, actorId, actorName, action, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        actorId: { type: string, format: uuid }
+        actorName: { type: string }
+        action: { type: string, examples: ['role.update'] }
+        targetType: { type: [string, 'null'], examples: ['role'] }
+        targetId: { type: [string, 'null'] }
+        before: { type: [object, 'null'], description: State before the mutation, where sensible }
+        after: { type: [object, 'null'], description: State after the mutation, where sensible }
+        createdAt: { type: string, format: date-time }
+
+    AuditLogPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AuditLogEntry' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
