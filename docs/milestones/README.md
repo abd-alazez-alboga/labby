@@ -94,7 +94,7 @@ Statuses live here (milestone files describe content only, they are never edited
 ### M4 — Regions & pricing config
 | Ticket | Title | Status |
 |---|---|---|
-| M4-T1 | Regions contract & migrations | todo |
+| M4-T1 | Regions contract & migrations | done |
 | M4-T2 | Regions backend | todo |
 | M4-T3 | Admin UI: regions & zone drawing | todo |
 | M4-T4 | Apps: region resolution | todo |

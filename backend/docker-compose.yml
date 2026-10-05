@@ -2,7 +2,10 @@
 # Credentials/ports come from the environment (see .env.example); defaults match it.
 services:
   postgres:
-    image: postgres:16-alpine
+    # PostGIS build of Postgres 16 — M4 stores region/zone polygons as geometry (V5 enables
+    # the extension). Switching image requires recreating the container + volume once:
+    # `make db-down && docker volume rm backend_labby-postgres-data && make db-up`.
+    image: postgis/postgis:16-3.4-alpine
     container_name: labby-postgres
     environment:
       POSTGRES_DB: ${DB_NAME:-labby}

@@ -1,0 +1,638 @@
+openapi: 3.1.0
+info:
+  title: Labby Regions & Pricing Config API (M4 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M4. The admin UI (M4-T3) and the apps (M4-T4) build
+    against this document; the backend (M4-T2) must implement it exactly — on conflict after
+    T2 lands, the implementation is the truth. SRS: ADM-01, PRC-01 (config side), PRC-02
+    (zones/thresholds config; the multiplier cycle is M9), PRC-03 (config side), SD-01;
+    UC-A-05..08 (UC-A-09's override endpoint arrives with M9). Geometry: polygons travel as
+    GeoJSON (lng,lat coordinate order, SRID 4326) and are stored in PostGIS. A region is a
+    DRAFT until its mandatory bundle is complete; activation with missing config -> 409
+    (UC-A-05 E1). Config edits apply to NEW rides only (UC-A-06) — nothing here mutates
+    in-flight rides. Admin endpoints enforce `x-required-permission` server-side (RBAC-03):
+    the region bundle under `regions:*`, pricing-flavored children (service types, surcharge
+    windows, surge zones) under `pricing:*`. Every mutating admin call is audit-logged
+    (RBAC-05, actions `region.*`, `service_type.*`, `surcharge_window.*`, `surge_zone.*`).
+    The two client endpoints need any authenticated account (no admin role). New-region ops
+    note (ASM-04): once routing is self-hosted, each new region needs its map extract loaded.
+    Errors use the global ErrorResponse shape from M1 (status, message, fieldErrors?).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Regions
+  - name: ServiceTypes
+  - name: SurchargeWindows
+  - name: SurgeZones
+  - name: Client
+
+paths:
+  /api/v1/admin/regions:
+    get:
+      tags: [Regions]
+      summary: List regions
+      x-required-permission: 'regions:view'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: All regions, name-sorted
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RegionSummary' }
+    post:
+      tags: [Regions]
+      summary: Create a region (draft) (UC-A-05)
+      x-required-permission: 'regions:edit'
+      description: >
+        Only the name is mandatory at creation; everything else may be filled in while the
+        region is a draft. The region cannot activate until the mandatory bundle is complete
+        (E1).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegionUpsertRequest' }
+      responses:
+        '201':
+          description: Draft region created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Region' }
+        '400': { description: Validation failure (bad polygon, bad currency, …) }
+        '409': { description: Region name already exists }
+
+  /api/v1/admin/regions/{regionId}:
+    get:
+      tags: [Regions]
+      summary: Read a region's full config bundle
+      x-required-permission: 'regions:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The full bundle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Region' }
+        '404': { description: Unknown regionId }
+    put:
+      tags: [Regions]
+      summary: Edit a region's bundle (UC-A-06)
+      x-required-permission: 'regions:edit'
+      description: >
+        Full-bundle replace (absent optional fields clear). Applies to NEW rides only. An
+        ACTIVE region may not un-fill mandatory config -> 409; boundary edits that would make
+        the region overlap another region -> 409 (M4-T2 rule).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegionUpsertRequest' }
+      responses:
+        '200':
+          description: Updated region
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Region' }
+        '400': { description: Validation failure }
+        '404': { description: Unknown regionId }
+        '409':
+          description: >-
+            Duplicate name, boundary overlap with another region, or stripping mandatory
+            config from an active region
+
+  /api/v1/admin/regions/{regionId}/activate:
+    post:
+      tags: [Regions]
+      summary: Activate a region (UC-A-05 step 5)
+      x-required-permission: 'regions:edit'
+      description: >
+        Allowed only when the mandatory bundle is complete: name, boundary, currency,
+        emergency number, at least one enabled service type, cancellation/wait/pickup-fee
+        values, commission tiers, incentive values, suspension thresholds, surge cap.
+        Incomplete -> 409 listing the missing parts (E1). Idempotent on an active region.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Active region
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Region' }
+        '404': { description: Unknown regionId }
+        '409': { description: Mandatory config incomplete (message lists what is missing) }
+
+  /api/v1/admin/regions/{regionId}/service-types:
+    get:
+      tags: [ServiceTypes]
+      summary: List a region's service types
+      x-required-permission: 'pricing:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: All of the region's service types (enabled and disabled)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ServiceType' }
+        '404': { description: Unknown regionId }
+    post:
+      tags: [ServiceTypes]
+      summary: Add a service type with its pricing (UC-A-07)
+      x-required-permission: 'pricing:edit'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceTypeUpsertRequest' }
+      responses:
+        '201':
+          description: Created service type
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceType' }
+        '400': { description: Validation failure }
+        '404': { description: Unknown regionId }
+        '409': { description: English name already used in this region }
+
+  /api/v1/admin/service-types/{serviceTypeId}:
+    put:
+      tags: [ServiceTypes]
+      summary: Edit or disable a service type (UC-A-07)
+      x-required-permission: 'pricing:edit'
+      description: >
+        Service types are never deleted — disabling (`enabled: false`) removes them from
+        booking while existing rides keep referencing them. Disabling with claimed scheduled
+        rides returns the E1 warning payload once scheduled rides exist (M12); until then the
+        disable always succeeds.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: serviceTypeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceTypeUpsertRequest' }
+      responses:
+        '200':
+          description: Updated service type
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceType' }
+        '400': { description: Validation failure }
+        '404': { description: Unknown serviceTypeId }
+        '409': { description: English name already used in this region }
+
+  /api/v1/admin/regions/{regionId}/surcharge-windows:
+    get:
+      tags: [SurchargeWindows]
+      summary: List a region's time-window surcharges
+      x-required-permission: 'pricing:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Windows ordered by start time
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SurchargeWindow' }
+        '404': { description: Unknown regionId }
+    post:
+      tags: [SurchargeWindows]
+      summary: Add a time-window surcharge (PRC-01)
+      x-required-permission: 'pricing:edit'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurchargeWindowUpsertRequest' }
+      responses:
+        '201':
+          description: Created window
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurchargeWindow' }
+        '400': { description: Validation failure }
+        '404': { description: Unknown regionId }
+
+  /api/v1/admin/surcharge-windows/{surchargeWindowId}:
+    put:
+      tags: [SurchargeWindows]
+      summary: Edit a time-window surcharge
+      x-required-permission: 'pricing:edit'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: surchargeWindowId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurchargeWindowUpsertRequest' }
+      responses:
+        '200':
+          description: Updated window
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurchargeWindow' }
+        '400': { description: Validation failure }
+        '404': { description: Unknown surchargeWindowId }
+    delete:
+      tags: [SurchargeWindows]
+      summary: Delete a time-window surcharge
+      x-required-permission: 'pricing:edit'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: surchargeWindowId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Unknown surchargeWindowId }
+
+  /api/v1/admin/regions/{regionId}/surge-zones:
+    get:
+      tags: [SurgeZones]
+      summary: List a region's surge zones
+      x-required-permission: 'pricing:view'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Zones with polygons, thresholds and override state
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SurgeZone' }
+        '404': { description: Unknown regionId }
+    post:
+      tags: [SurgeZones]
+      summary: Draw a surge zone (UC-A-08)
+      x-required-permission: 'pricing:edit'
+      description: >
+        The polygon must lie within the region's boundary (M4-T2 rule) -> otherwise 409.
+        Zones go live with the next surge cycle once M9 computes multipliers.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurgeZoneUpsertRequest' }
+      responses:
+        '201':
+          description: Created zone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurgeZone' }
+        '400': { description: Validation failure (bad polygon, bad steps) }
+        '404': { description: Unknown regionId }
+        '409': { description: Zone name already used in this region, or polygon outside the region }
+
+  /api/v1/admin/surge-zones/{surgeZoneId}:
+    put:
+      tags: [SurgeZones]
+      summary: Edit a surge zone (UC-A-08)
+      x-required-permission: 'pricing:edit'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: surgeZoneId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurgeZoneUpsertRequest' }
+      responses:
+        '200':
+          description: Updated zone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurgeZone' }
+        '400': { description: Validation failure }
+        '404': { description: Unknown surgeZoneId }
+        '409': { description: Zone name already used in this region, or polygon outside the region }
+    delete:
+      tags: [SurgeZones]
+      summary: Delete a surge zone (UC-A-08)
+      x-required-permission: 'pricing:edit'
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: surgeZoneId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Unknown surgeZoneId }
+
+  /api/v1/regions/resolve:
+    get:
+      tags: [Client]
+      summary: Resolve the region covering a GPS point (SD-01)
+      description: >
+        Any authenticated account (rider/driver apps on boot and location change). Only
+        ACTIVE regions resolve; a point on the boundary line counts as inside. No covering
+        region -> 404, which the apps render as the outside-operating-area state.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: lng, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+      responses:
+        '200':
+          description: The covering region's client config
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegionConfig' }
+        '400': { description: Malformed or out-of-range coordinates }
+        '404': { description: Outside every operating region }
+
+  /api/v1/regions/{regionId}/config:
+    get:
+      tags: [Client]
+      summary: Read a region's client config (SD-01)
+      description: >
+        Any authenticated account. The client-facing slice of the bundle: currency, emergency
+        number and ENABLED service types — cached by the apps for later milestones. Draft
+        regions are not served.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Client config
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegionConfig' }
+        '404': { description: Unknown regionId, or region not active }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    GeoJsonPolygon:
+      type: object
+      description: >
+        GeoJSON Polygon, SRID 4326. Coordinates are [lng, lat]; the first ring is the outer
+        boundary, closed (first point == last point). Holes are not used in V1.
+      required: [type, coordinates]
+      properties:
+        type: { type: string, const: Polygon }
+        coordinates:
+          type: array
+          items:
+            type: array
+            minItems: 4
+            items:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items: { type: number }
+    CommissionTier:
+      type: object
+      description: >
+        One tier of the weekly-recalculated driver commission (COM-02). Ordered descending by
+        threshold; the tier with the highest `weeklyTripsAbove` the driver exceeds applies.
+        Defaults: 25% above 0, 20% above 100, 15% above 200.
+      required: [weeklyTripsAbove, percent]
+      properties:
+        weeklyTripsAbove: { type: integer, minimum: 0 }
+        percent: { type: number, minimum: 0, maximum: 100 }
+    WeeklyTripBonus:
+      type: object
+      description: 'DRV-08 weekly trip bonus step (defaults: 50 @ 40+, 100 @ 60+).'
+      required: [trips, amount]
+      properties:
+        trips: { type: integer, minimum: 1 }
+        amount: { type: number, minimum: 0 }
+    IncentiveValues:
+      type: object
+      description: Region incentive config (DRV-08); consumed by M13.
+      required: [weeklyTripBonuses, peakHourBonusPerTrip, ratingReward]
+      properties:
+        weeklyTripBonuses:
+          type: array
+          items: { $ref: '#/components/schemas/WeeklyTripBonus' }
+        peakHourBonusPerTrip: { type: number, minimum: 0 }
+        ratingReward:
+          type: object
+          description: 'Weekly rating reward (default: 20 @ avg >= 4.8 with >= 30 trips).'
+          required: [amount, minAvgRating, minWeeklyTrips]
+          properties:
+            amount: { type: number, minimum: 0 }
+            minAvgRating: { type: number, minimum: 1, maximum: 5 }
+            minWeeklyTrips: { type: integer, minimum: 0 }
+    SuspensionThresholds:
+      type: object
+      description: >
+        USR-05 auto-suspension on rating, per role (defaults: driver < 3.0 after >= 20 rated
+        rides; rider < 2.5 after >= 10). Consumed by M11.
+      required: [driver, rider]
+      properties:
+        driver: { $ref: '#/components/schemas/SuspensionThreshold' }
+        rider: { $ref: '#/components/schemas/SuspensionThreshold' }
+    SuspensionThreshold:
+      type: object
+      required: [minAvgRating, minRatedRides]
+      properties:
+        minAvgRating: { type: number, minimum: 1, maximum: 5 }
+        minRatedRides: { type: integer, minimum: 1 }
+    RegionSummary:
+      type: object
+      required: [id, name, state]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        state: { type: string, enum: [draft, active] }
+        currency: { type: [string, 'null'], description: ISO 4217 }
+    Region:
+      type: object
+      description: The full ADM-01 config bundle. Nullable fields are simply not set yet (draft).
+      required: [id, name, state, serviceTypeCount, surgeZoneCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 100 }
+        state: { type: string, enum: [draft, active] }
+        boundary:
+          oneOf:
+            - { $ref: '#/components/schemas/GeoJsonPolygon' }
+            - { type: 'null' }
+        currency: { type: [string, 'null'], description: ISO 4217 }
+        emergencyNumber: { type: [string, 'null'], maxLength: 20 }
+        cancellationGraceMin: { type: [integer, 'null'], minimum: 0 }
+        cancellationFee: { type: [number, 'null'], minimum: 0 }
+        waitGraceMin: { type: [integer, 'null'], minimum: 0, description: 'Default: 5' }
+        waitPerMinRate: { type: [number, 'null'], minimum: 0, description: 'Default: 0.25' }
+        pickupFeeThresholdKm: { type: [number, 'null'], minimum: 0, description: 'Default: 10' }
+        pickupFeePerKm: { type: [number, 'null'], minimum: 0, description: 'Default: 0.50' }
+        surgeCap: { type: [number, 'null'], minimum: 1, description: Region-wide surge cap (PRC-02) }
+        commissionTiers:
+          oneOf:
+            - type: array
+              items: { $ref: '#/components/schemas/CommissionTier' }
+            - { type: 'null' }
+        incentiveValues:
+          oneOf:
+            - { $ref: '#/components/schemas/IncentiveValues' }
+            - { type: 'null' }
+        suspensionThresholds:
+          oneOf:
+            - { $ref: '#/components/schemas/SuspensionThresholds' }
+            - { type: 'null' }
+        serviceTypeCount: { type: integer }
+        surgeZoneCount: { type: integer }
+    RegionUpsertRequest:
+      type: object
+      description: Create/replace payload — `name` is the only mandatory field (draft-friendly).
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        boundary:
+          oneOf:
+            - { $ref: '#/components/schemas/GeoJsonPolygon' }
+            - { type: 'null' }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        emergencyNumber: { type: [string, 'null'], maxLength: 20 }
+        cancellationGraceMin: { type: [integer, 'null'], minimum: 0 }
+        cancellationFee: { type: [number, 'null'], minimum: 0 }
+        waitGraceMin: { type: [integer, 'null'], minimum: 0 }
+        waitPerMinRate: { type: [number, 'null'], minimum: 0 }
+        pickupFeeThresholdKm: { type: [number, 'null'], minimum: 0 }
+        pickupFeePerKm: { type: [number, 'null'], minimum: 0 }
+        surgeCap: { type: [number, 'null'], minimum: 1 }
+        commissionTiers:
+          oneOf:
+            - type: array
+              items: { $ref: '#/components/schemas/CommissionTier' }
+            - { type: 'null' }
+        incentiveValues:
+          oneOf:
+            - { $ref: '#/components/schemas/IncentiveValues' }
+            - { type: 'null' }
+        suspensionThresholds:
+          oneOf:
+            - { $ref: '#/components/schemas/SuspensionThresholds' }
+            - { type: 'null' }
+    ServiceType:
+      type: object
+      required: [id, regionId, nameEn, nameAr, baseFare, perKmRate, perMinRate, minimumFare, enabled]
+      properties:
+        id: { type: string, format: uuid }
+        regionId: { type: string, format: uuid }
+        nameEn: { type: string, maxLength: 50 }
+        nameAr: { type: string, maxLength: 50 }
+        baseFare: { type: number, minimum: 0 }
+        perKmRate: { type: number, minimum: 0 }
+        perMinRate: { type: number, minimum: 0 }
+        minimumFare: { type: number, minimum: 0, description: 'PRC-01; default 1.50' }
+        enabled: { type: boolean }
+    ServiceTypeUpsertRequest:
+      type: object
+      required: [nameEn, nameAr, baseFare, perKmRate, perMinRate, minimumFare, enabled]
+      properties:
+        nameEn: { type: string, minLength: 1, maxLength: 50 }
+        nameAr: { type: string, minLength: 1, maxLength: 50 }
+        baseFare: { type: number, minimum: 0 }
+        perKmRate: { type: number, minimum: 0 }
+        perMinRate: { type: number, minimum: 0 }
+        minimumFare: { type: number, minimum: 0 }
+        enabled: { type: boolean }
+    SurchargeWindow:
+      type: object
+      required: [id, regionId, label, startsAt, endsAt, daysOfWeek, percent]
+      properties:
+        id: { type: string, format: uuid }
+        regionId: { type: string, format: uuid }
+        label: { type: string, maxLength: 50 }
+        startsAt: { type: string, format: time, description: 'Region-local, e.g. 07:30:00' }
+        endsAt: { type: string, format: time }
+        daysOfWeek:
+          type: array
+          description: ISO day numbers, 1 = Monday … 7 = Sunday
+          items: { type: integer, minimum: 1, maximum: 7 }
+        percent: { type: number, description: 'e.g. 25 for +25% (PRC-01)' }
+    SurchargeWindowUpsertRequest:
+      type: object
+      required: [label, startsAt, endsAt, daysOfWeek, percent]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 50 }
+        startsAt: { type: string, format: time }
+        endsAt: { type: string, format: time }
+        daysOfWeek:
+          type: array
+          minItems: 1
+          items: { type: integer, minimum: 1, maximum: 7 }
+        percent: { type: number, minimum: 0 }
+    ThresholdStep:
+      type: object
+      description: >
+        One demand/supply step (PRC-02): ratio >= `ratio` -> `multiplier`. Defaults: >=2 ->
+        1.2x, >=3 -> 1.5x, >=5 -> 2.0x.
+      required: [ratio, multiplier]
+      properties:
+        ratio: { type: number, minimum: 1 }
+        multiplier: { type: number, minimum: 1 }
+    SurgeZone:
+      type: object
+      required: [id, regionId, name, polygon, thresholdSteps]
+      properties:
+        id: { type: string, format: uuid }
+        regionId: { type: string, format: uuid }
+        name: { type: string, maxLength: 100 }
+        polygon: { $ref: '#/components/schemas/GeoJsonPolygon' }
+        thresholdSteps:
+          type: array
+          items: { $ref: '#/components/schemas/ThresholdStep' }
+        multiplierCap: { type: [number, 'null'], minimum: 1, description: Per-zone cap; the region cap also applies }
+        overrideMultiplier: { type: [number, 'null'], description: Manual override (UC-A-09, set in M9); null = automatic }
+        overrideSetAt: { type: [string, 'null'], format: date-time }
+    SurgeZoneUpsertRequest:
+      type: object
+      required: [name, polygon, thresholdSteps]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        polygon: { $ref: '#/components/schemas/GeoJsonPolygon' }
+        thresholdSteps:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/ThresholdStep' }
+        multiplierCap: { type: [number, 'null'], minimum: 1 }
+    RegionConfig:
+      type: object
+      description: The client-facing slice of an ACTIVE region (SD-01), cached by the apps.
+      required: [id, name, currency, emergencyNumber, serviceTypes]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        currency: { type: string, description: ISO 4217 }
+        emergencyNumber: { type: string }
+        serviceTypes:
+          type: array
+          description: ENABLED service types only
+          items: { $ref: '#/components/schemas/ServiceType' }
