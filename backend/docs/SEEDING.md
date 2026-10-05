@@ -22,3 +22,20 @@ Passwords are bcrypt-hashed at seed time.
 
 These phone numbers are reserved dev fixtures (not real). The list grows in later milestones
 (vehicles, regions, rides) — each milestone's seeder additions are documented here.
+
+## Demo region (M4-T5)
+
+`runner/DevRegionSeeder.java` — dev profile, idempotent (skipped once a region named
+**Damascus** exists, so admin edits survive restarts). The launch market is Syria, so the demo
+region is a realistic Syrian city:
+
+- **Damascus** — ACTIVE, full ADM-01 bundle: ~10-vertex city boundary (SRID 4326), currency
+  `SYP`, emergency number `112`, cancellation 5 min / 5,000, wait 5 min / 500 per min, pickup
+  fee beyond 10 km at 1,000 per km, surge cap 2.0×, commission tiers 25%/20%>100/15%>200,
+  DRV-08 incentives and USR-05 suspension thresholds at SRS defaults (amounts in SYP scale).
+- **Service types** (AR-first): اقتصادي/Economy (base 10,000 · 2,000/km · 300/min · min
+  15,000), مريح/Comfort (~1.5×), عائلي/Family (~2×). Demo-realistic SYP figures — tune in the
+  admin UI; the seeder never overwrites edits.
+- **Surcharge window**: Morning rush 07:00–09:30, Sun–Thu (Syrian work week), +25%.
+- **Surge zones**: City Center, Mazzeh, Old City — default threshold steps (≥2→1.2×, ≥3→1.5×,
+  ≥5→2.0×), zone cap 2.0×.
