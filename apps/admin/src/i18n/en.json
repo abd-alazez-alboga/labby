@@ -4,6 +4,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "regions": "Regions",
     "admins": "Admins",
     "roles": "Roles",
     "auditLog": "Audit log"
@@ -151,6 +152,231 @@
     },
     "errors": {
       "loadFailed": "Could not load the audit log."
+    }
+  },
+  "regions": {
+    "title": "Regions",
+    "create": "New region",
+    "createTitle": "Create region",
+    "createHint": "Only the name is needed now — the rest of the bundle is filled in while the region is a draft.",
+    "nameLabel": "Region name",
+    "createSubmit": "Create region",
+    "creating": "Creating…",
+    "empty": "No regions yet.",
+    "columns": {
+      "name": "Name",
+      "state": "State",
+      "currency": "Currency"
+    },
+    "states": {
+      "draft": "Draft",
+      "active": "Active"
+    },
+    "errors": {
+      "loadFailed": "Could not load the regions.",
+      "nameConflict": "A region with this name already exists.",
+      "validation": "The request was rejected — check the values and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "regionDetail": {
+    "backToList": "Back to regions",
+    "notFoundTitle": "Region not found",
+    "bundleTitle": "Region configuration",
+    "bundleHint": "Saving replaces the whole bundle; cleared optional fields are removed. Changes apply to new rides only.",
+    "basicsTitle": "Basics",
+    "feesTitle": "Fees & caps",
+    "commissionTitle": "Commission tiers",
+    "commissionHint": "Ordered by weekly trips; the highest threshold the driver exceeds applies.",
+    "incentivesTitle": "Incentives",
+    "suspensionTitle": "Suspension thresholds",
+    "boundaryTitle": "Boundary",
+    "boundaryHint": "Draw the region boundary on the map; it is saved with the bundle.",
+    "boundaryMapLabel": "Region boundary map",
+    "save": "Save bundle",
+    "saving": "Saving…",
+    "savedNotice": "Region saved.",
+    "addTier": "Add tier",
+    "removeTier": "Remove tier",
+    "addBonus": "Add bonus",
+    "removeBonus": "Remove bonus",
+    "fields": {
+      "name": "Region name",
+      "currency": "Currency (ISO 4217)",
+      "emergencyNumber": "Emergency number",
+      "cancellationGraceMin": "Cancellation grace (min)",
+      "cancellationFee": "Cancellation fee",
+      "waitGraceMin": "Wait grace (min)",
+      "waitPerMinRate": "Wait rate (per min)",
+      "pickupFeeThresholdKm": "Pickup-fee threshold (km)",
+      "pickupFeePerKm": "Pickup fee (per km)",
+      "surgeCap": "Surge cap",
+      "weeklyTripsAbove": "Weekly trips above",
+      "commissionPercent": "Commission (%)",
+      "bonusTrips": "Trips per week",
+      "bonusAmount": "Bonus amount",
+      "peakHourBonusPerTrip": "Peak-hour bonus per trip",
+      "ratingRewardAmount": "Rating reward amount",
+      "ratingRewardMinAvgRating": "Rating reward: min average rating",
+      "ratingRewardMinWeeklyTrips": "Rating reward: min weekly trips",
+      "driverMinAvgRating": "Driver: min average rating",
+      "driverMinRatedRides": "Driver: min rated rides",
+      "riderMinAvgRating": "Rider: min average rating",
+      "riderMinRatedRides": "Rider: min rated rides"
+    },
+    "activation": {
+      "title": "Activation",
+      "draftHint": "A draft region activates once every mandatory item below is complete.",
+      "activeNotice": "This region is active.",
+      "done": "Done",
+      "missing": "Missing",
+      "activate": "Activate region",
+      "activating": "Activating…",
+      "incompleteHint": "Complete the missing items to activate.",
+      "items": {
+        "boundary": "Boundary polygon",
+        "currency": "Currency",
+        "emergencyNumber": "Emergency number",
+        "serviceType": "At least one enabled service type",
+        "cancellation": "Cancellation grace and fee",
+        "wait": "Wait grace and rate",
+        "pickupFee": "Pickup-fee threshold and rate",
+        "commissionTiers": "Commission tiers",
+        "incentives": "Incentive values",
+        "suspensionThresholds": "Suspension thresholds",
+        "surgeCap": "Surge cap"
+      },
+      "errors": {
+        "incomplete": "The server rejected activation — the mandatory bundle is still incomplete. The server's completeness check is the truth; save your changes and review the checklist.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "errors": {
+      "loadFailed": "Could not load the region.",
+      "pricingLoadFailed": "Could not load the region's pricing configuration.",
+      "saveConflict": "Not allowed: duplicate name, a boundary overlapping another region, or removing mandatory config from an active region.",
+      "incompleteTiers": "Every commission tier needs both a trip threshold and a percent.",
+      "incompleteIncentives": "Incentives are saved as a whole — fill every incentive field (and each bonus row) or clear them all.",
+      "incompleteSuspension": "Suspension thresholds are saved as a whole — fill all four values or clear them all.",
+      "validation": "The request was rejected — check the values and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "serviceTypes": {
+    "title": "Service types",
+    "noDeleteHint": "Service types are never deleted — disabling removes them from booking while existing rides keep them.",
+    "add": "Add service type",
+    "createTitle": "New service type",
+    "editTitle": "Edit service type: {{name}}",
+    "edit": "Edit",
+    "enable": "Enable",
+    "disable": "Disable",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "empty": "No service types yet.",
+    "save": "Save service type",
+    "saving": "Saving…",
+    "columns": {
+      "nameEn": "Name (EN)",
+      "nameAr": "Name (AR)",
+      "baseFare": "Base fare",
+      "perKmRate": "Per km",
+      "perMinRate": "Per min",
+      "minimumFare": "Minimum fare",
+      "state": "State",
+      "actions": "Actions"
+    },
+    "fields": {
+      "nameEn": "English name",
+      "nameAr": "Arabic name",
+      "baseFare": "Base fare",
+      "perKmRate": "Per-km rate",
+      "perMinRate": "Per-minute rate",
+      "minimumFare": "Minimum fare"
+    },
+    "errors": {
+      "nameConflict": "This English name is already used in this region.",
+      "validation": "The request was rejected — check the values and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "surcharges": {
+    "title": "Time-window surcharges",
+    "add": "Add surcharge window",
+    "createTitle": "New surcharge window",
+    "editTitle": "Edit surcharge window: {{label}}",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this surcharge window?",
+    "empty": "No surcharge windows yet.",
+    "save": "Save window",
+    "saving": "Saving…",
+    "columns": {
+      "label": "Label",
+      "time": "Time",
+      "days": "Days",
+      "percent": "Surcharge",
+      "actions": "Actions"
+    },
+    "fields": {
+      "label": "Label",
+      "startsAt": "Starts at",
+      "endsAt": "Ends at",
+      "daysOfWeek": "Days of week",
+      "percent": "Surcharge (%)"
+    },
+    "days": {
+      "d1": "Mon",
+      "d2": "Tue",
+      "d3": "Wed",
+      "d4": "Thu",
+      "d5": "Fri",
+      "d6": "Sat",
+      "d7": "Sun"
+    },
+    "errors": {
+      "noDays": "Pick at least one day of the week.",
+      "validation": "The request was rejected — check the values and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "surgeZones": {
+    "title": "Surge zones",
+    "hint": "Zones go live with the next surge cycle once multipliers are computed (M9); outside every zone the multiplier is always 1.0×.",
+    "add": "Add surge zone",
+    "createTitle": "New surge zone",
+    "editTitle": "Edit surge zone: {{name}}",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this surge zone?",
+    "empty": "No surge zones yet.",
+    "save": "Save zone",
+    "saving": "Saving…",
+    "mapLabel": "Surge zone map",
+    "mapHint": "Draw the zone inside the region boundary (shown dashed, with the other zones).",
+    "stepsTitle": "Threshold steps",
+    "addStep": "Add step",
+    "removeStep": "Remove step",
+    "overrideAuto": "Automatic",
+    "columns": {
+      "name": "Name",
+      "steps": "Steps",
+      "cap": "Cap",
+      "override": "Override",
+      "actions": "Actions"
+    },
+    "fields": {
+      "name": "Zone name",
+      "multiplierCap": "Multiplier cap (optional)",
+      "ratio": "Demand/supply ratio ≥",
+      "multiplier": "Multiplier"
+    },
+    "errors": {
+      "noPolygon": "Draw the zone's polygon on the map first.",
+      "incompleteSteps": "Every threshold step needs both a ratio and a multiplier — and at least one step is required.",
+      "conflict": "Not allowed: the zone name is already used in this region, or the polygon lies outside the region boundary.",
+      "validation": "The request was rejected — check the values and try again.",
+      "generic": "Something went wrong. Please try again."
     }
   },
   "permissionDomains": {

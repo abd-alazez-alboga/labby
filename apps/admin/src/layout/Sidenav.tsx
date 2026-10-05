@@ -28,6 +28,11 @@ export function Sidenav() {
         <NavLink to="/" end className={linkClass}>
           {t('nav.dashboard')}
         </NavLink>
+        {can('regions:view') ? (
+          <NavLink to="/regions" className={linkClass}>
+            {t('nav.regions')}
+          </NavLink>
+        ) : null}
         {can('admins:view') ? (
           <NavLink to="/admins" className={linkClass}>
             {t('nav.admins')}

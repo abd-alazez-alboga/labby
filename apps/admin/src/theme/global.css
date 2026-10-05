@@ -451,6 +451,68 @@ a {
   color: var(--labby-text-subtle);
 }
 
+/* ---------- Regions (M4): bundle form, checklist, map editor ---------- */
+
+.bundle__fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bundle__section {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  color: var(--labby-purple-900);
+}
+
+.checklist-status {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.checklist-status__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--labby-text-secondary);
+}
+
+.checklist-status__item--missing {
+  color: var(--labby-purple-800);
+}
+
+.checklist-status__state {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--labby-bg-tint);
+}
+
+.checklist-status__item--missing .checklist-status__state {
+  background: var(--labby-lilac-100);
+}
+
+.map-editor {
+  block-size: 320px;
+  border: 1px solid var(--labby-lilac-200);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-editor__map {
+  block-size: 100%;
+  inline-size: 100%;
+}
+
 /* ---------- Audit log ---------- */
 
 .audit__diff {

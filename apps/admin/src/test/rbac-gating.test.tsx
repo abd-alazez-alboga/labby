@@ -36,6 +36,7 @@ describe('permission gating', () => {
     renderShell();
 
     expect(await screen.findByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Regions' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Admins' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Roles' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
@@ -52,6 +53,48 @@ describe('permission gating', () => {
     expect(await screen.findByRole('link', { name: 'Admins' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Audit log' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Roles' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Regions' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Regions menu entry with regions:view', async () => {
+    const user = adminUser(['regions:view']);
+    seedStoredSession(sessionFor(user));
+    stubFetchRoutes((method, path) =>
+      method === 'GET' && path === '/api/v1/users/me' ? jsonResponse(200, user) : null,
+    );
+    renderShell();
+
+    expect(await screen.findByRole('link', { name: 'Regions' })).toBeInTheDocument();
+  });
+
+  it('blocks a direct /regions URL without regions:view on the 403 page', async () => {
+    const user = adminUser(['admins:view']);
+    seedStoredSession(sessionFor(user));
+    stubFetchRoutes((method, path) =>
+      method === 'GET' && path === '/api/v1/users/me' ? jsonResponse(200, user) : null,
+    );
+    window.history.pushState({}, '', '/regions');
+    renderShell();
+
+    expect(await screen.findByRole('heading', { name: 'No access' })).toBeInTheDocument();
+  });
+
+  it('lets a direct /regions URL through with regions:view', async () => {
+    const user = adminUser(['regions:view']);
+    seedStoredSession(sessionFor(user));
+    stubFetchRoutes((method, path) => {
+      if (method === 'GET' && path === '/api/v1/users/me') {
+        return jsonResponse(200, user);
+      }
+      if (method === 'GET' && path === '/api/v1/admin/regions') {
+        return jsonResponse(200, []);
+      }
+      return null;
+    });
+    window.history.pushState({}, '', '/regions');
+    renderShell();
+
+    expect(await screen.findByRole('heading', { name: 'Regions' })).toBeInTheDocument();
   });
 
   it('blocks a direct URL without the permission on the 403 page', async () => {

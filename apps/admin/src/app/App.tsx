@@ -13,6 +13,8 @@ const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 const AdminsPage = lazy(() => import('../pages/AdminsPage'));
 const RolesPage = lazy(() => import('../pages/RolesPage'));
 const AuditLogPage = lazy(() => import('../pages/AuditLogPage'));
+const RegionsPage = lazy(() => import('../pages/RegionsPage'));
+const RegionDetailPage = lazy(() => import('../pages/RegionDetailPage'));
 
 export function App() {
   return (
@@ -55,6 +57,26 @@ export function App() {
                   <Suspense fallback={<div className="loading" />}>
                     <RequirePermission permission="roles:view">
                       <RolesPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="regions"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="regions:view">
+                      <RegionsPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="regions/:regionId"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="regions:view">
+                      <RegionDetailPage />
                     </RequirePermission>
                   </Suspense>
                 }
