@@ -35,7 +35,19 @@ export interface AuthContextValue {
   apiClient: ApiClient;
   login(phone: string, password: string): Promise<void>;
   logout(): Promise<void>;
+  /**
+   * Registers work that must run while the session is still valid, right
+   * before a deliberate logout revokes it (e.g. unregistering this
+   * browser's push token). Best-effort and time-boxed: a failing or slow
+   * handler never blocks the logout. Returns the unregister function.
+   */
+  registerLogoutHandler(handler: LogoutHandler): () => void;
 }
+
+export type LogoutHandler = () => Promise<void>;
+
+/** Upper bound on how long logout waits for its handlers. */
+export const LOGOUT_HANDLER_TIMEOUT_MS = 3_000;
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -49,6 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return sessionRef.current?.user ?? null;
   });
   const [sessionExpired, setSessionExpired] = useState(false);
+  const logoutHandlers = useRef(new Set<LogoutHandler>());
+
+  const registerLogoutHandler = useCallback((handler: LogoutHandler) => {
+    logoutHandlers.current.add(handler);
+    return () => {
+      logoutHandlers.current.delete(handler);
+    };
+  }, []);
 
   const applySession = useCallback((tokens: AuthTokensResponse) => {
     const session: StoredSession = {
@@ -92,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     const session = sessionRef.current;
     if (session) {
+      await runLogoutHandlers([...logoutHandlers.current]);
       try {
         await logoutRequest(apiClient, session.refreshToken);
         // If the call triggered a refresh, the pair rotated mid-logout and
@@ -135,11 +156,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [apiClient]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, sessionExpired, apiClient, login, logout }),
-    [user, sessionExpired, apiClient, login, logout],
+    () => ({ user, sessionExpired, apiClient, login, logout, registerLogoutHandler }),
+    [user, sessionExpired, apiClient, login, logout, registerLogoutHandler],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** Runs every handler (errors swallowed), waiting at most LOGOUT_HANDLER_TIMEOUT_MS. */
+async function runLogoutHandlers(handlers: LogoutHandler[]): Promise<void> {
+  if (handlers.length === 0) {
+    return;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, LOGOUT_HANDLER_TIMEOUT_MS);
+  });
+  const settled = Promise.allSettled(
+    handlers.map((handler) => Promise.resolve().then(handler)),
+  ).then(() => undefined);
+  await Promise.race([settled, timeout]);
+  clearTimeout(timer);
 }
 
 /** Typed access to the auth state and session-aware API client. */

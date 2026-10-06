@@ -692,5 +692,92 @@
       "view": "View roles",
       "manage": "Manage roles"
     }
+  },
+  "toast": {
+    "regionLabel": "Alerts",
+    "dismiss": "Dismiss",
+    "acknowledge": "Acknowledge",
+    "tone": {
+      "info": "Information:",
+      "success": "Success:",
+      "warning": "Warning:",
+      "error": "Error:",
+      "critical": "Critical alert:"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Your notification history, newest first. It is stored on the server, so it follows you to any browser.",
+    "bellLabel": "Notifications",
+    "bellLabelUnread": "Notifications, {{count}} unread",
+    "unreadCount": "{{count}} unread",
+    "unreadMarker": "Unread",
+    "markAllRead": "Mark all as read",
+    "markingAll": "Marking…",
+    "allMarkedRead": "All notifications are marked as read.",
+    "preferencesLink": "Preferences",
+    "filterLabel": "Filter by category",
+    "allCategories": "All",
+    "empty": "You have no notifications yet.",
+    "emptyCategory": "No notifications in “{{category}}”.",
+    "loadMore": "Load more",
+    "showNew": "New notifications arrived — show them",
+    "endOfList": "You've reached the end of your notifications.",
+    "retry": "Try again",
+    "category": {
+      "ride": "Rides",
+      "chat": "Chat",
+      "scheduled": "Scheduled rides",
+      "promotions": "Promotions",
+      "account": "Account & system",
+      "safety": "Safety"
+    },
+    "errors": {
+      "network": "Can't reach the server. Check your connection and try again.",
+      "server": "The server ran into a problem. Try again in a moment.",
+      "markRead": "Couldn't mark the notification as read. Try again.",
+      "markAllRead": "Couldn't mark all notifications as read. Try again."
+    }
+  },
+  "notificationPrefs": {
+    "title": "Notification preferences",
+    "subtitle": "Choose which categories may send push notifications. These settings belong to your account, so they apply in every Labby app you use.",
+    "back": "← Back to notifications",
+    "categoriesTitle": "Push notifications by category",
+    "centerHint": "Turning a category off stops its push notifications only — they still appear in your notification center.",
+    "lockedHint": "Ride and safety notifications are always delivered and cannot be turned off.",
+    "alwaysOn": "Always on",
+    "on": "On",
+    "off": "Off",
+    "categoryHint": {
+      "ride": "Ride status updates.",
+      "chat": "Messages from your ride counterpart.",
+      "scheduled": "Reminders for scheduled rides.",
+      "promotions": "Offers and promo codes.",
+      "account": "Account, documents and system notices.",
+      "safety": "Safety alerts."
+    },
+    "save": "Save preferences",
+    "saving": "Saving…",
+    "discard": "Discard changes",
+    "saved": "Notification preferences saved.",
+    "errors": {
+      "validation": "The change was rejected — ride and safety notifications can't be turned off."
+    }
+  },
+  "push": {
+    "title": "Browser notifications",
+    "enable": "Enable browser notifications",
+    "retry": "Try again",
+    "foregroundTitle": "New notification",
+    "open": "Open",
+    "status": {
+      "unsupported": "This browser doesn't support push notifications. Your notification center still works.",
+      "prompt": "Get alerts in this browser even when the Labby tab is in the background.",
+      "denied": "Notifications are blocked for this site. Allow them in your browser's site settings to receive alerts.",
+      "registering": "Setting up browser notifications…",
+      "registered": "Browser notifications are on for this browser.",
+      "failed": "Browser notifications couldn't be set up. Your notification center still works."
+    }
   }
 }

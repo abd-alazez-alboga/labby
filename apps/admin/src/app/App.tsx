@@ -5,6 +5,7 @@ import { AuthProvider } from '../auth/AuthContext';
 import { RequireAuth } from '../auth/RequireAuth';
 import { RequirePermission } from '../auth/RequirePermission';
 import { AppLayout } from '../layout/AppLayout';
+import { ToastProvider } from '../toast/ToastProvider';
 
 // Lazy-loaded routes: this is the pattern every future feature page follows.
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
@@ -21,154 +22,175 @@ const VehicleReviewsPage = lazy(() => import('../pages/VehicleReviewsPage'));
 const VehicleReviewDetailPage = lazy(() => import('../pages/VehicleReviewDetailPage'));
 const DocumentExpiriesPage = lazy(() => import('../pages/DocumentExpiriesPage'));
 const DocumentRenewalDetailPage = lazy(() => import('../pages/DocumentRenewalDetailPage'));
+const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
+const NotificationPreferencesPage = lazy(() => import('../pages/NotificationPreferencesPage'));
 
 export function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AuthProvider>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <Suspense fallback={<div className="loading" />}>
-                <LoginPage />
-              </Suspense>
-            }
-          />
-          {/* Everything else requires a signed-in admin. */}
-          <Route element={<RequireAuth />}>
-            <Route element={<AppLayout />}>
-              <Route
-                index
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <DashboardPage />
-                  </Suspense>
-                }
-              />
-              {/* Permissioned routes: guard + page share the backend's code. */}
-              <Route
-                path="admins"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="admins:view">
-                      <AdminsPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="roles"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="roles:view">
-                      <RolesPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="regions"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="regions:view">
-                      <RegionsPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="regions/:regionId"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="regions:view">
-                      <RegionDetailPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="driver-applications"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="driver-review:view">
-                      <DriverApplicationsPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="driver-applications/:applicationId"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="driver-review:view">
-                      <DriverApplicationDetailPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="vehicle-reviews"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="driver-review:view">
-                      <VehicleReviewsPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="vehicle-reviews/:vehicleId"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="driver-review:view">
-                      <VehicleReviewDetailPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="document-expiries"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="driver-review:view">
-                      <DocumentExpiriesPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="document-renewals/:documentId"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="driver-review:view">
-                      <DocumentRenewalDetailPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="audit-log"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <RequirePermission permission="audit:view">
-                      <AuditLogPage />
-                    </RequirePermission>
-                  </Suspense>
-                }
-              />
-              <Route
-                path="*"
-                element={
-                  <Suspense fallback={<div className="loading" />}>
-                    <NotFoundPage />
-                  </Suspense>
-                }
-              />
+      <ToastProvider>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <Suspense fallback={<div className="loading" />}>
+                  <LoginPage />
+                </Suspense>
+              }
+            />
+            {/* Everything else requires a signed-in admin. */}
+            <Route element={<RequireAuth />}>
+              <Route element={<AppLayout />}>
+                <Route
+                  index
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <DashboardPage />
+                    </Suspense>
+                  }
+                />
+                {/* Permissioned routes: guard + page share the backend's code. */}
+                <Route
+                  path="admins"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="admins:view">
+                        <AdminsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="roles"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="roles:view">
+                        <RolesPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="regions"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="regions:view">
+                        <RegionsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="regions/:regionId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="regions:view">
+                        <RegionDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="driver-applications"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="driver-review:view">
+                        <DriverApplicationsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="driver-applications/:applicationId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="driver-review:view">
+                        <DriverApplicationDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="vehicle-reviews"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="driver-review:view">
+                        <VehicleReviewsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="vehicle-reviews/:vehicleId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="driver-review:view">
+                        <VehicleReviewDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="document-expiries"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="driver-review:view">
+                        <DocumentExpiriesPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="document-renewals/:documentId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="driver-review:view">
+                        <DocumentRenewalDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* Every admin has a notification center (NTF-03) — no permission gate. */}
+                <Route
+                  path="notifications"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <NotificationsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="notifications/preferences"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <NotificationPreferencesPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="audit-log"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="audit:view">
+                        <AuditLogPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="*"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <NotFoundPage />
+                    </Suspense>
+                  }
+                />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </AuthProvider>
+          </Routes>
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

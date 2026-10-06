@@ -31,6 +31,7 @@ import { AppState, Linking } from 'react-native';
 
 import { ApiError } from '../api/http-client';
 import { resolveRegion, type RegionConfig } from '../api/regions';
+import { requestLocationPermission } from '../location/location-permission';
 
 export const REGION_CACHE_KEY = 'labby.rider.region';
 
@@ -196,7 +197,7 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
     }
     let permission: Location.LocationPermissionResponse;
     try {
-      permission = await Location.requestForegroundPermissionsAsync();
+      permission = await requestLocationPermission();
     } catch {
       degradeToFallback();
       return;

@@ -16,6 +16,7 @@ import {
   subscribeToSession,
   updateSessionUser,
 } from './session';
+import { runSignOutTasks } from './sign-out-tasks';
 
 export interface AuthContextValue {
   status: 'signedIn' | 'signedOut';
@@ -48,6 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Device unregistration / going offline need the live session (M6).
+    if (getSession()) {
+      await runSignOutTasks();
+    }
     const active = getSession();
     if (active) {
       // Best-effort server-side revocation (UC-S-03) through the refreshing

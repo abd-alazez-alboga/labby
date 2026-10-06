@@ -37,6 +37,8 @@ When running against the local backend from the Android emulator, use `http://10
 2. `extra.apiBaseUrl` from `app.config.ts`, overridable when the config is evaluated: `LABBY_DRIVER_API_BASE_URL=https://... npm start`.
 3. Default `http://localhost:8080`.
 
+Map tiles (ES-04) follow the same layering: `mapTileUrl` (default `https://tile.openstreetmap.org/{z}/{x}/{y}.png`) and `mapAttribution` (default `© OpenStreetMap contributors`) come from `EXPO_PUBLIC_MAP_TILE_URL` / `EXPO_PUBLIC_MAP_ATTRIBUTION`, then `extra.*` (`LABBY_DRIVER_MAP_TILE_URL` / `LABBY_DRIVER_MAP_ATTRIBUTION`), then the defaults — moving off the public OSM tile servers is config-only.
+
 `src/api/client.ts` is a typed `fetch` wrapper (`apiFetch<T>`) reading that config; the first endpoint consumer arrives with M1-T6. A mobile binary cannot fetch a `config.json` at boot the way the admin web app does — this env/extra layering is the RN equivalent of the runtime-config principle.
 
 ## i18n & RTL
@@ -46,6 +48,17 @@ When running against the local backend from the Android emulator, use `http://10
 - Switching language in **Settings** re-renders all strings immediately and flips the JS-level `direction` flag (exposed by `LocaleProvider`, used for text alignment).
 
 **Restart caveat (honest):** native RTL mirroring (row order, back gestures, navigation animations) is controlled by `I18nManager.forceRTL`, which only takes effect after the app restarts — we call it on every switch, so the next launch (or a dev-menu reload) comes up fully mirrored. Until then only the JS-level direction flag is applied. In Expo Go the direction is also shared per-device by the Go container, so prefer a dev build when testing RTL thoroughly.
+
+## Realtime (M6-T4)
+
+Contract: `backend/docs/api/realtime-v1.yaml`.
+
+- **Map** — `components/map/osm-map.tsx` is the reusable map: Leaflet 1.9.4 (unpkg, SRI-pinned) inside `react-native-webview`, so it needs no API key and runs in Expo Go. Props: `center`, `markers` (`kind: 'self'` = own position), optional `route` (contract GeoJSON LineString), `followMe`. The WebView protocol lives in one module (`map/leaflet-bridge.ts`); the only `[lng,lat] → [lat,lng]` conversion is `map/geojson.ts`. Graceful states: spinner until ready, coordinates fallback + retry when Leaflet can't load, a banner when tiles fail.
+- **Online/offline** — `realtime/AvailabilityProvider.tsx` (root-level facade) + `components/availability/availability-card.tsx` on home. Location permission is asked before going online (UC-D-04 E3); blocked reasons come from the GET's `cannotGoOnlineReason` (E1); M8's `offersBlockedReason` shows as a banner. Signing out takes an online driver offline first.
+- **Location streaming** — `realtime/location-streamer.ts`: WebSocket `ws(s)://<api>/api/v1/realtime` (derived from `apiBaseUrl`), first-frame `auth`, a `location` frame every `streamIntervalSeconds`, re-auth whenever the session token rotates (plus a proactive refresh ~60 s before the JWT `exp`), 4401 → refresh → reconnect, other closes → backoff 1 s…30 s, `ping` every 25 s (no answer in 10 s ⇒ reconnect), unknown frame types ignored, samples buffered while disconnected and flushed with `POST /driver/locations` after the next `ready`.
+- **Foreground only (honest caveat)** — fixes come from `watchPositionAsync` while the app is open (`realtime/location-source.ts`). Background tracking needs `startLocationUpdatesAsync` + `expo-task-manager`, the background/"Always" permission and an Android foreground service — i.e. a native dev build. The streamer depends only on the `LocationSource` interface, so a background source plugs in without touching the protocol. The home screen tells the driver to keep the app open while online.
+- **Notifications** — center (`/notifications`, `app=driver`, cursor pagination, filter, mark read on open, read-all) and preferences (`/notification-preferences`, `ride`/`safety` locked) for every signed-in account (applicants get their stage updates too). The bell on home and on the driver gate shows the unread badge.
+- **Push** — `notifications/push.ts` is the only module touching `expo-notifications`; `notifications/PushBridge.tsx` registers the native device token (`PUT /devices`) after login and on rotation, unregisters it (`DELETE /devices/{token}`) on sign-out, and routes taps through `notifications/deep-links.ts`. **Expo Go cannot receive remote push** (Android support was removed in SDK 53), so registration is skipped there without errors; real FCM delivery needs a dev build plus the Firebase config (M6-T5).
 
 ## Theme
 
@@ -66,7 +79,10 @@ app.config.ts        # Expo config: name/icon/splash, extra.apiBaseUrl
 src/
 ├── app/             # expo-router routes: _layout (stack + i18n boot), index, settings
 ├── components/      # screen implementations (kept out of app/ so they are unit-testable)
-├── api/             # apiFetch wrapper
+├── api/             # apiFetch/authFetch + typed contract slices (auth, onboarding, regions, realtime)
+├── map/             # GeoJSON conversion + the Leaflet WebView bridge
+├── realtime/        # availability facade, location streamer + protocol, GPS source
+├── notifications/   # deep-link mapper, unread store, push plumbing
 ├── config/          # typed runtime-ish config accessor
 ├── i18n/            # i18next init, persistence, RTL sync, LocaleProvider
 └── theme/           # tokens.ts — port of /assets/theme/colors.scss

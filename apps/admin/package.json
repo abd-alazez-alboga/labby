@@ -16,6 +16,8 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@firebase/app": "^0.16.2",
+    "@firebase/messaging": "^0.13.3",
     "i18next": "^23.16.8",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",

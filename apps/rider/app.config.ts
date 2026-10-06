@@ -12,6 +12,18 @@ import type { ExpoConfig } from 'expo/config';
  * the API base URL when the bundle/config is evaluated (e.g. CI, dev server
  * start), and `EXPO_PUBLIC_API_BASE_URL` overrides it at bundle time on the
  * client. Defaults point at the local backend from docker-compose.
+ *
+ * Map tiles (ES-04): `extra.mapTileUrlTemplate` / `extra.mapTileAttribution`
+ * are read at runtime by the map component — never hard-coded in it — so the
+ * mandatory pre-launch move off the public OSM tile server is config-only.
+ * `LABBY_MAP_TILE_URL` / `LABBY_MAP_TILE_ATTRIBUTION` override them when the
+ * config is evaluated; `EXPO_PUBLIC_MAP_TILE_URL` /
+ * `EXPO_PUBLIC_MAP_TILE_ATTRIBUTION` override them at bundle time.
+ *
+ * Push (ES-03): the expo-notifications plugin is registered here; the
+ * Firebase app configs (google-services.json / GoogleService-Info.plist)
+ * are owner-supplied in M6-T5 and only take effect in a development build —
+ * Expo Go cannot receive remote push.
  */
 const config: ExpoConfig = {
   name: 'Labby',
@@ -50,6 +62,7 @@ const config: ExpoConfig = {
         photosPermission: 'Labby uses your photos to set your profile picture.',
       },
     ],
+    'expo-notifications',
     [
       'expo-location',
       {
@@ -63,6 +76,10 @@ const config: ExpoConfig = {
   },
   extra: {
     apiBaseUrl: process.env.LABBY_API_BASE_URL ?? 'http://localhost:8080',
+    mapTileUrlTemplate:
+      process.env.LABBY_MAP_TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    mapTileAttribution:
+      process.env.LABBY_MAP_TILE_ATTRIBUTION ?? '© OpenStreetMap contributors',
   },
 };
 

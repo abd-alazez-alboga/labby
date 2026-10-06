@@ -159,3 +159,13 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
 
   throw new ApiError(response.status, path, await parseErrorBody(response));
 }
+
+/**
+ * Coarse failure class for UI copy: `server` when the backend answered with
+ * an error status, `network` when it could not be reached at all.
+ */
+export type FailureKind = 'network' | 'server';
+
+export function failureKind(error: unknown): FailureKind {
+  return error instanceof ApiError ? 'server' : 'network';
+}

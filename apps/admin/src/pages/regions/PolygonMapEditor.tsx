@@ -7,6 +7,8 @@ import { useEffect, useRef } from 'react';
 import { MapContainer, Polygon, TileLayer, useMap } from 'react-leaflet';
 
 import type { GeoJsonPolygon } from '../../api/regions';
+import { useConfig } from '../../config/ConfigContext';
+import { DEFAULT_MAP_TILE_URL } from '../../config/runtime-config';
 import { latLngsToPolygon, polygonToLatLngs } from './leaflet-geojson';
 
 /** A read-only context polygon (e.g. the region boundary behind a zone). */
@@ -29,8 +31,9 @@ export interface PolygonMapEditorProps {
 }
 
 /**
- * The ONLY component that touches Leaflet: OSM tiles + leaflet-draw for the
- * one-polygon draw/edit/delete cycle (UC-A-05/08). It speaks contract
+ * The ONLY component that touches Leaflet: OSM-style tiles (URL template
+ * from runtime config) + leaflet-draw for the one-polygon
+ * draw/edit/delete cycle (UC-A-05/08). It speaks contract
  * GeoJSON at its boundary — [lng, lat], closed ring — so pages and tests
  * never deal in Leaflet shapes, and component tests mock this module.
  */
@@ -41,12 +44,14 @@ export function PolygonMapEditor({
   editable,
   onPolygonChange,
 }: PolygonMapEditorProps) {
+  // Tile source comes from runtime config (realtime-v1.yaml), never hard-coded.
+  const { mapTileUrl } = useConfig();
   return (
     <div className="map-editor" role="region" aria-label={label}>
       <MapContainer center={[0, 0]} zoom={2} className="map-editor__map">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url={mapTileUrl ?? DEFAULT_MAP_TILE_URL}
         />
         {overlays.map((overlay) => (
           <Polygon

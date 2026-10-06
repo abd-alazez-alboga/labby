@@ -10,6 +10,8 @@
  *   LocaleProvider).
  * - A failed token refresh anywhere in the http client emits
  *   `sessionExpired`; the provider listens and signs out locally.
+ * - Logout unregisters this device's push token first (while the session
+ *   is still valid); every local sign-out forgets it (M6-T4, ES-03).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {
@@ -29,6 +31,7 @@ import {
   type UserProfile,
 } from '../api/auth';
 import { ApiError } from '../api/http-client';
+import { forgetPushToken, unregisterPushToken } from '../notifications/push-registration';
 import {
   addSessionExpiredListener,
   clearTokens,
@@ -143,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearLocalSession = useCallback(async (reason: SignOutReason) => {
+    await forgetPushToken();
     await clearTokens();
     await writeCachedProfile(null);
     if (mounted.current) {
@@ -172,6 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     const tokens = await getStoredTokens();
     if (tokens) {
+      // Stop pushes to this device for this account (best-effort, needs the
+      // still-valid session, so it runs before the revocation).
+      await unregisterPushToken();
       // Best-effort server-side revocation (UC-S-03); local sign-out happens
       // regardless of network state.
       try {

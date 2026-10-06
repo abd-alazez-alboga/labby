@@ -91,6 +91,60 @@ detail pages) need `driver-review:view`; every decision control needs
   pages refetch and explain the current state in plain words (another
   reviewer decided, duplicate plate, document expired, renewal expired).
 
+## Notifications, push and toasts (M6-T4)
+
+Built against `backend/docs/api/realtime-v1.yaml` (`src/api/notifications.ts`).
+
+- **Toasts** (`src/toast/`): `useToast().show({ tone, title?, message, action?, durationMs? })`
+  is the shared primitive for event feedback — `info` / `success` / `warning` /
+  `error` auto-dismiss (paused on hover/focus; `×` or Escape dismisses), and
+  `critical` is sticky until acknowledged (the variant M10 SOS alerts use).
+  Two `aria-live` regions (polite; assertive for error/critical) are mounted
+  from the first render. Page-state problems (load failures, validation) stay
+  inline `.banner`s.
+- **Notification center** (`/notifications`, every admin — no permission
+  gate): the admin center (`app=admin` → `admin` + `all` audience), newest
+  first with cursor paging, category filter, unread markers, mark-read on
+  open, mark-all-read. Deep links go through `src/notifications/deep-links.ts`;
+  today every catalog screen except `notifications` is driver-only, so they
+  open the center (contract rule for unknown screens).
+- **Unread badge**: the navbar bell reads `unread-count` on load, on window
+  focus / tab visibility and every 60 s while visible, and after reads — the
+  center stays accurate without push. New arrivals while the center is open
+  show a "show them" pill instead of reshuffling the list.
+- **Preferences** (`/notifications/preferences`): per-category push toggles;
+  `ride` + `safety` are locked always-on; Save sends only changed categories.
+- **Browser push** (`src/push/`): driven by the optional `firebaseWeb` block
+  in `config.json` (owner supplies it at M6-T5). Absent → nothing loads and
+  no push UI shows. Present → the admin opts in from the preferences page
+  (never prompted on load); with permission granted, every signed-in load
+  gets the FCM token and `PUT /devices {token, platform:'web', app:'admin'}`,
+  and a deliberate logout `DELETE`s it before the session is revoked.
+  Foreground pushes become toasts (`safety` → critical). The Firebase SDK is
+  only reached through a dynamic import (its own chunk); the worker
+  `public/firebase-messaging-sw.js` loads the matching Firebase compat
+  scripts from `www.gstatic.com` (a CSP must allow that origin).
+
+```json
+{
+  "apiBaseUrl": "http://localhost:8080",
+  "environment": "local",
+  "mapTileUrl": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  "firebaseWeb": {
+    "apiKey": "…",
+    "authDomain": "…",
+    "projectId": "…",
+    "messagingSenderId": "…",
+    "appId": "…",
+    "vapidKey": "…"
+  }
+}
+```
+
+`mapTileUrl` (optional, default the public OSM tile server) feeds the region
+map editor. An incomplete `firebaseWeb` block is ignored with a console
+warning — push never blocks the boot.
+
 ## i18n & RTL
 
 i18next + react-i18next with bundled EN (`src/i18n/en.json`) and AR

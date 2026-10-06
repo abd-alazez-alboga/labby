@@ -15,6 +15,15 @@ const LABBY_PURPLE_900 = '#3D0B57'; // --labby-purple-900
  */
 const DEFAULT_API_BASE_URL = 'http://localhost:8080';
 
+/**
+ * Map tiles (ES-04): the tile URL template and its required attribution are
+ * config, never hard-coded in components — moving off the public OSM tile
+ * servers (a pre-launch gate) is a config change. Override with
+ * LABBY_DRIVER_MAP_TILE_URL / LABBY_DRIVER_MAP_ATTRIBUTION.
+ */
+const DEFAULT_MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const DEFAULT_MAP_ATTRIBUTION = '© OpenStreetMap contributors';
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   // Distinct display name from the rider app (M1-T5).
@@ -58,9 +67,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Labby Driver uses your location to find your operating region and ride requests.',
+          'Labby Driver uses your location to find your operating region and ride requests, and shares it with Labby while you are online.',
       },
     ],
+    // Push (M6-T4). FCM credentials (google-services.json) arrive with M6-T5.
+    'expo-notifications',
     [
       'expo-splash-screen',
       {
@@ -72,5 +83,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ],
   extra: {
     apiBaseUrl: process.env.LABBY_DRIVER_API_BASE_URL ?? DEFAULT_API_BASE_URL,
+    mapTileUrl: process.env.LABBY_DRIVER_MAP_TILE_URL ?? DEFAULT_MAP_TILE_URL,
+    mapAttribution:
+      process.env.LABBY_DRIVER_MAP_ATTRIBUTION ?? DEFAULT_MAP_ATTRIBUTION,
   },
 });

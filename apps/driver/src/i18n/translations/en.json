@@ -7,7 +7,8 @@
     "subtitle": "Your trips will appear here once rides go live.",
     "goToSettings": "Settings",
     "myVehicle": "My vehicle",
-    "myDocuments": "My documents"
+    "myDocuments": "My documents",
+    "notifications": "Notifications"
   },
   "region": {
     "finding": "Finding your area…",
@@ -392,6 +393,101 @@
       "reason": "Reason",
       "switchBlocked": "You can submit another vehicle once the current switch is reviewed.",
       "switch": "Switch to a new vehicle"
+    }
+  },
+  "map": {
+    "unavailableTitle": "Map unavailable",
+    "unavailableBody": "We couldn't load the map. Check your connection and try again.",
+    "yourPosition": "Your position: {{position}}",
+    "retry": "Reload map",
+    "tilesUnavailable": "Map images can't load right now. Your location is still being shared.",
+    "recenter": "Center the map on my position"
+  },
+  "availability": {
+    "loading": "Checking your status…",
+    "offlineTitle": "You're offline",
+    "onlineTitle": "You're online",
+    "offlineHint": "Go online to share your location and receive ride requests.",
+    "onlineHint": "Keep Labby open while you're online — your location is shared every few seconds.",
+    "onlineSince": "Online since {{time}}",
+    "goOnline": "Go online",
+    "goOffline": "Go offline",
+    "noProfile": "Your driver profile isn't set up yet, so you can't go online.",
+    "blockedTitle": "You can't go online",
+    "blocked": {
+      "role_suspended": "Your driver access is suspended. Contact support for details.",
+      "document_expired": "One of your documents has expired. Renew it to go online again.",
+      "not_approved": "Your driver application isn't approved, so you can't go online yet.",
+      "no_active_vehicle": "You need an approved, active vehicle to go online.",
+      "unknown": "You can't go online right now. Pull down to check again."
+    },
+    "renewDocuments": "Renew my documents",
+    "manageVehicle": "Manage my vehicle",
+    "offersBlockedTitle": "Ride offers are paused",
+    "offersBlockedBody": "You're online, but you won't receive ride offers until this is resolved.",
+    "gpsDeniedTitle": "Location access needed",
+    "gpsDeniedBody": "Labby needs your location to put you online and match you with nearby riders. Allow location access, then go online.",
+    "gpsDeniedOnlineBody": "You're online, but location access is off, so riders can't find you. Allow location access or go offline.",
+    "gpsBlockedHint": "Location access is turned off for Labby Driver. Turn it on in your phone settings.",
+    "allowLocation": "Allow location",
+    "openSettings": "Open settings",
+    "gpsUnavailable": "We can't read your location. Make sure location services are turned on.",
+    "waitingForGps": "Waiting for your location…",
+    "stream": {
+      "connecting": "Connecting…",
+      "live": "Sharing your location",
+      "reconnecting": "Connection lost — reconnecting…",
+      "stale": "Your location isn't reaching Labby — check your connection"
+    },
+    "errors": {
+      "network": "We couldn't reach Labby. Check your internet connection and try again.",
+      "server": "Our service had a problem. Please try again in a moment.",
+      "onlineRefused": "You can't go online right now. Please try again in a moment.",
+      "offlineConflict": "You can't go offline right now — finish your active ride first."
+    },
+    "retry": "Try again"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellUnread": "Notifications, {{count}} unread",
+    "markAllRead": "Mark all as read",
+    "markAllFailed": "Couldn't mark your notifications as read. Try again.",
+    "markReadFailed": "Couldn't update this notification. Try again.",
+    "settings": "Notification settings",
+    "filterAll": "All",
+    "filterLabel": "Filter by category",
+    "unreadLabel": "Unread",
+    "emptyTitle": "No notifications yet",
+    "emptyBody": "Updates about your account, documents and rides will appear here.",
+    "emptyFilteredTitle": "Nothing in this category",
+    "emptyFilteredBody": "Try another category or show all notifications.",
+    "loadMoreFailed": "Couldn't load older notifications.",
+    "retry": "Try again",
+    "categories": {
+      "ride": "Rides",
+      "chat": "Messages",
+      "scheduled": "Scheduled rides",
+      "promotions": "Promotions",
+      "account": "Account",
+      "safety": "Safety"
+    },
+    "prefs": {
+      "intro": "Choose which notifications Labby pushes to your phone. Turning a category off stops push alerts only — they still appear in your notification center.",
+      "locked": "Always on",
+      "lockedHint": "Ride and safety alerts can't be turned off.",
+      "saveFailed": "Couldn't save your change. Try again.",
+      "pushOffTitle": "Notifications are off on this phone",
+      "pushOffBody": "Allow notifications for Labby Driver in your phone settings to receive alerts.",
+      "openSettings": "Open settings",
+      "descriptions": {
+        "ride": "Ride requests, trip status and ride updates.",
+        "chat": "Messages from riders and support.",
+        "scheduled": "Reminders about your scheduled rides.",
+        "promotions": "Offers, incentives and news from Labby.",
+        "account": "Your application, documents, vehicle and account changes.",
+        "safety": "Safety alerts and emergency information."
+      }
     }
   }
 }

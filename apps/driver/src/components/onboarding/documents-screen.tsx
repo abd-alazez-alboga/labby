@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
@@ -9,7 +9,7 @@ import { DOCUMENT_TYPES } from '../../api/onboarding-types';
 import { useLocale } from '../../i18n/LocaleProvider';
 import { formatDate } from '../../onboarding/dates';
 import { useRemote } from '../../onboarding/use-remote';
-import { colors, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import { BodyText, ErrorBanner } from '../auth/ui';
 import {
   Card,
@@ -26,7 +26,7 @@ import {
 
 const NOT_APPROVED = [409] as const;
 
-function SlotCard({ slot }: { slot: DocumentSlot }) {
+function SlotCard({ slot, focused }: { slot: DocumentSlot; focused: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const { language } = useLocale();
@@ -36,51 +36,56 @@ function SlotCard({ slot }: { slot: DocumentSlot }) {
   const rejected = renewal?.reviewStatus === 'rejected';
 
   return (
-    <Card tone={slot.expired ? 'danger' : undefined} testID={`slot-${slot.type}`}>
-      <View style={[rowStyle, styles.header]}>
-        <SectionTitle>{t(`onboarding.documentTypes.${slot.type}`)}</SectionTitle>
-        {slot.expired ? (
-          <StatusChip
-            label={t('onboarding.documents.expired')}
-            tone="danger"
-            testID={`slot-${slot.type}-expired`}
-          />
-        ) : (
-          <StatusChip label={t('onboarding.documents.valid')} tone="success" />
-        )}
-      </View>
-      <KeyValue label={t('onboarding.document.number')} value={current.number} />
-      <KeyValue
-        label={t(slot.expired ? 'onboarding.documents.expiredOn' : 'onboarding.documents.validThrough')}
-        value={formatDate(current.expiresOn, language)}
-      />
-      {pending && renewal ? (
-        <View style={styles.renewal} testID={`slot-${slot.type}-pending`}>
-          <StatusChip label={t('onboarding.documents.renewalPending')} tone="warning" />
-          <Muted>
-            {t('onboarding.documents.renewalPendingHint', {
-              date: formatDate(renewal.expiresOn, language),
-            })}
-          </Muted>
+    <View
+      style={focused ? styles.focused : null}
+      testID={focused ? `slot-${slot.type}-focused` : undefined}
+    >
+      <Card tone={slot.expired ? 'danger' : undefined} testID={`slot-${slot.type}`}>
+        <View style={[rowStyle, styles.header]}>
+          <SectionTitle>{t(`onboarding.documentTypes.${slot.type}`)}</SectionTitle>
+          {slot.expired ? (
+            <StatusChip
+              label={t('onboarding.documents.expired')}
+              tone="danger"
+              testID={`slot-${slot.type}-expired`}
+            />
+          ) : (
+            <StatusChip label={t('onboarding.documents.valid')} tone="success" />
+          )}
         </View>
-      ) : null}
-      {rejected && renewal ? (
-        <NoteBox
-          title={t('onboarding.documents.renewalRejected')}
-          note={renewal.reviewNote ?? t('onboarding.documents.noReason')}
-          testID={`slot-${slot.type}-rejected`}
+        <KeyValue label={t('onboarding.document.number')} value={current.number} />
+        <KeyValue
+          label={t(slot.expired ? 'onboarding.documents.expiredOn' : 'onboarding.documents.validThrough')}
+          value={formatDate(current.expiresOn, language)}
         />
-      ) : null}
-      <SecondaryButton
-        title={t('onboarding.documents.renew')}
-        icon="refresh-circle-outline"
-        disabled={pending}
-        onPress={() =>
-          router.push({ pathname: '/renew-document', params: { type: slot.type } })
-        }
-        testID={`slot-${slot.type}-renew`}
-      />
-    </Card>
+        {pending && renewal ? (
+          <View style={styles.renewal} testID={`slot-${slot.type}-pending`}>
+            <StatusChip label={t('onboarding.documents.renewalPending')} tone="warning" />
+            <Muted>
+              {t('onboarding.documents.renewalPendingHint', {
+                date: formatDate(renewal.expiresOn, language),
+              })}
+            </Muted>
+          </View>
+        ) : null}
+        {rejected && renewal ? (
+          <NoteBox
+            title={t('onboarding.documents.renewalRejected')}
+            note={renewal.reviewNote ?? t('onboarding.documents.noReason')}
+            testID={`slot-${slot.type}-rejected`}
+          />
+        ) : null}
+        <SecondaryButton
+          title={t('onboarding.documents.renew')}
+          icon="refresh-circle-outline"
+          disabled={pending}
+          onPress={() =>
+            router.push({ pathname: '/renew-document', params: { type: slot.type } })
+          }
+          testID={`slot-${slot.type}-renew`}
+        />
+      </Card>
+    </View>
   );
 }
 
@@ -91,6 +96,8 @@ function SlotCard({ slot }: { slot: DocumentSlot }) {
 export function DocumentsScreen() {
   const { t } = useTranslation();
   const { state, refreshing, reload } = useRemote(getMyDocuments, NOT_APPROVED);
+  // Set when a notification deep link (driver_documents) names a document.
+  const { documentType } = useLocalSearchParams<{ documentType?: string }>();
 
   const ordered =
     state.status === 'loaded'
@@ -127,7 +134,7 @@ export function DocumentsScreen() {
             </ErrorBanner>
           ) : null}
           {ordered.map((slot) => (
-            <SlotCard key={slot.type} slot={slot} />
+            <SlotCard key={slot.type} slot={slot} focused={slot.type === documentType} />
           ))}
         </>
       ) : null}
@@ -140,4 +147,10 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.sm },
   header: { justifyContent: 'space-between', gap: spacing.sm },
   renewal: { gap: spacing.xs },
+  focused: {
+    borderWidth: 2,
+    borderColor: colors.purple400,
+    borderRadius: radius.md + 2,
+    padding: 2,
+  },
 });

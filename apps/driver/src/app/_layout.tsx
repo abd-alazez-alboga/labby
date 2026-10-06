@@ -10,6 +10,8 @@ import { loadStoredSession, updateSessionUser } from '../auth/session';
 import { initI18n } from '../i18n';
 import type { Language } from '../i18n';
 import { LocaleProvider } from '../i18n/LocaleProvider';
+import { PushBridge } from '../notifications/PushBridge';
+import { AvailabilityProvider } from '../realtime/AvailabilityProvider';
 import { RegionProvider } from '../region/RegionProvider';
 import { colors } from '../theme/tokens';
 
@@ -109,6 +111,16 @@ function AppStack() {
           name="renew-document"
           options={{ title: t('onboarding.renewal.title') }}
         />
+        {/* Notification center + preferences (M6, UC-S-11/12) — every
+            signed-in account: applicants get their stage updates here too. */}
+        <Stack.Screen
+          name="notifications"
+          options={{ title: t('notifications.title') }}
+        />
+        <Stack.Screen
+          name="notification-preferences"
+          options={{ title: t('notifications.settings') }}
+        />
       </Stack.Protected>
     </Stack>
   );
@@ -146,8 +158,13 @@ export default function RootLayout() {
       <AuthProvider>
         {/* Region resolution (M4-T4) — only active for a signed-in driver. */}
         <RegionProvider>
-          <StatusBar style="light" />
-          <AppStack />
+          {/* Online/offline + location streaming (M6-T4) — active drivers only. */}
+          <AvailabilityProvider>
+            <StatusBar style="light" />
+            <AppStack />
+            {/* Push registration + notification-tap deep links (M6-T4). */}
+            <PushBridge />
+          </AvailabilityProvider>
         </RegionProvider>
       </AuthProvider>
     </LocaleProvider>

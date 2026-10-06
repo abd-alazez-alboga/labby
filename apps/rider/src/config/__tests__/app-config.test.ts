@@ -23,6 +23,24 @@ describe('getAppConfig', () => {
     expect(getAppConfig().apiBaseUrl).toBe('https://api.labby.example');
   });
 
+  it('defaults the map tiles to the public OSM server with its attribution (ES-04)', () => {
+    expect(getAppConfig().mapTileUrlTemplate).toBe(
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    );
+    expect(getAppConfig().mapTileAttribution).toBe('© OpenStreetMap contributors');
+  });
+
+  it('reads the tile URL template and attribution from the app config extra', () => {
+    Constants.expoConfig = {
+      extra: {
+        mapTileUrlTemplate: 'https://tiles.labby.example/{z}/{x}/{y}.png',
+        mapTileAttribution: '© Labby tiles',
+      },
+    };
+    expect(getAppConfig().mapTileUrlTemplate).toBe('https://tiles.labby.example/{z}/{x}/{y}.png');
+    expect(getAppConfig().mapTileAttribution).toBe('© Labby tiles');
+  });
+
   it('falls back to defaults when expoConfig is missing entirely', () => {
     Constants.expoConfig = null;
     expect(getAppConfig()).toEqual(DEFAULT_CONFIG);

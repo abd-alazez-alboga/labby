@@ -9,7 +9,41 @@ export interface RuntimeConfig {
   apiBaseUrl: string;
   /** Human-readable environment name, e.g. "local", "staging", "prod". */
   environment?: string;
+  /**
+   * Leaflet tile URL template (realtime-v1.yaml: tiles come from runtime
+   * config, never hard-coded). Absent = the public OSM tile server
+   * (`DEFAULT_MAP_TILE_URL`).
+   */
+  mapTileUrl?: string;
+  /**
+   * Firebase web config + VAPID key for browser push (ES-03). Absent until
+   * the owner supplies it (M6-T5): push registration is then skipped
+   * silently and the Firebase SDK is never loaded.
+   */
+  firebaseWeb?: FirebaseWebConfig;
 }
+
+/** The public Firebase web-app config (not a secret) plus the Web Push VAPID key. */
+export interface FirebaseWebConfig {
+  apiKey: string;
+  projectId: string;
+  messagingSenderId: string;
+  appId: string;
+  vapidKey: string;
+  authDomain?: string;
+  storageBucket?: string;
+}
+
+export const DEFAULT_MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+const REQUIRED_FIREBASE_KEYS = [
+  'apiKey',
+  'projectId',
+  'messagingSenderId',
+  'appId',
+  'vapidKey',
+] as const;
+const OPTIONAL_FIREBASE_KEYS = ['authDomain', 'storageBucket'] as const;
 
 export class RuntimeConfigError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -54,5 +88,44 @@ export function validateRuntimeConfig(data: unknown): RuntimeConfig {
   return {
     apiBaseUrl: config.apiBaseUrl,
     environment: typeof config.environment === 'string' ? config.environment : undefined,
+    mapTileUrl:
+      typeof config.mapTileUrl === 'string' && config.mapTileUrl.length > 0
+        ? config.mapTileUrl
+        : undefined,
+    firebaseWeb: parseFirebaseWeb((data as { firebaseWeb?: unknown }).firebaseWeb),
   };
+}
+
+/**
+ * The optional push block. Push is an enhancement, never a boot blocker:
+ * an absent block (or `null`) means "not configured", and an incomplete one
+ * is ignored with a console warning instead of failing the whole app.
+ */
+function parseFirebaseWeb(value: unknown): FirebaseWebConfig | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  const block = (typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const missing = REQUIRED_FIREBASE_KEYS.filter(
+    (key) => typeof block[key] !== 'string' || (block[key] as string).length === 0,
+  );
+  if (missing.length > 0) {
+    console.warn(
+      `config.json "firebaseWeb" is incomplete (missing ${missing.join(', ')}) — browser push is disabled.`,
+    );
+    return undefined;
+  }
+  const parsed: FirebaseWebConfig = {
+    apiKey: block.apiKey as string,
+    projectId: block.projectId as string,
+    messagingSenderId: block.messagingSenderId as string,
+    appId: block.appId as string,
+    vapidKey: block.vapidKey as string,
+  };
+  for (const key of OPTIONAL_FIREBASE_KEYS) {
+    if (typeof block[key] === 'string' && (block[key] as string).length > 0) {
+      parsed[key] = block[key] as string;
+    }
+  }
+  return parsed;
 }

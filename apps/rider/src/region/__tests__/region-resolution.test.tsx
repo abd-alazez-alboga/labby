@@ -55,7 +55,9 @@ const nearPointA = { lat: 33.505, lng: 36.3 };
 type WatchCallback = (position: { coords: { latitude: number; longitude: number } }) => void;
 
 const locationMock = Location as jest.Mocked<typeof Location>;
-let watchCallback: WatchCallback | null = null;
+// Every position subscriber (the region watch AND the home map's own
+// position watch, M6-T4) — a simulated move is delivered to all of them.
+let watchCallbacks: WatchCallback[] = [];
 
 function mockLocation({ granted, at }: { granted: boolean; at?: { lat: number; lng: number } }) {
   locationMock.requestForegroundPermissionsAsync.mockResolvedValue({
@@ -70,7 +72,7 @@ function mockLocation({ granted, at }: { granted: boolean; at?: { lat: number; l
     } as Location.LocationObject);
   }
   locationMock.watchPositionAsync.mockImplementation(async (_options, callback) => {
-    watchCallback = callback as WatchCallback;
+    watchCallbacks.push(callback as WatchCallback);
     return { remove: jest.fn() } as unknown as Location.LocationSubscription;
   });
 }
@@ -86,16 +88,19 @@ function renderHome() {
 }
 
 async function moveTo(point: { lat: number; lng: number }) {
-  await waitFor(() => expect(watchCallback).not.toBeNull());
+  // Both the region watch and the home map watch are subscribed.
+  await waitFor(() => expect(watchCallbacks.length).toBeGreaterThanOrEqual(2));
   await act(async () => {
-    watchCallback?.({ coords: { latitude: point.lat, longitude: point.lng } });
+    for (const callback of watchCallbacks) {
+      callback({ coords: { latitude: point.lat, longitude: point.lng } });
+    }
   });
 }
 
 describe('region resolution (M4-T4, SD-01)', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
-    watchCallback = null;
+    watchCallbacks = [];
     await AsyncStorage.clear();
   });
 

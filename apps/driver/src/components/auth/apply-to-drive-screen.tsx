@@ -12,6 +12,7 @@ import { useLocale } from '../../i18n/LocaleProvider';
 import { failureKindOf } from '../../onboarding/server-errors';
 import { useRemote } from '../../onboarding/use-remote';
 import { colors, gradients, radius, spacing } from '../../theme/tokens';
+import { NotificationsBell } from '../notifications/notifications-bell';
 import { ApplicationTracker } from '../onboarding/application-tracker';
 import { Card, FailureState, FieldError, LoadingState, Muted, SecondaryButton, SectionTitle } from '../onboarding/ui';
 
@@ -73,6 +74,10 @@ function GateLayout({
         }
       >
         <View style={styles.hero}>
+          {/* Applicants get their stage updates in the center too (UC-S-11). */}
+          <View style={[styles.bell, direction === 'rtl' ? styles.bellRtl : null]}>
+            <NotificationsBell />
+          </View>
           <Image
             source={logoWhite}
             style={styles.logo}
@@ -245,6 +250,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: spacing.lg,
   },
+  bell: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    zIndex: 1,
+  },
+  bellRtl: { right: undefined, left: spacing.sm },
   title: {
     color: colors.white,
     fontSize: 22,

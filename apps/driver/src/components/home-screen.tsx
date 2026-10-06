@@ -1,10 +1,21 @@
 import { Link } from 'expo-router';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { ApiStatus } from './api-status';
+import { AvailabilityCard } from './availability/availability-card';
+import { NotificationsBell } from './notifications/notifications-bell';
 import { useLocale } from '../i18n/LocaleProvider';
+import { useOptionalAvailability } from '../realtime/AvailabilityProvider';
 import { useOptionalRegion } from '../region/RegionProvider';
 import { colors, gradients, radius, spacing } from '../theme/tokens';
 
@@ -13,8 +24,9 @@ const logoWhite = require('../../assets/images/labby-logo-white.png');
 
 export function HomeScreen() {
   const { t } = useTranslation();
-  const { direction } = useLocale();
+  const { direction, flipRows } = useLocale();
   const textAlign = direction === 'rtl' ? 'right' : 'left';
+  const availability = useOptionalAvailability();
   // Null when rendered without the provider (provider-less unit tests).
   const region = useOptionalRegion();
   // Outside the operating area, location denied or unresolved-with-no-cache:
@@ -25,20 +37,36 @@ export function HomeScreen() {
       : null;
 
   return (
-    <View style={styles.container} testID="home-screen">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scroll}
+      refreshControl={
+        availability ? (
+          <RefreshControl
+            refreshing={false}
+            onRefresh={() => void availability.reload()}
+          />
+        ) : undefined
+      }
+      testID="home-screen"
+    >
       <View style={styles.hero}>
-        <Image
-          source={logoWhite}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityLabel={t('app.name')}
-        />
+        <View style={[styles.heroTop, flipRows && styles.heroTopRtl]}>
+          <Image
+            source={logoWhite}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel={t('app.name')}
+          />
+          <NotificationsBell />
+        </View>
         <Text style={[styles.title, { textAlign }]}>{t('home.title')}</Text>
         <Text style={[styles.subtitle, { textAlign }]}>
           {t('home.subtitle')}
         </Text>
       </View>
       <View style={styles.body}>
+        <AvailabilityCard />
         {blocked ? (
           <View style={styles.regionCard} testID={`region-${blocked.status}`}>
             <Text style={[styles.regionTitle, { textAlign }]}>
@@ -88,7 +116,7 @@ export function HomeScreen() {
         </Link>
         <ApiStatus />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -97,20 +125,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgLight,
   },
+  scroll: {
+    flexGrow: 1,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  heroTopRtl: {
+    flexDirection: 'row-reverse',
+  },
   hero: {
     // Solid fallback for --labby-gradient-hero (no gradient lib in the shell).
     backgroundColor: gradients.hero[0],
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
   },
   logo: {
-    width: 180,
-    height: 40,
-    alignSelf: 'center',
-    marginBottom: spacing.lg,
+    width: 150,
+    height: 36,
   },
   title: {
     color: colors.white,
@@ -124,7 +162,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   body: {
-    flex: 1,
     padding: spacing.lg,
     alignItems: 'center',
     gap: spacing.md,

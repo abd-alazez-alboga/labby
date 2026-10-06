@@ -22,11 +22,62 @@ jest.mock('expo-secure-store', () => {
 // as the fetch stub below) so boot-time region resolution is inert unless a
 // suite overrides these mocks per test.
 jest.mock('expo-location', () => ({
-  Accuracy: { Balanced: 3 },
+  Accuracy: { Balanced: 3, High: 4 },
   requestForegroundPermissionsAsync: jest.fn(() => new Promise(() => {})),
   getCurrentPositionAsync: jest.fn(() => new Promise(() => {})),
   watchPositionAsync: jest.fn(() => new Promise(() => {})),
 }));
+
+// expo-notifications (M6 push): permission queries stay PENDING by default
+// so boot-time device registration is inert; listeners are no-op
+// subscriptions. Push suites override per test.
+jest.mock('expo-notifications', () => ({
+  getPermissionsAsync: jest.fn(() => new Promise(() => {})),
+  requestPermissionsAsync: jest.fn(() => new Promise(() => {})),
+  getDevicePushTokenAsync: jest.fn(() => new Promise(() => {})),
+  addPushTokenListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  clearLastNotificationResponseAsync: jest.fn(async () => {}),
+  setNotificationHandler: jest.fn(),
+}));
+
+// The map's WebView: a plain host view forwarding its props (tests fire
+// onMessage to simulate the page) with an injectJavaScript spy on the ref.
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const injectJavaScript = jest.fn();
+  const WebView = React.forwardRef(function WebViewMock(props, ref) {
+    React.useImperativeHandle(ref, () => ({ injectJavaScript }));
+    return React.createElement(View, {
+      testID: props.testID,
+      source: props.source,
+      onMessage: props.onMessage,
+      onError: props.onError,
+      onShouldStartLoadWithRequest: props.onShouldStartLoadWithRequest,
+    });
+  });
+  WebView.injectJavaScriptMock = injectJavaScript;
+  return { __esModule: true, WebView, default: WebView };
+});
+
+// Realtime socket: never connects unless a suite installs its own mock.
+globalThis.WebSocket = class InertWebSocket {
+  constructor(url) {
+    this.url = url;
+    this.readyState = 0;
+    this.onopen = null;
+    this.onmessage = null;
+    this.onclose = null;
+    this.onerror = null;
+  }
+  send() {}
+  close() {
+    this.readyState = 3;
+  }
+};
 
 // Image picker: default to "user canceled"; photo tests override per test.
 jest.mock('expo-image-picker', () => ({

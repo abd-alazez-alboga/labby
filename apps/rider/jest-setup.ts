@@ -40,3 +40,34 @@ jest.mock('expo-localization', () => ({
 // (ApiStatus on the home screen) render deterministically with no act() noise.
 // Suites that assert on API states override this per test.
 globalThis.fetch = jest.fn(() => new Promise(() => {})) as unknown as typeof fetch;
+
+// react-native-webview is native. The mock renders a host View carrying the
+// WebView props (so suites can read `source.html` and fire `onMessage`) and
+// exposes the imperative `injectJavaScript` as a shared jest.fn.
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const injectJavaScript = jest.fn();
+  const WebView = React.forwardRef((props: Record<string, unknown>, ref: unknown) => {
+    React.useImperativeHandle(ref, () => ({ injectJavaScript, reload: jest.fn() }));
+    return React.createElement(View, props);
+  });
+  WebView.displayName = 'WebView';
+  return { __esModule: true, WebView, default: WebView, __injectJavaScript: injectJavaScript };
+});
+
+// expo-notifications is native. Defaults: permission denied and no taps, so
+// a mounted NotificationsProvider never registers a device unless a suite
+// overrides these mocks (and push-support) per test.
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { HIGH: 4 },
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  getPermissionsAsync: jest.fn(async () => ({ granted: false, canAskAgain: false })),
+  requestPermissionsAsync: jest.fn(async () => ({ granted: false, canAskAgain: false })),
+  getDevicePushTokenAsync: jest.fn(() => new Promise(() => {})),
+  addPushTokenListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+}));

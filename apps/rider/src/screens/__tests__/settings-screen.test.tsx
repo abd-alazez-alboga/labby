@@ -93,6 +93,19 @@ describe('SettingsScreen', () => {
     expect(mockPush).toHaveBeenCalledWith('/delete-account');
   });
 
+  it('links to the notification center and the notification preferences (M6-T4)', async () => {
+    await seedSignedInSession();
+    mockApi({});
+
+    await renderWithProviders(<SettingsScreen />);
+    expect(await screen.findByText('Notifications')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByTestId('settings-notifications'));
+    expect(mockPush).toHaveBeenCalledWith('/notifications');
+    await fireEvent.press(screen.getByTestId('settings-notification-preferences'));
+    expect(mockPush).toHaveBeenCalledWith('/notification-preferences');
+  });
+
   it('logs out: revokes the refresh token and clears the session (UC-S-03)', async () => {
     await seedSignedInSession();
     const api = mockApi({

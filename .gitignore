@@ -60,3 +60,6 @@ logs/
 
 # Backend private uploads (dev STORAGE_DIR default ./data/uploads) — never commit user files.
 backend/data/
+
+# Firebase secrets must never land in the repo (keep them in ~/.config/labby).
+*firebase-adminsdk*.json

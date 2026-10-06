@@ -112,6 +112,22 @@ async function rotateRefreshToken(): Promise<StoredSession | null> {
 }
 
 /**
+ * Rotates the token pair outside a failed request — the realtime socket
+ * uses it to re-authenticate before the access token expires and after a
+ * 4401 close (realtime-v1.yaml). Shares the in-flight refresh with
+ * authFetch. Resolves the rotated session; resolves null AND signs out
+ * locally when the refresh token is dead; rejects on transient trouble
+ * (the session is kept).
+ */
+export async function refreshSession(): Promise<StoredSession | null> {
+  const rotated = await refreshStoredSession();
+  if (!rotated) {
+    await clearSession();
+  }
+  return rotated;
+}
+
+/**
  * Authenticated fetch: adds the bearer header from the stored session.
  * On a 401 it makes exactly ONE refresh attempt (rotating the stored
  * pair), retries the original request, and signs the user out locally

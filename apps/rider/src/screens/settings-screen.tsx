@@ -8,6 +8,8 @@ import { useAuth } from '../auth/auth-context';
 import { Button } from '../components/form';
 import { type AppLocale, SUPPORTED_LOCALES } from '../i18n/translations';
 import { useLocale } from '../i18n/locale-context';
+import { useOptionalNotifications } from '../notifications/notifications-context';
+import { UnreadBadge } from '../notifications/unread-badge';
 import { colors, fontSize, radius, spacing } from '../theme/tokens';
 
 const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
@@ -17,12 +19,14 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
 
 /**
  * Settings hub: language (UC-S-10 — instant switch, best-effort account
- * sync), account section (profile, password, phone, delete) and logout.
+ * sync), notifications (center with unread badge + push preferences, M6-T4),
+ * account section (profile, password, phone, delete) and logout.
  */
 export default function SettingsScreen() {
   const { t, locale, isRTL, direction, setLocale, flipRows } = useLocale();
   const { user, setUser, signOut } = useAuth();
   const router = useRouter();
+  const notifications = useOptionalNotifications();
 
   const switchLanguage = async (next: AppLocale) => {
     // Instant local switch (M1 behavior preserved)…
@@ -39,6 +43,21 @@ export default function SettingsScreen() {
       }
     }
   };
+
+  const notificationRows = [
+    {
+      key: 'notifications',
+      label: t('settings.notificationCenter'),
+      href: '/notifications' as const,
+      badge: notifications?.unread ?? null,
+    },
+    {
+      key: 'notification-preferences',
+      label: t('settings.notificationPreferences'),
+      href: '/notification-preferences' as const,
+      badge: null,
+    },
+  ];
 
   const accountRows = [
     { key: 'profile', label: t('settings.editProfile'), href: '/profile-edit' as const },
@@ -103,6 +122,31 @@ export default function SettingsScreen() {
           </Text>
         </View>
         <Text style={[styles.note, isRTL && styles.textRtl]}>{t('settings.rtlNote')}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, isRTL && styles.textRtl]}>
+          {t('settings.notifications')}
+        </Text>
+        {notificationRows.map((row) => (
+          <Pressable
+            key={row.key}
+            accessibilityRole="button"
+            testID={`settings-${row.key}`}
+            style={({ pressed }) => [
+              styles.navRow,
+              flipRows && styles.rowRtl,
+              pressed && styles.navRowPressed,
+            ]}
+            onPress={() => router.push(row.href)}
+          >
+            <Text style={[styles.navLabel, styles.navLabelFlex, isRTL && styles.textRtl]}>
+              {row.label}
+            </Text>
+            <UnreadBadge count={row.badge} testID={`settings-${row.key}-badge`} />
+            <Text style={styles.navChevron}>{isRTL ? '‹' : '›'}</Text>
+          </Pressable>
+        ))}
       </View>
 
       <View style={styles.section}>
@@ -258,6 +302,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     paddingVertical: spacing.sm + spacing.xs,
   },
   navRowPressed: {
@@ -266,6 +311,9 @@ const styles = StyleSheet.create({
   navLabel: {
     color: colors.text,
     fontSize: fontSize.md,
+  },
+  navLabelFlex: {
+    flex: 1,
   },
   navLabelDanger: {
     color: '#C0392B',
