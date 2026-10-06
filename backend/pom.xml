@@ -127,6 +127,20 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- Apache HttpClient 5: firebase-admin's HTTP transport at RUNTIME (FCM), and the
+         TestRestTemplate backend that supports DELETE/PUT with bodies. Must stay compile scope:
+         a test-scoped declaration wins Maven mediation and strips it from the runtime classpath. -->
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+    </dependency>
+    <!-- firebase-admin's FirebaseOptions needs JacksonFactory at runtime; Maven mediation drops
+         this artifact from firebase-admin's tree, so it is declared explicitly. -->
+    <dependency>
+      <groupId>com.google.http-client</groupId>
+      <artifactId>google-http-client-jackson2</artifactId>
+      <version>2.1.0</version>
+    </dependency>
 
     <!-- Logging -->
     <dependency>
@@ -156,12 +170,6 @@
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- TestRestTemplate backend that supports DELETE/PUT with request bodies -->
-    <dependency>
-      <groupId>org.apache.httpcomponents.client5</groupId>
-      <artifactId>httpclient5</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
