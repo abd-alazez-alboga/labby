@@ -15,6 +15,12 @@ const RolesPage = lazy(() => import('../pages/RolesPage'));
 const AuditLogPage = lazy(() => import('../pages/AuditLogPage'));
 const RegionsPage = lazy(() => import('../pages/RegionsPage'));
 const RegionDetailPage = lazy(() => import('../pages/RegionDetailPage'));
+const DriverApplicationsPage = lazy(() => import('../pages/DriverApplicationsPage'));
+const DriverApplicationDetailPage = lazy(() => import('../pages/DriverApplicationDetailPage'));
+const VehicleReviewsPage = lazy(() => import('../pages/VehicleReviewsPage'));
+const VehicleReviewDetailPage = lazy(() => import('../pages/VehicleReviewDetailPage'));
+const DocumentExpiriesPage = lazy(() => import('../pages/DocumentExpiriesPage'));
+const DocumentRenewalDetailPage = lazy(() => import('../pages/DocumentRenewalDetailPage'));
 
 export function App() {
   return (
@@ -77,6 +83,66 @@ export function App() {
                   <Suspense fallback={<div className="loading" />}>
                     <RequirePermission permission="regions:view">
                       <RegionDetailPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="driver-applications"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="driver-review:view">
+                      <DriverApplicationsPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="driver-applications/:applicationId"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="driver-review:view">
+                      <DriverApplicationDetailPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="vehicle-reviews"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="driver-review:view">
+                      <VehicleReviewsPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="vehicle-reviews/:vehicleId"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="driver-review:view">
+                      <VehicleReviewDetailPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="document-expiries"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="driver-review:view">
+                      <DocumentExpiriesPage />
+                    </RequirePermission>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="document-renewals/:documentId"
+                element={
+                  <Suspense fallback={<div className="loading" />}>
+                    <RequirePermission permission="driver-review:view">
+                      <DocumentRenewalDetailPage />
                     </RequirePermission>
                   </Suspense>
                 }

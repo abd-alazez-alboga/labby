@@ -74,6 +74,23 @@ re-fetched on every page load — so another admin's screens update **on
 their next page refresh**, without re-login. UI gating is cosmetic either
 way; the server-side check is the enforcement (RBAC-03).
 
+## Driver review queues (M5-T4)
+
+Built against `backend/docs/api/onboarding-v1.yaml` (`src/api/onboarding.ts`).
+Routes `/driver-applications`, `/vehicle-reviews`, `/document-expiries` (+ their
+detail pages) need `driver-review:view`; every decision control needs
+`driver-review:decide`. Approve/reject always pass an inline confirmation.
+
+- **Private files (NFR-S2):** a `FileRef.url` is resolved against the
+  runtime `apiBaseUrl` (`resolveFileUrl`) and loaded without a bearer token
+  (`<img src>`; PDFs open in a new tab). URLs expire, so they are never
+  cached: `useReviewResource` refetches the owning resource 30 s before the
+  earliest `urlExpiresAt` (never sooner than 15 s), and a file that fails to
+  load triggers one silent refetch before it is shown as unavailable.
+- **409s** carry no machine-readable reason in the contract, so the detail
+  pages refetch and explain the current state in plain words (another
+  reviewer decided, duplicate plate, document expired, renewal expired).
+
 ## i18n & RTL
 
 i18next + react-i18next with bundled EN (`src/i18n/en.json`) and AR

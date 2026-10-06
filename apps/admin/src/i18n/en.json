@@ -5,6 +5,9 @@
   "nav": {
     "dashboard": "Dashboard",
     "regions": "Regions",
+    "driverApplications": "Driver applications",
+    "vehicleReviews": "Vehicle switches",
+    "documentExpiries": "Document expiry",
     "admins": "Admins",
     "roles": "Roles",
     "auditLog": "Audit log"
@@ -377,6 +380,255 @@
       "conflict": "Not allowed: the zone name is already used in this region, or the polygon lies outside the region boundary.",
       "validation": "The request was rejected — check the values and try again.",
       "generic": "Something went wrong. Please try again."
+    }
+  },
+  "review": {
+    "working": "Working…",
+    "retry": "Try again",
+    "expiredChip": "Expired",
+    "applicationStatus": {
+      "submitted": "Submitted",
+      "under_review": "Under review",
+      "needs_changes": "Needs changes",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "itemStatus": {
+      "pending": "Pending",
+      "changes_requested": "Changes requested",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "superseded": "Superseded"
+    },
+    "documentType": {
+      "government_id": "Government ID",
+      "drivers_license": "Driver's license",
+      "vehicle_registration": "Vehicle registration",
+      "insurance": "Insurance"
+    },
+    "items": {
+      "personal": "Personal details",
+      "vehicle": "Vehicle"
+    },
+    "fields": {
+      "documentNumber": "Number",
+      "expiresOn": "Expires on",
+      "submittedAt": "Submitted",
+      "reviewNote": "Review note"
+    },
+    "vehicle": {
+      "makeModel": "Make & model",
+      "year": "Year",
+      "color": "Color",
+      "plate": "Plate",
+      "seats": "Seats",
+      "serviceTypes": "Service types",
+      "photo": "Vehicle photo {{n}}",
+      "activeChip": "Active vehicle"
+    },
+    "files": {
+      "pdf": "Open PDF",
+      "openPdf": "Open PDF: {{label}}",
+      "unavailable": "File unavailable",
+      "stale": "File links have expired and could not be refreshed.",
+      "refresh": "Refresh files"
+    },
+    "duplicatePlate": {
+      "chip": "Duplicate plate",
+      "title": "Duplicate plate.",
+      "body": "This plate is already on another driver's active vehicle. Approval is blocked until it is resolved — request changes to the vehicle or reject."
+    },
+    "errors": {
+      "network": "Can't reach the server. Check your connection and try again.",
+      "server": "The server ran into a problem. Try again in a moment.",
+      "forbidden": "Your role doesn't allow viewing this."
+    },
+    "decisionErrors": {
+      "network": "Can't reach the server, so the decision may not have been saved. Check your connection and try again.",
+      "server": "The server ran into a problem and the decision was not saved. Try again in a moment.",
+      "forbidden": "Your role doesn't allow this decision.",
+      "notFound": "This item no longer exists.",
+      "validation": "The server rejected the entries. Check them and try again.",
+      "serviceTypes": "One of the selected service types can no longer be assigned. Reopen the approval and choose again."
+    },
+    "conflict": {
+      "decidedApplication": "Another reviewer already acted on this application — it is now \"{{state}}\". The page shows its current state.",
+      "decidedItem": "Another reviewer already decided this — it is now \"{{state}}\". The page shows its current state.",
+      "decidedSwitch": "Another reviewer already decided this vehicle switch.",
+      "decidedRenewal": "Another reviewer already decided this renewal.",
+      "duplicatePlate": "Approval refused: the duplicate plate must be resolved first.",
+      "expired": "Approval refused: a document has expired since it was submitted. Request a renewed document instead.",
+      "renewalExpired": "Approval refused: the renewed document has itself expired. Reject it so the driver can submit a new one.",
+      "generic": "The server refused the decision because the item changed meanwhile. Review its current state and try again."
+    },
+    "approve": {
+      "title": "Approve",
+      "serviceTypesLegend": "Service types this vehicle may serve (choose at least one)",
+      "noServiceTypes": "No service types can be assigned: no active region has an enabled service type.",
+      "pickOne": "Choose at least one service type.",
+      "submit": "Approve…",
+      "confirm": "Confirm approval"
+    },
+    "reject": {
+      "title": "Reject",
+      "reasonLabel": "Reason (shown to the driver)",
+      "reasonRequired": "A reason is required.",
+      "submit": "Reject…",
+      "confirm": "Confirm rejection"
+    },
+    "changes": {
+      "title": "Request changes",
+      "hint": "Flag each item the applicant must fix and say what is wrong. They resubmit only the flagged items.",
+      "itemsLegend": "Items to correct",
+      "flag": "Flag: {{item}}",
+      "noteFor": "What must change — {{item}}",
+      "overallLabel": "Overall note (optional, kept in the history)",
+      "pickOne": "Flag at least one item.",
+      "noteRequired": "Every flagged item needs a note.",
+      "submit": "Send change request"
+    }
+  },
+  "applications": {
+    "title": "Driver applications",
+    "subtitle": "Oldest submission first. Open an application to review its documents and vehicle.",
+    "filterLabel": "Filter by status",
+    "count": "Matching applications: {{total}}",
+    "empty": "No applications match the selected statuses.",
+    "open": "Review",
+    "openFor": "Review the application of {{name}}",
+    "pageOf": "Page {{page}} of {{total}}",
+    "columns": {
+      "applicant": "Applicant",
+      "status": "Status",
+      "submitted": "Submitted",
+      "plate": "Plate",
+      "open": "Actions"
+    },
+    "detail": {
+      "back": "← Back to applications",
+      "notFound": "This application does not exist.",
+      "submitted": "Submitted {{at}}",
+      "decided": "Decided {{at}}",
+      "rejectionReason": "Rejection reason: {{reason}}",
+      "decisionTitle": "Decision",
+      "startReview": "Start review",
+      "startReviewHint": "Starting the review unlocks the decisions and tells the applicant their application is under review.",
+      "requestChanges": "Request changes",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveBlockedDuplicate": "Approval is blocked while the plate is a duplicate. Request changes to the vehicle or reject the application.",
+      "approveHint": "Approval activates the driver role and makes this vehicle the driver's active vehicle with the service types you choose.",
+      "approveConfirm": "Approve {{name}} as a driver? The driver role activates immediately. This cannot be undone.",
+      "rejectHint": "Rejection closes the application. The applicant may apply again with a full new submission.",
+      "rejectConfirm": "Reject the application of {{name}}? This cannot be undone.",
+      "expiredWarning": "A document has expired since submission — the server will refuse approval. Request a renewed document instead.",
+      "noDecision": {
+        "submitted": "Start the review to decide.",
+        "under_review": "Choose a decision.",
+        "needs_changes": "Waiting for the applicant to resubmit the flagged items.",
+        "approved": "This application is approved — no further decisions.",
+        "rejected": "This application is rejected — no further decisions."
+      },
+      "success": {
+        "start": "Review started.",
+        "changes": "Change request sent. The application is now waiting for the applicant.",
+        "approve": "Application approved. The driver role is active.",
+        "reject": "Application rejected."
+      },
+      "documents": "Documents",
+      "history": "Stage history",
+      "noHistory": "No stage changes yet.",
+      "profilePhoto": "Profile photo",
+      "noProfilePhoto": "No profile photo on the account."
+    }
+  },
+  "vehicleReviews": {
+    "title": "Vehicle switches",
+    "subtitle": "New vehicles of approved drivers awaiting review, oldest first. The driver's current vehicle stays active until a switch is approved.",
+    "count": "Waiting for review: {{total}}",
+    "empty": "No vehicle switches are waiting for review.",
+    "openFor": "Review the vehicle switch of {{name}}",
+    "columns": {
+      "driver": "Driver",
+      "vehicle": "New vehicle",
+      "plate": "Plate",
+      "submitted": "Submitted"
+    },
+    "detail": {
+      "back": "← Back to vehicle switches",
+      "notFound": "This vehicle switch does not exist or is no longer awaiting review.",
+      "title": "Vehicle switch — {{name}}",
+      "decisionTitle": "Decision",
+      "approve": "Approve switch",
+      "reject": "Reject switch",
+      "approveBlockedDuplicate": "Approval is blocked while the plate is a duplicate. Reject the switch so the driver can correct it.",
+      "approveHint": "The new vehicle becomes the driver's single active vehicle with the service types you choose; the current one is deactivated.",
+      "approveConfirm": "Approve the vehicle switch of {{name}}? The new vehicle replaces the current one immediately. This cannot be undone.",
+      "rejectHint": "The driver keeps the current vehicle and sees your reason.",
+      "rejectConfirm": "Reject the vehicle switch of {{name}}? This cannot be undone.",
+      "newVehicle": "New vehicle",
+      "currentVehicle": "Current active vehicle",
+      "noCurrentVehicle": "The driver has no active vehicle.",
+      "success": {
+        "approve": "Switch approved. The new vehicle is now active.",
+        "reject": "Switch rejected. The driver keeps the current vehicle."
+      }
+    }
+  },
+  "expiries": {
+    "title": "Document expiry",
+    "subtitle": "Approved current documents of drivers: renewals waiting for review, documents expiring soon, and expired documents (their drivers are suspended automatically).",
+    "horizonLabel": "Expiry horizon",
+    "horizon": "{{days}} days",
+    "upcomingTitle": "Expiring within {{days}} days",
+    "upcomingEmpty": "No documents expire within {{days}} days.",
+    "expiredTitle": "Expired",
+    "expiredEmpty": "No expired documents.",
+    "lastDay": "Last valid day",
+    "suspendedChip": "Driver suspended",
+    "renewalPendingChip": "Renewal pending",
+    "reminder30": "30-day reminder: {{at}}",
+    "reminder7": "7-day reminder: {{at}}",
+    "notSent": "not sent",
+    "columns": {
+      "driver": "Driver",
+      "document": "Document",
+      "expiresOn": "Expires on",
+      "daysLeft": "Days left",
+      "daysOverdue": "Days overdue",
+      "state": "State",
+      "reminders": "Reminders"
+    }
+  },
+  "renewals": {
+    "title": "Renewals waiting for review",
+    "empty": "No renewals are waiting for review.",
+    "review": "Review",
+    "reviewFor": "Review the renewal of {{name}}",
+    "columns": {
+      "currentExpiry": "Current expiry",
+      "newExpiry": "New expiry",
+      "submitted": "Submitted"
+    },
+    "detail": {
+      "back": "← Back to document expiry",
+      "notFound": "This renewal does not exist or is no longer awaiting review.",
+      "title": "Renewal — {{document}}",
+      "decisionTitle": "Decision",
+      "approve": "Approve renewal",
+      "reject": "Reject renewal",
+      "approveHint": "Approving replaces the current document. If the driver is suspended for an expired document, the suspension is lifted once none of their current documents is expired.",
+      "approveConfirm": "Approve the renewed {{document}} of {{name}}? It replaces the current document. This cannot be undone.",
+      "rejectHint": "The current document stays; the driver sees your reason and can submit another renewal.",
+      "rejectConfirm": "Reject the renewed {{document}} of {{name}}? This cannot be undone.",
+      "renewal": "Renewed document",
+      "current": "Current document",
+      "suspensionLifted": "The driver's expiry suspension has been lifted.",
+      "stillSuspended": "The driver is still suspended: another current document is expired.",
+      "success": {
+        "approve": "Renewal approved. It is now the current document.",
+        "reject": "Renewal rejected. The current document stays."
+      }
     }
   },
   "permissionDomains": {

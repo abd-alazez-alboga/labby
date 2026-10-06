@@ -33,6 +33,19 @@ export function Sidenav() {
             {t('nav.regions')}
           </NavLink>
         ) : null}
+        {can('driver-review:view') ? (
+          <>
+            <NavLink to="/driver-applications" className={linkClass}>
+              {t('nav.driverApplications')}
+            </NavLink>
+            <NavLink to="/vehicle-reviews" className={linkClass}>
+              {t('nav.vehicleReviews')}
+            </NavLink>
+            <NavLink to="/document-expiries" className={linkClass}>
+              {t('nav.documentExpiries')}
+            </NavLink>
+          </>
+        ) : null}
         {can('admins:view') ? (
           <NavLink to="/admins" className={linkClass}>
             {t('nav.admins')}

@@ -92,6 +92,8 @@ export type FetchRouteHandler = (
   method: string,
   pathname: string,
   init: RequestInit | undefined,
+  /** The full request URL (for query parameters); optional for delegating handlers. */
+  url?: URL,
 ) => Response | Promise<Response> | null | undefined;
 
 /**
@@ -103,11 +105,11 @@ export type FetchRouteHandler = (
 export function stubFetchRoutes(handler: FetchRouteHandler) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const pathname = new URL(url).pathname;
+    const parsed = new URL(url);
     const method = (init?.method ?? 'GET').toUpperCase();
-    const response = await handler(method, pathname, init);
+    const response = await handler(method, parsed.pathname, init, parsed);
     if (!response) {
-      throw new TypeError(`Unhandled fetch in test: ${method} ${pathname}`);
+      throw new TypeError(`Unhandled fetch in test: ${method} ${parsed.pathname}`);
     }
     return response;
   });
