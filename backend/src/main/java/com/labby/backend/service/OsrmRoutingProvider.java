@@ -37,7 +37,13 @@ public class OsrmRoutingProvider implements RoutingProvider {
   public OsrmRoutingProvider(RoutingProperties properties, RestClient.Builder restClientBuilder) {
     Duration timeout = Duration.ofSeconds(properties.osrmTimeoutSeconds());
     JdkClientHttpRequestFactory requestFactory =
-        new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
+        new JdkClientHttpRequestFactory(
+            // HTTP/1.1 pinned: the public OSRM server stalls JDK HTTP/2 requests until the timeout
+            // (verified 2026-10-06), which silently turned every route into the fallback.
+            HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(timeout)
+                .build());
     requestFactory.setReadTimeout(timeout);
     this.restClient = restClientBuilder.clone().requestFactory(requestFactory).build();
     this.baseUrl = properties.osrmUrl().replaceAll("/+$", "");
