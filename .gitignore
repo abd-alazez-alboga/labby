@@ -57,3 +57,6 @@ logs/
 
 # --- Claude local ---
 .claude/settings.local.json
+
+# Backend private uploads (dev STORAGE_DIR default ./data/uploads) — never commit user files.
+backend/data/

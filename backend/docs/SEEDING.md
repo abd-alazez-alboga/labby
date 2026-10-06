@@ -39,3 +39,25 @@ region is a realistic Syrian city:
 - **Surcharge window**: Morning rush 07:00–09:30, Sun–Thu (Syrian work week), +25%.
 - **Surge zones**: City Center, Mazzeh, Old City — default threshold steps (≥2→1.2×, ≥3→1.5×,
   ≥5→2.0×), zone cap 2.0×.
+
+## Approved demo drivers (M5-T5)
+
+`runner/DevDriverSeeder.java` — dev profile, runs after the account and region seeders,
+idempotent per driver (skipped once the account has a driver profile, so admin edits survive
+restarts; skipped entirely while **Damascus** is missing). Each demo driver is fully onboarded:
+approved application with its stage history, approved personal item, active `driver` role,
+exactly one ACTIVE approved vehicle (2 photos) serving Damascus service types, and four approved
+current documents (ID, licence, registration, insurance). Files are plain coloured PNG
+placeholders written through the `StorageProvider` (dev `STORAGE_DIR`, gitignored
+`backend/data/`).
+
+| Phone | Name | Vehicle | Plate | Seats | Service types | Note |
+|---|---|---|---|---|---|---|
+| `+963900000002` | Dev Driver | Kia Rio 2019, White | دمشق501234 | 4 | Economy | M2 fixture, backfilled |
+| `+963900000005` | سامر الخطيب | Hyundai Accent 2018, Silver | دمشق502345 | 4 | Economy, Comfort | |
+| `+963900000006` | ليلى حداد | Toyota Corolla 2021, White | دمشق503456 | 4 | Comfort | insurance expires in 20 days (expiry dashboard demo) |
+| `+963900000007` | عمر النوري | Kia Carnival 2017, Grey | دمشق504567 | 7 | Economy, Family | |
+
+All use password `Password1!`; the new ones default to Arabic. Documents are valid 365 days
+from the seed date (except the insurance noted above). `+963900000003` stays a plain rider: it
+is the applicant for onboarding walkthroughs.
