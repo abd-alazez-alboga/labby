@@ -256,9 +256,15 @@ public class DriverDocumentServiceImpl implements DriverDocumentService {
     return currentFor(renewal).orElseThrow(() -> notARenewal(renewal.getId()));
   }
 
-  /** A pending renewal; a decided one is 409 (the other decision won). */
+  /**
+   * A pending renewal, locked for the decision; a decided one is 409 (the other decision won). The
+   * row lock makes a concurrent decision wait for the winner's commit and then see it decided.
+   */
   private DriverDocument requirePendingRenewal(UUID documentId) {
-    DriverDocument renewal = requireDocument(documentId);
+    DriverDocument renewal =
+        driverDocumentRepository
+            .findForUpdate(documentId)
+            .orElseThrow(() -> notARenewal(documentId));
     if (renewal.getReviewStatus() == ReviewStatus.PENDING) {
       return renewal;
     }
