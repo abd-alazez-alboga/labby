@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.service.DocumentExpiryService;
+import com.labby.backend.service.DriverRoleService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,6 +36,7 @@ class DocumentExpiryIntegrationTest extends AbstractOnboardingIntegrationTest {
   @TestBean private Clock clock;
 
   @Autowired private DocumentExpiryService documentExpiryService;
+  @Autowired private DriverRoleService driverRoleService;
 
   private String admin;
   private UUID economy;
@@ -238,6 +240,28 @@ class DocumentExpiryIntegrationTest extends AbstractOnboardingIntegrationTest {
     ok(post("/api/v1/admin/document-renewals/" + renewal + "/approve", null, admin), HttpStatus.OK);
     assertThat(driverRole(driver).get("state").asText()).isEqualTo("suspended");
     assertThat(outboxEvents(driver.userId())).doesNotContain("driver.reinstated");
+  }
+
+  @Test
+  @DisplayName(
+      "stale candidate: suspension re-checks under the role lock and skips a renewed driver")
+  void shouldNotSuspendOnAStaleRead() {
+    Account driver = approvedDriver("+963938000041", "STL1", economy, admin);
+    setInsuranceExpiry(driver.userId(), today().plusDays(1));
+    advanceDays(2);
+    UUID renewal = submitRenewal(driver, "insurance");
+    // The admin approves the renewal before the job runs, so the job's earlier read is stale:
+    // suspending now must re-check and refuse, leaving the driver active.
+    jdbcTemplate.update(
+        "UPDATE documents SET review_status = 'superseded' WHERE driver_user_id = ?"
+            + " AND type = 'insurance' AND review_status = 'approved'",
+        driver.userId());
+    jdbcTemplate.update(
+        "UPDATE documents SET review_status = 'approved' WHERE document_id = ?", renewal);
+
+    assertThat(driverRoleService.suspendForExpiredDocument(driver.userId())).isFalse();
+    assertThat(driverRole(driver).get("state").asText()).isEqualTo("active");
+    assertThat(outboxEvents(driver.userId())).doesNotContain("driver.suspended");
   }
 
   @Test

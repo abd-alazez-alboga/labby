@@ -48,8 +48,12 @@ public class DriverRoleServiceImpl implements DriverRoleService {
 
   @Override
   public boolean suspendForExpiredDocument(UUID userId) {
-    Optional<RoleAssignment> role = driverRole(userId);
-    if (role.isEmpty() || role.get().getState() != RoleState.ACTIVE) {
+    // Lock, then re-check under the lock: a renewal or switch approved since the job read its
+    // candidates must win, or the driver would stay suspended with nothing expired.
+    Optional<RoleAssignment> role = lockedDriverRole(userId);
+    if (role.isEmpty()
+        || role.get().getState() != RoleState.ACTIVE
+        || !hasExpiredCurrentDocument(userId)) {
       return false;
     }
     role.get().setState(RoleState.SUSPENDED);
@@ -64,7 +68,7 @@ public class DriverRoleServiceImpl implements DriverRoleService {
 
   @Override
   public boolean reinstateIfNoExpiredDocument(UUID userId) {
-    Optional<RoleAssignment> role = driverRole(userId);
+    Optional<RoleAssignment> role = lockedDriverRole(userId);
     if (role.isEmpty()
         || role.get().getState() != RoleState.SUSPENDED
         || role.get().getSuspensionReason() != SuspensionReason.DOCUMENT_EXPIRED
@@ -95,6 +99,10 @@ public class DriverRoleServiceImpl implements DriverRoleService {
 
   private Optional<RoleAssignment> driverRole(UUID userId) {
     return roleAssignmentRepository.findByUserIdAndRole(userId, Role.DRIVER);
+  }
+
+  private Optional<RoleAssignment> lockedDriverRole(UUID userId) {
+    return roleAssignmentRepository.findForUpdate(userId, Role.DRIVER);
   }
 
   /** Current = approved ID/licence + the ACTIVE vehicle's approved registration/insurance. */

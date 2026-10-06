@@ -16,6 +16,7 @@ import com.labby.backend.enums.ReviewStatus;
 import com.labby.backend.model.DriverDocument;
 import com.labby.backend.repository.DriverDocumentRepository;
 import com.labby.backend.service.DocumentExpiryServiceImpl;
+import com.labby.backend.service.DocumentReminderWriter;
 import com.labby.backend.service.DriverRoleService;
 import com.labby.backend.service.NotificationService;
 import com.labby.backend.service.OperatingCalendar;
@@ -25,6 +26,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,11 +61,15 @@ class DocumentExpiryServiceImplTest {
             Clock.fixed(NOW, ZoneOffset.UTC), new OnboardingProperties("Asia/Damascus", "-"));
     service =
         new DocumentExpiryServiceImpl(
-            driverDocumentRepository, driverRoleService, notificationService, calendar);
+            driverDocumentRepository,
+            driverRoleService,
+            new DocumentReminderWriter(driverDocumentRepository, notificationService, calendar),
+            calendar);
   }
 
   private static DriverDocument document(LocalDate expiresOn) {
     return DriverDocument.builder()
+        .id(UUID.randomUUID())
         .driverUserId(DRIVER)
         .type(DocumentType.INSURANCE)
         .expiresOn(expiresOn)
@@ -85,6 +91,8 @@ class DocumentExpiryServiceImplTest {
     DriverDocument alreadyReminded = document(TODAY.plusDays(5));
     alreadyReminded.setReminder7SentAt(NOW.minusSeconds(86_400));
     current(in30, in7, alreadyReminded);
+    when(driverDocumentRepository.findById(in30.getId())).thenReturn(Optional.of(in30));
+    when(driverDocumentRepository.findById(in7.getId())).thenReturn(Optional.of(in7));
 
     service.runExpiryCheck();
 
