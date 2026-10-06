@@ -68,6 +68,14 @@ public class DriverProfile {
   @Column(name = "personal_review_note", length = 1000)
   private String personalReviewNote;
 
+  /** Online/offline (DRV-05); only an approved driver may be online (V7 CHECK). */
+  @Builder.Default
+  @Column(name = "is_online", nullable = false)
+  private boolean online = false;
+
+  @Column(name = "online_changed_at")
+  private Instant onlineChangedAt;
+
   @Version
   @Column(name = "version", nullable = false)
   private long version;

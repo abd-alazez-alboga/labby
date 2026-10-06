@@ -1,0 +1,434 @@
+openapi: 3.1.0
+info:
+  title: Labby Realtime API (M6 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M6. The clients (M6-T4) build against this document; the
+    backend (M6-T2 notifications, M6-T3 tracking + routing) must implement it exactly — on
+    conflict after T2/T3 land, the implementation is the truth. SRS: NTF-01..03, TRK-01, TRK-04,
+    DRV-05 (online/offline toggle; weekly availability windows arrive with their consumer, the
+    scheduled-ride board, in M12), ES-03, ES-04, NFR-A3, NFR-P3 groundwork; UC-S-11/12/25, UC-D-04.
+
+
+    **Notification delivery (NTF-01..03, UC-S-25).** Every notification is queued in
+    `notification_outbox` (the M5 seam) by the service that causes it. A dispatcher (M6-T2)
+    drains the outbox: it renders the event's template in BOTH English and Arabic (brand لبي),
+    stores ONE notification-center row (`notifications`, idempotent per outbox row) and — unless
+    the user muted that category — pushes it via FCM to the user's registered devices of the
+    notification's audience, in the user's current language. Push failures or a missing device
+    never lose the center row (NFR-A3); the row records `pushStatus`. M5's already-queued
+    onboarding events flow through the same dispatcher (the "backfill hook").
+
+
+    **Categories (NTF-01/02).** `ride` (ride events), `chat`, `scheduled` (scheduled-ride
+    reminders), `promotions`, `account` (account/system — includes the M5 onboarding, document
+    and suspension events), `safety`. Muting a category stops PUSH only; the center still records
+    it (UC-S-25 A1). `ride` and `safety` are ride-critical/safety and can never be muted (UC-S-12
+    E1 — the API returns them with `locked: true` and refuses to disable them: 400).
+
+
+    **Audience.** Each notification targets the client it belongs to — `rider`, `driver`,
+    `admin`, or `all` (account-level). A client's center lists its own audience plus `all`, and
+    pushes go only to devices registered for that audience (or every device for `all`). M5 events
+    target `driver`.
+
+
+    **Deep links (UC-S-11).** `link` is `{screen, params}` from a fixed catalog the clients map
+    to routes: `driver_application`, `driver_documents` (params: `documentType?`),
+    `driver_vehicles`, `notifications`; M7+ add `ride` (params: `rideId`) and later screens.
+    Unknown screens open the notification center.
+
+
+    **Driver availability (DRV-05, UC-D-04).** Going online requires: the driver role ACTIVE
+    (E1 — a suspended role is refused with its `suspensionReason`), an approved application and
+    an active approved vehicle. The balance floor (COM-03, UC-D-04 E2) arrives in M8: online is
+    then allowed but `offersBlockedReason` explains why no offers come. Going offline during an
+    active ride is refused from M7 on (409). GPS permission (E3) is client-side.
+
+
+    **Location streaming (TRK-01, TRK-04, NFR-P3).** While online the driver app streams a
+    sample every `streamIntervalSeconds` (default 5, `LOCATION_INTERVAL_SECONDS`) over the
+    WebSocket below; `POST /api/v1/driver/locations` is the REST fallback (batch, e.g. after a
+    reconnect). The server keeps only each driver's latest position (`driver_locations`; full ride
+    traces arrive in M7). A driver whose last sample is older than `staleAfterSeconds` (default
+    30, `LOCATION_STALE_SECONDS`) is STALE: excluded from new offers until samples resume (M7
+    dispatch reads this). Samples from an offline driver are rejected; samples with
+    `recordedAt` older than the stored one are ignored (out-of-order delivery).
+
+
+    **WebSocket protocol — `GET /api/v1/realtime` (upgrade).** JSON text frames
+    `{"type": ..., ...}`. No token in the URL. (1) Client sends `{"type":"auth","token":"<access
+    token>"}` within 10 s, else the server closes with 4401. The token is validated exactly like
+    a Bearer header (signature, expiry, live session). Server answers `{"type":"ready",
+    "userId", "streamIntervalSeconds", "staleAfterSeconds"}`. (2) Before the access token
+    expires the client sends another `auth` frame with the refreshed token; when the token
+    expires without one, or the session is revoked (logout, password change), the server closes
+    with 4401 and the client reconnects after refreshing. (3) Driver → server:
+    `{"type":"location","lat","lng","headingDeg"?,"speedMps"?,"accuracyM"?,"recordedAt"}`;
+    the server acknowledges nothing per sample (fire-and-forget) but sends
+    `{"type":"error","code","message"}` for a rejected sample (`not_online`, `invalid_sample`,
+    `not_driver`) without closing. (4) `{"type":"ping"}` → `{"type":"pong"}` keep-alive; the
+    server closes idle sockets after 60 s without frames. (5) M7 adds server → client ride
+    events (`ride.*`, `offer.*`, driver position relay) on the same socket — clients must ignore
+    unknown `type`s. Close codes: 4401 unauthorized/expired, 4400 malformed frame, 1001 server
+    shutdown (reconnect with backoff).
+
+
+    **Routing (ES-04, NFR-A3).** `POST /api/v1/routing/route` returns distance, duration and
+    the route geometry from the `RoutingProvider` seam: V1 = the public OSRM demo server
+    (`ROUTING_OSRM_URL`, 3 s timeout); a migration to self-hosted OSRM is config-only (ES-04
+    pre-launch gate). When OSRM is unreachable or errors, the provider falls back to a
+    straight-line estimate (great-circle distance × `ROUTING_FALLBACK_DETOUR_FACTOR`, default
+    1.3, at `ROUTING_FALLBACK_SPEED_KMH`, default 25) flagged `approximate: true` — never a hard
+    failure. Fare estimates (pricing × route) are M7. Map tiles: clients read the tile URL
+    template from runtime config (default the public OSM tile server), never hard-coded.
+
+
+    Errors use the global ErrorResponse shape from M1 (status, message, fieldErrors?). All
+    endpoints need an authenticated account (any role) unless stated.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Notifications
+  - name: Devices
+  - name: DriverAvailability
+  - name: Locations
+  - name: Routing
+
+paths:
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: Notification center, newest first (UC-S-11)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/App' }
+        - name: category
+          in: query
+          description: Optional filter
+          schema: { $ref: '#/components/schemas/NotificationCategory' }
+        - name: before
+          in: query
+          description: Cursor — the `nextCursor` of the previous page
+          schema: { type: string }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPage' }
+        '400': { description: Missing/unknown app or bad cursor }
+
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Unread count for the badge
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/App' }
+      responses:
+        '200':
+          description: Count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unread]
+                properties:
+                  unread: { type: integer }
+
+  /api/v1/notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark one notification read (idempotent)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: notificationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Read }
+        '404': { description: Unknown, or not the caller's }
+
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark every notification of this client's center read
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/App' }
+      responses:
+        '204': { description: Done }
+
+  /api/v1/notifications/preferences:
+    get:
+      tags: [Notifications]
+      summary: Per-category push preferences (UC-S-12)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: All six categories, each with its state
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/NotificationPreference' }
+    put:
+      tags: [Notifications]
+      summary: Update preferences (partial — only the listed categories change)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [category, enabled]
+                properties:
+                  category: { $ref: '#/components/schemas/NotificationCategory' }
+                  enabled: { type: boolean }
+      responses:
+        '200':
+          description: The full, updated list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/NotificationPreference' }
+        '400': { description: Disabling a locked category (ride, safety), or unknown category }
+
+  /api/v1/devices:
+    put:
+      tags: [Devices]
+      summary: Register (or re-assign) this device's FCM token
+      description: >
+        Called after login and whenever FCM rotates the token. A token already registered to
+        another account moves to the caller (one account per device at a time).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceRegistration' }
+      responses:
+        '204': { description: Registered }
+        '400': { description: Validation failure }
+
+  /api/v1/devices/{token}:
+    delete:
+      tags: [Devices]
+      summary: Unregister a token (on logout)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Removed (idempotent; unknown or foreign tokens are a no-op) }
+
+  /api/v1/driver/availability:
+    get:
+      tags: [DriverAvailability]
+      summary: Online state and whether the driver may go online
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: State
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverAvailability' }
+        '409': { description: The account has no driver profile }
+    put:
+      tags: [DriverAvailability]
+      summary: Go online / offline (UC-D-04)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [online]
+              properties:
+                online: { type: boolean }
+      responses:
+        '200':
+          description: New state (idempotent)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverAvailability' }
+        '409':
+          description: >
+            Cannot go online — `message` explains; the GET returns the machine-readable
+            `cannotGoOnlineReason`. From M7: cannot go offline during an active ride.
+
+  /api/v1/driver/locations:
+    post:
+      tags: [Locations]
+      summary: REST fallback for location samples (batch)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [samples]
+              properties:
+                samples:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items: { $ref: '#/components/schemas/LocationSample' }
+      responses:
+        '202': { description: Accepted (the newest valid sample becomes the current position) }
+        '400': { description: Invalid sample }
+        '409': { description: Driver is offline, or the account is not a driver }
+
+  /api/v1/routing/route:
+    post:
+      tags: [Routing]
+      summary: Route, distance and duration through 2..5 points (ES-04, NFR-A3)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points:
+                  type: array
+                  minItems: 2
+                  maxItems: 5
+                  description: Origin, up to 3 intermediate stops, destination (RIDE-01)
+                  items: { $ref: '#/components/schemas/LatLng' }
+      responses:
+        '200':
+          description: The route (approximate when OSRM was unavailable)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Route' }
+        '400': { description: Invalid points }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    App:
+      name: app
+      in: query
+      required: true
+      description: The calling client; its center = its own audience + `all`
+      schema: { type: string, enum: [rider, driver, admin] }
+  schemas:
+    NotificationCategory:
+      type: string
+      enum: [ride, chat, scheduled, promotions, account, safety]
+    DeepLink:
+      type: object
+      required: [screen]
+      properties:
+        screen: { type: string, examples: [driver_application, driver_documents, driver_vehicles, notifications] }
+        params:
+          type: object
+          additionalProperties: { type: string }
+    Notification:
+      type: object
+      required: [id, category, event, title, body, read, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/NotificationCategory' }
+        event: { type: string, description: Template key, e.g. driver_application.approved }
+        title: { type: string, description: In the caller's current language }
+        body: { type: string }
+        link:
+          oneOf:
+            - { $ref: '#/components/schemas/DeepLink' }
+            - { type: 'null' }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    NotificationPage:
+      type: object
+      required: [items, unread]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+        unread: { type: integer, description: Unread count of this client's center }
+        nextCursor: { type: [string, 'null'], description: Absent/null on the last page }
+    NotificationPreference:
+      type: object
+      required: [category, enabled, locked]
+      properties:
+        category: { $ref: '#/components/schemas/NotificationCategory' }
+        enabled: { type: boolean }
+        locked: { type: boolean, description: 'true for ride and safety: always enabled' }
+    DeviceRegistration:
+      type: object
+      required: [token, platform, app]
+      properties:
+        token: { type: string, minLength: 1, maxLength: 4096 }
+        platform: { type: string, enum: [android, ios, web] }
+        app: { type: string, enum: [rider, driver, admin] }
+    DriverAvailability:
+      type: object
+      required: [online, canGoOnline, streamIntervalSeconds, staleAfterSeconds]
+      properties:
+        online: { type: boolean }
+        onlineSince: { type: [string, 'null'], format: date-time }
+        canGoOnline: { type: boolean }
+        cannotGoOnlineReason:
+          type: [string, 'null']
+          enum: [role_suspended, not_approved, no_active_vehicle, null]
+          description: Set when canGoOnline is false (UC-D-04 E1)
+        suspensionReason:
+          type: [string, 'null']
+          description: The driver role's suspensionReason when role_suspended (auth-v1.yaml)
+        offersBlockedReason:
+          type: [string, 'null']
+          description: M8 balance floor (COM-03) — online but no offers; always null before M8
+        streamHealthy:
+          type: [boolean, 'null']
+          description: While online — a sample arrived within staleAfterSeconds (TRK-04)
+        streamIntervalSeconds: { type: integer, description: Send a sample this often (TRK-01) }
+        staleAfterSeconds: { type: integer }
+    LocationSample:
+      type: object
+      required: [lat, lng, recordedAt]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+        headingDeg: { type: [number, 'null'], minimum: 0, exclusiveMaximum: 360 }
+        speedMps: { type: [number, 'null'], minimum: 0 }
+        accuracyM: { type: [number, 'null'], minimum: 0 }
+        recordedAt: { type: string, format: date-time, description: Device fix time }
+    LatLng:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+    Route:
+      type: object
+      required: [distanceMeters, durationSeconds, geometry, approximate]
+      properties:
+        distanceMeters: { type: integer }
+        durationSeconds: { type: integer }
+        geometry:
+          type: object
+          description: GeoJSON LineString, [lng, lat] order (straight segments when approximate)
+          required: [type, coordinates]
+          properties:
+            type: { type: string, const: LineString }
+            coordinates:
+              type: array
+              items:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number }
+        approximate:
+          type: boolean
+          description: true = OSRM unreachable, straight-line estimate (NFR-A3)
