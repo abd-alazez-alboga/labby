@@ -17,7 +17,10 @@ info:
     the user muted that category — pushes it via FCM to the user's registered devices of the
     notification's audience, in the user's current language. Push failures or a missing device
     never lose the center row (NFR-A3); the row records `pushStatus`. M5's already-queued
-    onboarding events flow through the same dispatcher (the "backfill hook").
+    onboarding events flow through the same dispatcher (the "backfill hook"). Push payload: the
+    FCM notification carries `title` + `body` in the user's language; its data map carries
+    `notificationId`, `category`, `event` and, when the notification has a deep link, `screen` +
+    `params` (a JSON object encoded as a string, e.g. `{"documentType":"insurance"}`).
 
 
     **Categories (NTF-01/02).** `ride` (ride events), `chat`, `scheduled` (scheduled-ride

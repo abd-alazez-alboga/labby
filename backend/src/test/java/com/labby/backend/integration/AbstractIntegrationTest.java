@@ -42,5 +42,7 @@ public abstract class AbstractIntegrationTest {
     // The daily expiry job never fires on its own in tests; they call its service on a
     // controlled clock (M5-T2).
     registry.add("labby.onboarding.expiry-job-cron", () -> "-");
+    // The notification dispatcher never fires on its own either; tests call it directly (M6-T2).
+    registry.add("labby.notifications.dispatch-cron", () -> "-");
   }
 }

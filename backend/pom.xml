@@ -29,6 +29,7 @@
     <google-java-format.version>1.24.0</google-java-format.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
     <checkstyle.version>10.20.1</checkstyle.version>
+    <firebase-admin.version>9.9.0</firebase-admin.version>
   </properties>
 
   <dependencies>
@@ -97,6 +98,29 @@
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
       <version>${springdoc.version}</version>
+    </dependency>
+
+    <!-- Push notifications (ES-03): FCM via the Firebase Admin SDK; credentials from env only -->
+    <dependency>
+      <groupId>com.google.firebase</groupId>
+      <artifactId>firebase-admin</artifactId>
+      <version>${firebase-admin.version}</version>
+      <exclusions>
+        <!-- Only FCM is used: keep the Firestore / Cloud Storage client stacks (gRPC) out. -->
+        <exclusion>
+          <groupId>com.google.cloud</groupId>
+          <artifactId>google-cloud-firestore</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.cloud</groupId>
+          <artifactId>google-cloud-storage</artifactId>
+        </exclusion>
+        <!-- spring-jcl already provides the commons-logging API. -->
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Logging -->

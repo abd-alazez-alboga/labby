@@ -85,3 +85,11 @@ labby:
     # Daily document-expiry job (30/7-day reminders, auto-suspension), evaluated in the timezone
     # above. Spring cron (second minute hour day month weekday); "-" disables it.
     expiry-job-cron: ${ONBOARDING_EXPIRY_JOB_CRON:0 5 0 * * *}
+  notifications:
+    # Outbox dispatcher (NTF-01..03): renders queued events into the notification center and
+    # pushes them via FCM. Spring cron (second minute hour day month weekday); "-" disables it.
+    dispatch-cron: ${NOTIFICATIONS_DISPATCH_CRON:*/5 * * * * *}
+    # Firebase service account (ES-03) — env only, never committed. Set ONE of the two; when both
+    # are empty pushes are logged instead of sent (dev/tests), the center still records everything.
+    firebase-credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+    firebase-credentials-json: ${FIREBASE_CREDENTIALS_JSON:}

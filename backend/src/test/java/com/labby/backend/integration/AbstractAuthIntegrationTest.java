@@ -78,6 +78,10 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     // audit_log is append-only (V4 trigger blocks DELETE) and references users; TRUNCATE
     // bypasses row-level triggers, so the shared test DB can still be reset between tests.
     jdbcTemplate.execute("TRUNCATE audit_log");
+    jdbcTemplate.update("DELETE FROM notifications");
+    jdbcTemplate.update("DELETE FROM notification_outbox");
+    jdbcTemplate.update("DELETE FROM notification_preferences");
+    jdbcTemplate.update("DELETE FROM device_tokens");
     jdbcTemplate.update("DELETE FROM refresh_tokens");
     jdbcTemplate.update("DELETE FROM otp_codes");
     jdbcTemplate.update("DELETE FROM role_assignments");

@@ -54,6 +54,7 @@ abstract class AbstractOnboardingIntegrationTest extends AbstractAuthIntegration
 
   @AfterEach
   void cleanOnboardingRows() {
+    jdbcTemplate.update("DELETE FROM notifications");
     jdbcTemplate.update("DELETE FROM notification_outbox");
     jdbcTemplate.update("DELETE FROM documents");
     jdbcTemplate.update("DELETE FROM vehicle_photos");
