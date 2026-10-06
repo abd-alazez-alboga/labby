@@ -180,7 +180,7 @@ describe('login + driver gate (UC-S-02, M2-T4)', () => {
     renderRouter('src/app');
 
     await screen.findByTestId('welcome-screen');
-    expect(screen.getByText('انطلق مع لابي')).toBeTruthy();
+    expect(screen.getByText('انطلق مع لبي')).toBeTruthy();
 
     fireEvent.press(screen.getByTestId('welcome-login'));
     await screen.findByTestId('login-screen');

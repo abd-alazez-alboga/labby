@@ -240,7 +240,7 @@ export const translations = {
   },
   ar: {
     common: {
-      appName: 'لابي',
+      appName: 'لبي',
       continue: 'متابعة',
       save: 'حفظ',
       showPassword: 'إظهار كلمة المرور',
@@ -254,7 +254,7 @@ export const translations = {
     },
     home: {
       title: 'الرئيسية',
-      welcome: 'أهلاً بك في لابي',
+      welcome: 'أهلاً بك في لبي',
       subtitle: 'رحلتك، على طريقتك.',
       openSettings: 'الإعدادات',
     },
@@ -307,7 +307,7 @@ export const translations = {
       noValidRole: 'لا يمكن لهذا الحساب استخدام تطبيق الركاب.',
       throttled: 'محاولات فاشلة كثيرة. يرجى الانتظار قليلًا ثم المحاولة مرة أخرى.',
       forgotPassword: 'هل نسيت كلمة المرور؟',
-      noAccount: 'جديد في لابي؟ أنشئ حسابًا',
+      noAccount: 'جديد في لبي؟ أنشئ حسابًا',
     },
     register: {
       title: 'إنشاء حساب',

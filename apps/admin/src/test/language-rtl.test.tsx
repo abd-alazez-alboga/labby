@@ -27,7 +27,7 @@ describe('language switching', () => {
     expect(document.documentElement.getAttribute('dir')).toBe('rtl');
     expect(document.documentElement.getAttribute('lang')).toBe('ar');
     // Shell strings re-render in Arabic
-    expect(screen.getByRole('heading', { name: 'لوحة تحكم لابي' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'لوحة تحكم لبي' })).toBeInTheDocument();
     expect(await screen.findByText('تصل لوحة تحكم المشرف في مرحلة لاحقة.')).toBeInTheDocument();
   });
 
