@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { deleteAccount, isValidOtp, request2faCode } from '../../api/auth';
 import { ApiError } from '../../api/http-client';
@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/auth-context';
 import { Button, ErrorBanner, FormField } from '../../components/form';
 import { useCooldown } from '../../hooks/use-cooldown';
 import { useLocale } from '../../i18n/locale-context';
+import { ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, radius, spacing } from '../../theme/tokens';
 
 /**
@@ -72,7 +73,7 @@ export default function DeleteAccountScreen() {
   };
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
@@ -122,7 +123,7 @@ export default function DeleteAccountScreen() {
           />
         </View>
       ) : null}
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

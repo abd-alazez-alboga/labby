@@ -24,6 +24,7 @@ import {
   type NotificationCategory,
 } from '../../api/notifications';
 import { Button, ErrorBanner } from '../../components/form';
+import { useInsetContentStyle } from '../../components/screen';
 import { EmptyView, ErrorView, LoadingView } from '../../components/status-view';
 import { useLocale } from '../../i18n/locale-context';
 import { opensNotificationCenter, resolveDeepLink } from '../../notifications/deep-links';
@@ -39,6 +40,7 @@ export default function NotificationCenterScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>(null);
   const center = useNotificationCenter(filter);
+  const listStyle = useInsetContentStyle(styles.list);
 
   const open = (notification: AppNotification) => {
     center.markRead(notification);
@@ -143,7 +145,7 @@ export default function NotificationCenterScreen() {
         }}
         onEndReachedThreshold={0.4}
         ListFooterComponent={footer}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={listStyle}
         refreshControl={
           <RefreshControl
             refreshing={center.refreshing}

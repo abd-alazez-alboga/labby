@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ApiStatus } from '../components/api-status';
 import { Button } from '../components/form';
+import { useBottomBarPadding } from '../components/screen';
 import { useLocale } from '../i18n/locale-context';
 import { useCurrentPosition } from '../location/use-current-position';
 import { useOptionalNotifications } from '../notifications/notifications-context';
@@ -36,6 +37,8 @@ export default function HomeScreen() {
   };
 
   const unread = notifications?.unread ?? null;
+  // The panel is the fixed bottom bar: keep its last control above the nav bar.
+  const panelPaddingBottom = useBottomBarPadding(spacing.lg);
 
   return (
     <View style={styles.container} testID="home-screen">
@@ -66,7 +69,7 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.panel}>
+      <View style={[styles.panel, { paddingBottom: panelPaddingBottom }]} testID="home-panel">
         {blocked ? (
           <View style={styles.regionBlock} testID={`region-${blocked.status}`}>
             <Text style={[styles.welcome, isRTL && styles.textRtl]}>

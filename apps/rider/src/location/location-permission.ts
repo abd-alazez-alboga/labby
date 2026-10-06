@@ -7,11 +7,14 @@
  */
 import * as Location from 'expo-location';
 
+import { runExclusive } from '../permissions/permission-queue';
+
 let inFlight: Promise<Location.LocationPermissionResponse> | null = null;
 
 export function requestLocationPermission(): Promise<Location.LocationPermissionResponse> {
   if (!inFlight) {
-    inFlight = Location.requestForegroundPermissionsAsync().finally(() => {
+    // Queued behind any other runtime prompt (Android shows one at a time).
+    inFlight = runExclusive(() => Location.requestForegroundPermissionsAsync()).finally(() => {
       inFlight = null;
     });
   }

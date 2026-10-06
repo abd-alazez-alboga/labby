@@ -6,7 +6,7 @@
  * route both check it); it is NOT the M7 booking UI.
  */
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { failureKind } from '../../api/http-client';
 import { getRoute, type Route } from '../../api/routing';
@@ -15,6 +15,7 @@ import { useLocale } from '../../i18n/locale-context';
 import { isValidLatLng, type LatLng } from '../../map/geo';
 import { LabbyMap } from '../../map/labby-map';
 import type { MapMarker } from '../../map/map-bridge';
+import { ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, radius, spacing } from '../../theme/tokens';
 
 /** Demo points in Damascus (the launch region's seed data). */
@@ -72,7 +73,7 @@ export default function RoutePreviewScreen() {
       : [];
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       testID="route-preview-screen"
@@ -135,7 +136,7 @@ export default function RoutePreviewScreen() {
           />
         </View>
       ) : null}
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

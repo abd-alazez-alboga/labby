@@ -6,7 +6,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { type FailureKind, failureKind } from '../../api/http-client';
 import {
@@ -19,6 +19,7 @@ import {
 import { ErrorBanner } from '../../components/form';
 import { ErrorView, LoadingView } from '../../components/status-view';
 import { useLocale } from '../../i18n/locale-context';
+import { Screen, ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, radius, spacing } from '../../theme/tokens';
 
 type LoadState =
@@ -91,25 +92,25 @@ export default function NotificationPreferencesScreen() {
 
   if (state.kind === 'loading') {
     return (
-      <View style={styles.fill} testID="notification-preferences-screen">
+      <Screen style={styles.fill} testID="notification-preferences-screen">
         <LoadingView testID="preferences-loading" />
-      </View>
+      </Screen>
     );
   }
   if (state.kind === 'error') {
     return (
-      <View style={styles.fill} testID="notification-preferences-screen">
+      <Screen style={styles.fill} testID="notification-preferences-screen">
         <ErrorView
           kind={state.failure}
           onRetry={() => void load()}
           testID={`preferences-error-${state.failure}`}
         />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.fill}
       contentContainerStyle={styles.container}
       testID="notification-preferences-screen"
@@ -180,7 +181,7 @@ export default function NotificationPreferencesScreen() {
           </View>
         ))}
       </View>
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

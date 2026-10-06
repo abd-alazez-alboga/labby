@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { isValidPhone, login } from '../../api/auth';
 import { ApiError } from '../../api/http-client';
 import { useAuth } from '../../auth/auth-context';
 import { Button, ErrorBanner, FormField } from '../../components/form';
 import { useLocale } from '../../i18n/locale-context';
+import { ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, spacing } from '../../theme/tokens';
 
 /**
@@ -61,7 +62,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
@@ -104,7 +105,7 @@ export default function LoginScreen() {
           testID="login-to-register"
         />
       </View>
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

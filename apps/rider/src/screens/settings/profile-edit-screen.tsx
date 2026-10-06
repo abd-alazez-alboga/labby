@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   NAME_MAX_LENGTH,
@@ -12,6 +12,7 @@ import { useAuth } from '../../auth/auth-context';
 import { Button, ErrorBanner, FormField, SuccessBanner } from '../../components/form';
 import { type AppLocale, SUPPORTED_LOCALES } from '../../i18n/translations';
 import { useLocale } from '../../i18n/locale-context';
+import { ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, radius, spacing } from '../../theme/tokens';
 
 const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
@@ -103,7 +104,7 @@ export default function ProfileEditScreen() {
   };
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
@@ -162,7 +163,7 @@ export default function ProfileEditScreen() {
       </View>
 
       <Button label={t('common.save')} onPress={save} loading={busy} testID="profile-save" />
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

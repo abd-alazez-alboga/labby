@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 import { type DevicePlatform, registerDevice, unregisterDevice } from '../api/devices';
+import { runExclusive } from '../permissions/permission-queue';
 import { notifications } from './notifications-module';
 import { isRemotePushSupported } from './push-support';
 
@@ -63,7 +64,9 @@ async function ensurePermission(): Promise<boolean> {
   const current = await notifications().getPermissionsAsync();
   if (current.granted) return true;
   if (!current.canAskAgain) return false;
-  const requested = await notifications().requestPermissionsAsync();
+  // Queued behind any other runtime prompt: fired alongside the location
+  // prompt after sign-in, Android would otherwise drop one of them.
+  const requested = await runExclusive(() => notifications().requestPermissionsAsync());
   return requested.granted;
 }
 

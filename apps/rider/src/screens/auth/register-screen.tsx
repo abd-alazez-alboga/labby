@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   isValidPassword,
@@ -16,6 +16,7 @@ import { Button, ErrorBanner, FormField } from '../../components/form';
 import { OtpStep } from '../../components/otp-step';
 import { useCooldown } from '../../hooks/use-cooldown';
 import { useLocale } from '../../i18n/locale-context';
+import { ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, radius, spacing } from '../../theme/tokens';
 
 type Step = 'phone' | 'otp' | 'details' | 'reactivated';
@@ -172,7 +173,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
@@ -315,7 +316,7 @@ export default function RegisterScreen() {
           />
         </View>
       ) : null}
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

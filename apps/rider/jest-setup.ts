@@ -72,3 +72,10 @@ jest.mock('expo-notifications', () => ({
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   getLastNotificationResponseAsync: jest.fn(async () => null),
 }));
+
+// react-native-safe-area-context ships an official Jest mock: zero insets by
+// default, real insets when a suite wraps the UI in
+// <SafeAreaProvider initialMetrics={…}> (see components/__tests__/screen.test.tsx).
+jest.mock('react-native-safe-area-context', () =>
+  require('react-native-safe-area-context/jest/mock').default,
+);

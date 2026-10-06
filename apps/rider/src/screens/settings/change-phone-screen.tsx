@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import {
   isValidPhone,
@@ -12,6 +12,7 @@ import { useAuth } from '../../auth/auth-context';
 import { Button, ErrorBanner, FormField, SuccessBanner } from '../../components/form';
 import { OtpStep } from '../../components/otp-step';
 import { useLocale } from '../../i18n/locale-context';
+import { ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, spacing } from '../../theme/tokens';
 
 type Step = 'newPhone' | 'verifyCurrent' | 'verifyNew' | 'done';
@@ -109,7 +110,7 @@ export default function ChangePhoneScreen() {
   };
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
@@ -169,7 +170,7 @@ export default function ChangePhoneScreen() {
           <SuccessBanner message={t('changePhone.done')} testID="change-phone-done" />
         </View>
       ) : null}
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

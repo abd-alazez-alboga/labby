@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import {
   isValidPassword,
@@ -14,6 +14,7 @@ import { Button, ErrorBanner, FormField, SuccessBanner } from '../../components/
 import { OtpStep } from '../../components/otp-step';
 import { useCooldown } from '../../hooks/use-cooldown';
 import { useLocale } from '../../i18n/locale-context';
+import { ScreenScrollView } from '../../components/screen';
 import { colors, fontSize, spacing } from '../../theme/tokens';
 
 type Step = 'phone' | 'otp' | 'newPassword' | 'done';
@@ -116,7 +117,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
@@ -205,7 +206,7 @@ export default function ForgotPasswordScreen() {
           />
         </View>
       ) : null}
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

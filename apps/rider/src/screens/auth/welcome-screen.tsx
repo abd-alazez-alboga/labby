@@ -4,6 +4,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '../../auth/auth-context';
 import { Button } from '../../components/form';
+import { Screen } from '../../components/screen';
 import { useLocale } from '../../i18n/locale-context';
 import { colors, fontSize, radius, spacing } from '../../theme/tokens';
 
@@ -20,7 +21,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
 
   return (
-    <View style={styles.container} testID="welcome-screen">
+    <Screen edges={['top', 'bottom']} style={styles.container} testID="welcome-screen">
       <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityRole="image" />
       <Text style={[styles.tagline, isRTL && styles.textRtl]}>{t('welcome.tagline')}</Text>
 
@@ -55,7 +56,7 @@ export default function WelcomeScreen() {
           testID="welcome-login"
         />
       </View>
-    </View>
+    </Screen>
   );
 }
 

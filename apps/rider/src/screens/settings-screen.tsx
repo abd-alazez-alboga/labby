@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { updateProfile } from '../api/auth';
 import { ApiStatus } from '../components/api-status';
@@ -10,6 +10,7 @@ import { type AppLocale, SUPPORTED_LOCALES } from '../i18n/translations';
 import { useLocale } from '../i18n/locale-context';
 import { useOptionalNotifications } from '../notifications/notifications-context';
 import { UnreadBadge } from '../notifications/unread-badge';
+import { ScreenScrollView } from '../components/screen';
 import { colors, fontSize, radius, spacing } from '../theme/tokens';
 
 const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
@@ -67,7 +68,7 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       testID="settings-screen"
@@ -185,7 +186,7 @@ export default function SettingsScreen() {
       />
 
       <ApiStatus />
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 
