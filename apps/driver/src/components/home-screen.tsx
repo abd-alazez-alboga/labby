@@ -77,6 +77,12 @@ export function HomeScreen() {
             {t('region.finding')}
           </Text>
         ) : null}
+        <Link href="/vehicles" style={styles.secondaryLink} testID="vehicles-link">
+          {t('home.myVehicle')}
+        </Link>
+        <Link href="/documents" style={styles.secondaryLink} testID="documents-link">
+          {t('home.myDocuments')}
+        </Link>
         <Link href="/settings" style={styles.settingsLink} testID="settings-link">
           {t('home.goToSettings')}
         </Link>
@@ -173,6 +179,20 @@ const styles = StyleSheet.create({
   regionLoading: {
     color: colors.textSecondary,
     fontSize: 14,
+  },
+  secondaryLink: {
+    color: colors.purple700,
+    borderColor: colors.purple700,
+    borderWidth: 1,
+    backgroundColor: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    textAlign: 'center',
+    alignSelf: 'stretch',
   },
   settingsLink: {
     // Solid fallback for --labby-gradient-button.

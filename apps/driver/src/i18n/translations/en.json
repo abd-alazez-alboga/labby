@@ -5,7 +5,9 @@
   "home": {
     "title": "Welcome to Labby Driver",
     "subtitle": "Your trips will appear here once rides go live.",
-    "goToSettings": "Settings"
+    "goToSettings": "Settings",
+    "myVehicle": "My vehicle",
+    "myDocuments": "My documents"
   },
   "region": {
     "finding": "Finding your area…",
@@ -107,11 +109,22 @@
   },
   "gate": {
     "title": "Become a Labby driver",
-    "body": "Your account does not have an active driver role yet. The driver application will open right here soon — stay tuned.",
+    "body": "Apply in a few short steps. We review every application and keep you updated at each stage.",
     "suspendedTitle": "Driver access suspended",
     "suspendedBody": "Your driver access is currently suspended, so driving functions are unavailable. Contact support for details.",
     "signedInAs": "Signed in as {{name}}",
-    "logout": "Log out"
+    "logout": "Log out",
+    "expiredTitle": "Driving paused: a document expired",
+    "expiredBody": "One of your documents has passed its expiry date, so your driver access is suspended. Renew it to get back on the road.",
+    "expiredWhatNow": "How to get back on the road",
+    "expiredSteps": "Upload the renewed document with its new number and expiry date. Your access returns as soon as the renewal is approved.",
+    "renewDocuments": "Renew my documents",
+    "checkStatus": "Check my status again",
+    "needTitle": "What you'll need",
+    "needPersonal": "• Your name and a clear profile photo",
+    "needDocuments": "• Government ID, driver's license, vehicle registration and insurance — each with its number and expiry date",
+    "needVehicle": "• Your vehicle's details and 1 to 4 photos of it",
+    "start": "Start my application"
   },
   "account": {
     "section": "Account",
@@ -163,6 +176,222 @@
       "confirm": "Delete my account",
       "wrongCode": "Wrong or expired verification code.",
       "blocked": "Your account cannot be deleted right now — finish any active ride and settle your balance first."
+    }
+  },
+  "onboarding": {
+    "loading": "Loading…",
+    "reviewerNote": "Note from the reviewer",
+    "wizard": {
+      "stepOf": "Step {{current}} of {{total}}"
+    },
+    "steps": {
+      "personal": "Personal details",
+      "vehicle": "Vehicle details",
+      "photos": "Vehicle photos",
+      "review": "Review and submit"
+    },
+    "documentTypes": {
+      "government_id": "Government ID",
+      "drivers_license": "Driver's license",
+      "vehicle_registration": "Vehicle registration",
+      "insurance": "Insurance"
+    },
+    "documentHints": {
+      "government_id": "Upload your national ID card or passport. Make sure all text is readable.",
+      "drivers_license": "Upload your valid driver's license. Make sure all text is readable.",
+      "vehicle_registration": "Upload the registration document of the vehicle you will drive.",
+      "insurance": "Upload the insurance document covering the vehicle you will drive."
+    },
+    "document": {
+      "file": "Document file",
+      "fileHint": "One file: a photo (JPEG or PNG) or a PDF, up to 10 MB.",
+      "number": "Document number",
+      "expiresOn": "Expiry date",
+      "expiryHint": "The document must still be valid after today.",
+      "pickDate": "Select a date"
+    },
+    "file": {
+      "uploading": "Uploading…",
+      "rejected": "This file couldn't be used. It may be unreadable or of an unsupported type — try another one.",
+      "tooLarge": "This file is too large. The maximum size is 10 MB.",
+      "wrongTypeDocument": "Use a photo (JPEG or PNG) or a PDF file.",
+      "wrongTypePhoto": "Use a JPEG or PNG photo.",
+      "cameraDenied": "Camera access is off. Allow it in your phone's settings, or choose a file instead.",
+      "source": {
+        "camera": "Take a photo",
+        "library": "Choose from gallery",
+        "files": "Choose a file (PDF or image)"
+      }
+    },
+    "personal": {
+      "hint": "Your details as they appear on your account. Riders will see your name and photo.",
+      "photo": "Profile photo",
+      "photoHint": "A clear, recent photo of your face — required to apply.",
+      "noPhoto": "No profile photo yet.",
+      "confirm": "I've reviewed my name and photo and they are correct"
+    },
+    "vehicle": {
+      "hint": "Enter the details exactly as they appear on the vehicle registration.",
+      "title": "Vehicle",
+      "make": "Make",
+      "model": "Model",
+      "year": "Year",
+      "color": "Color",
+      "plate": "Plate number",
+      "seats": "Passenger seats",
+      "seatsPlaceholder": "1–8",
+      "photosHint": "Add 1 to {{max}} clear photos of the vehicle (JPEG or PNG). The first photo is the one riders see.",
+      "coverPhoto": "Shown to riders",
+      "removePhoto": "Remove photo",
+      "photoCount": "{{count}} of {{max}} photos added"
+    },
+    "validation": {
+      "fileRequired": "Add the document file.",
+      "numberRequired": "Enter the document number.",
+      "numberTooLong": "The document number can be at most 50 characters.",
+      "expiryRequired": "Select the expiry date.",
+      "expired": "This document has expired or expires today. Use a document that is valid after today.",
+      "makeRequired": "Enter the vehicle make.",
+      "modelRequired": "Enter the vehicle model.",
+      "colorRequired": "Enter the vehicle color.",
+      "plateRequired": "Enter the plate number.",
+      "tooLong": "This is too long.",
+      "year": "Enter a year from 1980 to next year.",
+      "seats": "Enter a number of seats from 1 to 8.",
+      "photosRequired": "Add at least one vehicle photo.",
+      "photosTooMany": "You can add at most 4 photos.",
+      "nameRequired": "Enter your name.",
+      "photoRequired": "Add a profile photo to continue.",
+      "confirm": "Confirm your details to continue."
+    },
+    "server": {
+      "expiresOn": "The expiry date was not accepted. It must be after today.",
+      "number": "The document number was not accepted. Check it and try again.",
+      "file": "This file was not accepted. Upload it again.",
+      "photos": "The vehicle photos were not accepted. Add 1 to 4 JPEG or PNG photos again.",
+      "vehicleField": "This value was not accepted. Check it and try again.",
+      "generic": "This item was not accepted. Check it and try again."
+    },
+    "errors": {
+      "networkTitle": "No connection",
+      "network": "We couldn't reach Labby. Check your internet connection and try again.",
+      "serverTitle": "Something went wrong on our side",
+      "server": "Our service had a problem handling this. Please try again in a moment.",
+      "invalid": "Some details were not accepted. Check them and try again.",
+      "fixHighlighted": "Some details need fixing — see the highlighted fields."
+    },
+    "actions": {
+      "next": "Continue",
+      "back": "Back",
+      "edit": "Edit",
+      "retry": "Try again",
+      "done": "Done",
+      "backToStatus": "Back to my application"
+    },
+    "review": {
+      "fileAttached": "Attached",
+      "photoOnFile": "On file",
+      "photoCount": "{{count}} added"
+    },
+    "apply": {
+      "title": "Driver application",
+      "submit": "Submit application",
+      "reviewHint": "Check everything before you submit.",
+      "conflict": "You already have an application in progress or approved."
+    },
+    "resubmit": {
+      "title": "Fix flagged items",
+      "submit": "Resubmit",
+      "reviewHint": "Only these items will be sent back for review.",
+      "conflict": "Your application is no longer waiting for changes. Check its current status.",
+      "nothing": "Your application has nothing waiting to be fixed."
+    },
+    "switch": {
+      "title": "Switch vehicle",
+      "submit": "Submit vehicle for review",
+      "reviewHint": "Your current vehicle stays active until this one is approved.",
+      "conflict": "You can't submit a vehicle right now — a switch may already be under review."
+    },
+    "status": {
+      "submitted": {
+        "label": "Submitted",
+        "body": "We received your application. A reviewer will pick it up soon.",
+        "next": "Your application is in the queue. You'll be notified when a reviewer starts on it."
+      },
+      "under_review": {
+        "label": "Under review",
+        "body": "A reviewer is checking your details and documents.",
+        "next": "A reviewer is checking your application. You'll be notified of the decision."
+      },
+      "needs_changes": {
+        "label": "Needs changes",
+        "body": "A reviewer asked you to fix a few items before continuing.",
+        "next": "Fix the flagged items below and resubmit — only those items are needed."
+      },
+      "approved": {
+        "label": "Approved",
+        "body": "Congratulations — you're now a Labby driver.",
+        "next": "Your driver access is active. Open the driver home to get started."
+      },
+      "rejected": {
+        "label": "Rejected",
+        "body": "Your application was not approved this time.",
+        "next": "See the reason below. You can apply again with a full new application."
+      }
+    },
+    "tracker": {
+      "title": "Your driver application",
+      "currentStage": "Current stage",
+      "submittedAt": "Submitted {{date}}",
+      "flaggedTitle": "Items to fix",
+      "flaggedHint": "The reviewer flagged these items. Everything else is fine as it is.",
+      "fixItems": "Fix these items",
+      "rejectionReason": "Reason",
+      "reapplyHint": "A new application starts from scratch with all details and documents.",
+      "reapply": "Apply again",
+      "approvedHint": "Your driver role is active.",
+      "openHome": "Open driver home",
+      "history": "History",
+      "refresh": "Refresh status",
+      "refreshing": "Refreshing…",
+      "notActiveYet": "Your driver access isn't active on your account yet. Try again in a moment."
+    },
+    "documents": {
+      "title": "My documents",
+      "intro": "Keep your documents valid to keep driving. Renew any document before it expires.",
+      "expired": "Expired",
+      "valid": "Valid",
+      "expiredOn": "Expired after",
+      "validThrough": "Valid through",
+      "renewalPending": "Renewal under review",
+      "renewalPendingHint": "Your renewal (valid through {{date}}) is waiting for review.",
+      "renewalRejected": "Renewal rejected",
+      "noReason": "No reason given.",
+      "renew": "Renew",
+      "notApproved": "Your documents appear here once you're an approved driver.",
+      "expiredBanner": "An expired document pauses your driver access until its renewal is approved."
+    },
+    "renewal": {
+      "title": "Renew document",
+      "hint": "Upload the renewed document with its new number and expiry date. Your current document stays on file until the renewal is approved.",
+      "submit": "Submit renewal",
+      "done": "Renewal submitted. We'll let you know once it's reviewed.",
+      "backToDocuments": "Back to my documents",
+      "conflict": "A renewal of this document is already waiting for review.",
+      "unknownType": "This document can't be renewed here."
+    },
+    "vehicles": {
+      "title": "My vehicle",
+      "active": "Active vehicle",
+      "serviceTypes": "Serves: {{types}}",
+      "none": "You have no active vehicle.",
+      "pending": "Switch under review",
+      "pendingHint": "Your current vehicle stays active until this one is approved.",
+      "rejectedTitle": "Rejected switches",
+      "rejected": "Rejected",
+      "reason": "Reason",
+      "switchBlocked": "You can submit another vehicle once the current switch is reviewed.",
+      "switch": "Switch to a new vehicle"
     }
   }
 }

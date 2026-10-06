@@ -45,6 +45,9 @@ export const colors = {
   dangerBg: '#FCEEEE',
   success: '#1E7A46',
   successBg: '#EAF6EF',
+  // M5 onboarding states (changes requested, expiring) — same RN-only status.
+  warning: '#8A5300',
+  warningBg: '#FFF4E0',
 } as const;
 
 /**

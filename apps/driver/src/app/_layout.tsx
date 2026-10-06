@@ -70,6 +70,15 @@ function AppStack() {
           name="delete-account"
           options={{ title: t('account.delete.title') }}
         />
+        {/* Vehicle switch (UC-D-18) — approved, active drivers only. */}
+        <Stack.Screen
+          name="vehicles"
+          options={{ title: t('onboarding.vehicles.title') }}
+        />
+        <Stack.Screen
+          name="vehicle-switch"
+          options={{ title: t('onboarding.switch.title') }}
+        />
       </Stack.Protected>
 
       {/* The driver gate: signed in, but no active driver role (M2-T4). */}
@@ -77,6 +86,28 @@ function AppStack() {
         <Stack.Screen
           name="apply-to-drive"
           options={{ title: t('gate.title'), headerShown: false }}
+        />
+        {/* Driver application (UC-D-01) and flagged-item resubmission (UC-D-02). */}
+        <Stack.Screen
+          name="driver-application"
+          options={{ title: t('onboarding.apply.title') }}
+        />
+        <Stack.Screen
+          name="application-resubmit"
+          options={{ title: t('onboarding.resubmit.title') }}
+        />
+      </Stack.Protected>
+
+      {/* Document renewal (UC-D-19) — active drivers AND drivers suspended
+          for an expired document (renewal is how that suspension lifts). */}
+      <Stack.Protected guard={signedIn}>
+        <Stack.Screen
+          name="documents"
+          options={{ title: t('onboarding.documents.title') }}
+        />
+        <Stack.Screen
+          name="renew-document"
+          options={{ title: t('onboarding.renewal.title') }}
         />
       </Stack.Protected>
     </Stack>

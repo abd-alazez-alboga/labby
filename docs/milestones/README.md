@@ -109,7 +109,7 @@ Statuses live here (milestone files describe content only, they are never edited
 |---|---|---|
 | M5-T1 | Onboarding contract & migrations | done |
 | M5-T2 | Onboarding backend | done |
-| M5-T3 | Driver app: application flow | in_progress |
+| M5-T3 | Driver app: application flow | done |
 | M5-T4 | Admin UI: review queues | in_progress |
 | M5-T5 | Onboarding integration | todo |
 | M5-T6 | Review audit | todo |

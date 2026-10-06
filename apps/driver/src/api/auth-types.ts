@@ -10,9 +10,14 @@ export type RoleName = 'rider' | 'driver' | 'admin';
 export type RoleState = 'active' | 'suspended';
 export type AccountState = 'active' | 'suspended' | 'deleted';
 
+/** Why a role is suspended (USR-04); M5 adds `document_expired` (DRV-04). */
+export type SuspensionReason = 'document_expired';
+
 export interface RoleAssignment {
   role: RoleName;
   state: RoleState;
+  /** Present only while suspended; null for suspensions without a recorded reason. */
+  suspensionReason?: SuspensionReason | null;
 }
 
 export interface UserProfile {
@@ -55,6 +60,11 @@ export const PASSWORD_MAX_LENGTH = 72;
 
 /** AUTH-04: seconds a user must wait before requesting another OTP. */
 export const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
+/** The account's `driver` role assignment, if any. */
+export function driverRoleOf(user: UserProfile): RoleAssignment | null {
+  return user.roles.find((assignment) => assignment.role === 'driver') ?? null;
+}
 
 /** True when the profile holds an ACTIVE `driver` role (the in-app gate). */
 export function hasActiveDriverRole(user: UserProfile): boolean {

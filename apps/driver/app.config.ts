@@ -48,9 +48,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-image-picker',
       {
         photosPermission:
-          'Labby Driver uses your photo library to set your profile photo.',
+          'Labby Driver uses your photo library for your profile photo, documents and vehicle photos.',
+        cameraPermission:
+          'Labby Driver uses your camera to photograph your profile photo, documents and vehicle.',
       },
     ],
+    '@react-native-community/datetimepicker',
     [
       'expo-location',
       {

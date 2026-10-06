@@ -31,7 +31,31 @@ jest.mock('expo-location', () => ({
 // Image picker: default to "user canceled"; photo tests override per test.
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true, status: 'granted' })),
 }));
+
+// Document picker (onboarding PDFs/images): default "user canceled".
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+}));
+
+// Native date picker: a plain host view that forwards its props, so tests
+// pick a date with fireEvent(picker, 'valueChange', event, date).
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Picker = (props) =>
+    React.createElement(View, {
+      testID: props.testID,
+      onValueChange: props.onValueChange,
+    });
+  return {
+    __esModule: true,
+    default: Picker,
+    DateTimePickerAndroid: { open: jest.fn(), dismiss: jest.fn() },
+  };
+});
 
 // Default fetch stub: stays pending so components firing a boot-time API call
 // (ApiStatus on the home/settings screens, the background profile refresh)
