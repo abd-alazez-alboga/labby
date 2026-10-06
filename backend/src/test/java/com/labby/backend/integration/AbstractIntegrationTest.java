@@ -39,5 +39,8 @@ public abstract class AbstractIntegrationTest {
     registry.add(
         "labby.storage.dir",
         () -> Path.of(System.getProperty("java.io.tmpdir"), "labby-it-uploads").toString());
+    // The daily expiry job never fires on its own in tests; they call its service on a
+    // controlled clock (M5-T2).
+    registry.add("labby.onboarding.expiry-job-cron", () -> "-");
   }
 }

@@ -1,6 +1,7 @@
 package com.labby.backend.repository;
 
 import com.labby.backend.model.ServiceType;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,4 +20,7 @@ public interface ServiceTypeRepository extends JpaRepository<ServiceType, UUID> 
   boolean existsByRegionIdAndEnabledTrue(UUID regionId);
 
   long countByRegionId(UUID regionId);
+
+  /** Enabled service types of the given regions (assignable at driver approval, DRV-03). */
+  List<ServiceType> findByRegionIdInAndEnabledTrue(Collection<UUID> regionIds);
 }

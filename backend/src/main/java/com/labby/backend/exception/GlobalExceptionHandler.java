@@ -1,8 +1,10 @@
 package com.labby.backend.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -19,12 +21,39 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+  private static final String DRIVER_FILES_PATH = "/api/v1/driver/files";
+
   /** Domain errors carry their own HTTP status. */
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
     HttpStatus status = ex.getStatus();
     return ResponseEntity.status(status)
         .body(ErrorResponse.of(status.value(), status.getReasonPhrase(), ex.getMessage()));
+  }
+
+  /** Domain validation failures carry their own contract-keyed field errors (400). */
+  @ExceptionHandler(FieldValidationException.class)
+  public ResponseEntity<ErrorResponse> handleFieldValidation(FieldValidationException ex) {
+    HttpStatus status = ex.getStatus();
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.ofValidation(
+                status.value(), status.getReasonPhrase(), ex.getMessage(), ex.getFieldErrors()));
+  }
+
+  /**
+   * A concurrent writer won the optimistic lock (e.g. two reviewers deciding the same driver
+   * application at once — onboarding-v1.yaml): the loser gets 409, never a 500.
+   */
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  public ResponseEntity<ErrorResponse> handleOptimisticLock(OptimisticLockingFailureException ex) {
+    HttpStatus status = HttpStatus.CONFLICT;
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.of(
+                status.value(),
+                status.getReasonPhrase(),
+                "The resource was changed concurrently; reload and retry"));
   }
 
   /** Bean-validation failures become a field-to-message map with HTTP 400. */
@@ -59,10 +88,17 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.of(status.value(), status.getReasonPhrase(), "Malformed request body"));
   }
 
-  /** Oversized multipart uploads map to 400 per the auth contract (photo upload). */
+  /**
+   * Oversized multipart uploads map to 400 per the auth contract (photo upload), but to 413 on the
+   * driver file upload per the onboarding contract.
+   */
   @ExceptionHandler(MaxUploadSizeExceededException.class)
-  public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
-    HttpStatus status = HttpStatus.BAD_REQUEST;
+  public ResponseEntity<ErrorResponse> handleMaxUploadSize(
+      MaxUploadSizeExceededException ex, HttpServletRequest request) {
+    HttpStatus status =
+        DRIVER_FILES_PATH.equals(request.getRequestURI())
+            ? HttpStatus.PAYLOAD_TOO_LARGE
+            : HttpStatus.BAD_REQUEST;
     return ResponseEntity.status(status)
         .body(
             ErrorResponse.of(

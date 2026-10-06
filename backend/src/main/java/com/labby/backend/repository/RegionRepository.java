@@ -1,5 +1,6 @@
 package com.labby.backend.repository;
 
+import com.labby.backend.enums.RegionState;
 import com.labby.backend.model.Region;
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +12,9 @@ import org.springframework.data.repository.query.Param;
 public interface RegionRepository extends JpaRepository<Region, UUID> {
 
   List<Region> findAllByOrderByNameAsc();
+
+  /** Regions in a lifecycle state, name-sorted (active regions for driver approval, DRV-03). */
+  List<Region> findByStateOrderByNameAsc(RegionState state);
 
   boolean existsByNameIgnoreCase(String name);
 

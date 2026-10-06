@@ -3,6 +3,7 @@ package com.labby.backend.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
+import com.labby.backend.enums.SuspensionReason;
 import java.util.List;
 
 /**
@@ -10,7 +11,13 @@ import java.util.List;
  * assignment only, {@code rbacRole} and {@code permissions} expose the single RBAC role and its
  * {@code domain:action} codes so the admin UI can gate routes/menus (RBAC-03); absent elsewhere.
  * Enforcement stays server-side per request — these fields refresh on the next profile fetch.
+ * {@code suspensionReason} is present only while the role is suspended with a recorded reason
+ * (USR-04; M5's {@code document_expired}).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RoleAssignmentDto(
-    Role role, RoleState state, RoleSummaryDto rbacRole, List<String> permissions) {}
+    Role role,
+    RoleState state,
+    SuspensionReason suspensionReason,
+    RoleSummaryDto rbacRole,
+    List<String> permissions) {}

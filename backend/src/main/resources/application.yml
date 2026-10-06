@@ -78,3 +78,10 @@ labby:
     driver-file-max-bytes: ${STORAGE_DRIVER_FILE_MAX_BYTES:10485760}
     # Lifetime of expiring file-access URLs minted for permission-checked viewers (NFR-S2).
     url-ttl-seconds: ${STORAGE_URL_TTL_SECONDS:300}
+  onboarding:
+    # Operating timezone: its calendar date is "today" for document expiry (DRV-04) — a document
+    # is valid THROUGH its expiry date. Launch market: Syria.
+    timezone: ${ONBOARDING_TIMEZONE:Asia/Damascus}
+    # Daily document-expiry job (30/7-day reminders, auto-suspension), evaluated in the timezone
+    # above. Spring cron (second minute hour day month weekday); "-" disables it.
+    expiry-job-cron: ${ONBOARDING_EXPIRY_JOB_CRON:0 5 0 * * *}

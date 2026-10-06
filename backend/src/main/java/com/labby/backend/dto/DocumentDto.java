@@ -1,0 +1,31 @@
+package com.labby.backend.dto;
+
+import com.labby.backend.enums.DocumentType;
+import com.labby.backend.enums.ReviewStatus;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
+/**
+ * A driver document with its review state (DRV-01/02, onboarding-v1.yaml {@code Document}).
+ *
+ * @param id the document id
+ * @param type the type
+ * @param vehicleId the vehicle for registration/insurance, null for ID/licence
+ * @param number the number
+ * @param expiresOn the expiry date (valid through it)
+ * @param file the file with a fresh expiring URL
+ * @param reviewStatus the review state
+ * @param reviewNote change-request note or rejection reason
+ * @param submittedAt when the row was submitted
+ */
+public record DocumentDto(
+    UUID id,
+    DocumentType type,
+    UUID vehicleId,
+    String number,
+    LocalDate expiresOn,
+    FileRefDto file,
+    ReviewStatus reviewStatus,
+    String reviewNote,
+    Instant submittedAt) {}

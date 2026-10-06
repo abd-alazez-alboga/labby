@@ -631,11 +631,14 @@ components:
         sizeBytes: { type: integer }
     FileRef:
       type: object
-      description: A private file with a freshly minted, expiring URL (NFR-S2).
+      description: >
+        A private file with a freshly minted, expiring URL (NFR-S2). The personal item's profile
+        photo (M2 storage, no upload row) carries the account id as `fileId` and may be
+        `image/webp`.
       required: [fileId, contentType, url, urlExpiresAt]
       properties:
         fileId: { type: string, format: uuid }
-        contentType: { type: string, enum: [image/jpeg, image/png, application/pdf] }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp, application/pdf] }
         url: { type: string, description: 'API-relative (/api/v1/files/{token}) or absolute' }
         urlExpiresAt: { type: string, format: date-time }
     DocumentInput:
