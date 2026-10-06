@@ -44,6 +44,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'com.labby.driver',
+    // FCM config (M6-T5): an EAS secret FILE env var on cloud builds, never committed
+    // (the real file lives outside the repo). Absent locally → no FCM, Expo Go keeps working.
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     adaptiveIcon: {
       foregroundImage: './assets/images/labby-icon.png',
       backgroundColor: LABBY_PURPLE_700,
@@ -81,7 +84,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
   ],
+  // EAS project (M6-T5 development builds), owned by the owner's Expo account.
+  owner: 'azez28.5',
   extra: {
+    eas: { projectId: 'dbc68ad6-9d53-4776-bb7c-ef9898354e27' },
     apiBaseUrl: process.env.LABBY_DRIVER_API_BASE_URL ?? DEFAULT_API_BASE_URL,
     mapTileUrl: process.env.LABBY_DRIVER_MAP_TILE_URL ?? DEFAULT_MAP_TILE_URL,
     mapAttribution:
