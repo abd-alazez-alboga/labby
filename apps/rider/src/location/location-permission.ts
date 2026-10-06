@@ -17,3 +17,12 @@ export function requestLocationPermission(): Promise<Location.LocationPermission
   }
   return inFlight;
 }
+
+/**
+ * Reads the permission WITHOUT prompting — for foreground re-entry checks. Prompting there
+ * loops the OS dialog: the dialog itself backgrounds the app, and a dismissed dialog leaves
+ * the permission askable, so every return to the foreground would prompt again (M6-T5).
+ */
+export function readLocationPermission(): Promise<Location.LocationPermissionResponse> {
+  return Location.getForegroundPermissionsAsync();
+}

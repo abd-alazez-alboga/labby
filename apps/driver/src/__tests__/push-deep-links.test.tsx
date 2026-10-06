@@ -16,7 +16,7 @@ import { Pressable, Text, View } from 'react-native';
 import { AuthProvider, useAuth } from '../auth/AuthProvider';
 import { clearSession } from '../auth/session';
 import { hrefForLink, parsePushPayload } from '../notifications/deep-links';
-import { PUSH_TOKEN_STORAGE_KEY } from '../notifications/push';
+import { PUSH_TOKEN_STORAGE_KEY, registerThisDevice } from '../notifications/push';
 import { PushBridge } from '../notifications/PushBridge';
 import { driverUser, installContractFetch, riderOnlyUser, seedSession } from '../test-utils/contract';
 import type { MockResponse } from '../test-utils/contract';
@@ -182,6 +182,15 @@ describe('push registration + taps (UC-S-25)', () => {
     await flush();
     return contract;
   }
+
+  it('re-checks without prompting on foreground re-entry (no permission-dialog loop)', async () => {
+    // The OS dialog backgrounds the app and a dismissed dialog stays "undetermined":
+    // prompting on every foreground looped the dialog on a fresh Android install (M6-T5).
+    mockPush({ permission: 'undetermined' });
+
+    await expect(registerThisDevice({ prompt: false })).resolves.toBe(false);
+    expect(notificationsMock.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
 
   it('asks permission and registers the native device token after login', async () => {
     mockPush({ permission: 'undetermined' });

@@ -112,9 +112,19 @@ export async function registerToken(token: string): Promise<void> {
  * `PUT /devices`. Resolves true when registered, false when push is
  * unavailable here (Expo Go, denied, no token). Rejects only when the API
  * call itself failed (the caller retries later).
+ *
+ * `prompt: false` only checks the permission. Callers re-checking on every
+ * foreground MUST pass it: the OS dialog itself backgrounds the app, and a
+ * dismissed dialog leaves the permission "undetermined", so prompting on
+ * each foreground loops the dialog forever (found on a fresh Android 15
+ * install, M6-T5).
  */
-export async function registerThisDevice(): Promise<boolean> {
-  if ((await ensurePushPermission()) !== 'granted') return false;
+export async function registerThisDevice(
+  options: { prompt?: boolean } = {},
+): Promise<boolean> {
+  const permission =
+    options.prompt === false ? await getPushPermission() : await ensurePushPermission();
+  if (permission !== 'granted') return false;
   let token: string;
   try {
     const result = await notifications().getDevicePushTokenAsync();

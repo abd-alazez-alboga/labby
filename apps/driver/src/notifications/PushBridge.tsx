@@ -45,9 +45,13 @@ export function PushBridge() {
     if (!signedIn) return undefined;
     let registered = false;
     let cancelled = false;
+    // Prompt once per sign-in; later foregrounds only re-check (no dialog loop).
+    let prompted = false;
     const attempt = () => {
       if (registered) return;
-      registerThisDevice()
+      const prompt = !prompted;
+      prompted = true;
+      registerThisDevice({ prompt })
         .then((done) => {
           // false = unavailable right now (Expo Go, permission denied, no
           // token): the next foreground checks again — cheap, never re-prompts.

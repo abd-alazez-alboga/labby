@@ -81,6 +81,12 @@ function mockLocation({
     canAskAgain: true,
     expires: 'never',
   });
+  locationMock.getForegroundPermissionsAsync.mockResolvedValue({
+    granted,
+    status: (granted ? 'granted' : 'denied') as Location.PermissionStatus,
+    canAskAgain: true,
+    expires: 'never',
+  });
   if (at) {
     locationMock.getCurrentPositionAsync.mockResolvedValue({
       coords: { latitude: at.lat, longitude: at.lng },

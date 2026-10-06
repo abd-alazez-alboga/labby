@@ -24,6 +24,7 @@ jest.mock('expo-secure-store', () => {
 jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3, High: 4 },
   requestForegroundPermissionsAsync: jest.fn(() => new Promise(() => {})),
+  getForegroundPermissionsAsync: jest.fn(() => new Promise(() => {})),
   getCurrentPositionAsync: jest.fn(() => new Promise(() => {})),
   watchPositionAsync: jest.fn(() => new Promise(() => {})),
 }));

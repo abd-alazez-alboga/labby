@@ -31,7 +31,7 @@ import { AppState, Linking } from 'react-native';
 
 import { ApiError } from '../api/http-client';
 import { resolveRegion, type RegionConfig } from '../api/regions';
-import { requestLocationPermission } from '../location/location-permission';
+import { readLocationPermission, requestLocationPermission } from '../location/location-permission';
 
 export const REGION_CACHE_KEY = 'labby.rider.region';
 
@@ -191,13 +191,13 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
   }, [applyResolve]);
 
   /** The full cycle: cache → permission → GPS → resolve. */
-  const locateAndResolve = useCallback(async () => {
+  const locateAndResolve = useCallback(async (prompt = true) => {
     if (!fallback.current) {
       fallback.current = await readCachedRegion();
     }
     let permission: Location.LocationPermissionResponse;
     try {
-      permission = await requestLocationPermission();
+      permission = prompt ? await requestLocationPermission() : await readLocationPermission();
     } catch {
       degradeToFallback();
       return;
@@ -237,7 +237,7 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
       const previous = appState.current;
       appState.current = next;
       if (next === 'active' && previous !== 'active') {
-        void locateAndResolve();
+        void locateAndResolve(false);
       }
     });
     return () => subscription.remove();

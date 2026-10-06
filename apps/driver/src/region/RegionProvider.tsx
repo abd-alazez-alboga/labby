@@ -200,14 +200,20 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [applyResolve]);
 
-  /** The full cycle: cache → permission → GPS → resolve. */
-  const locateAndResolve = useCallback(async () => {
+  /**
+   * The full cycle: cache → permission → GPS → resolve. `prompt: false` (foreground
+   * re-entry) only reads the permission — prompting there loops the OS dialog, which
+   * itself backgrounds the app.
+   */
+  const locateAndResolve = useCallback(async (prompt = true) => {
     if (!fallback.current) {
       fallback.current = await readCachedRegion();
     }
     let permission: Location.LocationPermissionResponse;
     try {
-      permission = await Location.requestForegroundPermissionsAsync();
+      permission = prompt
+        ? await Location.requestForegroundPermissionsAsync()
+        : await Location.getForegroundPermissionsAsync();
     } catch {
       degradeToFallback();
       return;
@@ -256,7 +262,7 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
       const previous = appState.current;
       appState.current = next;
       if (next === 'active' && previous !== 'active') {
-        void locateAndResolve();
+        void locateAndResolve(false);
       }
     });
     return () => subscription.remove();

@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 
 import type { LatLng } from '../map/geo';
-import { requestLocationPermission } from './location-permission';
+import { readLocationPermission, requestLocationPermission } from './location-permission';
 
 export type PositionStatus = 'locating' | 'ready' | 'permissionDenied' | 'unavailable';
 
@@ -74,10 +74,10 @@ export function useCurrentPosition(): CurrentPosition {
     }
   }, [update]);
 
-  const locate = useCallback(async () => {
+  const locate = useCallback(async (prompt = true) => {
     let permission: Location.LocationPermissionResponse;
     try {
-      permission = await requestLocationPermission();
+      permission = prompt ? await requestLocationPermission() : await readLocationPermission();
     } catch {
       update('unavailable');
       return;
@@ -114,7 +114,7 @@ export function useCurrentPosition(): CurrentPosition {
       const cameBack = next === 'active' && previous !== 'active';
       previous = next;
       if (cameBack && (statusRef.current === 'permissionDenied' || statusRef.current === 'unavailable')) {
-        void locate();
+        void locate(false);
       }
     });
     return () => subscription.remove();

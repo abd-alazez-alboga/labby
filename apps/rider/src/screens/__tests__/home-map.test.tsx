@@ -40,6 +40,12 @@ function mockLocation({
     canAskAgain: true,
     expires: 'never',
   });
+  locationMock.getForegroundPermissionsAsync.mockResolvedValue({
+    granted,
+    status: (granted ? 'granted' : 'denied') as Location.PermissionStatus,
+    canAskAgain: true,
+    expires: 'never',
+  });
   if (fixFails) {
     locationMock.getCurrentPositionAsync.mockRejectedValue(new Error('Location unavailable'));
   } else if (at) {
