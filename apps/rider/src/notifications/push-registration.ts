@@ -14,10 +14,10 @@
  * never blocks the app — the center still records everything (NFR-A3).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { type DevicePlatform, registerDevice, unregisterDevice } from '../api/devices';
+import { notifications } from './notifications-module';
 import { isRemotePushSupported } from './push-support';
 
 export const PUSH_TOKEN_KEY = 'labby.rider.pushToken';
@@ -53,17 +53,17 @@ function devicePlatform(): DevicePlatform {
 /** Android 13+ only shows the permission prompt once a channel exists. */
 async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+  await notifications().setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
     name: 'Labby',
-    importance: Notifications.AndroidImportance.HIGH,
+    importance: notifications().AndroidImportance.HIGH,
   });
 }
 
 async function ensurePermission(): Promise<boolean> {
-  const current = await Notifications.getPermissionsAsync();
+  const current = await notifications().getPermissionsAsync();
   if (current.granted) return true;
   if (!current.canAskAgain) return false;
-  const requested = await Notifications.requestPermissionsAsync();
+  const requested = await notifications().requestPermissionsAsync();
   return requested.granted;
 }
 
@@ -79,7 +79,7 @@ export async function registerForPush(): Promise<PushRegistrationResult> {
   try {
     await ensureAndroidChannel();
     if (!(await ensurePermission())) return 'permissionDenied';
-    const { data } = await Notifications.getDevicePushTokenAsync();
+    const { data } = await notifications().getDevicePushTokenAsync();
     if (typeof data !== 'string' || !data) return 'failed';
     await registerToken(data);
     return 'registered';
@@ -94,7 +94,7 @@ export async function registerForPush(): Promise<PushRegistrationResult> {
  */
 export function watchPushTokenRotation(): () => void {
   if (!isRemotePushSupported()) return () => {};
-  const subscription = Notifications.addPushTokenListener(({ data }) => {
+  const subscription = notifications().addPushTokenListener(({ data }) => {
     if (typeof data === 'string' && data) {
       registerToken(data).catch(() => {});
     }

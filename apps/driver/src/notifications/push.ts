@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isRunningInExpoGo } from 'expo';
-import * as Notifications from 'expo-notifications';
+import type * as ExpoNotifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { registerDevice, unregisterDevice } from '../api/notifications';
@@ -33,6 +33,24 @@ export function pushSupported(): boolean {
   }
 }
 
+/**
+ * expo-notifications, loaded lazily. A static import crashes Expo Go on
+ * Android at import time (remote push was removed from Expo Go in SDK 53),
+ * so the module is only required in runtimes that support remote push.
+ * Throws when unavailable — every caller treats that as "unsupported".
+ */
+let loadedNotifications: typeof ExpoNotifications | null = null;
+function notifications(): typeof ExpoNotifications {
+  if (loadedNotifications) return loadedNotifications;
+  if (!pushSupported()) {
+    throw new Error('expo-notifications is unavailable in this runtime');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const loaded = require('expo-notifications') as typeof ExpoNotifications;
+  loadedNotifications = loaded;
+  return loaded;
+}
+
 function toPermission(status: string | undefined, granted: boolean): PushPermission {
   if (granted) return 'granted';
   if (status === 'denied') return 'denied';
@@ -43,7 +61,7 @@ function toPermission(status: string | undefined, granted: boolean): PushPermiss
 export async function getPushPermission(): Promise<PushPermission> {
   if (!pushSupported()) return 'unsupported';
   try {
-    const result = await Notifications.getPermissionsAsync();
+    const result = await notifications().getPermissionsAsync();
     return toPermission(result.status, result.granted);
   } catch {
     return 'unsupported';
@@ -55,7 +73,7 @@ export async function ensurePushPermission(): Promise<PushPermission> {
   const current = await getPushPermission();
   if (current !== 'undetermined') return current;
   try {
-    const result = await Notifications.requestPermissionsAsync();
+    const result = await notifications().requestPermissionsAsync();
     return toPermission(result.status, result.granted);
   } catch {
     return 'unsupported';
@@ -99,7 +117,7 @@ export async function registerThisDevice(): Promise<boolean> {
   if ((await ensurePushPermission()) !== 'granted') return false;
   let token: string;
   try {
-    const result = await Notifications.getDevicePushTokenAsync();
+    const result = await notifications().getDevicePushTokenAsync();
     token = typeof result.data === 'string' ? result.data : '';
   } catch {
     return false;
@@ -124,7 +142,7 @@ export async function unregisterThisDevice(): Promise<void> {
 export function onPushTokenChange(listener: (token: string) => void): () => void {
   if (!pushSupported()) return () => {};
   try {
-    const subscription = Notifications.addPushTokenListener((token) => {
+    const subscription = notifications().addPushTokenListener((token) => {
       if (typeof token.data === 'string' && token.data) listener(token.data);
     });
     return () => subscription.remove();
@@ -136,7 +154,7 @@ export function onPushTokenChange(listener: (token: string) => void): () => void
 /** The data payload of a tapped notification. */
 export function onNotificationTap(listener: (data: unknown) => void): () => void {
   try {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) =>
+    const subscription = notifications().addNotificationResponseReceivedListener((response) =>
       listener(response.notification.request.content.data),
     );
     return () => subscription.remove();
@@ -148,9 +166,9 @@ export function onNotificationTap(listener: (data: unknown) => void): () => void
 /** A notification tapped while the app was closed (cold start), once. */
 export async function takeLaunchTap(): Promise<unknown | null> {
   try {
-    const response = await Notifications.getLastNotificationResponseAsync();
+    const response = await notifications().getLastNotificationResponseAsync();
     if (!response) return null;
-    await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    await notifications().clearLastNotificationResponseAsync().catch(() => {});
     return response.notification.request.content.data;
   } catch {
     return null;
@@ -160,7 +178,7 @@ export async function takeLaunchTap(): Promise<unknown | null> {
 /** A push arrived while the app is open. */
 export function onNotificationReceived(listener: () => void): () => void {
   try {
-    const subscription = Notifications.addNotificationReceivedListener(() => listener());
+    const subscription = notifications().addNotificationReceivedListener(() => listener());
     return () => subscription.remove();
   } catch {
     return () => {};
@@ -170,7 +188,7 @@ export function onNotificationReceived(listener: () => void): () => void {
 /** Foreground pushes show as a banner (the center records them anyway). */
 export function configureForegroundPresentation(): void {
   try {
-    Notifications.setNotificationHandler({
+    notifications().setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
         shouldShowList: true,

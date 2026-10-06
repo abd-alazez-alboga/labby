@@ -12,7 +12,7 @@
  *   opened, and the notification is marked read — including the tap that
  *   cold-started the app.
  */
-import * as Notifications from 'expo-notifications';
+import type * as ExpoNotifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, {
   createContext,
@@ -26,6 +26,7 @@ import React, {
 import { AppState } from 'react-native';
 
 import { getUnreadCount, markNotificationRead } from '../api/notifications';
+import { notifications } from './notifications-module';
 import { parsePushPayload, resolveDeepLink } from './deep-links';
 import { registerForPush, watchPushTokenRotation } from './push-registration';
 
@@ -46,7 +47,7 @@ export function resetHandledNotificationResponses(): void {
   handledResponses.clear();
 }
 
-function responseData(response: Notifications.NotificationResponse): Record<string, unknown> {
+function responseData(response: ExpoNotifications.NotificationResponse): Record<string, unknown> {
   const { content, trigger } = response.notification.request;
   if (content.data && Object.keys(content.data).length > 0) {
     return content.data as Record<string, unknown>;
@@ -64,7 +65,7 @@ function configureForegroundPresentation(): void {
   if (handlerConfigured) return;
   handlerConfigured = true;
   try {
-    Notifications.setNotificationHandler({
+    notifications().setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
         shouldShowList: true,
@@ -120,7 +121,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const openResponse = useCallback(
-    (response: Notifications.NotificationResponse | null) => {
+    (response: ExpoNotifications.NotificationResponse | null) => {
       if (!response) return;
       const id = response.notification.request.identifier;
       if (handledResponses.has(id)) return;
@@ -141,8 +142,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     let cancelled = false;
     let subscription: { remove: () => void } | null = null;
     try {
-      subscription = Notifications.addNotificationResponseReceivedListener(openResponse);
-      Notifications.getLastNotificationResponseAsync()
+      subscription = notifications().addNotificationResponseReceivedListener(openResponse);
+      notifications().getLastNotificationResponseAsync()
         .then((response) => {
           if (!cancelled) openResponse(response);
         })
@@ -160,7 +161,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     let subscription: { remove: () => void } | null = null;
     try {
-      subscription = Notifications.addNotificationReceivedListener(() => refreshUnread());
+      subscription = notifications().addNotificationReceivedListener(() => refreshUnread());
     } catch {
       // unsupported runtime
     }
