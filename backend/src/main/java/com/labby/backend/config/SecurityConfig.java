@@ -23,9 +23,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * Deny-by-default, stateless security (NFR-S3). Whitelist: auth endpoints, public meta, health, the
- * API docs, and expiring file URLs (their signed token is the capability — NFR-S2, M5). Everything
- * else needs a valid Bearer access token. Method-level security is enabled for the role/permission
- * checks of later milestones.
+ * API docs, expiring file URLs (their signed token is the capability — NFR-S2, M5) and the realtime
+ * WebSocket upgrade (authenticated by its first frame — M6). Everything else needs a valid Bearer
+ * access token. Method-level security is enabled for the role/permission checks of later
+ * milestones.
  */
 @Configuration
 @EnableWebSecurity
@@ -61,6 +62,9 @@ public class SecurityConfig {
                         "/api/v1/auth/**",
                         "/api/v1/meta",
                         "/api/v1/files/*",
+                        // WebSocket upgrade only: the socket authenticates in-protocol with its
+                        // first frame (realtime-v1.yaml), never via the URL or headers.
+                        "/api/v1/realtime",
                         "/actuator/health",
                         "/actuator/health/**",
                         "/swagger-ui.html",

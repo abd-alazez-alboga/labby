@@ -44,5 +44,8 @@ public abstract class AbstractIntegrationTest {
     registry.add("labby.onboarding.expiry-job-cron", () -> "-");
     // The notification dispatcher never fires on its own either; tests call it directly (M6-T2).
     registry.add("labby.notifications.dispatch-cron", () -> "-");
+    // Tests never call the public OSRM server: the discard port refuses connections, so routing
+    // takes the straight-line fallback unless a test points the URL at its own stub (M6-T3).
+    registry.add("labby.routing.osrm-url", () -> "http://127.0.0.1:9");
   }
 }

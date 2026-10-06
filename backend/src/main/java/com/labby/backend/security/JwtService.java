@@ -75,7 +75,8 @@ public class JwtService {
                 new AccessClaims(
                     UUID.fromString(claims.getSubject()),
                     UUID.fromString(claims.get(CLAIM_SESSION, String.class)),
-                    toRoleList(claims)));
+                    toRoleList(claims),
+                    claims.getExpiration().toInstant()));
   }
 
   /**
@@ -158,6 +159,7 @@ public class JwtService {
    * @param userId the account id
    * @param sessionId the refresh-token row id of the issuing session
    * @param roles the role values embedded at issue time
+   * @param expiresAt when the token expires (the realtime socket closes then unless re-authed)
    */
-  public record AccessClaims(UUID userId, UUID sessionId, List<String> roles) {}
+  public record AccessClaims(UUID userId, UUID sessionId, List<String> roles, Instant expiresAt) {}
 }

@@ -82,6 +82,7 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     jdbcTemplate.update("DELETE FROM notification_outbox");
     jdbcTemplate.update("DELETE FROM notification_preferences");
     jdbcTemplate.update("DELETE FROM device_tokens");
+    jdbcTemplate.update("DELETE FROM driver_locations");
     jdbcTemplate.update("DELETE FROM refresh_tokens");
     jdbcTemplate.update("DELETE FROM otp_codes");
     jdbcTemplate.update("DELETE FROM role_assignments");

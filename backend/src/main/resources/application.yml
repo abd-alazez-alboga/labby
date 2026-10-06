@@ -93,3 +93,23 @@ labby:
     # are empty pushes are logged instead of sent (dev/tests), the center still records everything.
     firebase-credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
     firebase-credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
+  tracking:
+    # Driver GPS streaming (TRK-01): clients send a sample this often while online.
+    stream-interval-seconds: ${LOCATION_INTERVAL_SECONDS:5}
+    # A driver whose last sample is older than this is stale: no new offers (TRK-04).
+    stale-after-seconds: ${LOCATION_STALE_SECONDS:30}
+  realtime:
+    # WebSocket /api/v1/realtime (realtime-v1.yaml): the first-frame auth deadline and the idle
+    # close, both from the contract; the check interval bounds how fast token expiry, session
+    # revocation and idleness are noticed.
+    auth-timeout-seconds: ${REALTIME_AUTH_TIMEOUT_SECONDS:10}
+    idle-timeout-seconds: ${REALTIME_IDLE_TIMEOUT_SECONDS:60}
+    check-interval-seconds: ${REALTIME_CHECK_INTERVAL_SECONDS:5}
+  routing:
+    # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
+    osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}
+    osrm-timeout-seconds: ${ROUTING_OSRM_TIMEOUT_SECONDS:3}
+    # Straight-line fallback when OSRM is unreachable (NFR-A3): great-circle distance x factor at
+    # this speed, flagged approximate.
+    fallback-detour-factor: ${ROUTING_FALLBACK_DETOUR_FACTOR:1.3}
+    fallback-speed-kmh: ${ROUTING_FALLBACK_SPEED_KMH:25}
