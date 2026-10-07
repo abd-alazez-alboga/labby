@@ -11,10 +11,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Outbox dispatcher: per entry, (1) commit the center row ({@link
+ * Outbox dispatcher: per entry, (1) claim it and commit the center row ({@link
  * NotificationDeliveryWriter#prepare}), (2) push outside any transaction, (3) record the outcome
  * and mark the entry delivered. A push that throws is recorded as {@code failed}; the center row is
- * already committed (NFR-A3).
+ * already committed (NFR-A3). The claim makes concurrent runs — on this or another backend instance
+ * (NFR-P4) — push each entry once; an entry whose dispatcher died mid-push is retried once its
+ * claim goes stale.
  */
 @Slf4j
 @Service

@@ -211,12 +211,17 @@ public class NotificationRenderer {
         type.map(known -> Map.of("documentType", known.getValue())).orElse(Map.of()));
   }
 
+  /**
+   * A suspension for an expired document links to the documents to renew; any other reason has
+   * nothing to act on in the app ("contact support"), so it carries no deep link — a push tap then
+   * opens the notification center (realtime-v1.yaml "Deep links").
+   */
   private static Rendered suspended(NotificationEvent event, Map<String, Object> params) {
     boolean expiredDocument =
         SuspensionReason.DOCUMENT_EXPIRED.getValue().equals(text(params.get("reason")));
     return driver(
         event,
-        SCREEN_DRIVER_DOCUMENTS,
+        expiredDocument ? SCREEN_DRIVER_DOCUMENTS : null,
         "Driver account suspended",
         expiredDocument
             ? "Your driver account is suspended because a document has expired. Renew it to drive"

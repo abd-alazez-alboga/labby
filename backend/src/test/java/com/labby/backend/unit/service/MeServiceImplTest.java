@@ -27,6 +27,7 @@ import com.labby.backend.repository.RbacRoleRepository;
 import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
+import com.labby.backend.service.DeviceTokenService;
 import com.labby.backend.service.MeServiceImpl;
 import com.labby.backend.service.OtpService;
 import com.labby.backend.service.ProfileServiceImpl;
@@ -58,6 +59,7 @@ class MeServiceImplTest {
   @Mock private RefreshTokenRepository refreshTokenRepository;
   @Mock private OtpService otpService;
   @Mock private StorageProvider storageProvider;
+  @Mock private DeviceTokenService deviceTokenService;
 
   private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
   @Mock private RbacRoleRepository rbacRoleRepository;
@@ -79,7 +81,8 @@ class MeServiceImplTest {
             passwordEncoder,
             storageProvider,
             new StorageProperties("/tmp/labby-test", 5_242_880, 10_485_760, 300),
-            new ProfileServiceImpl(userMapper, rbacRoleRepository));
+            new ProfileServiceImpl(userMapper, rbacRoleRepository),
+            deviceTokenService);
     userId = UUID.randomUUID();
     user =
         User.builder()
@@ -231,7 +234,8 @@ class MeServiceImplTest {
   }
 
   @Test
-  @DisplayName("password change keeps the current session and revokes the others")
+  @DisplayName(
+      "password change keeps the current session, revokes the others and drops every push token")
   void shouldRevokeOtherSessionsWhenPasswordChanged() {
     UUID sessionId = UUID.randomUUID();
     when(userRepository.save(user)).thenReturn(user);
@@ -243,10 +247,11 @@ class MeServiceImplTest {
     assertThat(passwordEncoder.matches("NewSecret1!", user.getPasswordHash())).isTrue();
     verify(refreshTokenRepository).revokeAllByUserIdExcept(eq(userId), eq(sessionId), any());
     verify(refreshTokenRepository, never()).revokeAllByUserId(any(), any());
+    verify(deviceTokenService).removeAllForUser(userId);
   }
 
   @Test
-  @DisplayName("soft delete flips state, stamps deleted_at, and revokes all sessions")
+  @DisplayName("soft delete flips state, stamps deleted_at, revokes all sessions and push tokens")
   void shouldSoftDeleteWhenTwoFactorValid() {
     when(userRepository.save(user)).thenReturn(user);
 
@@ -256,5 +261,6 @@ class MeServiceImplTest {
     assertThat(user.getState()).isEqualTo(AccountState.DELETED);
     assertThat(user.getDeletedAt()).isNotNull();
     verify(refreshTokenRepository).revokeAllByUserId(eq(userId), any());
+    verify(deviceTokenService).removeAllForUser(userId);
   }
 }

@@ -1,5 +1,6 @@
 package com.labby.backend.unit.service;
 
+import static com.labby.backend.service.NotificationDeliveryWriter.CLAIM_TIMEOUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -50,6 +51,7 @@ class NotificationDeliveryWriterTest {
 
   private static final UUID USER = UUID.randomUUID();
   private static final UUID OUTBOX = UUID.randomUUID();
+  private static final Instant NOW = Instant.parse("2026-10-06T10:00:00Z");
 
   @Mock private NotificationOutboxRepository notificationOutboxRepository;
   @Mock private NotificationRepository notificationRepository;
@@ -59,6 +61,7 @@ class NotificationDeliveryWriterTest {
   @Mock private NotificationRenderer notificationRenderer;
 
   private NotificationDeliveryWriter writer;
+  private NotificationOutboxEntry entry;
 
   @BeforeEach
   void setUp() {
@@ -71,15 +74,16 @@ class NotificationDeliveryWriterTest {
             userRepository,
             notificationRenderer,
             new ObjectMapper(),
-            Clock.fixed(Instant.parse("2026-10-06T10:00:00Z"), ZoneOffset.UTC));
-    NotificationOutboxEntry entry =
+            Clock.fixed(NOW, ZoneOffset.UTC));
+    entry =
         NotificationOutboxEntry.builder()
             .id(OUTBOX)
             .userId(USER)
             .event("test.event")
             .createdAt(Instant.parse("2026-10-06T09:00:00Z"))
             .build();
-    when(notificationOutboxRepository.lockPending(OUTBOX)).thenReturn(Optional.of(entry));
+    when(notificationOutboxRepository.lockClaimable(OUTBOX, NOW.minus(CLAIM_TIMEOUT)))
+        .thenReturn(Optional.of(entry));
     when(notificationRepository.findByNotificationOutboxId(OUTBOX)).thenReturn(Optional.empty());
     lenient()
         .when(notificationRepository.save(any(Notification.class)))
@@ -128,6 +132,7 @@ class NotificationDeliveryWriterTest {
     Delivery delivery = writer.prepare(OUTBOX).orElseThrow();
 
     assertThat(delivery.decided()).isEqualTo(PushStatus.MUTED);
+    assertThat(entry.getClaimedAt()).as("claimed before any push").isEqualTo(NOW);
     assertThat(delivery.notificationId()).isNotNull();
   }
 
@@ -138,7 +143,7 @@ class NotificationDeliveryWriterTest {
         List.of(NotificationCategory.RIDE, NotificationCategory.SAFETY)) {
       org.mockito.Mockito.reset(notificationRenderer, deviceTokenRepository);
       renders(critical, NotificationAudience.RIDER);
-      when(deviceTokenRepository.findByUserIdAndAppIn(eq(USER), anyCollection()))
+      when(deviceTokenRepository.findPushable(eq(USER), anyCollection(), eq(NOW)))
           .thenReturn(List.of(token("rider-device", ClientType.RIDER)));
 
       Delivery delivery = writer.prepare(OUTBOX).orElseThrow();

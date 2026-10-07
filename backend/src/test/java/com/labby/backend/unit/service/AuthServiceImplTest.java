@@ -39,6 +39,7 @@ import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.security.JwtService;
 import com.labby.backend.service.AuthServiceImpl;
+import com.labby.backend.service.DeviceTokenService;
 import com.labby.backend.service.LoginThrottle;
 import com.labby.backend.service.OtpService;
 import com.labby.backend.service.ProfileServiceImpl;
@@ -71,6 +72,7 @@ class AuthServiceImplTest {
   @Mock private OtpService otpService;
   @Mock private JwtService jwtService;
   @Mock private LoginThrottle loginThrottle;
+  @Mock private DeviceTokenService deviceTokenService;
 
   private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
   @Mock private RbacRoleRepository rbacRoleRepository;
@@ -92,7 +94,8 @@ class AuthServiceImplTest {
             passwordEncoder,
             loginThrottle,
             new ProfileServiceImpl(userMapper, rbacRoleRepository),
-            new AuthProperties("test-secret-test-secret-test-secret!!", 900, 1209600, 10, 900));
+            new AuthProperties("test-secret-test-secret-test-secret!!", 900, 1209600, 10, 900),
+            deviceTokenService);
     user =
         User.builder()
             .phone(PHONE)
@@ -266,10 +269,11 @@ class AuthServiceImplTest {
     assertThat(stored.getRevokedAt()).isNotNull();
     assertThat(response.refreshToken()).isNotBlank();
     verify(refreshTokenRepository, never()).revokeAllByUserId(any(), any());
+    verify(deviceTokenService, never()).removeAllForUser(any());
   }
 
   @Test
-  @DisplayName("reuse of a revoked token revokes the whole family and answers 401")
+  @DisplayName("reuse of a revoked token revokes the whole family, drops push tokens, answers 401")
   void shouldRevokeFamilyWhenRevokedTokenReused() {
     RefreshToken revoked =
         RefreshToken.builder()
@@ -283,6 +287,7 @@ class AuthServiceImplTest {
     assertThatThrownBy(() -> authService.refresh(new RefreshRequestDto("raw-token")))
         .isInstanceOf(UnauthorizedException.class);
     verify(refreshTokenRepository).revokeAllByUserId(eq(user.getId()), any());
+    verify(deviceTokenService).removeAllForUser(user.getId());
   }
 
   @Test

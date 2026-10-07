@@ -31,4 +31,9 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
   public void unregister(UUID userId, String token) {
     deviceTokenRepository.deleteOwned(token, userId);
   }
+
+  @Override
+  public void removeAllForUser(UUID userId) {
+    deviceTokenRepository.deleteByUserId(userId);
+  }
 }

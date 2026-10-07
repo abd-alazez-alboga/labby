@@ -72,6 +72,7 @@ public class AuthServiceImpl implements AuthService {
   private final LoginThrottle loginThrottle;
   private final ProfileService profileService;
   private final AuthProperties authProperties;
+  private final DeviceTokenService deviceTokenService;
 
   @Override
   public void registerStart(RegisterStartRequestDto request) {
@@ -161,8 +162,9 @@ public class AuthServiceImpl implements AuthService {
             .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
     if (token.getRevokedAt() != null) {
-      // Reuse of a rotated/revoked token: revoke the whole family (every live session).
-      refreshTokenRepository.revokeAllByUserId(token.getUserId(), Instant.now());
+      // Reuse of a rotated/revoked token: revoke the whole family (every live session) and drop
+      // every push token, so a thief's device stops receiving the account's pushes too.
+      revokeAllSessions(token.getUserId());
       log.warn("Refresh-token reuse detected for user {}; all sessions revoked", token.getUserId());
       throw new UnauthorizedException("Invalid refresh token");
     }
@@ -177,7 +179,7 @@ public class AuthServiceImpl implements AuthService {
             .findById(token.getUserId())
             .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
     if (user.getState() == AccountState.DELETED) {
-      refreshTokenRepository.revokeAllByUserId(user.getId(), Instant.now());
+      revokeAllSessions(user.getId());
       throw new UnauthorizedException("Invalid refresh token");
     }
 
@@ -235,7 +237,13 @@ public class AuthServiceImpl implements AuthService {
 
     user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
     userRepository.save(user);
-    refreshTokenRepository.revokeAllByUserId(user.getId(), Instant.now());
+    revokeAllSessions(user.getId());
+  }
+
+  /** Revokes every session of the account; its push tokens go with them (they never outlive). */
+  private void revokeAllSessions(UUID userId) {
+    refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
+    deviceTokenService.removeAllForUser(userId);
   }
 
   private AuthTokensResponseDto issueSession(User user) {

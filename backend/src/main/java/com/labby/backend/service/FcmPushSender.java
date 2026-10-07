@@ -1,5 +1,7 @@
 package com.labby.backend.service;
 
+import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
@@ -16,11 +18,19 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * FCM push via the Firebase Admin SDK (ES-03). One multicast per notification; per-token failures
  * that mean the token is dead (unregistered, invalid, wrong sender) are reported back so the
- * dispatcher prunes them. Message text is never logged.
+ * dispatcher prunes them. On Android every push targets the clients' notification channel {@link
+ * #ANDROID_CHANNEL_ID} (HIGH importance, so it shows as a heads-up banner). Message text is never
+ * logged.
  */
 @Slf4j
 @RequiredArgsConstructor
 public class FcmPushSender implements PushSender {
+
+  /**
+   * The Android notification channel both apps create (realtime-v1.yaml "Push payload"); without it
+   * a push lands in the OS fallback channel.
+   */
+  public static final String ANDROID_CHANNEL_ID = "default";
 
   /** FCM's multicast limit. */
   static final int MAX_TOKENS_PER_CALL = 500;
@@ -58,6 +68,11 @@ public class FcmPushSender implements PushSender {
         MulticastMessage.builder()
             .setNotification(
                 Notification.builder().setTitle(message.title()).setBody(message.body()).build())
+            .setAndroidConfig(
+                AndroidConfig.builder()
+                    .setNotification(
+                        AndroidNotification.builder().setChannelId(ANDROID_CHANNEL_ID).build())
+                    .build())
             .putAllData(message.data())
             .addAllTokens(chunk)
             .build();

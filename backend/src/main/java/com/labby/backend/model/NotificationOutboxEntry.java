@@ -53,6 +53,13 @@ public class NotificationOutboxEntry {
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
+  /**
+   * When a dispatcher claimed the entry for delivery (set before its push); a claim older than the
+   * dispatcher's timeout is stale and may be taken over (NFR-P4: several instances).
+   */
+  @Column(name = "claimed_at")
+  private Instant claimedAt;
+
   @Column(name = "delivered_at")
   private Instant deliveredAt;
 

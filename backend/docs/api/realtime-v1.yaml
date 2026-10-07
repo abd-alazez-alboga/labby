@@ -20,7 +20,9 @@ info:
     onboarding events flow through the same dispatcher (the "backfill hook"). Push payload: the
     FCM notification carries `title` + `body` in the user's language; its data map carries
     `notificationId`, `category`, `event` and, when the notification has a deep link, `screen` +
-    `params` (a JSON object encoded as a string, e.g. `{"documentType":"insurance"}`).
+    `params` (a JSON object encoded as a string, e.g. `{"documentType":"insurance"}`). On Android
+    the push targets the notification channel `default`, which both apps create with HIGH
+    importance.
 
 
     **Categories (NTF-01/02).** `ride` (ride events), `chat`, `scheduled` (scheduled-ride
@@ -39,7 +41,9 @@ info:
     **Deep links (UC-S-11).** `link` is `{screen, params}` from a fixed catalog the clients map
     to routes: `driver_application`, `driver_documents` (params: `documentType?`),
     `driver_vehicles`, `notifications`; M7+ add `ride` (params: `rideId`) and later screens.
-    Unknown screens open the notification center.
+    Unknown screens open the notification center. A notification with nothing to act on in the
+    app has no link (`link: null`, no `screen` in the push) and a push tap opens the center: e.g.
+    `driver.suspended` links to `driver_documents` only when its reason is `document_expired`.
 
 
     **Driver availability (DRV-05, UC-D-04).** Going online requires: the driver role ACTIVE
@@ -210,7 +214,13 @@ paths:
       summary: Register (or re-assign) this device's FCM token
       description: >
         Called after login and whenever FCM rotates the token. A token already registered to
-        another account moves to the caller (one account per device at a time).
+        another account moves to the caller (one account per device at a time). Push tokens never
+        outlive the account's sessions: every path that revokes ALL of the account's other
+        sessions (refresh-token reuse, password reset, password change, account deletion) deletes
+        ALL of the account's tokens, and pushes go only to accounts holding at least one live
+        session. A client that stays signed in through a password change must therefore register
+        its token again after the change succeeds. A single-session logout still relies on the
+        client's `DELETE /devices/{token}`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true

@@ -64,6 +64,7 @@ public class MeServiceImpl implements MeService {
   private final StorageProvider storageProvider;
   private final StorageProperties storageProperties;
   private final ProfileService profileService;
+  private final DeviceTokenService deviceTokenService;
 
   @Override
   @Transactional(readOnly = true)
@@ -96,6 +97,10 @@ public class MeServiceImpl implements MeService {
     } else {
       refreshTokenRepository.revokeAllByUserId(userId, now);
     }
+    // Tokens are not bound to a session, so every one goes — including this device's, which the
+    // client registers again after the change (realtime-v1.yaml PUT /devices) — otherwise a
+    // signed-out device would keep receiving the account's pushes.
+    deviceTokenService.removeAllForUser(userId);
   }
 
   @Override
@@ -174,6 +179,7 @@ public class MeServiceImpl implements MeService {
     user.setDeletedAt(Instant.now());
     userRepository.save(user);
     refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
+    deviceTokenService.removeAllForUser(userId);
     phoneChangeSessions.remove(userId);
   }
 

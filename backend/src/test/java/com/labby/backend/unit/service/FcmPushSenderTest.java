@@ -6,21 +6,30 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.SendResponse;
 import com.labby.backend.service.FcmPushSender;
 import com.labby.backend.service.PushSender.PushMessage;
 import com.labby.backend.service.PushSender.PushResult;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
-/** ES-03: FCM per-token results map to delivered counts and dead tokens to prune. */
+/**
+ * ES-03: FCM per-token results map to delivered counts and dead tokens to prune; every push targets
+ * the apps' Android notification channel.
+ */
 class FcmPushSenderTest {
 
   private static final PushMessage MESSAGE =
@@ -59,6 +68,35 @@ class FcmPushSenderTest {
 
     assertThat(result.delivered()).isEqualTo(1);
     assertThat(result.invalidTokens()).containsExactlyInAnyOrder("b", "c");
+  }
+
+  @Test
+  @DisplayName("every push targets the apps' Android notification channel \"default\"")
+  @SuppressWarnings("unchecked")
+  void shouldTargetTheDefaultAndroidChannel() throws Exception {
+    FirebaseMessaging messaging = mock(FirebaseMessaging.class);
+    BatchResponse batch = mock(BatchResponse.class);
+    List<SendResponse> responses = List.of(success(), success());
+    when(batch.getResponses()).thenReturn(responses);
+    ArgumentCaptor<MulticastMessage> sent = ArgumentCaptor.forClass(MulticastMessage.class);
+    when(messaging.sendEachForMulticast(sent.capture())).thenReturn(batch);
+
+    new FcmPushSender(messaging).send(List.of("a", "b"), MESSAGE);
+
+    // The per-token messages exactly as the SDK serializes them onto the wire.
+    Method messageList = MulticastMessage.class.getDeclaredMethod("getMessageList");
+    messageList.setAccessible(true);
+    List<Message> messages = (List<Message>) messageList.invoke(sent.getValue());
+    assertThat(messages).hasSize(2);
+    for (Message message : messages) {
+      JsonNode wire =
+          new ObjectMapper().readTree(GsonFactory.getDefaultInstance().toString(message));
+      assertThat(wire.at("/android/notification/channel_id").asText())
+          .isEqualTo(FcmPushSender.ANDROID_CHANNEL_ID)
+          .isEqualTo("default");
+      assertThat(wire.at("/notification/title").asText()).isEqualTo("T");
+      assertThat(wire.at("/data/event").asText()).isEqualTo("driver.reinstated");
+    }
   }
 
   @Test

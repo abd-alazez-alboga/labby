@@ -21,4 +21,13 @@ public interface DeviceTokenService {
    * @param token the token
    */
   void unregister(UUID userId, String token);
+
+  /**
+   * Removes every token of the account. Called by each path that revokes ALL of the account's
+   * sessions (refresh-token reuse, password reset/change, account deletion) so no device — an
+   * attacker's included — keeps receiving the account's pushes after losing its session.
+   *
+   * @param userId the account
+   */
+  void removeAllForUser(UUID userId);
 }

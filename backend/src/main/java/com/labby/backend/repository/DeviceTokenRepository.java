@@ -19,8 +19,24 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, UUID> 
 
   List<DeviceToken> findByUserId(UUID userId);
 
-  /** The account's tokens registered by the given clients (a notification's audience). */
-  List<DeviceToken> findByUserIdAndAppIn(UUID userId, Collection<ClientType> apps);
+  /**
+   * The account's tokens registered by the given clients (a notification's audience), but only
+   * while the account holds at least one live session — a token must never outlive the sessions of
+   * its account (defense in depth behind {@link #deleteByUserId} on every revoke-all path).
+   *
+   * @param userId the account
+   * @param apps the audience's clients
+   * @param now the liveness instant (a session is live when not revoked and not expired)
+   * @return the pushable tokens, empty when the account has no live session
+   */
+  @Query(
+      "SELECT d FROM DeviceToken d WHERE d.userId = :userId AND d.app IN :apps"
+          + " AND EXISTS (SELECT 1 FROM RefreshToken r WHERE r.userId = d.userId"
+          + " AND r.revokedAt IS NULL AND r.expiresAt > :now)")
+  List<DeviceToken> findPushable(
+      @Param("userId") UUID userId,
+      @Param("apps") Collection<ClientType> apps,
+      @Param("now") Instant now);
 
   /**
    * Registers a token for the account, or moves it to the account when another one held it (one
@@ -53,6 +69,10 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, UUID> 
   @Modifying
   @Query("DELETE FROM DeviceToken d WHERE d.token = :token AND d.userId = :userId")
   int deleteOwned(@Param("token") String token, @Param("userId") UUID userId);
+
+  @Modifying
+  @Query("DELETE FROM DeviceToken d WHERE d.userId = :userId")
+  int deleteByUserId(@Param("userId") UUID userId);
 
   @Modifying
   @Query("DELETE FROM DeviceToken d WHERE d.token IN :tokens")

@@ -7,6 +7,7 @@ import com.labby.backend.enums.NotificationCategory;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.service.NotificationRenderer;
 import com.labby.backend.service.NotificationRenderer.Rendered;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -15,8 +16,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * NTF-01 / NFR-I1: every M5 onboarding event renders in English AND Arabic, is category {@code
- * account} for the driver audience, deep-links into the catalog, and never uses the
- * carrier-filtered "verification" wording.
+ * account} for the driver audience, deep-links into the catalog (except a suspension with nothing
+ * to act on in the app), and never uses the carrier-filtered "verification" wording.
  */
 class NotificationRendererTest {
 
@@ -90,16 +91,22 @@ class NotificationRendererTest {
   }
 
   @Test
-  @DisplayName("suspension copy depends on the reason; unknown events are not rendered")
+  @DisplayName(
+      "suspension copy and link depend on the reason (only document_expired links to documents);"
+          + " unknown events are not rendered")
   void shouldRenderSuspensionReasonsAndSkipUnknownEvents() {
-    assertThat(
-            renderer
-                .render("driver.suspended", Map.of("reason", "document_expired"))
-                .orElseThrow()
-                .bodyEn())
-        .contains("document has expired");
-    assertThat(renderer.render("driver.suspended", Map.of()).orElseThrow().bodyEn())
-        .contains("Contact support");
+    Rendered expired =
+        renderer.render("driver.suspended", Map.of("reason", "document_expired")).orElseThrow();
+    assertThat(expired.bodyEn()).contains("document has expired");
+    assertThat(expired.linkScreen()).isEqualTo("driver_documents");
+
+    for (Map<String, Object> params :
+        List.<Map<String, Object>>of(Map.of(), Map.of("reason", "manual"))) {
+      Rendered other = renderer.render("driver.suspended", params).orElseThrow();
+      assertThat(other.bodyEn()).as("%s", params).contains("Contact support");
+      assertThat(other.linkScreen()).as("%s", params).isNull();
+      assertThat(other.linkParams()).as("%s", params).isEmpty();
+    }
     assertThat(renderer.render("ride.unknown_future_event", Map.of())).isEmpty();
   }
 }
