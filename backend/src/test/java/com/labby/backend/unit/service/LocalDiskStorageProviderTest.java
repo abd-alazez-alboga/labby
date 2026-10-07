@@ -33,7 +33,9 @@ class LocalDiskStorageProviderTest {
             clock);
     LocalDiskStorageProvider provider =
         new LocalDiskStorageProvider(
-            new StorageProperties(root.toString(), 5_242_880, 10_485_760, 300), signer, clock);
+            new StorageProperties(root.toString(), 5_242_880, 10_485_760, 300, 50, 7),
+            signer,
+            clock);
     provider.store("driver-files/a.png", new byte[] {1, 2, 3});
 
     FileAccessUrlDto access = provider.accessUrl("driver-files/a.png", "image/png");
@@ -52,7 +54,7 @@ class LocalDiskStorageProviderTest {
     Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
     LocalDiskStorageProvider provider =
         new LocalDiskStorageProvider(
-            new StorageProperties(root.toString(), 5_242_880, 10_485_760, 300),
+            new StorageProperties(root.toString(), 5_242_880, 10_485_760, 300, 50, 7),
             new FileUrlSigner(
                 new AuthProperties(
                     "unit-test-secret-0123456789abcdef0123", 900, 1_209_600, 10, 900),

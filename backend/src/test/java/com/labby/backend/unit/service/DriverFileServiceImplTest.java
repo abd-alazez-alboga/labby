@@ -15,10 +15,15 @@ import com.labby.backend.dto.UploadedFileDto;
 import com.labby.backend.enums.StoredFileKind;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.PayloadTooLargeException;
+import com.labby.backend.exception.TooManyRequestsException;
 import com.labby.backend.model.StoredFile;
 import com.labby.backend.repository.StoredFileRepository;
 import com.labby.backend.service.DriverFileServiceImpl;
 import com.labby.backend.service.StorageProvider;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,11 +33,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
-/** Driver upload rules: size cap (413), content-detected type, PDF documents only, server key. */
+/**
+ * Driver upload rules: daily cap (429), size cap (413), content-detected type, PDF documents only,
+ * server key.
+ */
 @ExtendWith(MockitoExtension.class)
 class DriverFileServiceImplTest {
 
   private static final UUID USER = UUID.randomUUID();
+  private static final Instant NOW = Instant.parse("2026-10-07T10:00:00Z");
   private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1};
   private static final byte[] PDF = {'%', 'P', 'D', 'F', '-', '1'};
 
@@ -47,7 +56,21 @@ class DriverFileServiceImplTest {
         new DriverFileServiceImpl(
             storedFileRepository,
             storageProvider,
-            new StorageProperties("/tmp/unused", 1024, 16, 300));
+            new StorageProperties("/tmp/unused", 1024, 16, 300, 3, 7),
+            Clock.fixed(NOW, ZoneOffset.UTC));
+  }
+
+  @Test
+  @DisplayName(
+      "the STORAGE_DRIVER_FILE_DAILY_CAP-th upload in a rolling 24 h is the last one (429)")
+  void shouldEnforceTheRollingDailyCap() {
+    when(storedFileRepository.countByOwnerUserIdAndCreatedAtAfter(
+            USER, NOW.minus(Duration.ofDays(1))))
+        .thenReturn(3L);
+    MockMultipartFile png = new MockMultipartFile("file", "x.png", "image/png", PNG);
+    assertThatThrownBy(() -> service.upload(USER, "vehicle_photo", png))
+        .isInstanceOf(TooManyRequestsException.class);
+    verify(storageProvider, never()).store(anyString(), any());
   }
 
   @Test

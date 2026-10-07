@@ -5,11 +5,14 @@ import com.labby.backend.dto.UploadedFileDto;
 import com.labby.backend.enums.StoredFileKind;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.PayloadTooLargeException;
+import com.labby.backend.exception.TooManyRequestsException;
 import com.labby.backend.model.StoredFile;
 import com.labby.backend.repository.StoredFileRepository;
 import com.labby.backend.util.FileSignatures;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,7 +22,8 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * Validates and stores driver uploads. The type comes from the content's magic bytes (the client's
  * Content-Type is ignored); PDFs are documents only; the key is server-generated ({@code
- * driver-files/<uuid>.<ext>}) so nothing client-supplied reaches the storage path.
+ * driver-files/<uuid>.<ext>}) so nothing client-supplied reaches the storage path. A user may
+ * upload at most {@code STORAGE_DRIVER_FILE_DAILY_CAP} files per rolling 24 h (429 beyond it).
  */
 @Service
 @Transactional
@@ -31,10 +35,17 @@ public class DriverFileServiceImpl implements DriverFileService {
   private final StoredFileRepository storedFileRepository;
   private final StorageProvider storageProvider;
   private final StorageProperties storageProperties;
+  private final Clock clock;
 
   @Override
   public UploadedFileDto upload(UUID userId, String kind, MultipartFile file) {
     StoredFileKind fileKind = parseKind(kind);
+    long recent =
+        storedFileRepository.countByOwnerUserIdAndCreatedAtAfter(
+            userId, clock.instant().minus(Duration.ofDays(1)));
+    if (recent >= storageProperties.driverFileDailyCap()) {
+      throw new TooManyRequestsException("Daily upload limit reached; try again later");
+    }
     if (file == null || file.isEmpty()) {
       throw new InvalidRequestException("A non-empty file is required");
     }

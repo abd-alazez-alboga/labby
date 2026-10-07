@@ -61,6 +61,15 @@ public class LocalDiskStorageProvider implements StorageProvider {
   }
 
   @Override
+  public void delete(String key) {
+    try {
+      Files.deleteIfExists(resolve(key));
+    } catch (IOException ex) {
+      throw new UncheckedIOException("Failed to delete upload", ex);
+    }
+  }
+
+  @Override
   public FileAccessUrlDto accessUrl(String key, String contentType) {
     resolve(key);
     Instant expiresAt = clock.instant().plusSeconds(urlTtlSeconds);

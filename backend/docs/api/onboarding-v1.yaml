@@ -116,7 +116,10 @@ paths:
       description: >
         `document` accepts JPEG, PNG or PDF; `vehicle_photo` accepts JPEG or PNG. Max size
         `STORAGE_DRIVER_FILE_MAX_BYTES` (default 10 MiB). The returned `fileId` is usable only
-        by the uploader.
+        by the uploader. At most `STORAGE_DRIVER_FILE_DAILY_CAP` (default 50) uploads per user per
+        rolling 24 h. An upload that no document or vehicle photo references within
+        `STORAGE_ORPHAN_FILE_RETENTION_DAYS` (default 7) is deleted by a nightly cleanup; a later
+        submission naming it gets the usual field error and the client re-uploads.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -136,6 +139,7 @@ paths:
               schema: { $ref: '#/components/schemas/UploadedFile' }
         '400': { description: Empty/unreadable file, unsupported type, or PDF as a vehicle photo }
         '413': { description: File too large }
+        '429': { description: Daily upload cap reached }
 
   /api/v1/driver/application:
     get:

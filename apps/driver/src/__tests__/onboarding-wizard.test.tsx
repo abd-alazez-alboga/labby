@@ -345,6 +345,29 @@ describe("driver application wizard (UC-D-01)", () => {
     ).toBeTruthy();
   });
 
+  it("maps a 429 upload to the daily-limit message", async () => {
+    const user = withPhoto();
+    await seedSession(user);
+    startAtWizard(user, {
+      "POST /api/v1/driver/files": {
+        status: 429,
+        body: { status: 429, message: "Daily upload limit reached" },
+      },
+    });
+
+    await screen.findByTestId("step-personal");
+    await continueTo("Government ID");
+
+    mockDocumentPick("ok.pdf", "application/pdf", 2048);
+    fireEvent.press(screen.getByTestId("document-file-files"));
+    await screen.findByTestId("document-file-upload-error");
+    expect(
+      screen.getByText(
+        "You've reached today's upload limit. Try again tomorrow.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("rejects a wrong file type before upload and maps 413 to the size message", async () => {
     const user = withPhoto();
     await seedSession(user);

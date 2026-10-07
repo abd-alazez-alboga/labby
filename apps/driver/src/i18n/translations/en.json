@@ -215,6 +215,7 @@
       "uploading": "Uploading…",
       "rejected": "This file couldn't be used. It may be unreadable or of an unsupported type — try another one.",
       "tooLarge": "This file is too large. The maximum size is 10 MB.",
+      "dailyLimit": "You've reached today's upload limit. Try again tomorrow.",
       "wrongTypeDocument": "Use a photo (JPEG or PNG) or a PDF file.",
       "wrongTypePhoto": "Use a JPEG or PNG photo.",
       "cameraDenied": "Camera access is off. Allow it in your phone's settings, or choose a file instead.",

@@ -1,14 +1,19 @@
 package com.labby.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.labby.backend.exception.ResourceNotFoundException;
+import com.labby.backend.service.OrphanFileCleanupService;
+import com.labby.backend.service.StorageProvider;
 import com.labby.backend.util.RbacIds;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +25,56 @@ import org.springframework.http.ResponseEntity;
  * storage keys are never served.
  */
 class DriverFilesIntegrationTest extends AbstractOnboardingIntegrationTest {
+
+  @Autowired private OrphanFileCleanupService orphanFileCleanupService;
+  @Autowired private StorageProvider storageProvider;
+
+  private String storageKeyOf(UUID fileId) {
+    return jdbcTemplate.queryForObject(
+        "SELECT storage_key FROM stored_files WHERE stored_file_id = ?", String.class, fileId);
+  }
+
+  private void backdate(UUID fileId, int days) {
+    jdbcTemplate.update(
+        "UPDATE stored_files SET created_at = now() - make_interval(days => ?)"
+            + " WHERE stored_file_id = ?",
+        days,
+        fileId);
+  }
+
+  private boolean rowExists(UUID fileId) {
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(
+            "SELECT EXISTS (SELECT 1 FROM stored_files WHERE stored_file_id = ?)",
+            Boolean.class,
+            fileId));
+  }
+
+  @Test
+  @DisplayName("nightly cleanup deletes week-old unreferenced uploads (row + bytes) only")
+  void shouldCleanUpOnlyOldOrphans() {
+    Account applicant = registerApplicant("+963936000091", "Abandoner");
+    UUID oldOrphan = upload(applicant.token(), "document", PDF);
+    UUID freshOrphan = upload(applicant.token(), "document", PDF);
+    UUID applicationId = submitApplication(applicant, "CL1");
+    assertThat(applicationId).isNotNull();
+    List<UUID> referenced =
+        jdbcTemplate.queryForList(
+            "SELECT stored_file_id FROM documents WHERE driver_user_id = ?",
+            UUID.class,
+            applicant.userId());
+    String oldOrphanKey = storageKeyOf(oldOrphan);
+    backdate(oldOrphan, 8);
+    referenced.forEach(fileId -> backdate(fileId, 8));
+
+    orphanFileCleanupService.runCleanup();
+
+    assertThat(rowExists(oldOrphan)).isFalse();
+    assertThatThrownBy(() -> storageProvider.load(oldOrphanKey))
+        .isInstanceOf(ResourceNotFoundException.class);
+    assertThat(rowExists(freshOrphan)).isTrue();
+    assertThat(referenced).isNotEmpty().allMatch(this::rowExists);
+  }
 
   @Test
   @DisplayName("type comes from the magic bytes; PDF only as a document; junk/empty/kind → 400")

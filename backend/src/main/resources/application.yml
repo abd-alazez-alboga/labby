@@ -78,6 +78,12 @@ labby:
     driver-file-max-bytes: ${STORAGE_DRIVER_FILE_MAX_BYTES:10485760}
     # Lifetime of expiring file-access URLs minted for permission-checked viewers (NFR-S2).
     url-ttl-seconds: ${STORAGE_URL_TTL_SECONDS:300}
+    # Uploads one user may make to /driver/files per rolling 24 h (429 beyond it).
+    driver-file-daily-cap: ${STORAGE_DRIVER_FILE_DAILY_CAP:50}
+    # Nightly cleanup of uploads no document / vehicle photo references, older than the retention.
+    # Spring cron (second minute hour day month weekday), operating timezone; "-" disables it.
+    orphan-file-retention-days: ${STORAGE_ORPHAN_FILE_RETENTION_DAYS:7}
+    orphan-cleanup-cron: ${STORAGE_ORPHAN_CLEANUP_CRON:0 30 3 * * *}
   onboarding:
     # Operating timezone: its calendar date is "today" for document expiry (DRV-04) — a document
     # is valid THROUGH its expiry date. Launch market: Syria.

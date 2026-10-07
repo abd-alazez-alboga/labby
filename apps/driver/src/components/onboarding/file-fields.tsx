@@ -27,11 +27,12 @@ import {
 } from "../ui";
 import { FilePreview } from "./ui";
 
-/** Upload failures → i18n keys (contract: 400 type/unreadable, 413 size). */
+/** Upload failures → i18n keys (contract: 400 type/unreadable, 413 size, 429 daily cap). */
 function uploadErrorKey(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 400) return "onboarding.file.rejected";
     if (error.status === 413) return "onboarding.file.tooLarge";
+    if (error.status === 429) return "onboarding.file.dailyLimit";
     return "onboarding.errors.server";
   }
   return "onboarding.errors.network";

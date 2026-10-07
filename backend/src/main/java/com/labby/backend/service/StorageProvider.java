@@ -29,6 +29,13 @@ public interface StorageProvider {
   byte[] load(String key);
 
   /**
+   * Deletes content by key; a missing key is not an error.
+   *
+   * @param key the relative storage key
+   */
+  void delete(String key);
+
+  /**
    * Mints an expiring URL to a stored file. The CALLER is responsible for having checked that the
    * current user may see the file — this method grants access to whoever holds the URL until it
    * expires ({@code STORAGE_URL_TTL_SECONDS}).

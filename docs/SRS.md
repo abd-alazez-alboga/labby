@@ -303,7 +303,7 @@ Conceptual model (entities → PostgreSQL schema at implementation). **Retention
 | ID | Requirement |
 |---|---|
 | NFR-S1 | Passwords bcrypt/argon2; OTPs stored hashed; TLS everywhere; short-lived tokens with refresh rotation. |
-| NFR-S2 | Driver documents + photos stored privately; access only via authenticated, permission-checked, expiring URLs. |
+| NFR-S2 | Driver documents + photos stored privately; access only via authenticated, permission-checked, expiring URLs. Uploads are capped per user per day (default 50), and uploads nothing references are deleted after 7 days (owner decision 2026-10-07). |
 | NFR-S3 | All permission/ownership checks server-side; rate limiting on auth + OTP endpoints (AUTH-04 enforced at API layer). |
 | NFR-S4 | Secrets (SMS token, Firebase JSON, DB creds) in environment/config management, never in the repository. |
 
