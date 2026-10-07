@@ -30,5 +30,10 @@
 - Within a milestone, tickets follow the dependency/parallelism plan in the milestone file — independent tickets may be implemented simultaneously by parallel agents.
 - Every ticket must satisfy its own acceptance criteria before it counts as done.
 
+## Design first (owner rule, 2026-10-07)
+- **Every new screen or page — rider app, driver app or admin dashboard — is designed on the design canvas BEFORE any code is written**, the same way the 2026-10-07 redesign was: a mockup artboard on the Labby design canvas (https://claude.ai/artifact/GNh2Q5ooDiwNLfiJavT1KZ; mobile artboards 390×844, admin pages ≥1280 wide), shown to the owner, implemented only after the owner approves it. Significant changes to an existing screen follow the same path.
+- The design language is the owner-approved one on that canvas: Uber-style layout patterns (mobile: map-first, bottom sheets, one dominant action per screen; admin: clean tables/queues with a single primary action), white/light-grey surfaces, near-black text, **Labby purple `#59128A` as the only accent**, bold type, touch targets ≥ 48 px, full EN + AR with correct RTL, safe-area insets on every mobile screen. Never copy another company's brand assets.
+- Milestone tickets that add UI therefore include a design step before implementation; a UI ticket whose screens were never approved on the canvas is not done.
+
 ## Conduct
 - Never add features, defaults, or "improvements" that were not decided in the SRS or approved by the owner. When something is ambiguous, ask — do not assume.
