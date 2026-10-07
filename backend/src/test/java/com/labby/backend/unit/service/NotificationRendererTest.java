@@ -91,6 +91,20 @@ class NotificationRendererTest {
   }
 
   @Test
+  @DisplayName("expiry reminder on the expiry day says 'today' instead of '0 days left'")
+  void shouldSayTodayWhenTheDocumentExpiresToday() {
+    Rendered today =
+        renderer
+            .render(
+                "document.expiry_reminder",
+                Map.of("documentType", "insurance", "expiresOn", "2026-10-07", "daysLeft", 0))
+            .orElseThrow();
+    assertThat(today.bodyEn())
+        .isEqualTo("Your insurance expires today (2026-10-07). Renew it now to keep driving.");
+    assertThat(today.bodyAr()).contains("التأمين", "اليوم").doesNotContain("0 يوماً");
+  }
+
+  @Test
   @DisplayName(
       "suspension copy and link depend on the reason (only document_expired links to documents);"
           + " unknown events are not rendered")

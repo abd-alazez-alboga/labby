@@ -90,7 +90,7 @@ public class NotificationRenderer {
               SCREEN_DRIVER_APPLICATION,
               "Application received",
               "Thanks for applying to drive with Labby. We'll review your application and let you"
-                  + " know.",
+                  + " know the outcome.",
               "استلمنا طلبك",
               "شكراً لتقديم طلب القيادة مع لبي. سنراجع طلبك ونبلغك بالنتيجة.");
       case DRIVER_APPLICATION_UNDER_REVIEW ->
@@ -108,7 +108,7 @@ public class NotificationRenderer {
               "Changes needed",
               "Some items in your application need updating. Open your application to see what to"
                   + " fix.",
-              "مطلوب تعديلات",
+              "طلبك بحاجة إلى تعديلات",
               "بعض بنود طلبك بحاجة إلى تعديل. افتح طلبك لترى ما يجب تصحيحه.");
       case DRIVER_APPLICATION_APPROVED ->
           driver(
@@ -123,7 +123,7 @@ public class NotificationRenderer {
               event,
               SCREEN_DRIVER_APPLICATION,
               "Application not approved",
-              "Unfortunately your application was not approved. Open your application for details.",
+              "Unfortunately, your application was not approved. Open your application for details.",
               "لم تتم الموافقة على طلبك",
               "نأسف، لم تتم الموافقة على طلبك. افتح طلبك لمعرفة التفاصيل.");
       case VEHICLE_SWITCH_SUBMITTED ->
@@ -147,7 +147,7 @@ public class NotificationRenderer {
               event,
               SCREEN_DRIVER_VEHICLES,
               "Vehicle change not approved",
-              "Your new vehicle was not approved. Open your vehicles for details.",
+              "Your new vehicle was not approved. Open Vehicles for details.",
               "لم تتم الموافقة على تغيير المركبة",
               "لم تتم الموافقة على مركبتك الجديدة. افتح صفحة المركبات لمعرفة التفاصيل.");
       case DOCUMENT_RENEWAL_SUBMITTED ->
@@ -156,7 +156,7 @@ public class NotificationRenderer {
               SCREEN_DRIVER_DOCUMENTS,
               "Renewal submitted",
               "We received your renewed document and will review it soon.",
-              "تم إرسال التجديد",
+              "تم إرسال طلب التجديد",
               "استلمنا وثيقتك المجدَّدة وسنراجعها قريباً.");
       case DOCUMENT_RENEWAL_APPROVED ->
           driver(
@@ -171,7 +171,7 @@ public class NotificationRenderer {
               event,
               SCREEN_DRIVER_DOCUMENTS,
               "Renewal not approved",
-              "Your renewed document was not approved. Open your documents for details.",
+              "Your renewed document was not approved. Open Documents for details.",
               "لم تتم الموافقة على التجديد",
               "لم تتم الموافقة على وثيقتك المجدَّدة. افتح صفحة الوثائق لمعرفة التفاصيل.");
       case DOCUMENT_EXPIRY_REMINDER -> expiryReminder(event, params);
@@ -194,11 +194,17 @@ public class NotificationRenderer {
     String docEn = type.map(NotificationRenderer::documentNameEn).orElse("A document");
     String docAr = type.map(NotificationRenderer::documentNameAr).orElse("إحدى وثائقك");
     String bodyEn =
-        "%s expires on %s (%s left). Renew it to keep driving."
-            .formatted(capitalize(docEn), expiresOn, daysEn(daysLeft));
+        daysLeft <= 0
+            ? "%s expires today (%s). Renew it now to keep driving."
+                .formatted(capitalize(docEn), expiresOn)
+            : "%s expires on %s (%s left). Renew it to keep driving."
+                .formatted(capitalize(docEn), expiresOn, daysEn(daysLeft));
     String bodyAr =
-        "تنتهي صلاحية %s بتاريخ %s (بقي %s). جدّدها لتستمر في القيادة."
-            .formatted(docAr, expiresOn, daysAr(daysLeft));
+        daysLeft <= 0
+            ? "تنتهي صلاحية %s اليوم (%s). جدّد الوثيقة الآن لتستمر في القيادة."
+                .formatted(docAr, expiresOn)
+            : "تنتهي صلاحية %s بتاريخ %s (بقي %s). جدّد الوثيقة لتستمر في القيادة."
+                .formatted(docAr, expiresOn, daysAr(daysLeft));
     return new Rendered(
         NotificationCategory.ACCOUNT,
         NotificationAudience.DRIVER,
