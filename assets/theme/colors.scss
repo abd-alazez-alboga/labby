@@ -42,4 +42,41 @@
     /* Gradients */
     --labby-gradient-hero: linear-gradient(135deg, #3D0B57 0%, #59128A 100%);
     --labby-gradient-button: linear-gradient(135deg, #59128A 0%, #7A2DAE 100%);
+
+    /* ---- Design system 2026-10-07 (owner-approved canvas; docs/design/design-system.md) ----
+       Labby purple 700 is the ONLY accent. Gradients and the other purples above
+       are legacy: no new usages. */
+
+    /* Accent */
+    --labby-accent: #59128A;
+    --labby-accent-pressed: #3D0B57;
+    --labby-accent-tint: #F1EAF8;
+    /* active nav pill, selected chip, avatar ground */
+    --labby-on-accent: #FFFFFF;
+
+    /* Surfaces */
+    --labby-surface: #FFFFFF;
+    --labby-surface-page: #F7F6F9;
+    /* admin page ground */
+    --labby-surface-fill: #F2F0F5;
+    /* inputs, icon wells, secondary buttons */
+    --labby-surface-map: #ECE9F0;
+    /* map placeholder ground */
+
+    /* Lines */
+    --labby-line: #EEEBF2;
+    /* row dividers */
+    --labby-line-strong: #DCD8E2;
+    /* outlined buttons, chip outlines */
+    --labby-grab-handle: #D9D5DF;
+
+    /* Status (chips, banners only - never as accents) */
+    --labby-success: #067647;
+    --labby-success-bg: #ECFDF3;
+    --labby-warning: #93370D;
+    --labby-warning-bg: #FFF6E5;
+    --labby-danger: #B42318;
+    --labby-danger-bg: #FEF3F2;
+    --labby-online: #12B76A;
+    /* online dot only */
 }
