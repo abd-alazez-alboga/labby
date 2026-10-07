@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { changePassword, isValidPassword, request2faCode } from '../../api/auth';
+import { registerForPush } from '../../notifications/push-registration';
 import { ApiError } from '../../api/http-client';
 import { useAuth } from '../../auth/auth-context';
 import { Button, ErrorBanner, FormField, SuccessBanner } from '../../components/form';
@@ -98,6 +99,9 @@ export default function ChangePasswordScreen() {
     setServerError(null);
     try {
       await changePassword({ currentPassword, otpCode, newPassword });
+      // The server drops every push token of the account on a password change (sessions are
+      // revoked); this device stays signed in, so it registers its token again — never prompting.
+      void registerForPush({ prompt: false }).catch(() => {});
       setStep('done');
       setCurrentPassword('');
       setOtpCode('');

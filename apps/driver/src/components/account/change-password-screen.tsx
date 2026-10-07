@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { changePassword, requestTwoFactorCode } from '../../api/auth';
+import { registerThisDevice } from '../../notifications/push';
 import {
   OTP_PATTERN,
   OTP_RESEND_COOLDOWN_SECONDS,
@@ -110,6 +111,9 @@ export function ChangePasswordScreen() {
         otpCode: code.trim(),
         newPassword,
       });
+      // The server drops every push token of the account on a password change (sessions are
+      // revoked); this device stays signed in, so it registers its token again — never prompting.
+      void registerThisDevice({ prompt: false }).catch(() => {});
       setStep('done');
     } catch (error) {
       setErrorKey(errorKeyFor(error, { 400: 'account.password.invalid' }));

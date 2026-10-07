@@ -17,6 +17,12 @@ import {
   seedSession,
 } from '../test-utils/contract';
 
+const mockRegisterThisDevice = jest.fn(() => Promise.resolve(true));
+jest.mock('../notifications/push', () => ({
+  ...jest.requireActual('../notifications/push'),
+  registerThisDevice: (options: unknown) => mockRegisterThisDevice(options),
+}));
+
 function renderScreen(Component: React.ComponentType) {
   renderRouter(
     {
@@ -77,6 +83,8 @@ describe('account screens (UC-S-05/06/07/09/10)', () => {
         otpCode: '123456',
         newPassword: 'newpass99',
       });
+      // The server drops the account's push tokens on a password change: re-register, never prompt.
+      expect(mockRegisterThisDevice).toHaveBeenCalledWith({ prompt: false });
     });
 
     it('shows the wrong-password-or-code error on 400', async () => {

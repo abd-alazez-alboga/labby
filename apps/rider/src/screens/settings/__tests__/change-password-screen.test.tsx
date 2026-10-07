@@ -11,6 +11,12 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
 }));
 
+const mockRegisterForPush = jest.fn(() => Promise.resolve('registered'));
+jest.mock('../../../notifications/push-registration', () => ({
+  ...jest.requireActual('../../../notifications/push-registration'),
+  registerForPush: (options: unknown) => mockRegisterForPush(options),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const secureStoreMock = require('expo-secure-store') as { __reset: () => void };
 
@@ -60,6 +66,8 @@ describe('ChangePasswordScreen (UC-S-05, staged)', () => {
       otpCode: '123456',
       newPassword: 'newpassword1',
     });
+    // The server drops the account's push tokens on a password change: re-register, never prompt.
+    expect(mockRegisterForPush).toHaveBeenCalledWith({ prompt: false });
   });
 
   it('requires the current password before sending a code', async () => {
