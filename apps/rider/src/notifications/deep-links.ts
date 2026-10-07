@@ -73,10 +73,12 @@ export interface PushPayload {
 }
 
 /**
- * Reads the deep link out of a push's data payload. The contract does not
- * fix the FCM data shape yet (reported as a gap), so this accepts the
- * natural encodings — `link` as an object or JSON string, or flat
- * `screen` + `params` — and anything else opens the center.
+ * Reads the deep link out of a push's data payload. The contract
+ * (realtime-v1.yaml, "Notification delivery") fixes the FCM data keys:
+ * `notificationId`, `category`, `event` and, when the notification has a
+ * deep link, flat `screen` + `params` (a JSON object encoded as a string).
+ * A nested `link` (object or JSON string) is also tolerated, though the
+ * backend does not send it. Anything else opens the center.
  */
 export function parsePushPayload(data: Record<string, unknown> | null | undefined): PushPayload {
   if (!data || typeof data !== 'object') return { notificationId: null, link: null };

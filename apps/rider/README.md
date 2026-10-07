@@ -29,7 +29,7 @@ Works in Expo Go; for a dev build use `npx expo run:android` / `npx expo run:ios
 - Override order (see `src/config/app-config.ts`): `EXPO_PUBLIC_API_BASE_URL` (inlined at bundle time) → `LABBY_API_BASE_URL` (read when the config is evaluated, e.g. `LABBY_API_BASE_URL=... npm start`) → default.
 - `src/api/http-client.ts` is the typed fetch base; no endpoints exist yet.
 - Map tiles (ES-04): `extra.mapTileUrlTemplate` (default `https://tile.openstreetmap.org/{z}/{x}/{y}.png`) and `extra.mapTileAttribution`; override with `LABBY_MAP_TILE_URL` / `LABBY_MAP_TILE_ATTRIBUTION` (config time) or `EXPO_PUBLIC_MAP_TILE_URL` / `EXPO_PUBLIC_MAP_TILE_ATTRIBUTION` (bundle time). The map (`src/map/`) is Leaflet in `react-native-webview`, so it runs in Expo Go with no API key.
-- Push (ES-03): `expo-notifications` registers the native FCM token (`PUT /api/v1/devices`) after sign-in. Remote push needs a development build plus the owner's Firebase app configs (M6-T5); in Expo Go registration is skipped and the in-app notification center still works.
+- Push (ES-03): `expo-notifications` registers the native FCM token (`PUT /api/v1/devices`) after sign-in, prompting for the permission once; an unsuccessful registration (permission granted later in Settings, API failure) is retried on foreground re-entry without prompting again. Remote push needs a development build plus the Firebase config: `android.googleServicesFile` reads the `GOOGLE_SERVICES_JSON` env var (an EAS secret file on cloud builds, a local path for `expo run:android`; never committed). Without it there is no FCM, and in Expo Go registration is skipped — the in-app notification center still works.
 
 ## Theme
 

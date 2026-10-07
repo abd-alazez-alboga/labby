@@ -6,7 +6,9 @@
  *   refreshed on mount, on foreground re-entry and whenever a push arrives
  *   while the app is open; the center screen pushes its fresher numbers in
  *   through `setUnread`;
- * - push registration after sign-in + token-rotation follow-up
+ * - push registration after sign-in (prompting once) + a silent retry on
+ *   foreground re-entry until it succeeds (a permission granted later in
+ *   Settings, an API failure) + token-rotation follow-up
  *   (push-registration.ts);
  * - notification taps: the push's deep link is mapped (deep-links.ts) and
  *   opened, and the notification is marked read — including the tap that
@@ -113,11 +115,40 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     return () => subscription.remove();
   }, [refreshUnread]);
 
-  // Push registration after sign-in + token rotation.
+  // Push registration after sign-in + token rotation. Prompts once per
+  // sign-in; later foregrounds only re-check (no dialog loop) and register
+  // when the permission is already granted.
   useEffect(() => {
     configureForegroundPresentation();
-    void registerForPush();
-    return watchPushTokenRotation();
+    let registered = false;
+    let inFlight = false;
+    let cancelled = false;
+    let prompted = false;
+    const attempt = () => {
+      if (registered || inFlight) return;
+      const prompt = !prompted;
+      prompted = true;
+      inFlight = true;
+      void registerForPush({ prompt })
+        .then((result) => {
+          if (!cancelled) registered = result === 'registered';
+        })
+        .finally(() => {
+          inFlight = false;
+        });
+    };
+    attempt();
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && previous !== 'active') attempt();
+      previous = next;
+    });
+    const stopRotation = watchPushTokenRotation();
+    return () => {
+      cancelled = true;
+      subscription.remove();
+      stopRotation();
+    };
   }, []);
 
   const openResponse = useCallback(

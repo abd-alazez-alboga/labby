@@ -20,10 +20,10 @@ import type { ExpoConfig } from 'expo/config';
  * config is evaluated; `EXPO_PUBLIC_MAP_TILE_URL` /
  * `EXPO_PUBLIC_MAP_TILE_ATTRIBUTION` override them at bundle time.
  *
- * Push (ES-03): the expo-notifications plugin is registered here; the
- * Firebase app configs (google-services.json / GoogleService-Info.plist)
- * are owner-supplied in M6-T5 and only take effect in a development build —
- * Expo Go cannot receive remote push.
+ * Push (ES-03): the expo-notifications plugin is registered here. The
+ * Android Firebase config (google-services.json) comes from the
+ * `GOOGLE_SERVICES_JSON` env var (see `android.googleServicesFile`) and only
+ * takes effect in a development build — Expo Go cannot receive remote push.
  */
 const config: ExpoConfig = {
   name: 'Labby',
@@ -39,6 +39,9 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.labby.rider',
+    // FCM config (M6-T5): an EAS secret FILE env var on cloud builds, never committed
+    // (the real file lives outside the repo). Absent locally → no FCM, Expo Go keeps working.
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     adaptiveIcon: {
       foregroundImage: './assets/branding/labby-icon.png',
       backgroundColor: '#FAF7FC', // --labby-bg-light

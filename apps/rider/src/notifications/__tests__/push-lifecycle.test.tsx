@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { emitSessionExpired } from '../../auth/session-store';
 import SettingsScreen from '../../screens/settings-screen';
@@ -50,6 +51,33 @@ function renderSignedIn() {
       <SettingsScreen />
     </NotificationsProvider>,
   );
+}
+
+/**
+ * Captures every AppState listener so a test can background/foreground the
+ * app. Swapped in by assignment (not `jest.spyOn`): the preset's AppState
+ * method may already be a mock, which `mockRestore` would strip.
+ */
+function captureAppState() {
+  const listeners: ((state: AppStateStatus) => void)[] = [];
+  const original = AppState.addEventListener;
+  AppState.addEventListener = ((_type: string, listener: (state: AppStateStatus) => void) => {
+    listeners.push(listener);
+    return { remove: () => {} };
+  }) as unknown as typeof AppState.addEventListener;
+  return {
+    restore() {
+      AppState.addEventListener = original;
+    },
+    async reenterForeground() {
+      await act(async () => {
+        listeners.forEach((listener) => listener('background'));
+      });
+      await act(async () => {
+        listeners.forEach((listener) => listener('active'));
+      });
+    },
+  };
 }
 
 function tapResponse(identifier: string, data: Record<string, unknown>) {
@@ -114,6 +142,105 @@ describe('push registration lifecycle', () => {
     await waitFor(() => expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalled());
     expect(notificationsMock.getDevicePushTokenAsync).not.toHaveBeenCalled();
     expect(api.callsTo('PUT', DEVICES)).toHaveLength(0);
+  });
+
+  it('treats Android 13+ "denied" before ever asking (canAskAgain: true) as not yet asked', async () => {
+    notificationsMock.getPermissionsAsync.mockResolvedValue({
+      status: 'denied',
+      granted: false,
+      canAskAgain: true,
+    } as unknown as Notifications.NotificationPermissionsStatus);
+    notificationsMock.requestPermissionsAsync.mockResolvedValue({
+      granted: true,
+      canAskAgain: true,
+    } as unknown as Notifications.NotificationPermissionsStatus);
+    notificationsMock.getDevicePushTokenAsync.mockResolvedValue({ type: 'ios', data: 'fcm-a13' });
+    const api = mockApi({
+      [UNREAD]: { status: 200, body: { unread: 0 } },
+      [`PUT ${DEVICES}`]: { status: 204 },
+    });
+
+    await renderSignedIn();
+
+    await waitFor(() => expect(api.callsTo('PUT', DEVICES)).toHaveLength(1));
+    expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('registers on foreground re-entry once the permission was granted in Settings, without prompting again', async () => {
+    const appState = captureAppState();
+    try {
+      // Sign-in prompt dismissed: still askable, nothing registered.
+      notificationsMock.getPermissionsAsync.mockResolvedValue({
+        granted: false,
+        canAskAgain: true,
+      } as unknown as Notifications.NotificationPermissionsStatus);
+      notificationsMock.requestPermissionsAsync.mockResolvedValue({
+        granted: false,
+        canAskAgain: true,
+      } as unknown as Notifications.NotificationPermissionsStatus);
+      const api = mockApi({
+        [UNREAD]: { status: 200, body: { unread: 0 } },
+        [`PUT ${DEVICES}`]: { status: 204 },
+      });
+
+      await renderSignedIn();
+      await waitFor(() => expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1));
+      expect(api.callsTo('PUT', DEVICES)).toHaveLength(0);
+
+      // The rider enables notifications in Settings and comes back.
+      grantPush('fcm-later');
+      await appState.reenterForeground();
+
+      await waitFor(() => expect(api.callsTo('PUT', DEVICES)).toHaveLength(1));
+      expect(api.callsTo('PUT', DEVICES)[0].body).toEqual({
+        token: 'fcm-later',
+        platform: 'ios',
+        app: 'rider',
+      });
+      expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+
+      // Registered: later foregrounds do not register again.
+      await appState.reenterForeground();
+      await act(async () => {});
+      expect(api.callsTo('PUT', DEVICES)).toHaveLength(1);
+    } finally {
+      appState.restore();
+    }
+  });
+
+  it('never prompts on foreground re-entry while the permission is still askable (no dialog loop)', async () => {
+    const appState = captureAppState();
+    try {
+      notificationsMock.getPermissionsAsync.mockResolvedValue({
+        status: 'denied',
+        granted: false,
+        canAskAgain: true,
+      } as unknown as Notifications.NotificationPermissionsStatus);
+      notificationsMock.requestPermissionsAsync.mockResolvedValue({
+        granted: false,
+        canAskAgain: true,
+      } as unknown as Notifications.NotificationPermissionsStatus);
+      const api = mockApi({ [UNREAD]: { status: 200, body: { unread: 0 } } });
+
+      await renderSignedIn();
+      await waitFor(() => expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1));
+      const readsAfterSignIn = notificationsMock.getPermissionsAsync.mock.calls.length;
+
+      await appState.reenterForeground();
+      await appState.reenterForeground();
+
+      // Each foreground re-checks the permission, but never shows the dialog.
+      await waitFor(() =>
+        expect(notificationsMock.getPermissionsAsync.mock.calls.length).toBeGreaterThanOrEqual(
+          readsAfterSignIn + 2,
+        ),
+      );
+      expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(notificationsMock.getDevicePushTokenAsync).not.toHaveBeenCalled();
+      expect(api.callsTo('PUT', DEVICES)).toHaveLength(0);
+    } finally {
+      appState.restore();
+    }
   });
 
   it('skips push entirely where it is unsupported (Expo Go) without breaking the app', async () => {

@@ -40,7 +40,8 @@ import type { ClientFrame, GpsFix } from './protocol';
  *    ride events) are ignored.
  *
  * Battery choices: one socket, one tiny frame per interval, pings only every
- * 25 s, GPS at the stream cadence, and everything stops when offline.
+ * 25 s, GPS at the stream cadence, and everything stops when offline — the
+ * full rationale is in the driver README ("Battery").
  */
 
 export type StreamStatus = 'idle' | 'connecting' | 'live' | 'reconnecting';

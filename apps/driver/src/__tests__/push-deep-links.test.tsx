@@ -11,12 +11,16 @@ import * as Notifications from 'expo-notifications';
 import { renderRouter, screen } from 'expo-router/testing-library';
 import { act, fireEvent } from '@testing-library/react-native';
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 
 import { AuthProvider, useAuth } from '../auth/AuthProvider';
 import { clearSession } from '../auth/session';
 import { hrefForLink, parsePushPayload } from '../notifications/deep-links';
-import { PUSH_TOKEN_STORAGE_KEY, registerThisDevice } from '../notifications/push';
+import {
+  ANDROID_CHANNEL_ID,
+  PUSH_TOKEN_STORAGE_KEY,
+  registerThisDevice,
+} from '../notifications/push';
 import { PushBridge } from '../notifications/PushBridge';
 import { runExclusive } from '../permissions/permission-queue';
 import { driverUser, installContractFetch, riderOnlyUser, seedSession } from '../test-utils/contract';
@@ -203,6 +207,28 @@ describe('push registration + taps (UC-S-25)', () => {
 
     await expect(registerThisDevice()).resolves.toBe(true);
     expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates the HIGH-importance Android channel before asking for permission', async () => {
+    const originalOS = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    try {
+      mockPush({ permission: 'undetermined' });
+      await seedSession(driverUser());
+      installContractFetch({ 'PUT /api/v1/devices': { status: 204 } });
+
+      await expect(registerThisDevice()).resolves.toBe(true);
+      expect(notificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
+        ANDROID_CHANNEL_ID,
+        expect.objectContaining({ importance: Notifications.AndroidImportance.HIGH }),
+      );
+      expect(ANDROID_CHANNEL_ID).toBe('default');
+      expect(notificationsMock.setNotificationChannelAsync.mock.invocationCallOrder[0]).toBeLessThan(
+        notificationsMock.requestPermissionsAsync.mock.invocationCallOrder[0],
+      );
+    } finally {
+      Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+    }
   });
 
   it('never prompts after a final denial (canAskAgain: false)', async () => {

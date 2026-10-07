@@ -93,6 +93,8 @@ export function OsmMap(props: OsmMapProps) {
   const latestState = useRef(viewState);
   latestState.current = viewState;
 
+  const pageBaseUrl = useMemo(() => `${getConfig().apiBaseUrl}/`, []);
+
   // The page is built once per attempt; later prop changes go through the
   // bridge (a new `source` would reload the WebView and lose the map).
   const html = useMemo(() => {
@@ -199,7 +201,10 @@ export function OsmMap(props: OsmMapProps) {
         ref={webViewRef}
         testID={`${testID}-webview`}
         originWhitelist={['*']}
-        source={{ html }}
+        // OSM's tile usage policy requires a Referer from browser-based
+        // clients; an inline page has none, so it gets the backend's origin
+        // as its base URL (same choice as the rider map, M6-T4).
+        source={{ html, baseUrl: pageBaseUrl }}
         onMessage={onMessage}
         onError={() => setPhase('failed')}
         // Never navigate the map page away; open real links outside.
@@ -207,6 +212,8 @@ export function OsmMap(props: OsmMapProps) {
           if (request.url.startsWith('about:') || request.url.startsWith('data:')) {
             return true;
           }
+          // iOS reports loading the inline page itself as a navigation to its base URL.
+          if (request.url === pageBaseUrl) return true;
           if (request.isTopFrame === false) return true;
           Linking.openURL(request.url).catch(() => {});
           return false;

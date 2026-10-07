@@ -21,6 +21,8 @@ import { runExclusive } from '../permissions/permission-queue';
  */
 
 export const PUSH_TOKEN_STORAGE_KEY = 'labby-driver.push-token';
+/** Android notification channel for every push (same id as the rider app). */
+export const ANDROID_CHANNEL_ID = 'default';
 
 export type PushPermission = 'granted' | 'denied' | 'undetermined' | 'unsupported';
 
@@ -97,6 +99,23 @@ export function ensurePushPermission(): Promise<PushPermission> {
   });
 }
 
+/**
+ * Android 13+ only shows the permission prompt once a channel exists, and
+ * without one pushes land in the fallback channel (no heads-up banner).
+ * Idempotent; best-effort.
+ */
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android' || !pushSupported()) return;
+  try {
+    await notifications().setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+      name: 'Labby',
+      importance: notifications().AndroidImportance.HIGH,
+    });
+  } catch {
+    // best-effort: registration still proceeds
+  }
+}
+
 function platform(): DevicePlatform {
   return Platform.OS === 'ios' ? 'ios' : 'android';
 }
@@ -125,8 +144,8 @@ export async function registerToken(token: string): Promise<void> {
 }
 
 /**
- * After login / on app start while signed in: permission → native token →
- * `PUT /devices`. Resolves true when registered, false when push is
+ * After login / on app start while signed in: Android channel → permission →
+ * native token → `PUT /devices`. Resolves true when registered, false when push is
  * unavailable here (Expo Go, denied, no token). Rejects only when the API
  * call itself failed (the caller retries later).
  *
@@ -139,6 +158,7 @@ export async function registerToken(token: string): Promise<void> {
 export async function registerThisDevice(
   options: { prompt?: boolean } = {},
 ): Promise<boolean> {
+  await ensureAndroidChannel();
   const permission =
     options.prompt === false ? await getPushPermission() : await ensurePushPermission();
   if (permission !== 'granted') return false;

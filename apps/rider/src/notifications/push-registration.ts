@@ -5,6 +5,9 @@
  *   that rotated while the app was closed) the native FCM token is read with
  *   `getDevicePushTokenAsync` and sent with `PUT /api/v1/devices`
  *   (`app: 'rider'`). The registered token is remembered locally.
+ * - An unsuccessful registration (permission granted later in Settings, API
+ *   failure) is retried on foreground re-entry WITHOUT prompting
+ *   (`prompt: false`), see notifications-context.tsx.
  * - When FCM rotates the token while the app runs, the new one is PUT again.
  * - On logout the remembered token is DELETEd while the session is still
  *   valid; the local record is always cleared.
@@ -60,10 +63,15 @@ async function ensureAndroidChannel(): Promise<void> {
   });
 }
 
-async function ensurePermission(): Promise<boolean> {
+/**
+ * Android 13+ reports POST_NOTIFICATIONS as `denied` before the app has EVER
+ * asked (with `canAskAgain: true`); only `canAskAgain: false` is a final
+ * denial, so the first state still prompts. `prompt: false` only reads.
+ */
+async function ensurePermission(prompt: boolean): Promise<boolean> {
   const current = await notifications().getPermissionsAsync();
   if (current.granted) return true;
-  if (!current.canAskAgain) return false;
+  if (!prompt || !current.canAskAgain) return false;
   // Queued behind any other runtime prompt: fired alongside the location
   // prompt after sign-in, Android would otherwise drop one of them.
   const requested = await runExclusive(() => notifications().requestPermissionsAsync());
@@ -76,12 +84,21 @@ export async function registerToken(token: string): Promise<void> {
   await writeRegisteredToken(token);
 }
 
-/** Permission → native token → `PUT /api/v1/devices`. */
-export async function registerForPush(): Promise<PushRegistrationResult> {
+/**
+ * Permission → native token → `PUT /api/v1/devices`.
+ *
+ * `prompt: false` only checks the permission. Callers re-checking on every
+ * foreground MUST pass it: the OS dialog itself backgrounds the app, and a
+ * dismissed dialog leaves the permission askable, so prompting on each
+ * foreground would loop the dialog.
+ */
+export async function registerForPush(
+  options: { prompt?: boolean } = {},
+): Promise<PushRegistrationResult> {
   if (!isRemotePushSupported()) return 'unsupported';
   try {
     await ensureAndroidChannel();
-    if (!(await ensurePermission())) return 'permissionDenied';
+    if (!(await ensurePermission(options.prompt !== false))) return 'permissionDenied';
     const { data } = await notifications().getDevicePushTokenAsync();
     if (typeof data !== 'string' || !data) return 'failed';
     await registerToken(data);

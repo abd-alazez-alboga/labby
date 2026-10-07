@@ -11,7 +11,7 @@ import { Linking } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { OsmMap } from '../components/map/osm-map';
-import { DEFAULT_CONFIG } from '../config';
+import { DEFAULT_CONFIG, getConfig } from '../config';
 import { initI18n, setAppLanguage } from '../i18n';
 import { LocaleProvider } from '../i18n/LocaleProvider';
 import { latLngsToLineString, lineStringToLatLngs } from '../map/geojson';
@@ -160,6 +160,16 @@ describe('<OsmMap />', () => {
     expect(screen.queryByTestId('osm-map-loading')).toBeNull();
   });
 
+  it('gives the inline page the API origin as base URL so OSM tile requests carry a Referer', () => {
+    renderMap();
+    const source = screen.getByTestId('osm-map-webview').props.source as {
+      html: string;
+      baseUrl?: string;
+    };
+    expect(source.baseUrl).toBe(`${getConfig().apiBaseUrl}/`);
+    expect(source.baseUrl).toMatch(/^https?:\/\/[^/]+.*\/$/);
+  });
+
   it('pushes position updates through the bridge without reloading the page', () => {
     const view = renderMap();
     const firstHtml = screen.getByTestId('osm-map-webview').props.source.html;
@@ -215,7 +225,10 @@ describe('<OsmMap />', () => {
     renderMap();
     const guard = screen.getByTestId('osm-map-webview').props.onShouldStartLoadWithRequest;
     expect(guard({ url: 'about:blank', isTopFrame: true })).toBe(true);
+    // iOS: loading the inline page reports a navigation to its base URL.
+    expect(guard({ url: `${getConfig().apiBaseUrl}/`, isTopFrame: true })).toBe(true);
     expect(guard({ url: 'https://www.openstreetmap.org/copyright', isTopFrame: true })).toBe(false);
     expect(openURL).toHaveBeenCalledWith('https://www.openstreetmap.org/copyright');
+    expect(openURL).toHaveBeenCalledTimes(1);
   });
 });

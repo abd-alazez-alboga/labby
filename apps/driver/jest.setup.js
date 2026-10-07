@@ -33,6 +33,8 @@ jest.mock('expo-location', () => ({
 // so boot-time device registration is inert; listeners are no-op
 // subscriptions. Push suites override per test.
 jest.mock('expo-notifications', () => ({
+  AndroidImportance: { HIGH: 4 },
+  setNotificationChannelAsync: jest.fn(async () => null),
   getPermissionsAsync: jest.fn(() => new Promise(() => {})),
   requestPermissionsAsync: jest.fn(() => new Promise(() => {})),
   getDevicePushTokenAsync: jest.fn(() => new Promise(() => {})),
