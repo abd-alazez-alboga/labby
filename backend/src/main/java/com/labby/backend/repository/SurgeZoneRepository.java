@@ -35,4 +35,24 @@ public interface SurgeZoneRepository extends JpaRepository<SurgeZone, UUID> {
       nativeQuery = true)
   List<SurgeZone> findZonesCovering(
       @Param("regionId") UUID regionId, @Param("lat") double lat, @Param("lng") double lng);
+
+  /**
+   * Names of the region's zones that a candidate boundary would NOT fully cover — a boundary edit
+   * may not leave a zone outside its region (owner ruling 2026-10-07, UC-A-06 E1).
+   *
+   * @param regionId the region
+   * @param boundaryWkt the candidate boundary as WKT, SRID 4326
+   * @return the escaping zones' names, sorted
+   */
+  @Query(
+      value =
+          """
+          SELECT name FROM surge_zones
+          WHERE region_id = :regionId
+            AND NOT ST_Covers(ST_GeomFromText(:boundaryWkt, 4326), polygon)
+          ORDER BY name
+          """,
+      nativeQuery = true)
+  List<String> findZoneNamesOutside(
+      @Param("regionId") UUID regionId, @Param("boundaryWkt") String boundaryWkt);
 }

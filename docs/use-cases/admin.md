@@ -48,6 +48,7 @@ Scope: **V1 only.** All admin-dashboard use cases are listed **flat** — RBAC p
 
 ### UC-A-06 — Edit region configuration
 **Main flow:** open region → edit any part of the bundle → changes apply to **new** rides only (in-flight rides keep their locked values).
+**Exceptions:** E1 A boundary edit that would leave a surge zone outside the region is refused, naming the zones; the admin moves or deletes them first (owner ruling 2026-10-07).
 **SRS:** ADM-01, PRC-01, PRC-03
 
 ### UC-A-07 — Manage service types

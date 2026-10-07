@@ -520,6 +520,43 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
   }
 
   @Test
+  @DisplayName("UC-A-06 E1: a boundary edit that would leave a surge zone outside -> 409")
+  void shouldRefuseABoundaryShrinkThatEscapesAZone() {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963934000061", RbacIds.SUPER_ADMIN_ROLE_ID);
+    String token = superAdmin.accessToken();
+    String regionId = createActiveRegion(token, "Damascus", 36.0, 33.0, 36.5, 33.5);
+    assertThat(
+            send(
+                    "/api/v1/admin/regions/" + regionId + "/surge-zones",
+                    HttpMethod.POST,
+                    zoneBody("Old City", polygon(36.3, 33.3, 36.4, 33.4)),
+                    token)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.CREATED);
+
+    // Shrinking past the zone -> 409 naming it; the region keeps its old boundary.
+    ResponseEntity<String> shrunk =
+        send(
+            "/api/v1/admin/regions/" + regionId,
+            HttpMethod.PUT,
+            fullBundle("Damascus", polygon(36.0, 33.0, 36.25, 33.25)),
+            token);
+    assertThat(shrunk.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(shrunk.getBody()).contains("surge zones outside").contains("Old City");
+    assertThat(get("/api/v1/admin/regions/" + regionId, token).getBody()).contains("36.5");
+
+    // A shrink that still covers every zone is fine.
+    assertThat(
+            send(
+                    "/api/v1/admin/regions/" + regionId,
+                    HttpMethod.PUT,
+                    fullBundle("Damascus", polygon(36.0, 33.0, 36.45, 33.45)),
+                    token)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
   @DisplayName("UC-A-08: zones must lie within the region's boundary; CRUD round-trips")
   void shouldEnforceZoneRulesAndCrud() {
     AuthTokensResponseDto superAdmin = registerAdmin("+963934000051", RbacIds.SUPER_ADMIN_ROLE_ID);

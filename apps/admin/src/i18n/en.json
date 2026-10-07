@@ -257,7 +257,7 @@
     "errors": {
       "loadFailed": "Could not load the region.",
       "pricingLoadFailed": "Could not load the region's pricing configuration.",
-      "saveConflict": "Not allowed: duplicate name, a boundary overlapping another region, or removing mandatory config from an active region.",
+      "saveConflict": "Not allowed: duplicate name, a boundary overlapping another region, a boundary that would leave surge zones outside the region, or removing mandatory config from an active region.",
       "incompleteTiers": "Every commission tier needs both a trip threshold and a percent.",
       "incompleteIncentives": "Incentives are saved as a whole — fill every incentive field (and each bonus row) or clear them all.",
       "incompleteSuspension": "Suspension thresholds are saved as a whole — fill all four values or clear them all.",

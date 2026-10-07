@@ -17,6 +17,7 @@ import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.SurgeZone;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.SurgeZoneRepository;
@@ -94,10 +95,7 @@ public class RegionServiceImpl implements RegionService {
     }
     Polygon boundary = GeoJson.toPolygon(request.boundary());
     requireNoBoundaryOverlap(regionId, boundary);
-    // DELIBERATE (review-M04 W2, owner ruling pending): shrinking the boundary does NOT
-    // re-validate existing surge zones — zones that fall outside remain untouched, while zone
-    // create/update enforce containment strictly. Must be ruled on before M9 computes
-    // multipliers from these zones (tracked in the status tracker's owner-inputs table).
+    requireZonesInside(regionId, boundary);
     Map<String, Object> before = snapshot(region);
     applyBundle(region, request, boundary, actorUserId);
     if (region.getState() == RegionState.ACTIVE) {
@@ -184,6 +182,24 @@ public class RegionServiceImpl implements RegionService {
     if (boundary != null
         && regionRepository.existsBoundaryOverlapping(excludedRegionId, boundary.toText())) {
       throw new ConflictException("The boundary overlaps another region's boundary");
+    }
+  }
+
+  /**
+   * A boundary edit may not leave a surge zone outside its region (owner ruling 2026-10-07, UC-A-06
+   * E1): dead zones would silently break M9 surge. Clearing the boundary escapes every zone.
+   */
+  private void requireZonesInside(UUID regionId, Polygon boundary) {
+    List<String> outside =
+        boundary == null
+            ? surgeZoneRepository.findByRegionIdOrderByNameAsc(regionId).stream()
+                .map(SurgeZone::getName)
+                .toList()
+            : surgeZoneRepository.findZoneNamesOutside(regionId, boundary.toText());
+    if (!outside.isEmpty()) {
+      throw new ConflictException(
+          "The boundary would leave surge zones outside the region; move or delete them first: "
+              + String.join(", ", outside));
     }
   }
 
