@@ -1,4 +1,4 @@
-import { authFetch } from './client';
+import { authFetch } from "./client";
 import type {
   ApplicationResubmitRequest,
   ApplicationSubmitRequest,
@@ -11,8 +11,8 @@ import type {
   UploadedFile,
   VehicleSwitchRequest,
   VehicleWithDocuments,
-} from './onboarding-types';
-import { getConfig } from '../config';
+} from "./onboarding-types";
+import { getConfig } from "../config";
 
 /**
  * Typed client for the driver side of the M5 onboarding contract
@@ -33,29 +33,29 @@ export function uploadDriverFile(
 ): Promise<UploadedFile> {
   const form = new FormData();
   // React Native's fetch uploads {uri,name,type} descriptors as file parts.
-  form.append('file', {
+  form.append("file", {
     uri: file.uri,
     name: file.name,
     type: file.mimeType,
   } as unknown as Blob);
-  form.append('kind', kind);
-  return authFetch<UploadedFile>('/api/v1/driver/files', {
-    method: 'POST',
+  form.append("kind", kind);
+  return authFetch<UploadedFile>("/api/v1/driver/files", {
+    method: "POST",
     body: form,
   });
 }
 
 /** GET /api/v1/driver/application — 200 | 404 never applied (UC-D-03). */
 export function getMyApplication(): Promise<DriverApplication> {
-  return authFetch<DriverApplication>('/api/v1/driver/application');
+  return authFetch<DriverApplication>("/api/v1/driver/application");
 }
 
 /** POST /api/v1/driver/application — 201 | 400 per-item errors | 409 open/approved. */
 export function submitApplication(
   body: ApplicationSubmitRequest,
 ): Promise<DriverApplication> {
-  return authFetch<DriverApplication>('/api/v1/driver/application', {
-    method: 'POST',
+  return authFetch<DriverApplication>("/api/v1/driver/application", {
+    method: "POST",
     body,
   });
 }
@@ -64,30 +64,30 @@ export function submitApplication(
 export function resubmitApplication(
   body: ApplicationResubmitRequest,
 ): Promise<DriverApplication> {
-  return authFetch<DriverApplication>('/api/v1/driver/application/resubmit', {
-    method: 'POST',
+  return authFetch<DriverApplication>("/api/v1/driver/application/resubmit", {
+    method: "POST",
     body,
   });
 }
 
 /** GET /api/v1/driver/vehicles — own vehicles with documents, newest first. */
 export function getMyVehicles(): Promise<VehicleWithDocuments[]> {
-  return authFetch<VehicleWithDocuments[]>('/api/v1/driver/vehicles');
+  return authFetch<VehicleWithDocuments[]>("/api/v1/driver/vehicles");
 }
 
 /** POST /api/v1/driver/vehicles — vehicle switch (UC-D-18) — 201 | 400 | 409. */
 export function submitVehicleSwitch(
   body: VehicleSwitchRequest,
 ): Promise<VehicleWithDocuments> {
-  return authFetch<VehicleWithDocuments>('/api/v1/driver/vehicles', {
-    method: 'POST',
+  return authFetch<VehicleWithDocuments>("/api/v1/driver/vehicles", {
+    method: "POST",
     body,
   });
 }
 
 /** GET /api/v1/driver/documents — the four current slots | 409 not approved. */
 export function getMyDocuments(): Promise<DocumentSlot[]> {
-  return authFetch<DocumentSlot[]>('/api/v1/driver/documents');
+  return authFetch<DocumentSlot[]>("/api/v1/driver/documents");
 }
 
 /** POST /api/v1/driver/documents/{type}/renewal (UC-D-19) — 201 | 400 | 409. */
@@ -95,10 +95,10 @@ export function submitDocumentRenewal(
   type: DocumentType,
   body: DocumentRenewalRequest,
 ): Promise<DriverDocument> {
-  return authFetch<DriverDocument>(
-    `/api/v1/driver/documents/${type}/renewal`,
-    { method: 'POST', body },
-  );
+  return authFetch<DriverDocument>(`/api/v1/driver/documents/${type}/renewal`, {
+    method: "POST",
+    body,
+  });
 }
 
 /**

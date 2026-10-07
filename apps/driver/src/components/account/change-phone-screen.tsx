@@ -1,25 +1,24 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   phoneChangeComplete,
   phoneChangeStart,
   phoneChangeVerifyCurrent,
-} from '../../api/auth';
-import { OTP_PATTERN, PHONE_PATTERN } from '../../api/auth-types';
-import { useAuth } from '../../auth/AuthProvider';
+} from "../../api/auth";
+import { OTP_PATTERN, PHONE_PATTERN } from "../../api/auth-types";
+import { useAuth } from "../../auth/AuthProvider";
+import { errorKeyFor } from "../auth/error-key";
 import {
+  Banner,
   BodyText,
-  ErrorBanner,
-  Field,
   FormScreen,
-  InfoBanner,
   PrimaryButton,
   TextButton,
-  errorKeyFor,
-} from '../auth/ui';
+  TextField,
+} from "../ui";
 
-type Step = 'new-phone' | 'current-code' | 'new-code' | 'done';
+type Step = "new-phone" | "current-code" | "new-code" | "done";
 
 /**
  * UC-S-06 — 3-step phone change: declare the new phone, prove the
@@ -30,16 +29,16 @@ export function ChangePhoneScreen() {
   const { t } = useTranslation();
   const { setUser } = useAuth();
 
-  const [step, setStep] = useState<Step>('new-phone');
-  const [newPhone, setNewPhone] = useState('');
-  const [code, setCode] = useState('');
+  const [step, setStep] = useState<Step>("new-phone");
+  const [newPhone, setNewPhone] = useState("");
+  const [code, setCode] = useState("");
   const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const restart = () => {
-    setStep('new-phone');
-    setCode('');
+    setStep("new-phone");
+    setCode("");
     setFieldErrorKey(null);
     // Keep errorKey so the user sees why they were sent back.
   };
@@ -47,7 +46,7 @@ export function ChangePhoneScreen() {
   const start = async () => {
     const trimmed = newPhone.trim();
     if (!PHONE_PATTERN.test(trimmed)) {
-      setFieldErrorKey('auth.validation.phone');
+      setFieldErrorKey("auth.validation.phone");
       return;
     }
     setFieldErrorKey(null);
@@ -55,10 +54,10 @@ export function ChangePhoneScreen() {
     setBusy(true);
     try {
       await phoneChangeStart(trimmed);
-      setCode('');
-      setStep('current-code');
+      setCode("");
+      setStep("current-code");
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 409: 'account.phone.taken' }));
+      setErrorKey(errorKeyFor(error, { 409: "account.phone.taken" }));
     } finally {
       setBusy(false);
     }
@@ -66,7 +65,7 @@ export function ChangePhoneScreen() {
 
   const validCode = () => {
     if (!OTP_PATTERN.test(code.trim())) {
-      setFieldErrorKey('auth.validation.code');
+      setFieldErrorKey("auth.validation.code");
       return false;
     }
     setFieldErrorKey(null);
@@ -79,15 +78,15 @@ export function ChangePhoneScreen() {
     setBusy(true);
     try {
       await phoneChangeVerifyCurrent(code.trim());
-      setCode('');
-      setStep('new-code');
+      setCode("");
+      setStep("new-code");
     } catch (error) {
       const key = errorKeyFor(error, {
-        400: 'auth.otp.wrongCode',
-        410: 'account.phone.restart',
+        400: "auth.otp.wrongCode",
+        410: "account.phone.restart",
       });
       setErrorKey(key);
-      if (key === 'account.phone.restart') restart();
+      if (key === "account.phone.restart") restart();
     } finally {
       setBusy(false);
     }
@@ -100,41 +99,50 @@ export function ChangePhoneScreen() {
     try {
       const profile = await phoneChangeComplete(code.trim());
       await setUser(profile);
-      setStep('done');
+      setStep("done");
     } catch (error) {
       const key = errorKeyFor(error, {
-        400: 'auth.otp.wrongCode',
-        410: 'account.phone.restart',
+        400: "auth.otp.wrongCode",
+        410: "account.phone.restart",
       });
       setErrorKey(key);
-      if (key === 'account.phone.restart') restart();
+      if (key === "account.phone.restart") restart();
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <FormScreen testID={`change-phone-step-${step}`}>
+    <FormScreen
+      title={t("account.phone.title")}
+      testID={`change-phone-step-${step}`}
+    >
       {errorKey ? (
-        <ErrorBanner testID="change-phone-error">{t(errorKey)}</ErrorBanner>
+        <Banner
+          tone="danger"
+          message={t(errorKey)}
+          testID="change-phone-error"
+        />
       ) : null}
 
-      {step === 'new-phone' ? (
+      {step === "new-phone" ? (
         <>
-          <Field
-            label={t('account.phone.newPhone')}
-            placeholder={t('auth.fields.phonePlaceholder')}
+          <TextField
+            label={t("account.phone.newPhone")}
+            placeholder={t("auth.fields.phonePlaceholder")}
             keyboardType="phone-pad"
             autoCapitalize="none"
             value={newPhone}
             onChangeText={setNewPhone}
             error={
-              fieldErrorKey === 'auth.validation.phone' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.phone"
+                ? t(fieldErrorKey)
+                : null
             }
             testID="change-phone-new"
           />
           <PrimaryButton
-            title={t('account.phone.startCta')}
+            title={t("account.phone.startCta")}
             onPress={start}
             busy={busy}
             testID="change-phone-start"
@@ -142,24 +150,24 @@ export function ChangePhoneScreen() {
         </>
       ) : null}
 
-      {step === 'current-code' ? (
+      {step === "current-code" ? (
         <>
           <BodyText testID="change-phone-current-hint">
-            {t('account.phone.currentCodeHint')}
+            {t("account.phone.currentCodeHint")}
           </BodyText>
-          <Field
-            label={t('auth.fields.code')}
+          <TextField
+            label={t("auth.fields.code")}
             keyboardType="number-pad"
             maxLength={6}
             value={code}
             onChangeText={setCode}
             error={
-              fieldErrorKey === 'auth.validation.code' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.code" ? t(fieldErrorKey) : null
             }
             testID="change-phone-current-code"
           />
           <PrimaryButton
-            title={t('account.phone.verifyCta')}
+            title={t("account.phone.verifyCta")}
             onPress={verifyCurrent}
             busy={busy}
             testID="change-phone-verify-current"
@@ -167,24 +175,24 @@ export function ChangePhoneScreen() {
         </>
       ) : null}
 
-      {step === 'new-code' ? (
+      {step === "new-code" ? (
         <>
           <BodyText testID="change-phone-new-hint">
-            {t('account.phone.newCodeHint')}
+            {t("account.phone.newCodeHint")}
           </BodyText>
-          <Field
-            label={t('auth.fields.code')}
+          <TextField
+            label={t("auth.fields.code")}
             keyboardType="number-pad"
             maxLength={6}
             value={code}
             onChangeText={setCode}
             error={
-              fieldErrorKey === 'auth.validation.code' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.code" ? t(fieldErrorKey) : null
             }
             testID="change-phone-new-code"
           />
           <PrimaryButton
-            title={t('account.phone.verifyCta')}
+            title={t("account.phone.verifyCta")}
             onPress={complete}
             busy={busy}
             testID="change-phone-complete"
@@ -192,15 +200,17 @@ export function ChangePhoneScreen() {
         </>
       ) : null}
 
-      {step === 'done' ? (
+      {step === "done" ? (
         <>
-          <InfoBanner testID="change-phone-done">
-            {t('account.phone.done')}
-          </InfoBanner>
+          <Banner
+            tone="success"
+            message={t("account.phone.done")}
+            testID="change-phone-done"
+          />
           <TextButton
-            title={t('account.phone.changeAgain')}
+            title={t("account.phone.changeAgain")}
             onPress={() => {
-              setNewPhone('');
+              setNewPhone("");
               setErrorKey(null);
               restart();
             }}

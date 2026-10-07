@@ -1,3 +1,3 @@
-import { VehiclesScreen } from '../components/onboarding/vehicles-screen';
+import { VehiclesScreen } from "../components/onboarding/vehicles-screen";
 
 export default VehiclesScreen;

@@ -1,11 +1,7 @@
-import type { AuthTokensResponse } from './auth-types';
-import {
-  clearSession,
-  getSession,
-  saveSession,
-} from '../auth/session';
-import type { StoredSession } from '../auth/session';
-import { getConfig } from '../config';
+import type { AuthTokensResponse } from "./auth-types";
+import { clearSession, getSession, saveSession } from "../auth/session";
+import type { StoredSession } from "../auth/session";
+import { getConfig } from "../config";
 
 /** Error thrown for any non-2xx API response. */
 export class ApiError extends Error {
@@ -14,13 +10,13 @@ export class ApiError extends Error {
 
   constructor(status: number, body: unknown) {
     super(`API request failed with status ${status}`);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.body = body;
   }
 }
 
-export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
+export interface ApiRequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
 }
 
@@ -34,16 +30,17 @@ export async function apiFetch<T>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   const { apiBaseUrl } = getConfig();
-  const url = `${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const url = `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
   const { body, headers, ...rest } = options;
-  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
 
   const response = await fetch(url, {
     ...rest,
     headers: {
-      Accept: 'application/json',
+      Accept: "application/json",
       ...(body !== undefined && !isFormData
-        ? { 'Content-Type': 'application/json' }
+        ? { "Content-Type": "application/json" }
         : {}),
       ...headers,
     },
@@ -90,8 +87,8 @@ async function rotateRefreshToken(): Promise<StoredSession | null> {
   const session = getSession();
   if (!session) return null;
   try {
-    const tokens = await apiFetch<AuthTokensResponse>('/api/v1/auth/refresh', {
-      method: 'POST',
+    const tokens = await apiFetch<AuthTokensResponse>("/api/v1/auth/refresh", {
+      method: "POST",
       body: { refreshToken: session.refreshToken },
     });
     const rotated: StoredSession = {

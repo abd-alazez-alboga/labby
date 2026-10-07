@@ -1,30 +1,36 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Ionicons } from "@expo/vector-icons";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Linking,
   Pressable,
   StyleSheet,
-  Text,
   View,
-} from 'react-native';
-import type { StyleProp, ViewStyle } from 'react-native';
-import { WebView } from 'react-native-webview';
-import type { WebViewMessageEvent } from 'react-native-webview';
+} from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
+import { WebView } from "react-native-webview";
+import type { WebViewMessageEvent } from "react-native-webview";
 
-import { getConfig } from '../../config';
-import { useLocale } from '../../i18n/LocaleProvider';
-import { lineStringToLatLngs, toLeafletLatLng } from '../../map/geojson';
-import type { GeoJsonLineString, LatLng } from '../../map/geojson';
+import { getConfig } from "../../config";
+import { useLocale } from "../../i18n/LocaleProvider";
+import { lineStringToLatLngs, toLeafletLatLng } from "../../map/geojson";
+import type { GeoJsonLineString, LatLng } from "../../map/geojson";
 import {
   applyStateScript,
   buildMapPage,
   parseMapMessage,
   RECENTER_SCRIPT,
-} from '../../map/leaflet-bridge';
-import type { MapMarkerKind, MapViewState } from '../../map/leaflet-bridge';
-import { colors, radius, spacing } from '../../theme/tokens';
+} from "../../map/leaflet-bridge";
+import type { MapMarkerKind, MapViewState } from "../../map/leaflet-bridge";
+import { colors, radius, shadows, spacing } from "../../theme/tokens";
+import { AppText } from "../ui";
 
 export interface MapMarker {
   id: string;
@@ -42,6 +48,10 @@ export interface OsmMapProps {
   /** Keep the `self` marker centered as it moves (until the user pans). */
   followMe?: boolean;
   height?: number;
+  /** Fill the parent (full-bleed map screens) instead of a fixed-height card. */
+  fill?: boolean;
+  /** Keeps in-map banners clear of floating controls laid over the map. */
+  overlayTop?: number;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }
@@ -50,7 +60,7 @@ export interface OsmMapProps {
 export const MAP_READY_TIMEOUT_MS = 15000;
 const DEFAULT_ZOOM = 16;
 
-type Phase = 'loading' | 'ready' | 'failed';
+type Phase = "loading" | "ready" | "failed";
 
 function toViewState(props: OsmMapProps): MapViewState {
   return {
@@ -58,7 +68,7 @@ function toViewState(props: OsmMapProps): MapViewState {
     zoom: props.zoom ?? DEFAULT_ZOOM,
     markers: (props.markers ?? []).map((marker) => ({
       id: marker.id,
-      kind: marker.kind ?? 'point',
+      kind: marker.kind ?? "point",
       position: toLeafletLatLng(marker.position),
     })),
     route: props.route ? lineStringToLatLngs(props.route) : null,
@@ -80,9 +90,9 @@ function formatPoint(point: LatLng): string {
  */
 export function OsmMap(props: OsmMapProps) {
   const { t } = useTranslation();
-  const { direction } = useLocale();
+  const { direction, flipRows } = useLocale();
   const webViewRef = useRef<WebView>(null);
-  const [phase, setPhase] = useState<Phase>('loading');
+  const [phase, setPhase] = useState<Phase>("loading");
   const [tilesDown, setTilesDown] = useState(false);
   const [followPaused, setFollowPaused] = useState(false);
   /** Bumped by "retry" to remount the WebView with a fresh page. */
@@ -103,13 +113,13 @@ export function OsmMap(props: OsmMapProps) {
       {
         tileUrl: config.mapTileUrl,
         attribution: config.mapAttribution,
-        rtl: direction === 'rtl',
+        rtl: direction === "rtl",
         colors: {
-          self: colors.purple700,
-          selfBorder: colors.white,
-          point: colors.purple400,
-          route: colors.purple500,
-          background: colors.lavender100,
+          self: colors.accent,
+          selfBorder: colors.surface,
+          point: colors.text,
+          route: colors.accent,
+          background: colors.surfaceMap,
         },
       },
       latestState.current,
@@ -118,14 +128,16 @@ export function OsmMap(props: OsmMapProps) {
   }, [attempt, direction]);
 
   useEffect(() => {
-    if (phase !== 'loading') return undefined;
-    const timer = setTimeout(() => setPhase('failed'), MAP_READY_TIMEOUT_MS);
+    if (phase !== "loading") return undefined;
+    const timer = setTimeout(() => setPhase("failed"), MAP_READY_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [phase, attempt]);
 
   useEffect(() => {
-    if (phase === 'ready') {
-      webViewRef.current?.injectJavaScript(applyStateScript(latestState.current));
+    if (phase === "ready") {
+      webViewRef.current?.injectJavaScript(
+        applyStateScript(latestState.current),
+      );
     }
   }, [phase, viewStateJson]);
 
@@ -137,23 +149,23 @@ export function OsmMap(props: OsmMapProps) {
     const message = parseMapMessage(event.nativeEvent.data);
     if (!message) return;
     switch (message.type) {
-      case 'ready':
-        setPhase('ready');
+      case "ready":
+        setPhase("ready");
         break;
-      case 'loadFailed':
-        setPhase('failed');
+      case "loadFailed":
+        setPhase("failed");
         break;
-      case 'tiles':
+      case "tiles":
         setTilesDown(!message.ok);
         break;
-      case 'followPaused':
+      case "followPaused":
         setFollowPaused(true);
         break;
     }
   }, []);
 
   const retry = useCallback(() => {
-    setPhase('loading');
+    setPhase("loading");
     setTilesDown(false);
     setFollowPaused(false);
     setAttempt((value) => value + 1);
@@ -164,52 +176,67 @@ export function OsmMap(props: OsmMapProps) {
     webViewRef.current?.injectJavaScript(RECENTER_SCRIPT);
   }, []);
 
-  const height = props.height ?? 240;
-  const testID = props.testID ?? 'osm-map';
-  const selfMarker = props.markers?.find((marker) => marker.kind === 'self');
-  const textAlign = direction === 'rtl' ? 'right' : 'left';
+  const size: ViewStyle = props.fill
+    ? styles.fill
+    : { height: props.height ?? 240 };
+  const testID = props.testID ?? "osm-map";
+  const selfMarker = props.markers?.find((marker) => marker.kind === "self");
+  const textAlign = flipRows ? "right" : "left";
 
-  if (phase === 'failed') {
+  if (phase === "failed") {
     return (
       <View
-        style={[styles.frame, styles.fallback, { height }, props.style]}
+        style={[styles.frame, size, styles.fallback, props.style]}
         testID={`${testID}-unavailable`}
       >
         <Ionicons name="map-outline" size={28} color={colors.textMuted} />
-        <Text style={styles.fallbackTitle}>{t('map.unavailableTitle')}</Text>
-        <Text style={styles.fallbackBody}>
+        <AppText variant="bodyStrong" align="center">
+          {t("map.unavailableTitle")}
+        </AppText>
+        <AppText
+          variant="secondary"
+          color={colors.textSecondary}
+          align="center"
+        >
           {selfMarker
-            ? t('map.yourPosition', { position: formatPoint(selfMarker.position) })
-            : t('map.unavailableBody')}
-        </Text>
+            ? t("map.yourPosition", {
+                position: formatPoint(selfMarker.position),
+              })
+            : t("map.unavailableBody")}
+        </AppText>
         <Pressable
           accessibilityRole="button"
           onPress={retry}
           style={styles.fallbackButton}
           testID={`${testID}-retry`}
         >
-          <Text style={styles.fallbackButtonLabel}>{t('map.retry')}</Text>
+          <AppText variant="bodyStrong" align="center">
+            {t("map.retry")}
+          </AppText>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={[styles.frame, { height }, props.style]} testID={testID}>
+    <View style={[styles.frame, size, props.style]} testID={testID}>
       <WebView
         key={attempt}
         ref={webViewRef}
         testID={`${testID}-webview`}
-        originWhitelist={['*']}
+        originWhitelist={["*"]}
         // OSM's tile usage policy requires a Referer from browser-based
         // clients; an inline page has none, so it gets the backend's origin
         // as its base URL (same choice as the rider map, M6-T4).
         source={{ html, baseUrl: pageBaseUrl }}
         onMessage={onMessage}
-        onError={() => setPhase('failed')}
+        onError={() => setPhase("failed")}
         // Never navigate the map page away; open real links outside.
         onShouldStartLoadWithRequest={(request) => {
-          if (request.url.startsWith('about:') || request.url.startsWith('data:')) {
+          if (
+            request.url.startsWith("about:") ||
+            request.url.startsWith("data:")
+          ) {
             return true;
           }
           // iOS reports loading the inline page itself as a navigation to its base URL.
@@ -222,27 +249,33 @@ export function OsmMap(props: OsmMapProps) {
         scrollEnabled={false}
         style={styles.webview}
       />
-      {phase === 'loading' ? (
+      {phase === "loading" ? (
         <View style={styles.overlay} testID={`${testID}-loading`}>
-          <ActivityIndicator color={colors.purple700} />
+          <ActivityIndicator color={colors.accent} />
         </View>
       ) : null}
       {tilesDown ? (
-        <View style={styles.tilesBanner} testID={`${testID}-tiles-down`}>
-          <Text style={[styles.tilesBannerText, { textAlign }]}>
-            {t('map.tilesUnavailable')}
-          </Text>
+        <View
+          style={[
+            styles.tilesBanner,
+            props.overlayTop !== undefined && { top: props.overlayTop },
+          ]}
+          testID={`${testID}-tiles-down`}
+        >
+          <AppText variant="caption" color={colors.warning} align={textAlign}>
+            {t("map.tilesUnavailable")}
+          </AppText>
         </View>
       ) : null}
       {followPaused && props.followMe ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('map.recenter')}
+          accessibilityLabel={t("map.recenter")}
           onPress={recenter}
-          style={[styles.recenter, direction === 'rtl' ? styles.recenterRtl : null]}
+          style={[styles.recenter, flipRows ? styles.recenterRtl : null]}
           testID={`${testID}-recenter`}
         >
-          <Ionicons name="locate" size={24} color={colors.purple700} />
+          <Ionicons name="locate" size={22} color={colors.text} />
         </Pressable>
       ) : null}
     </View>
@@ -251,58 +284,52 @@ export function OsmMap(props: OsmMapProps) {
 
 const styles = StyleSheet.create({
   frame: {
-    alignSelf: 'stretch',
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    backgroundColor: colors.lavender100,
+    alignSelf: "stretch",
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceMap,
   },
-  webview: { flex: 1, backgroundColor: colors.lavender100 },
+  fill: { flex: 1, borderRadius: 0 },
+  webview: { flex: 1, backgroundColor: colors.surfaceMap },
   overlay: {
     ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.lavender100,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMap,
   },
   fallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: spacing.sm,
     padding: spacing.md,
   },
-  fallbackTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  fallbackBody: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
   fallbackButton: {
     minHeight: 48,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.purple700,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
-  fallbackButtonLabel: { color: colors.purple700, fontSize: 15, fontWeight: '600' },
   tilesBanner: {
-    position: 'absolute',
+    position: "absolute",
     top: spacing.sm,
     left: spacing.sm,
     right: spacing.sm,
     backgroundColor: colors.warningBg,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     padding: spacing.sm,
   },
-  tilesBannerText: { color: colors.warning, fontSize: 13, fontWeight: '600' },
   recenter: {
-    position: 'absolute',
+    position: "absolute",
     bottom: spacing.lg,
-    right: spacing.sm,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.lilac200,
+    right: spacing.md,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    ...shadows.floating,
   },
-  recenterRtl: { right: undefined, left: spacing.sm },
+  recenterRtl: { right: undefined, left: spacing.md },
 });

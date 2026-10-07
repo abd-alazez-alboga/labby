@@ -4,22 +4,22 @@ import React, {
   useContext,
   useMemo,
   useSyncExternalStore,
-} from 'react';
+} from "react";
 
-import { logout } from '../api/auth';
-import type { AuthTokensResponse, UserProfile } from '../api/auth-types';
-import { hasActiveDriverRole } from '../api/auth-types';
+import { logout } from "../api/auth";
+import type { AuthTokensResponse, UserProfile } from "../api/auth-types";
+import { hasActiveDriverRole } from "../api/auth-types";
 import {
   clearSession,
   getSession,
   saveSession,
   subscribeToSession,
   updateSessionUser,
-} from './session';
-import { runSignOutTasks } from './sign-out-tasks';
+} from "./session";
+import { runSignOutTasks } from "./sign-out-tasks";
 
 export interface AuthContextValue {
-  status: 'signedIn' | 'signedOut';
+  status: "signedIn" | "signedOut";
   user: UserProfile | null;
   /** The driver gate: true only for an ACTIVE `driver` role assignment. */
   isDriver: boolean;
@@ -34,7 +34,11 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const session = useSyncExternalStore(subscribeToSession, getSession, getSession);
+  const session = useSyncExternalStore(
+    subscribeToSession,
+    getSession,
+    getSession,
+  );
 
   const applySession = useCallback(async (tokens: AuthTokensResponse) => {
     await saveSession({
@@ -75,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      status: session ? 'signedIn' : 'signedOut',
+      status: session ? "signedIn" : "signedOut",
       user: session?.user ?? null,
       isDriver: session ? hasActiveDriverRole(session.user) : false,
       applySession,
@@ -91,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
   if (!value) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return value;
 }

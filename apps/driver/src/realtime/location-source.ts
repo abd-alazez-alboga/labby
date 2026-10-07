@@ -1,6 +1,6 @@
-import * as Location from 'expo-location';
+import * as Location from "expo-location";
 
-import type { GpsFix } from './protocol';
+import type { GpsFix } from "./protocol";
 
 /**
  * Where GPS fixes come from while the driver is online. The streamer only
@@ -26,7 +26,9 @@ export interface LocationSource {
  * schedule and the streamer still sends only once per interval), and no
  * distance filter so a waiting (stationary) driver keeps producing fresh fixes.
  */
-export function foregroundLocationSource(intervalSeconds: number): LocationSource {
+export function foregroundLocationSource(
+  intervalSeconds: number,
+): LocationSource {
   return {
     async start(onFix) {
       const subscription = await Location.watchPositionAsync(

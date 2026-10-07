@@ -1,7 +1,7 @@
-import type { Href } from 'expo-router';
+import type { Href } from "expo-router";
 
-import { DOCUMENT_TYPES } from '../api/onboarding-types';
-import type { DeepLink } from '../api/realtime-types';
+import { DOCUMENT_TYPES } from "../api/onboarding-types";
+import type { DeepLink } from "../api/realtime-types";
 
 /**
  * The single deep-link mapper (UC-S-11): catalog `{screen, params}` →
@@ -16,7 +16,7 @@ import type { DeepLink } from '../api/realtime-types';
  * driver no applicant tracker.
  */
 
-export const NOTIFICATIONS_HREF = '/notifications' as const;
+export const NOTIFICATIONS_HREF = "/notifications" as const;
 
 export interface DeepLinkContext {
   /** ACTIVE driver role (the in-app gate). */
@@ -28,32 +28,33 @@ export function hrefForLink(
   context: DeepLinkContext,
 ): Href {
   switch (link?.screen) {
-    case 'driver_application':
+    case "driver_application":
       // Approved drivers have no tracker any more — their home is the outcome.
-      return context.isDriver ? '/' : '/apply-to-drive';
-    case 'driver_documents': {
+      return context.isDriver ? "/" : "/apply-to-drive";
+    case "driver_documents": {
       const documentType = link.params?.documentType;
-      return documentType && (DOCUMENT_TYPES as readonly string[]).includes(documentType)
-        ? { pathname: '/documents', params: { documentType } }
-        : '/documents';
+      return documentType &&
+        (DOCUMENT_TYPES as readonly string[]).includes(documentType)
+        ? { pathname: "/documents", params: { documentType } }
+        : "/documents";
     }
-    case 'driver_vehicles':
-      return context.isDriver ? '/vehicles' : NOTIFICATIONS_HREF;
-    case 'notifications':
+    case "driver_vehicles":
+      return context.isDriver ? "/vehicles" : NOTIFICATIONS_HREF;
+    case "notifications":
     default:
       return NOTIFICATIONS_HREF;
   }
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       return asRecord(JSON.parse(value));
     } catch {
       return null;
     }
   }
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
 }
@@ -63,7 +64,7 @@ function stringParams(value: unknown): Record<string, string> | null {
   if (!record) return null;
   const params: Record<string, string> = {};
   for (const [key, item] of Object.entries(record)) {
-    if (typeof item === 'string') params[key] = item;
+    if (typeof item === "string") params[key] = item;
   }
   return params;
 }
@@ -84,10 +85,10 @@ export interface PushPayload {
 export function parsePushPayload(data: unknown): PushPayload {
   const record = asRecord(data) ?? {};
   const notificationId =
-    typeof record.notificationId === 'string' ? record.notificationId : null;
+    typeof record.notificationId === "string" ? record.notificationId : null;
   const nested = asRecord(record.link);
   const source = nested ?? record;
-  const screen = typeof source.screen === 'string' ? source.screen : null;
+  const screen = typeof source.screen === "string" ? source.screen : null;
   return {
     link: screen ? { screen, params: stringParams(source.params) } : null,
     notificationId,

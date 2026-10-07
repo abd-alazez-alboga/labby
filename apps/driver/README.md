@@ -74,11 +74,15 @@ What the online stream costs, as the code does it today (`realtime/location-sour
 
 ## Theme
 
-`src/theme/tokens.ts` is the typed port of `/assets/theme/colors.scss` (repo root — **source of truth**). All shell styles consume tokens; no hardcoded colors in components. CSS gradients from the SCSS are exposed as color-stop pairs (`gradients.hero`, `gradients.button`); the shell uses their start colors as solid fallbacks until a ticket brings in `expo-linear-gradient`.
+Design system 2026-10-07 (`docs/design/design-system.md`, owner-approved canvas). `src/theme/tokens.ts` is the typed port of `/assets/theme/colors.scss` (repo root — **source of truth**) plus the spec's spacing / radius / shadow / type scales; Labby purple (`colors.accent`) is the only accent, and the legacy purples and gradients stay only as a mirror (no usages). No hardcoded colors in components.
+
+Fonts: Manrope (EN) and IBM Plex Sans Arabic (AR) from `@expo-google-fonts/*`, loaded in the root layout before the splash hides (`src/theme/fonts.ts`). All text goes through `AppText` (`src/components/ui/text.tsx`), which maps the weight to the per-weight family of the active locale (Android ignores `fontWeight` on custom fonts) and aligns to the reading direction.
+
+UI kit: `src/components/ui/` — `Screen`/`FormScreen` + `ScreenHeader` + `PinnedFooter` (safe-area aware; the native stack header is hidden), `MapScreen`, `MapFab`, `BottomSheet`, `GoButton`, Primary/Secondary/Text/DestructiveText buttons, `ListRow`, `StatusChip`, `Banner`, `TextField`, `CheckboxRow`, `OptionGroup`. Screens build from these only.
 
 ## Branding
 
-`assets/images/labby-icon.png` and `assets/images/labby-logo-white.png` are copies of `/assets/images/*` (repo root — source of truth; re-copy if the brand changes). Known caveat: the icon master is 150×150 px, below the 1024×1024 Expo recommends, so stores/launchers will upscale it — flagged for the owner to supply a hi-res master.
+`assets/images/labby-icon.png`, `assets/images/labby-logo.png` and `assets/images/labby-logo-white.png` are copies of `/assets/images/*` (repo root — source of truth; re-copy if the brand changes). Known caveat: the icon master is 150×150 px, below the 1024×1024 Expo recommends, so stores/launchers will upscale it — flagged for the owner to supply a hi-res master.
 
 ## Tests
 
@@ -91,11 +95,12 @@ app.config.ts        # Expo config: name/icon/splash, extra.apiBaseUrl
 src/
 ├── app/             # expo-router routes: _layout (stack + i18n boot), index, settings
 ├── components/      # screen implementations (kept out of app/ so they are unit-testable)
+│   └── ui/          # design-system UI kit (text, screens, map, buttons, rows, chips, banners, fields)
 ├── api/             # apiFetch/authFetch + typed contract slices (auth, onboarding, regions, realtime)
 ├── map/             # GeoJSON conversion + the Leaflet WebView bridge
 ├── realtime/        # availability facade, location streamer + protocol, GPS source
 ├── notifications/   # deep-link mapper, unread store, push plumbing
 ├── config/          # typed runtime-ish config accessor
 ├── i18n/            # i18next init, persistence, RTL sync, LocaleProvider
-└── theme/           # tokens.ts — port of /assets/theme/colors.scss
+└── theme/           # tokens.ts (port of /assets/theme/colors.scss + scales), fonts.ts
 ```

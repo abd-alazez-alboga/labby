@@ -1,3 +1,3 @@
-import { ResubmitScreen } from '../components/onboarding/resubmit-screen';
+import { ResubmitScreen } from "../components/onboarding/resubmit-screen";
 
 export default ResubmitScreen;

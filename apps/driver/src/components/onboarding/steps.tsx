@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 
-import { uploadMyPhoto } from '../../api/auth';
-import { ApiError } from '../../api/client';
-import { resolveFileUrl } from '../../api/onboarding';
+import { uploadMyPhoto } from "../../api/auth";
+import { ApiError } from "../../api/client";
+import { resolveFileUrl } from "../../api/onboarding";
 import {
   DOCUMENT_NUMBER_MAX,
   PROFILE_NAME_MAX,
   VEHICLE_COLOR_MAX,
   VEHICLE_PLATE_MAX,
   VEHICLE_TEXT_MAX,
-} from '../../api/onboarding-types';
-import { useAuth } from '../../auth/AuthProvider';
+} from "../../api/onboarding-types";
+import { useAuth } from "../../auth/AuthProvider";
 import type {
   DocumentDraft,
   DocumentField,
@@ -20,15 +20,28 @@ import type {
   PickedFile,
   VehicleDraft,
   VehicleField,
-} from '../../onboarding/drafts';
-import { pickFile } from '../../onboarding/file-picking';
-import type { PickSource } from '../../onboarding/file-picking';
-import { documentFieldError, documentLevelError, messageKeyFor } from '../../onboarding/server-errors';
-import type { ServerFieldErrors } from '../../onboarding/server-errors';
-import { colors, radius, spacing } from '../../theme/tokens';
-import { CheckboxRow, Field } from '../auth/ui';
-import { DocumentFileField, VehiclePhotosField } from './file-fields';
-import { DateField, FieldError, Muted, NoteBox, SecondaryButton, useTextAlign } from './ui';
+} from "../../onboarding/drafts";
+import { pickFile } from "../../onboarding/file-picking";
+import type { PickSource } from "../../onboarding/file-picking";
+import {
+  documentFieldError,
+  documentLevelError,
+  messageKeyFor,
+} from "../../onboarding/server-errors";
+import type { ServerFieldErrors } from "../../onboarding/server-errors";
+import { colors, radius, spacing } from "../../theme/tokens";
+import {
+  AppText,
+  Banner,
+  CheckboxRow,
+  FieldError,
+  FieldLabel,
+  Muted,
+  SecondaryButton,
+  TextField,
+} from "../ui";
+import { DocumentFileField, VehiclePhotosField } from "./file-fields";
+import { DateField } from "./ui";
 
 /**
  * The wizard's step bodies. Each renders ONE concern; validation results
@@ -53,7 +66,11 @@ export interface PersonalStepProps {
   photoErrorKey?: string | null;
   onPhotoChanged: () => void;
   note?: string | null;
-  confirm?: { checked: boolean; onToggle: () => void; errorKey?: string | null };
+  confirm?: {
+    checked: boolean;
+    onToggle: () => void;
+    errorKey?: string | null;
+  };
 }
 
 /** Personal details = account name + REQUIRED profile photo (owner ruling). */
@@ -67,7 +84,6 @@ export function PersonalStep({
   confirm,
 }: PersonalStepProps) {
   const { t } = useTranslation();
-  const textAlign = useTextAlign();
   const { user, setUser } = useAuth();
   const [busy, setBusy] = useState(false);
   const [uploadErrorKey, setUploadErrorKey] = useState<string | null>(null);
@@ -76,9 +92,9 @@ export function PersonalStep({
     setUploadErrorKey(null);
     setBusy(true);
     try {
-      const picked = await pickFile('vehicle_photo', source);
-      if (picked.status === 'canceled') return;
-      if (picked.status === 'invalid') {
+      const picked = await pickFile("vehicle_photo", source);
+      if (picked.status === "canceled") return;
+      if (picked.status === "invalid") {
         setUploadErrorKey(picked.errorKey);
         return;
       }
@@ -93,9 +109,9 @@ export function PersonalStep({
       setUploadErrorKey(
         error instanceof ApiError
           ? error.status === 400
-            ? 'account.profile.photoError'
-            : 'onboarding.errors.server'
-          : 'onboarding.errors.network',
+            ? "account.profile.photoError"
+            : "onboarding.errors.server"
+          : "onboarding.errors.network",
       );
     } finally {
       setBusy(false);
@@ -103,59 +119,74 @@ export function PersonalStep({
   };
 
   return (
-    <View testID="step-personal">
-      {note ? <NoteBox title={t('onboarding.reviewerNote')} note={note} testID="step-note" /> : null}
-      <Muted>{t('onboarding.personal.hint')}</Muted>
-      <Field
-        label={t('auth.fields.name')}
+    <View style={styles.step} testID="step-personal">
+      {note ? (
+        <Banner
+          tone="warning"
+          title={t("onboarding.reviewerNote")}
+          message={note}
+          testID="step-note"
+        />
+      ) : null}
+      <Muted>{t("onboarding.personal.hint")}</Muted>
+      <TextField
+        label={t("auth.fields.name")}
         value={name}
         onChangeText={onNameChange}
         maxLength={PROFILE_NAME_MAX}
         error={nameErrorKey ? t(nameErrorKey) : null}
         testID="personal-name"
       />
-      <Text style={[styles.label, { textAlign }]}>{t('onboarding.personal.photo')}</Text>
-      <Muted>{t('onboarding.personal.photoHint')}</Muted>
+      <FieldLabel>{t("onboarding.personal.photo")}</FieldLabel>
+      <Muted>{t("onboarding.personal.photoHint")}</Muted>
       {user?.photoUrl ? (
         <View style={styles.avatarWrap} testID="personal-photo-on-file">
           <Image
             source={{ uri: resolveFileUrl(user.photoUrl) }}
             style={styles.avatar}
-            accessibilityLabel={t('onboarding.personal.photo')}
+            accessibilityLabel={t("onboarding.personal.photo")}
           />
         </View>
       ) : (
-        <Muted testID="personal-photo-missing">{t('onboarding.personal.noPhoto')}</Muted>
+        <Muted testID="personal-photo-missing">
+          {t("onboarding.personal.noPhoto")}
+        </Muted>
       )}
       {busy ? (
         <View style={styles.busy} testID="personal-photo-uploading">
-          <ActivityIndicator color={colors.purple700} />
-          <Text style={styles.busyText}>{t('onboarding.file.uploading')}</Text>
+          <ActivityIndicator color={colors.accent} />
+          <AppText variant="caption" color={colors.textMuted}>
+            {t("onboarding.file.uploading")}
+          </AppText>
         </View>
       ) : (
         <View style={styles.sources}>
           <SecondaryButton
-            title={t('onboarding.file.source.camera')}
+            title={t("onboarding.file.source.camera")}
             icon="camera-outline"
-            onPress={() => void choosePhoto('camera')}
+            onPress={() => void choosePhoto("camera")}
             testID="personal-photo-camera"
           />
           <SecondaryButton
-            title={t('onboarding.file.source.library')}
+            title={t("onboarding.file.source.library")}
             icon="images-outline"
-            onPress={() => void choosePhoto('library')}
+            onPress={() => void choosePhoto("library")}
             testID="personal-photo-library"
           />
         </View>
       )}
       {uploadErrorKey ? (
-        <FieldError testID="personal-photo-upload-error">{t(uploadErrorKey)}</FieldError>
+        <FieldError testID="personal-photo-upload-error">
+          {t(uploadErrorKey)}
+        </FieldError>
       ) : photoErrorKey ? (
-        <FieldError testID="personal-photo-error">{t(photoErrorKey)}</FieldError>
+        <FieldError testID="personal-photo-error">
+          {t(photoErrorKey)}
+        </FieldError>
       ) : null}
       {confirm ? (
         <CheckboxRow
-          label={t('onboarding.personal.confirm')}
+          label={t("onboarding.personal.confirm")}
           checked={confirm.checked}
           onToggle={confirm.onToggle}
           error={confirm.errorKey ? t(confirm.errorKey) : null}
@@ -189,37 +220,54 @@ export function DocumentStep({
   const { t } = useTranslation();
   const whole = documentLevelError(serverErrors, scope);
   return (
-    <View testID={testID}>
-      {note ? <NoteBox title={t('onboarding.reviewerNote')} note={note} testID="step-note" /> : null}
+    <View style={styles.step} testID={testID}>
+      {note ? (
+        <Banner
+          tone="warning"
+          title={t("onboarding.reviewerNote")}
+          message={note}
+          testID="step-note"
+        />
+      ) : null}
       <Muted>{t(`onboarding.documentHints.${draft.type}`)}</Muted>
-      {whole ? <FieldError testID={`${testID}-server-error`}>{t(whole)}</FieldError> : null}
+      {whole ? (
+        <FieldError testID={`${testID}-server-error`}>{t(whole)}</FieldError>
+      ) : null}
       <DocumentFileField
         value={draft.file}
-        onChange={(file: PickedFile) => onChange({ ...draft, file }, 'file')}
-        error={pickError(t, errors.file, documentFieldError(serverErrors, scope, 'fileId'))}
+        onChange={(file: PickedFile) => onChange({ ...draft, file }, "file")}
+        error={pickError(
+          t,
+          errors.file,
+          documentFieldError(serverErrors, scope, "fileId"),
+        )}
         testID="document-file"
       />
-      <Field
-        label={t('onboarding.document.number')}
+      <TextField
+        label={t("onboarding.document.number")}
         value={draft.number}
-        onChangeText={(number) => onChange({ ...draft, number }, 'number')}
+        onChangeText={(number) => onChange({ ...draft, number }, "number")}
         maxLength={DOCUMENT_NUMBER_MAX}
         autoCapitalize="characters"
-        error={pickError(t, errors.number, documentFieldError(serverErrors, scope, 'number'))}
+        error={pickError(
+          t,
+          errors.number,
+          documentFieldError(serverErrors, scope, "number"),
+        )}
         testID="document-number"
       />
       <DateField
-        label={t('onboarding.document.expiresOn')}
+        label={t("onboarding.document.expiresOn")}
         value={draft.expiresOn}
-        onChange={(expiresOn) => onChange({ ...draft, expiresOn }, 'expiresOn')}
+        onChange={(expiresOn) => onChange({ ...draft, expiresOn }, "expiresOn")}
         error={pickError(
           t,
           errors.expiresOn,
-          documentFieldError(serverErrors, scope, 'expiresOn'),
+          documentFieldError(serverErrors, scope, "expiresOn"),
         )}
         testID="document-expiry"
       />
-      <Muted>{t('onboarding.document.expiryHint')}</Muted>
+      <Muted>{t("onboarding.document.expiryHint")}</Muted>
     </View>
   );
 }
@@ -230,14 +278,14 @@ const VEHICLE_FIELDS: {
   field: VehicleField;
   max: number;
   numeric?: boolean;
-  capitalize?: 'characters' | 'words';
+  capitalize?: "characters" | "words";
 }[] = [
-  { field: 'make', max: VEHICLE_TEXT_MAX, capitalize: 'words' },
-  { field: 'model', max: VEHICLE_TEXT_MAX, capitalize: 'words' },
-  { field: 'year', max: 4, numeric: true },
-  { field: 'color', max: VEHICLE_COLOR_MAX },
-  { field: 'plate', max: VEHICLE_PLATE_MAX, capitalize: 'characters' },
-  { field: 'seats', max: 1, numeric: true },
+  { field: "make", max: VEHICLE_TEXT_MAX, capitalize: "words" },
+  { field: "model", max: VEHICLE_TEXT_MAX, capitalize: "words" },
+  { field: "year", max: 4, numeric: true },
+  { field: "color", max: VEHICLE_COLOR_MAX },
+  { field: "plate", max: VEHICLE_PLATE_MAX, capitalize: "characters" },
+  { field: "seats", max: 1, numeric: true },
 ];
 
 export function VehicleDetailsStep({
@@ -254,25 +302,38 @@ export function VehicleDetailsStep({
   note?: string | null;
 }) {
   const { t } = useTranslation();
-  const whole = 'vehicle' in serverErrors ? 'onboarding.server.generic' : null;
+  const whole = "vehicle" in serverErrors ? "onboarding.server.generic" : null;
   return (
-    <View testID="step-vehicle">
-      {note ? <NoteBox title={t('onboarding.reviewerNote')} note={note} testID="step-note" /> : null}
-      <Muted>{t('onboarding.vehicle.hint')}</Muted>
-      {whole ? <FieldError testID="vehicle-server-error">{t(whole)}</FieldError> : null}
+    <View style={styles.step} testID="step-vehicle">
+      {note ? (
+        <Banner
+          tone="warning"
+          title={t("onboarding.reviewerNote")}
+          message={note}
+          testID="step-note"
+        />
+      ) : null}
+      <Muted>{t("onboarding.vehicle.hint")}</Muted>
+      {whole ? (
+        <FieldError testID="vehicle-server-error">{t(whole)}</FieldError>
+      ) : null}
       {VEHICLE_FIELDS.map(({ field, max, numeric, capitalize }) => {
         const serverKey = `vehicle.${field}`;
         return (
-          <Field
+          <TextField
             key={field}
             label={t(`onboarding.vehicle.${field}`)}
             value={draft[field]}
-            onChangeText={(value) => onChange({ ...draft, [field]: value }, field)}
+            onChangeText={(value) =>
+              onChange({ ...draft, [field]: value }, field)
+            }
             maxLength={max}
-            keyboardType={numeric ? 'number-pad' : 'default'}
-            autoCapitalize={capitalize ?? 'sentences'}
+            keyboardType={numeric ? "number-pad" : "default"}
+            autoCapitalize={capitalize ?? "sentences"}
             placeholder={
-              field === 'seats' ? t('onboarding.vehicle.seatsPlaceholder') : undefined
+              field === "seats"
+                ? t("onboarding.vehicle.seatsPlaceholder")
+                : undefined
             }
             error={pickError(
               t,
@@ -302,15 +363,26 @@ export function VehiclePhotosStep({
 }) {
   const { t } = useTranslation();
   const serverKey = Object.keys(serverErrors).find((key) =>
-    key.startsWith('vehicle.photoFileIds'),
+    key.startsWith("vehicle.photoFileIds"),
   );
   return (
-    <View testID="step-photos">
-      {note ? <NoteBox title={t('onboarding.reviewerNote')} note={note} testID="step-note" /> : null}
+    <View style={styles.step} testID="step-photos">
+      {note ? (
+        <Banner
+          tone="warning"
+          title={t("onboarding.reviewerNote")}
+          message={note}
+          testID="step-note"
+        />
+      ) : null}
       <VehiclePhotosField
         value={draft.photos}
         onChange={(photos) => onChange({ ...draft, photos })}
-        error={pickError(t, errorKey ?? undefined, serverKey ? messageKeyFor(serverKey) : null)}
+        error={pickError(
+          t,
+          errorKey ?? undefined,
+          serverKey ? messageKeyFor(serverKey) : null,
+        )}
         testID="vehicle-photos"
       />
     </View>
@@ -318,28 +390,23 @@ export function VehiclePhotosStep({
 }
 
 const styles = StyleSheet.create({
-  label: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  avatarWrap: { alignItems: 'center', marginVertical: spacing.sm },
+  step: { gap: spacing.ms },
+  avatarWrap: { alignItems: "center", marginVertical: spacing.sm },
   avatar: {
     width: 112,
     height: 112,
     borderRadius: 56,
-    backgroundColor: colors.lavender100,
-    borderWidth: 2,
-    borderColor: colors.lilac200,
+    backgroundColor: colors.accentTint,
   },
   busy: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
-  busyText: { color: colors.textMuted, fontSize: 13 },
-  sources: { gap: spacing.sm, marginVertical: spacing.sm, borderRadius: radius.md },
+  sources: {
+    gap: spacing.sm,
+    marginVertical: spacing.xs,
+    borderRadius: radius.md,
+  },
 });

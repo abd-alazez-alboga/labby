@@ -1,3 +1,3 @@
-import { ProfileEditScreen } from '../components/account/profile-edit-screen';
+import { ProfileEditScreen } from "../components/account/profile-edit-screen";
 
 export default ProfileEditScreen;

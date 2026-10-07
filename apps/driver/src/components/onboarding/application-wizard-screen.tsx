@@ -1,21 +1,26 @@
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useRouter } from "expo-router";
+import React from "react";
+import { useTranslation } from "react-i18next";
 
-import { submitApplication } from '../../api/onboarding';
-import type { DocumentType } from '../../api/onboarding-types';
-import { DOCUMENT_TYPES } from '../../api/onboarding-types';
-import { emptyDocument, emptyVehicle, toDocumentInput, toVehicleInput } from '../../onboarding/drafts';
-import type { DocumentDraft } from '../../onboarding/drafts';
-import { OnboardingWizard, docStep } from './wizard';
-import type { StepId } from './wizard';
+import { submitApplication } from "../../api/onboarding";
+import type { DocumentType } from "../../api/onboarding-types";
+import { DOCUMENT_TYPES } from "../../api/onboarding-types";
+import {
+  emptyDocument,
+  emptyVehicle,
+  toDocumentInput,
+  toVehicleInput,
+} from "../../onboarding/drafts";
+import type { DocumentDraft } from "../../onboarding/drafts";
+import { OnboardingWizard, docStep } from "./wizard";
+import type { StepId } from "./wizard";
 
 const APPLY_STEPS: StepId[] = [
-  'personal',
+  "personal",
   ...DOCUMENT_TYPES.map(docStep),
-  'vehicle',
-  'photos',
-  'review',
+  "vehicle",
+  "photos",
+  "review",
 ];
 
 function emptyDocuments(): Record<DocumentType, DocumentDraft> {
@@ -34,7 +39,7 @@ export function ApplicationWizardScreen() {
 
   const exit = () => {
     if (router.canGoBack()) router.back();
-    else router.replace('/apply-to-drive');
+    else router.replace("/apply-to-drive");
   };
 
   return (
@@ -43,8 +48,8 @@ export function ApplicationWizardScreen() {
       steps={APPLY_STEPS}
       initialDocuments={emptyDocuments()}
       initialVehicle={emptyVehicle()}
-      submitLabel={t('onboarding.apply.submit')}
-      reviewHint={t('onboarding.apply.reviewHint')}
+      submitLabel={t("onboarding.apply.submit")}
+      reviewHint={t("onboarding.apply.reviewHint")}
       conflictKey="onboarding.apply.conflict"
       submit={async ({ documents, vehicle }) => {
         await submitApplication({

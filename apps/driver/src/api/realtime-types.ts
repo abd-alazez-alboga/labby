@@ -6,20 +6,15 @@
 
 /** NTF-01 categories. `ride` and `safety` are locked (never mutable, NTF-02). */
 export type NotificationCategory =
-  | 'ride'
-  | 'chat'
-  | 'scheduled'
-  | 'promotions'
-  | 'account'
-  | 'safety';
+  "ride" | "chat" | "scheduled" | "promotions" | "account" | "safety";
 
 export const NOTIFICATION_CATEGORIES: readonly NotificationCategory[] = [
-  'ride',
-  'chat',
-  'scheduled',
-  'promotions',
-  'account',
-  'safety',
+  "ride",
+  "chat",
+  "scheduled",
+  "promotions",
+  "account",
+  "safety",
 ];
 
 /** `{screen, params}` from the fixed catalog (UC-S-11); see notifications/deep-links. */
@@ -56,19 +51,17 @@ export interface NotificationPreference {
   locked: boolean;
 }
 
-export type DevicePlatform = 'android' | 'ios' | 'web';
+export type DevicePlatform = "android" | "ios" | "web";
 
 export interface DeviceRegistration {
   token: string;
   platform: DevicePlatform;
-  app: 'driver';
+  app: "driver";
 }
 
 /** UC-D-04 E1 reasons the GET returns when `canGoOnline` is false. */
 export type CannotGoOnlineReason =
-  | 'role_suspended'
-  | 'not_approved'
-  | 'no_active_vehicle';
+  "role_suspended" | "not_approved" | "no_active_vehicle";
 
 export interface DriverAvailability {
   online: boolean;

@@ -1,3 +1,3 @@
-import { ChangePhoneScreen } from '../components/account/change-phone-screen';
+import { ChangePhoneScreen } from "../components/account/change-phone-screen";
 
 export default ChangePhoneScreen;

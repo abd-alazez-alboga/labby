@@ -1,7 +1,7 @@
-import { ApiError } from '../api/client';
-import { LOCATION_BATCH_MAX } from '../api/realtime-types';
-import type { LocationSample } from '../api/realtime-types';
-import type { LocationSource } from './location-source';
+import { ApiError } from "../api/client";
+import { LOCATION_BATCH_MAX } from "../api/realtime-types";
+import type { LocationSample } from "../api/realtime-types";
+import type { LocationSource } from "./location-source";
 import {
   accessTokenExpiryMs,
   backoffDelayMs,
@@ -9,8 +9,8 @@ import {
   CLOSE_UNAUTHORIZED,
   parseServerFrame,
   sampleFromFix,
-} from './protocol';
-import type { ClientFrame, GpsFix } from './protocol';
+} from "./protocol";
+import type { ClientFrame, GpsFix } from "./protocol";
 
 /**
  * Driver location streaming over the realtime WebSocket (TRK-01, TRK-04,
@@ -44,7 +44,7 @@ import type { ClientFrame, GpsFix } from './protocol';
  * full rationale is in the driver README ("Battery").
  */
 
-export type StreamStatus = 'idle' | 'connecting' | 'live' | 'reconnecting';
+export type StreamStatus = "idle" | "connecting" | "live" | "reconnecting";
 
 /** The subset of the WebSocket API the streamer uses. */
 export interface SocketLike {
@@ -66,7 +66,7 @@ export const TOKEN_REFRESH_LEAD_MS = 60000;
 /** Retry delay after a transiently failed proactive refresh. */
 export const TOKEN_REFRESH_RETRY_MS = 15000;
 
-export type StreamRejection = 'not_online' | 'not_driver';
+export type StreamRejection = "not_online" | "not_driver";
 
 export interface StreamerDeps {
   url: string;
@@ -105,7 +105,7 @@ export class LocationStreamer {
   private latest: LocationSample | null = null;
   private buffer: LocationSample[] = [];
   private flushing = false;
-  private status: StreamStatus = 'idle';
+  private status: StreamStatus = "idle";
   private stopSource: (() => void) | null = null;
   private unsubscribeSession: (() => void) | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -132,7 +132,9 @@ export class LocationStreamer {
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
-    this.unsubscribeSession = this.deps.subscribeSession(() => this.onSessionChange());
+    this.unsubscribeSession = this.deps.subscribeSession(() =>
+      this.onSessionChange(),
+    );
     this.scheduleTokenRefresh();
     this.connect();
     this.restartTicker();
@@ -160,19 +162,19 @@ export class LocationStreamer {
     this.dropSocket(CLOSE_NORMAL);
     this.buffer = [];
     this.latest = null;
-    this.setStatus('idle');
+    this.setStatus("idle");
   }
 
   // ------------------------------------------------------------ socket
 
   private connect(): void {
-    this.clearTimer('reconnect');
+    this.clearTimer("reconnect");
     if (!this.running) return;
     if (!this.deps.getAccessToken()) {
       this.stop();
       return;
     }
-    this.setStatus(this.everLive ? 'reconnecting' : 'connecting');
+    this.setStatus(this.everLive ? "reconnecting" : "connecting");
     let socket: SocketLike;
     try {
       socket = this.deps.createSocket(this.deps.url);
@@ -229,26 +231,30 @@ export class LocationStreamer {
       this.stop();
       return;
     }
-    if (this.send({ type: 'auth', token })) this.sentToken = token;
+    if (this.send({ type: "auth", token })) this.sentToken = token;
   }
 
   private onFrame(data: unknown): void {
-    this.clearTimer('pong');
+    this.clearTimer("pong");
     const frame = parseServerFrame(data);
     if (!frame) return;
     switch (frame.type) {
-      case 'ready': {
+      case "ready": {
         const firstReady = !this.authenticated;
         this.authenticated = true;
         this.everLive = true;
         this.attempts = 0;
         this.unauthorizedCloses = 0;
-        if (frame.staleAfterSeconds) this.staleAfterSeconds = frame.staleAfterSeconds;
-        if (frame.streamIntervalSeconds && frame.streamIntervalSeconds !== this.intervalSeconds) {
+        if (frame.staleAfterSeconds)
+          this.staleAfterSeconds = frame.staleAfterSeconds;
+        if (
+          frame.streamIntervalSeconds &&
+          frame.streamIntervalSeconds !== this.intervalSeconds
+        ) {
           this.intervalSeconds = frame.streamIntervalSeconds;
           this.restartTicker();
         }
-        this.setStatus('live');
+        this.setStatus("live");
         if (firstReady) {
           this.startPing();
           if (this.buffer.length > 0) void this.flush();
@@ -256,14 +262,14 @@ export class LocationStreamer {
         }
         break;
       }
-      case 'error':
-        if (frame.code === 'not_online' || frame.code === 'not_driver') {
+      case "error":
+        if (frame.code === "not_online" || frame.code === "not_driver") {
           this.deps.onRejected?.(frame.code);
         }
         // invalid_sample: the sample is dropped server-side; nothing to retry.
         break;
-      case 'pong':
-      case 'unknown':
+      case "pong":
+      case "unknown":
         // pong: liveness handled above. Unknown types (M7 ride events) are ignored.
         break;
     }
@@ -283,7 +289,7 @@ export class LocationStreamer {
   }
 
   private async reauthenticateAndReconnect(): Promise<void> {
-    this.setStatus('reconnecting');
+    this.setStatus("reconnecting");
     let token: string | null;
     try {
       token = await this.deps.refreshSession();
@@ -305,8 +311,8 @@ export class LocationStreamer {
   private scheduleReconnect(): void {
     if (!this.running) return;
     this.attempts += 1;
-    this.setStatus('reconnecting');
-    this.clearTimer('reconnect');
+    this.setStatus("reconnecting");
+    this.clearTimer("reconnect");
     const delay = backoffDelayMs(this.attempts, this.deps.random);
     this.reconnectTimer = setTimeout(() => this.connect(), delay);
   }
@@ -318,20 +324,20 @@ export class LocationStreamer {
     this.pingTimer = setInterval(() => {
       if (!this.authenticated) return;
       // Armed before sending: any frame that arrives disarms it.
-      this.clearTimer('pong');
+      this.clearTimer("pong");
       this.pongTimer = setTimeout(() => {
         // No frame back: half-open connection. Replace it.
         this.dropSocket(CLOSE_NORMAL);
         this.scheduleReconnect();
       }, PONG_TIMEOUT_MS);
-      if (!this.send({ type: 'ping' })) this.clearTimer('pong');
+      if (!this.send({ type: "ping" })) this.clearTimer("pong");
     }, PING_INTERVAL_MS);
   }
 
   private stopPing(): void {
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.pingTimer = null;
-    this.clearTimer('pong');
+    this.clearTimer("pong");
   }
 
   // ------------------------------------------------------------- samples
@@ -345,15 +351,20 @@ export class LocationStreamer {
 
   private restartTicker(): void {
     if (this.tickTimer) clearInterval(this.tickTimer);
-    this.tickTimer = setInterval(() => this.tick(), this.intervalSeconds * 1000);
+    this.tickTimer = setInterval(
+      () => this.tick(),
+      this.intervalSeconds * 1000,
+    );
   }
 
   private tick(): void {
     const sample = this.latest;
     if (!sample) return;
     const now = this.deps.now?.() ?? Date.now();
-    if (now - Date.parse(sample.recordedAt) > this.staleAfterSeconds * 1000) return;
-    if (this.authenticated && this.send({ type: 'location', ...sample })) return;
+    if (now - Date.parse(sample.recordedAt) > this.staleAfterSeconds * 1000)
+      return;
+    if (this.authenticated && this.send({ type: "location", ...sample }))
+      return;
     this.bufferSample(sample);
   }
 
@@ -375,7 +386,7 @@ export class LocationStreamer {
     } catch (error) {
       if (!this.running) return;
       if (error instanceof ApiError && error.status === 409) {
-        this.deps.onRejected?.('not_online');
+        this.deps.onRejected?.("not_online");
       } else if (!(error instanceof ApiError && error.status === 400)) {
         // Network / server trouble: keep them for the next reconnect.
         this.buffer = [...batch, ...this.buffer].slice(-LOCATION_BATCH_MAX);
@@ -401,7 +412,7 @@ export class LocationStreamer {
   }
 
   private scheduleTokenRefresh(): void {
-    this.clearTimer('refresh');
+    this.clearTimer("refresh");
     const token = this.deps.getAccessToken();
     const expiresAt = token ? accessTokenExpiryMs(token) : null;
     if (expiresAt === null) return;
@@ -430,14 +441,14 @@ export class LocationStreamer {
     this.deps.onStatus?.(status);
   }
 
-  private clearTimer(which: 'pong' | 'reconnect' | 'refresh'): void {
-    if (which === 'pong' && this.pongTimer) {
+  private clearTimer(which: "pong" | "reconnect" | "refresh"): void {
+    if (which === "pong" && this.pongTimer) {
       clearTimeout(this.pongTimer);
       this.pongTimer = null;
-    } else if (which === 'reconnect' && this.reconnectTimer) {
+    } else if (which === "reconnect" && this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
-    } else if (which === 'refresh' && this.refreshTimer) {
+    } else if (which === "refresh" && this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
     }
@@ -447,7 +458,7 @@ export class LocationStreamer {
     if (this.tickTimer) clearInterval(this.tickTimer);
     this.tickTimer = null;
     this.stopPing();
-    this.clearTimer('reconnect');
-    this.clearTimer('refresh');
+    this.clearTimer("reconnect");
+    this.clearTimer("refresh");
   }
 }

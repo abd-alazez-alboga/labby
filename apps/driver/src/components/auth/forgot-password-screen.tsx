@@ -1,32 +1,30 @@
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import { errorKeyFor } from "./error-key";
 import {
+  Banner,
   BodyText,
-  ErrorBanner,
-  Field,
   FormScreen,
-  InfoBanner,
   PrimaryButton,
-  ScreenTitle,
   TextButton,
-  errorKeyFor,
-} from './ui';
-import { useCooldown } from './use-cooldown';
+  TextField,
+} from "../ui";
+import { useCooldown } from "./use-cooldown";
 import {
   passwordResetComplete,
   passwordResetStart,
   passwordResetVerify,
-} from '../../api/auth';
+} from "../../api/auth";
 import {
   OTP_PATTERN,
   OTP_RESEND_COOLDOWN_SECONDS,
   PASSWORD_MIN_LENGTH,
   PHONE_PATTERN,
-} from '../../api/auth-types';
+} from "../../api/auth-types";
 
-type Step = 'phone' | 'code' | 'password' | 'done';
+type Step = "phone" | "code" | "password" | "done";
 
 /**
  * UC-S-04 — 3-step password reset. The start step always answers 204
@@ -37,12 +35,12 @@ export function ForgotPasswordScreen() {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [resetToken, setResetToken] = useState('');
+  const [step, setStep] = useState<Step>("phone");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,7 +49,7 @@ export function ForgotPasswordScreen() {
   const sendCode = async (isResend: boolean) => {
     const trimmed = phone.trim();
     if (!PHONE_PATTERN.test(trimmed)) {
-      setFieldErrorKey('auth.validation.phone');
+      setFieldErrorKey("auth.validation.phone");
       return;
     }
     setFieldErrorKey(null);
@@ -60,8 +58,8 @@ export function ForgotPasswordScreen() {
     try {
       await passwordResetStart(trimmed);
       cooldown.start(OTP_RESEND_COOLDOWN_SECONDS);
-      setCode('');
-      if (!isResend) setStep('code');
+      setCode("");
+      if (!isResend) setStep("code");
     } catch (error) {
       // The contract keeps this neutral (204 even on unknown phones);
       // anything else is a transport/server failure.
@@ -73,7 +71,7 @@ export function ForgotPasswordScreen() {
 
   const verifyCode = async () => {
     if (!OTP_PATTERN.test(code.trim())) {
-      setFieldErrorKey('auth.validation.code');
+      setFieldErrorKey("auth.validation.code");
       return;
     }
     setFieldErrorKey(null);
@@ -82,12 +80,12 @@ export function ForgotPasswordScreen() {
     try {
       const result = await passwordResetVerify(phone.trim(), code.trim());
       setResetToken(result.resetToken);
-      setStep('password');
+      setStep("password");
     } catch (error) {
       setErrorKey(
         errorKeyFor(error, {
-          400: 'auth.otp.wrongCode',
-          410: 'auth.otp.expired',
+          400: "auth.otp.wrongCode",
+          410: "auth.otp.expired",
         }),
       );
     } finally {
@@ -97,11 +95,11 @@ export function ForgotPasswordScreen() {
 
   const complete = async () => {
     if (newPassword.length < PASSWORD_MIN_LENGTH) {
-      setFieldErrorKey('auth.validation.password');
+      setFieldErrorKey("auth.validation.password");
       return;
     }
     if (confirmPassword !== newPassword) {
-      setFieldErrorKey('auth.validation.confirm');
+      setFieldErrorKey("auth.validation.confirm");
       return;
     }
     setFieldErrorKey(null);
@@ -109,37 +107,38 @@ export function ForgotPasswordScreen() {
     setBusy(true);
     try {
       await passwordResetComplete(resetToken, newPassword);
-      setStep('done');
+      setStep("done");
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 400: 'auth.reset.invalid' }));
+      setErrorKey(errorKeyFor(error, { 400: "auth.reset.invalid" }));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <FormScreen testID={`reset-step-${step}`}>
-      <ScreenTitle>{t('auth.reset.title')}</ScreenTitle>
+    <FormScreen title={t("auth.reset.title")} testID={`reset-step-${step}`}>
       {errorKey ? (
-        <ErrorBanner testID="reset-error">{t(errorKey)}</ErrorBanner>
+        <Banner tone="danger" message={t(errorKey)} testID="reset-error" />
       ) : null}
 
-      {step === 'phone' ? (
+      {step === "phone" ? (
         <>
-          <Field
-            label={t('auth.fields.phone')}
-            placeholder={t('auth.fields.phonePlaceholder')}
+          <TextField
+            label={t("auth.fields.phone")}
+            placeholder={t("auth.fields.phonePlaceholder")}
             keyboardType="phone-pad"
             autoCapitalize="none"
             value={phone}
             onChangeText={setPhone}
             error={
-              fieldErrorKey === 'auth.validation.phone' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.phone"
+                ? t(fieldErrorKey)
+                : null
             }
             testID="reset-phone"
           />
           <PrimaryButton
-            title={t('auth.reset.phoneCta')}
+            title={t("auth.reset.phoneCta")}
             onPress={() => sendCode(false)}
             busy={busy}
             testID="reset-send-code"
@@ -147,24 +146,24 @@ export function ForgotPasswordScreen() {
         </>
       ) : null}
 
-      {step === 'code' ? (
+      {step === "code" ? (
         <>
           <BodyText testID="reset-neutral-note">
-            {t('auth.reset.neutralSent')}
+            {t("auth.reset.neutralSent")}
           </BodyText>
-          <Field
-            label={t('auth.fields.code')}
+          <TextField
+            label={t("auth.fields.code")}
             keyboardType="number-pad"
             maxLength={6}
             value={code}
             onChangeText={setCode}
             error={
-              fieldErrorKey === 'auth.validation.code' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.code" ? t(fieldErrorKey) : null
             }
             testID="reset-code"
           />
           <PrimaryButton
-            title={t('auth.reset.verifyCta')}
+            title={t("auth.reset.verifyCta")}
             onPress={verifyCode}
             busy={busy}
             testID="reset-verify"
@@ -172,8 +171,8 @@ export function ForgotPasswordScreen() {
           <TextButton
             title={
               cooldown.active
-                ? t('auth.otp.resendIn', { seconds: cooldown.remaining })
-                : t('auth.otp.resend')
+                ? t("auth.otp.resendIn", { seconds: cooldown.remaining })
+                : t("auth.otp.resend")
             }
             onPress={() => sendCode(true)}
             disabled={cooldown.active || busy}
@@ -182,36 +181,36 @@ export function ForgotPasswordScreen() {
         </>
       ) : null}
 
-      {step === 'password' ? (
+      {step === "password" ? (
         <>
-          <Field
-            label={t('auth.fields.newPassword')}
+          <TextField
+            label={t("auth.fields.newPassword")}
             secureTextEntry
             autoCapitalize="none"
             value={newPassword}
             onChangeText={setNewPassword}
             error={
-              fieldErrorKey === 'auth.validation.password'
+              fieldErrorKey === "auth.validation.password"
                 ? t(fieldErrorKey)
                 : null
             }
             testID="reset-new-password"
           />
-          <Field
-            label={t('auth.fields.confirmPassword')}
+          <TextField
+            label={t("auth.fields.confirmPassword")}
             secureTextEntry
             autoCapitalize="none"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             error={
-              fieldErrorKey === 'auth.validation.confirm'
+              fieldErrorKey === "auth.validation.confirm"
                 ? t(fieldErrorKey)
                 : null
             }
             testID="reset-confirm-password"
           />
           <PrimaryButton
-            title={t('auth.reset.completeCta')}
+            title={t("auth.reset.completeCta")}
             onPress={complete}
             busy={busy}
             testID="reset-complete"
@@ -219,13 +218,17 @@ export function ForgotPasswordScreen() {
         </>
       ) : null}
 
-      {step === 'done' ? (
+      {step === "done" ? (
         <>
-          <InfoBanner testID="reset-done">{t('auth.reset.doneTitle')}</InfoBanner>
-          <BodyText>{t('auth.reset.doneBody')}</BodyText>
+          <Banner
+            tone="success"
+            message={t("auth.reset.doneTitle")}
+            testID="reset-done"
+          />
+          <BodyText>{t("auth.reset.doneBody")}</BodyText>
           <PrimaryButton
-            title={t('auth.login.title')}
-            onPress={() => router.replace('/login')}
+            title={t("auth.login.title")}
+            onPress={() => router.replace("/login")}
             testID="reset-go-login"
           />
         </>

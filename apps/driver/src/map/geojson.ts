@@ -12,7 +12,7 @@ export interface LatLng {
 
 /** Contract GeoJSON LineString ([lng, lat] order). */
 export interface GeoJsonLineString {
-  type: 'LineString';
+  type: "LineString";
   coordinates: [number, number][];
 }
 
@@ -32,7 +32,7 @@ function isFiniteCoordinate(lat: number, lng: number): boolean {
 
 /** Contract LineString -> Leaflet polyline points; invalid pairs are dropped. */
 export function lineStringToLatLngs(line: GeoJsonLineString): LeafletLatLng[] {
-  if (line.type !== 'LineString' || !Array.isArray(line.coordinates)) return [];
+  if (line.type !== "LineString" || !Array.isArray(line.coordinates)) return [];
   const points: LeafletLatLng[] = [];
   for (const pair of line.coordinates) {
     if (!Array.isArray(pair) || pair.length < 2) continue;
@@ -48,9 +48,11 @@ export function toLeafletLatLng(point: LatLng): LeafletLatLng {
 }
 
 /** Leaflet points -> contract LineString (the inverse, for round-trips). */
-export function latLngsToLineString(points: LeafletLatLng[]): GeoJsonLineString {
+export function latLngsToLineString(
+  points: LeafletLatLng[],
+): GeoJsonLineString {
   return {
-    type: 'LineString',
+    type: "LineString",
     coordinates: points.map(([lat, lng]) => [lng, lat]),
   };
 }

@@ -1,28 +1,27 @@
-import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as ImagePicker from "expo-image-picker";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { updateMyProfile, uploadMyPhoto } from '../../api/auth';
-import { useAuth } from '../../auth/AuthProvider';
-import { SUPPORTED_LANGUAGES } from '../../i18n';
-import type { Language } from '../../i18n';
-import { useLocale } from '../../i18n/LocaleProvider';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { updateMyProfile, uploadMyPhoto } from "../../api/auth";
+import { useAuth } from "../../auth/AuthProvider";
+import { SUPPORTED_LANGUAGES } from "../../i18n";
+import type { Language } from "../../i18n";
+import { useLocale } from "../../i18n/LocaleProvider";
+import { errorKeyFor } from "../auth/error-key";
 import {
+  Banner,
   BodyText,
-  ErrorBanner,
-  Field,
+  FieldLabel,
   FormScreen,
-  InfoBanner,
+  OptionGroup,
   PrimaryButton,
   TextButton,
-  errorKeyFor,
-} from '../auth/ui';
+  TextField,
+} from "../ui";
 
 const LANGUAGE_LABEL_KEYS: Record<Language, string> = {
-  en: 'settings.english',
-  ar: 'settings.arabic',
+  en: "settings.english",
+  ar: "settings.arabic",
 };
 
 /**
@@ -33,11 +32,9 @@ const LANGUAGE_LABEL_KEYS: Record<Language, string> = {
 export function ProfileEditScreen() {
   const { t } = useTranslation();
   const { user, setUser } = useAuth();
-  const { language: appLanguage, direction, setLanguage: setAppLanguage } =
-    useLocale();
-  const textAlign = direction === 'rtl' ? 'right' : 'left';
+  const { language: appLanguage, setLanguage: setAppLanguage } = useLocale();
 
-  const [name, setName] = useState(user?.name ?? '');
+  const [name, setName] = useState(user?.name ?? "");
   const [language, setLanguage] = useState<Language>(
     user?.language ?? appLanguage,
   );
@@ -49,7 +46,7 @@ export function ProfileEditScreen() {
 
   const save = async () => {
     if (name.trim().length === 0) {
-      setFieldErrorKey('auth.validation.name');
+      setFieldErrorKey("auth.validation.name");
       return;
     }
     setFieldErrorKey(null);
@@ -60,9 +57,9 @@ export function ProfileEditScreen() {
       const profile = await updateMyProfile({ name: name.trim(), language });
       await setUser(profile);
       if (profile.language !== appLanguage) {
-        await setAppLanguage(profile.language);
+        await setAppLanguage(profile.language, { returnTo: "/settings" });
       }
-      setInfoKey('account.profile.saved');
+      setInfoKey("account.profile.saved");
     } catch (error) {
       setErrorKey(errorKeyFor(error, {}));
     } finally {
@@ -76,7 +73,7 @@ export function ProfileEditScreen() {
     setPhotoBusy(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         quality: 0.8,
       });
       if (result.canceled || !result.assets?.[0]) {
@@ -85,83 +82,62 @@ export function ProfileEditScreen() {
       const asset = result.assets[0];
       const profile = await uploadMyPhoto({
         uri: asset.uri,
-        fileName: asset.fileName ?? 'profile-photo.jpg',
-        mimeType: asset.mimeType ?? 'image/jpeg',
+        fileName: asset.fileName ?? "profile-photo.jpg",
+        mimeType: asset.mimeType ?? "image/jpeg",
       });
       await setUser(profile);
-      setInfoKey('account.profile.photoSet');
+      setInfoKey("account.profile.photoSet");
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 400: 'account.profile.photoError' }));
+      setErrorKey(errorKeyFor(error, { 400: "account.profile.photoError" }));
     } finally {
       setPhotoBusy(false);
     }
   };
 
   return (
-    <FormScreen testID="profile-edit-screen">
+    <FormScreen title={t("account.profile.title")} testID="profile-edit-screen">
       {errorKey ? (
-        <ErrorBanner testID="profile-error">{t(errorKey)}</ErrorBanner>
+        <Banner tone="danger" message={t(errorKey)} testID="profile-error" />
       ) : null}
       {infoKey ? (
-        <InfoBanner testID="profile-info">{t(infoKey)}</InfoBanner>
+        <Banner tone="success" message={t(infoKey)} testID="profile-info" />
       ) : null}
 
-      <Field
-        label={t('auth.fields.name')}
+      <TextField
+        label={t("auth.fields.name")}
         value={name}
         onChangeText={setName}
         maxLength={100}
         error={
-          fieldErrorKey === 'auth.validation.name' ? t(fieldErrorKey) : null
+          fieldErrorKey === "auth.validation.name" ? t(fieldErrorKey) : null
         }
         testID="profile-name"
       />
 
-      <Text style={[styles.sectionLabel, { textAlign }]}>
-        {t('account.profile.language')}
-      </Text>
-      <View style={styles.optionsRow}>
-        {SUPPORTED_LANGUAGES.map((option) => {
-          const selected = option === language;
-          return (
-            <Pressable
-              key={option}
-              testID={`profile-language-${option}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setLanguage(option)}
-              style={[styles.option, selected && styles.optionSelected]}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  selected && styles.optionTextSelected,
-                ]}
-              >
-                {t(LANGUAGE_LABEL_KEYS[option])}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <FieldLabel>{t("account.profile.language")}</FieldLabel>
+      <OptionGroup
+        options={SUPPORTED_LANGUAGES}
+        value={language}
+        onChange={setLanguage}
+        labelFor={(option) => t(LANGUAGE_LABEL_KEYS[option])}
+        testIDPrefix="profile-language"
+      />
 
       <PrimaryButton
-        title={t('account.profile.save')}
+        title={t("account.profile.save")}
         onPress={save}
         busy={busy}
         testID="profile-save"
       />
 
-      <Text style={[styles.sectionLabel, { textAlign }]}>
-        {t('account.profile.photo')}
-      </Text>
+      <FieldLabel>{t("account.profile.photo")}</FieldLabel>
       {user?.photoUrl ? (
         <BodyText testID="profile-photo-on-file">
-          {t('account.profile.photoOnFile')}
+          {t("account.profile.photoOnFile")}
         </BodyText>
       ) : null}
       <TextButton
-        title={t('account.profile.choosePhoto')}
+        title={t("account.profile.choosePhoto")}
         onPress={choosePhoto}
         disabled={photoBusy}
         testID="profile-choose-photo"
@@ -169,38 +145,3 @@ export function ProfileEditScreen() {
     </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  sectionLabel: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  option: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderColor: colors.lilac200,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  optionSelected: {
-    backgroundColor: colors.purple700,
-    borderColor: colors.purple700,
-  },
-  optionText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  optionTextSelected: {
-    color: colors.white,
-  },
-});

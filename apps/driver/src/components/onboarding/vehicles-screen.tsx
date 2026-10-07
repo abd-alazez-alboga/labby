@@ -1,43 +1,67 @@
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { Image, RefreshControl, StyleSheet, View } from 'react-native';
+import { useRouter } from "expo-router";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { Image, RefreshControl, StyleSheet, View } from "react-native";
 
-import { getMyVehicles, resolveFileUrl } from '../../api/onboarding';
-import type { Vehicle, VehicleWithDocuments } from '../../api/onboarding-types';
-import { useLocale } from '../../i18n/LocaleProvider';
-import { useRemote } from '../../onboarding/use-remote';
-import { colors, radius, spacing } from '../../theme/tokens';
-import { BodyText, PrimaryButton } from '../auth/ui';
-import { SafeScrollView } from '../safe-area';
+import { getMyVehicles, resolveFileUrl } from "../../api/onboarding";
+import type { Vehicle, VehicleWithDocuments } from "../../api/onboarding-types";
+import { useLocale } from "../../i18n/LocaleProvider";
+import { useRemote } from "../../onboarding/use-remote";
+import { colors, radius } from "../../theme/tokens";
 import {
-  Card,
+  Banner,
+  BodyText,
   FailureState,
   KeyValue,
+  ListRow,
   LoadingState,
   Muted,
-  NoteBox,
-  SectionTitle,
+  PrimaryButton,
+  Screen,
+  SectionLabel,
   StatusChip,
-  useRowStyle,
-} from './ui';
+} from "../ui";
+import type { Tone } from "../ui";
 
-function VehicleSummary({ vehicle }: { vehicle: Vehicle }) {
+function VehicleRow({
+  vehicle,
+  chip,
+  last,
+  testID,
+  children,
+}: {
+  vehicle: Vehicle;
+  chip: { label: string; tone: Tone };
+  last?: boolean;
+  testID: string;
+  children?: React.ReactNode;
+}) {
   const { t } = useTranslation();
-  const rowStyle = useRowStyle();
   const cover = vehicle.photos[0];
   return (
-    <View style={[rowStyle, styles.summary]}>
-      {cover ? (
-        <Image source={{ uri: resolveFileUrl(cover.url) }} style={styles.cover} />
-      ) : null}
-      <View style={styles.summaryText}>
-        <SectionTitle>{`${vehicle.make} ${vehicle.model} · ${vehicle.year}`}</SectionTitle>
-        <KeyValue label={t('onboarding.vehicle.plate')} value={vehicle.plate} />
-        <KeyValue label={t('onboarding.vehicle.color')} value={vehicle.color} />
-        <KeyValue label={t('onboarding.vehicle.seats')} value={String(vehicle.seats)} />
-      </View>
-    </View>
+    <ListRow
+      title={`${vehicle.make} ${vehicle.model} · ${vehicle.year}`}
+      leading={
+        cover ? (
+          <Image
+            source={{ uri: resolveFileUrl(cover.url) }}
+            style={styles.cover}
+          />
+        ) : undefined
+      }
+      icon={cover ? undefined : "car-outline"}
+      trailing={<StatusChip label={chip.label} tone={chip.tone} />}
+      last={last}
+      testID={testID}
+    >
+      <KeyValue label={t("onboarding.vehicle.plate")} value={vehicle.plate} />
+      <KeyValue label={t("onboarding.vehicle.color")} value={vehicle.color} />
+      <KeyValue
+        label={t("onboarding.vehicle.seats")}
+        value={String(vehicle.seats)}
+      />
+      {children}
+    </ListRow>
   );
 }
 
@@ -51,96 +75,127 @@ export function VehiclesScreen() {
   const { language } = useLocale();
   const { state, refreshing, reload } = useRemote(getMyVehicles);
 
-  const vehicles: VehicleWithDocuments[] = state.status === 'loaded' ? state.data : [];
+  const vehicles: VehicleWithDocuments[] =
+    state.status === "loaded" ? state.data : [];
   const active = vehicles.find((vehicle) => vehicle.active) ?? null;
   const pending = vehicles.find(
-    (vehicle) => !vehicle.active && vehicle.reviewStatus === 'pending',
+    (vehicle) => !vehicle.active && vehicle.reviewStatus === "pending",
   );
-  const rejected = vehicles.filter((vehicle) => vehicle.reviewStatus === 'rejected');
+  const rejected = vehicles.filter(
+    (vehicle) => vehicle.reviewStatus === "rejected",
+  );
 
   return (
-    <SafeScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
+    <Screen
+      title={t("onboarding.vehicles.title")}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => void reload()} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void reload()}
+        />
+      }
+      footer={
+        state.status === "loaded" ? (
+          <>
+            {pending ? (
+              <Muted testID="vehicle-switch-blocked">
+                {t("onboarding.vehicles.switchBlocked")}
+              </Muted>
+            ) : null}
+            <PrimaryButton
+              title={t("onboarding.vehicles.switch")}
+              onPress={() => router.push("/vehicle-switch")}
+              disabled={!!pending}
+              testID="vehicle-switch-start"
+            />
+          </>
+        ) : undefined
       }
       testID="vehicles-screen"
     >
-      {state.status === 'loading' ? <LoadingState /> : null}
-      {state.status === 'error' ? (
+      {state.status === "loading" ? <LoadingState /> : null}
+      {state.status === "error" ? (
         <FailureState kind={state.kind} onRetry={() => void reload()} />
       ) : null}
-      {state.status === 'loaded' ? (
+      {state.status === "loaded" ? (
         <>
           {active ? (
-            <Card testID="vehicle-active">
-              <StatusChip label={t('onboarding.vehicles.active')} tone="success" />
-              <VehicleSummary vehicle={active} />
+            <VehicleRow
+              vehicle={active}
+              chip={{ label: t("onboarding.vehicles.active"), tone: "success" }}
+              last={!pending}
+              testID="vehicle-active"
+            >
               {active.serviceTypes.length > 0 ? (
                 <Muted testID="vehicle-active-service-types">
-                  {t('onboarding.vehicles.serviceTypes', {
+                  {t("onboarding.vehicles.serviceTypes", {
                     types: active.serviceTypes
-                      .map((type) => (language === 'ar' ? type.nameAr : type.nameEn))
-                      .join(language === 'ar' ? '، ' : ', '),
+                      .map((type) =>
+                        language === "ar" ? type.nameAr : type.nameEn,
+                      )
+                      .join(language === "ar" ? "، " : ", "),
                   })}
                 </Muted>
               ) : null}
-            </Card>
+            </VehicleRow>
           ) : (
-            <BodyText testID="vehicle-none">{t('onboarding.vehicles.none')}</BodyText>
+            <BodyText testID="vehicle-none">
+              {t("onboarding.vehicles.none")}
+            </BodyText>
           )}
 
           {pending ? (
-            <Card tone="warning" testID="vehicle-pending">
-              <StatusChip label={t('onboarding.vehicles.pending')} tone="warning" />
-              <VehicleSummary vehicle={pending} />
-              <Muted>{t('onboarding.vehicles.pendingHint')}</Muted>
-            </Card>
+            <VehicleRow
+              vehicle={pending}
+              chip={{
+                label: t("onboarding.vehicles.pending"),
+                tone: "warning",
+              }}
+              last
+              testID="vehicle-pending"
+            >
+              <Muted>{t("onboarding.vehicles.pendingHint")}</Muted>
+            </VehicleRow>
           ) : null}
 
           {rejected.length > 0 ? (
-            <>
-              <SectionTitle>{t('onboarding.vehicles.rejectedTitle')}</SectionTitle>
-              {rejected.map((vehicle) => (
-                <Card key={vehicle.id} testID={`vehicle-rejected-${vehicle.id}`}>
-                  <StatusChip label={t('onboarding.vehicles.rejected')} tone="danger" />
-                  <VehicleSummary vehicle={vehicle} />
-                  <NoteBox
-                    title={t('onboarding.vehicles.reason')}
-                    note={vehicle.reviewNote ?? t('onboarding.documents.noReason')}
+            <View>
+              <SectionLabel>
+                {t("onboarding.vehicles.rejectedTitle")}
+              </SectionLabel>
+              {rejected.map((vehicle, index) => (
+                <VehicleRow
+                  key={vehicle.id}
+                  vehicle={vehicle}
+                  chip={{
+                    label: t("onboarding.vehicles.rejected"),
+                    tone: "danger",
+                  }}
+                  last={index === rejected.length - 1}
+                  testID={`vehicle-rejected-${vehicle.id}`}
+                >
+                  <Banner
+                    tone="danger"
+                    title={t("onboarding.vehicles.reason")}
+                    message={
+                      vehicle.reviewNote ?? t("onboarding.documents.noReason")
+                    }
                   />
-                </Card>
+                </VehicleRow>
               ))}
-            </>
+            </View>
           ) : null}
-
-          {pending ? (
-            <Muted testID="vehicle-switch-blocked">
-              {t('onboarding.vehicles.switchBlocked')}
-            </Muted>
-          ) : null}
-          <PrimaryButton
-            title={t('onboarding.vehicles.switch')}
-            onPress={() => router.push('/vehicle-switch')}
-            disabled={!!pending}
-            testID="vehicle-switch-start"
-          />
         </>
       ) : null}
-    </SafeScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bgLight },
-  content: { padding: spacing.lg, gap: spacing.sm },
-  summary: { gap: spacing.md, alignItems: 'flex-start' },
   cover: {
-    width: 88,
-    height: 88,
+    width: 56,
+    height: 56,
     borderRadius: radius.sm,
-    backgroundColor: colors.lavender100,
+    backgroundColor: colors.surfaceMap,
   },
-  summaryText: { flex: 1, gap: spacing.xs },
 });

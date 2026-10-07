@@ -1,6 +1,6 @@
-import type { UserProfile } from '../api/auth-types';
-import { SESSION_STORAGE_KEY, saveSession } from '../auth/session';
-import type { StoredSession } from '../auth/session';
+import type { UserProfile } from "../api/auth-types";
+import { SESSION_STORAGE_KEY, saveSession } from "../auth/session";
+import type { StoredSession } from "../auth/session";
 
 /**
  * Contract-level fetch mocking (backend/docs/api/auth-v1.yaml): tests
@@ -32,7 +32,7 @@ export interface ContractFetch {
 function toFetchResponse(mock: MockResponse) {
   const text =
     mock.body === undefined || mock.status === 204
-      ? ''
+      ? ""
       : JSON.stringify(mock.body);
   return {
     ok: mock.status >= 200 && mock.status < 300,
@@ -57,12 +57,12 @@ export function installContractFetch(
   const requests: RecordedRequest[] = [];
 
   const fetchSpy = jest.fn(async (url: string, init?: RequestInit) => {
-    const method = (init?.method ?? 'GET').toUpperCase();
-    const path = url.replace(/^https?:\/\/[^/]+/, '');
+    const method = (init?.method ?? "GET").toUpperCase();
+    const path = url.replace(/^https?:\/\/[^/]+/, "");
     const route = `${method} ${path}`;
 
     let body: unknown = null;
-    if (typeof init?.body === 'string') {
+    if (typeof init?.body === "string") {
       body = JSON.parse(init.body);
     } else if (init?.body !== undefined && init?.body !== null) {
       body = init.body; // e.g. FormData
@@ -76,9 +76,12 @@ export function installContractFetch(
 
     const queue = queues.get(route);
     if (!queue || queue.length === 0) {
-      throw new Error(`Unexpected request outside the mocked contract: ${route}`);
+      throw new Error(
+        `Unexpected request outside the mocked contract: ${route}`,
+      );
     }
-    const next = queue.length === 1 ? queue[0] : (queue.shift() as MockResponse);
+    const next =
+      queue.length === 1 ? queue[0] : (queue.shift() as MockResponse);
     return toFetchResponse(next);
   });
 
@@ -88,7 +91,7 @@ export function installContractFetch(
     fetchSpy,
     requests,
     requestsTo(route: string) {
-      const [method, path] = route.split(' ');
+      const [method, path] = route.split(" ");
       return requests.filter((r) => r.method === method && r.path === path);
     },
   };
@@ -99,15 +102,15 @@ export function installContractFetch(
 /** Account holding rider + ACTIVE driver roles — passes the gate. */
 export function driverUser(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
-    id: '7f0c8f3e-2f6a-4e3f-9d6b-111111111111',
-    phone: '+963900000001',
-    name: 'Dara Driver',
-    language: 'en',
+    id: "7f0c8f3e-2f6a-4e3f-9d6b-111111111111",
+    phone: "+963900000001",
+    name: "Dara Driver",
+    language: "en",
     photoUrl: null,
-    state: 'active',
+    state: "active",
     roles: [
-      { role: 'rider', state: 'active' },
-      { role: 'driver', state: 'active' },
+      { role: "rider", state: "active" },
+      { role: "driver", state: "active" },
     ],
     ...overrides,
   };
@@ -118,18 +121,18 @@ export function riderOnlyUser(
   overrides: Partial<UserProfile> = {},
 ): UserProfile {
   return {
-    id: '7f0c8f3e-2f6a-4e3f-9d6b-222222222222',
-    phone: '+963900000002',
-    name: 'Rami Rider',
-    language: 'en',
+    id: "7f0c8f3e-2f6a-4e3f-9d6b-222222222222",
+    phone: "+963900000002",
+    name: "Rami Rider",
+    language: "en",
     photoUrl: null,
-    state: 'active',
-    roles: [{ role: 'rider', state: 'active' }],
+    state: "active",
+    roles: [{ role: "rider", state: "active" }],
     ...overrides,
   };
 }
 
-export function tokensFor(user: UserProfile, suffix = '1') {
+export function tokensFor(user: UserProfile, suffix = "1") {
   return {
     accessToken: `access-${suffix}`,
     refreshToken: `refresh-${suffix}`,
@@ -141,7 +144,7 @@ export function tokensFor(user: UserProfile, suffix = '1') {
 /** Puts a session into the in-memory store + secure store, as after login. */
 export async function seedSession(
   user: UserProfile,
-  suffix = '1',
+  suffix = "1",
 ): Promise<StoredSession> {
   const session: StoredSession = {
     accessToken: `access-${suffix}`,

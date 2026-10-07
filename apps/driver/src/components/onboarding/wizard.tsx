@@ -1,37 +1,53 @@
-import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { BackHandler, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { BackHandler, StyleSheet, View } from "react-native";
 
-import { updateMyProfile } from '../../api/auth';
-import { ApiError } from '../../api/client';
-import type { DocumentType } from '../../api/onboarding-types';
-import { PROFILE_NAME_MAX } from '../../api/onboarding-types';
-import { useAuth } from '../../auth/AuthProvider';
-import { useLocale } from '../../i18n/LocaleProvider';
-import { formatDate } from '../../onboarding/dates';
+import { updateMyProfile } from "../../api/auth";
+import { ApiError } from "../../api/client";
+import type { DocumentType } from "../../api/onboarding-types";
+import { PROFILE_NAME_MAX } from "../../api/onboarding-types";
+import { useAuth } from "../../auth/AuthProvider";
+import { useLocale } from "../../i18n/LocaleProvider";
+import { colors, spacing } from "../../theme/tokens";
+import { formatDate } from "../../onboarding/dates";
 import {
   hasErrors,
   validateDocument,
   validateVehicleDetails,
   validateVehiclePhotos,
-} from '../../onboarding/drafts';
+} from "../../onboarding/drafts";
 import type {
   DocumentDraft,
   DocumentField,
   VehicleDraft,
   VehicleField,
-} from '../../onboarding/drafts';
+} from "../../onboarding/drafts";
 import {
   failureKindOf,
   fieldErrorsOf,
   messageKeyFor,
   targetOf,
   withoutErrors,
-} from '../../onboarding/server-errors';
-import type { ServerFieldErrors } from '../../onboarding/server-errors';
-import { ErrorBanner, FormScreen, PrimaryButton, TextButton } from '../auth/ui';
-import { DocumentStep, PersonalStep, VehicleDetailsStep, VehiclePhotosStep } from './steps';
-import { Card, KeyValue, SectionTitle, StepProgress, useRowStyle } from './ui';
+} from "../../onboarding/server-errors";
+import type { ServerFieldErrors } from "../../onboarding/server-errors";
+import {
+  AppText,
+  Banner,
+  Card,
+  FormScreen,
+  KeyValue,
+  PrimaryButton,
+  ScreenHeader,
+  TextButton,
+  useDirection,
+} from "../ui";
+import {
+  DocumentStep,
+  PersonalStep,
+  VehicleDetailsStep,
+  VehiclePhotosStep,
+} from "./steps";
+import { StepProgress } from "./ui";
 
 /**
  * Generic staged onboarding wizard (UC-D-01 apply, UC-D-02 resubmit,
@@ -40,14 +56,15 @@ import { Card, KeyValue, SectionTitle, StepProgress, useRowStyle } from './ui';
  * `fieldErrors` mapped back to their step (E1).
  */
 
-export type StepId = 'personal' | `doc:${DocumentType}` | 'vehicle' | 'photos' | 'review';
+export type StepId =
+  "personal" | `doc:${DocumentType}` | "vehicle" | "photos" | "review";
 
 export function docStep(type: DocumentType): StepId {
   return `doc:${type}`;
 }
 
 function docTypeOf(step: StepId): DocumentType | null {
-  return step.startsWith('doc:') ? (step.slice(4) as DocumentType) : null;
+  return step.startsWith("doc:") ? (step.slice(4) as DocumentType) : null;
 }
 
 export interface WizardResult {
@@ -76,24 +93,26 @@ export interface OnboardingWizardProps {
 }
 
 type SubmitFailure =
-  | { kind: 'fields'; unknown: ServerFieldErrors }
-  | { kind: 'invalid' }
-  | { kind: 'conflict' }
-  | { kind: 'network' }
-  | { kind: 'server' };
+  | { kind: "fields"; unknown: ServerFieldErrors }
+  | { kind: "invalid" }
+  | { kind: "conflict" }
+  | { kind: "network" }
+  | { kind: "server" };
 
 export function OnboardingWizard(props: OnboardingWizardProps) {
   const { t } = useTranslation();
   const { language } = useLocale();
   const { user, setUser } = useAuth();
-  const rowStyle = useRowStyle();
+  const { flipRows } = useDirection();
   const { steps } = props;
 
   const [index, setIndex] = useState(0);
-  const [attempted, setAttempted] = useState<Partial<Record<StepId, boolean>>>({});
+  const [attempted, setAttempted] = useState<Partial<Record<StepId, boolean>>>(
+    {},
+  );
   const [documents, setDocuments] = useState(props.initialDocuments);
   const [vehicle, setVehicle] = useState(props.initialVehicle);
-  const [name, setName] = useState(user?.name ?? '');
+  const [name, setName] = useState(user?.name ?? "");
   const [confirmed, setConfirmed] = useState(false);
   const [serverErrors, setServerErrors] = useState<ServerFieldErrors>({});
   const [stepErrorKey, setStepErrorKey] = useState<string | null>(null);
@@ -109,35 +128,45 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
 
   // Android hardware back walks the steps before leaving the wizard.
   useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (index > 0 && !busy) {
-        setStepErrorKey(null);
-        setIndex(index - 1);
-        return true;
-      }
-      return false;
-    });
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (index > 0 && !busy) {
+          setStepErrorKey(null);
+          setIndex(index - 1);
+          return true;
+        }
+        return false;
+      },
+    );
     return () => subscription.remove();
   }, [index, busy]);
 
   // ------------------------------------------------------- validation
 
-  const personalErrors = (): { name?: string; photo?: string; confirm?: string } => {
+  const personalErrors = (): {
+    name?: string;
+    photo?: string;
+    confirm?: string;
+  } => {
     const errors: { name?: string; photo?: string; confirm?: string } = {};
     const trimmed = name.trim();
-    if (trimmed.length === 0) errors.name = 'onboarding.validation.nameRequired';
-    else if (trimmed.length > PROFILE_NAME_MAX) errors.name = 'onboarding.validation.tooLong';
-    if (!user?.photoUrl) errors.photo = 'onboarding.validation.photoRequired';
-    if (props.confirmPersonal && !confirmed) errors.confirm = 'onboarding.validation.confirm';
+    if (trimmed.length === 0)
+      errors.name = "onboarding.validation.nameRequired";
+    else if (trimmed.length > PROFILE_NAME_MAX)
+      errors.name = "onboarding.validation.tooLong";
+    if (!user?.photoUrl) errors.photo = "onboarding.validation.photoRequired";
+    if (props.confirmPersonal && !confirmed)
+      errors.confirm = "onboarding.validation.confirm";
     return errors;
   };
 
   const errorsFor = (id: StepId): object => {
     const type = docTypeOf(id);
     if (type) return validateDocument(documents[type] as DocumentDraft);
-    if (id === 'personal') return personalErrors();
-    if (id === 'vehicle') return validateVehicleDetails(vehicle);
-    if (id === 'photos') {
+    if (id === "personal") return personalErrors();
+    if (id === "vehicle") return validateVehicleDetails(vehicle);
+    if (id === "photos") {
       const key = validateVehiclePhotos(vehicle);
       return key ? { photos: key } : {};
     }
@@ -152,18 +181,21 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
   const next = async () => {
     setAttempted((current) => ({ ...current, [step]: true }));
     if (hasErrors(errorsFor(step))) return;
-    if (step === 'personal' && user && name.trim() !== user.name) {
+    if (step === "personal" && user && name.trim() !== user.name) {
       // Personal details live on the account (contract: edited via /users/me).
       setBusy(true);
       setStepErrorKey(null);
       try {
-        const profile = await updateMyProfile({ name: name.trim(), language: user.language });
+        const profile = await updateMyProfile({
+          name: name.trim(),
+          language: user.language,
+        });
         await setUser(profile);
       } catch (error) {
         setStepErrorKey(
-          failureKindOf(error) === 'network'
-            ? 'onboarding.errors.network'
-            : 'onboarding.errors.server',
+          failureKindOf(error) === "network"
+            ? "onboarding.errors.network"
+            : "onboarding.errors.server",
         );
         return;
       } finally {
@@ -199,27 +231,30 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
         const stepFor = (key: string): StepId | null => {
           const target = targetOf(key);
           const id: StepId | null =
-            target.step === 'document'
+            target.step === "document"
               ? docStep(target.type)
-              : target.step === 'unknown'
+              : target.step === "unknown"
                 ? null
                 : target.step;
           return id && steps.includes(id) ? id : null;
         };
-        const unknown = withoutErrors(fieldErrors, (key) => stepFor(key) !== null);
+        const unknown = withoutErrors(
+          fieldErrors,
+          (key) => stepFor(key) !== null,
+        );
         setServerErrors(fieldErrors);
-        setFailure({ kind: 'fields', unknown });
+        setFailure({ kind: "fields", unknown });
         const firstStep = steps.findIndex((id) =>
           Object.keys(fieldErrors).some((key) => stepFor(key) === id),
         );
         if (firstStep >= 0) {
           setIndex(firstStep);
-          setStepErrorKey('onboarding.errors.fixHighlighted');
+          setStepErrorKey("onboarding.errors.fixHighlighted");
         }
       } else if (error instanceof ApiError && error.status === 400) {
-        setFailure({ kind: 'invalid' });
+        setFailure({ kind: "invalid" });
       } else if (error instanceof ApiError && error.status === 409) {
-        setFailure({ kind: 'conflict' });
+        setFailure({ kind: "conflict" });
       } else {
         setFailure({ kind: failureKindOf(error) });
       }
@@ -233,23 +268,29 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
   const onDocumentChange = (draft: DocumentDraft, field: DocumentField) => {
     setDocuments((current) => ({ ...current, [draft.type]: draft }));
     const scope = `documents[${draft.type}]`;
-    const serverField = field === 'file' ? 'fileId' : field;
+    const serverField = field === "file" ? "fileId" : field;
     setServerErrors((current) =>
-      withoutErrors(current, (key) => key === scope || key === `${scope}.${serverField}`),
+      withoutErrors(
+        current,
+        (key) => key === scope || key === `${scope}.${serverField}`,
+      ),
     );
   };
 
   const onVehicleChange = (draft: VehicleDraft, field: VehicleField) => {
     setVehicle(draft);
     setServerErrors((current) =>
-      withoutErrors(current, (key) => key === 'vehicle' || key === `vehicle.${field}`),
+      withoutErrors(
+        current,
+        (key) => key === "vehicle" || key === `vehicle.${field}`,
+      ),
     );
   };
 
   const onPhotosChange = (draft: VehicleDraft) => {
     setVehicle(draft);
     setServerErrors((current) =>
-      withoutErrors(current, (key) => key.startsWith('vehicle.photoFileIds')),
+      withoutErrors(current, (key) => key.startsWith("vehicle.photoFileIds")),
     );
   };
 
@@ -277,24 +318,29 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
         />
       );
     }
-    if (step === 'personal') {
+    if (step === "personal") {
       return (
         <PersonalStep
           name={name}
           onNameChange={(value) => {
             setName(value);
-            setServerErrors((current) => withoutErrors(current, (key) => key === 'name'));
+            setServerErrors((current) =>
+              withoutErrors(current, (key) => key === "name"),
+            );
           }}
           nameErrorKey={
-            shown.name ?? ('name' in serverErrors ? messageKeyFor('name') : null)
+            shown.name ??
+            ("name" in serverErrors ? messageKeyFor("name") : null)
           }
           photoErrorKey={
             shown.photo ??
-            ('profilePhoto' in serverErrors ? messageKeyFor('profilePhoto') : null)
+            ("profilePhoto" in serverErrors
+              ? messageKeyFor("profilePhoto")
+              : null)
           }
           onPhotoChanged={() =>
             setServerErrors((current) =>
-              withoutErrors(current, (key) => key === 'profilePhoto'),
+              withoutErrors(current, (key) => key === "profilePhoto"),
             )
           }
           note={props.notes?.personal}
@@ -310,7 +356,7 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
         />
       );
     }
-    if (step === 'vehicle') {
+    if (step === "vehicle") {
       return (
         <VehicleDetailsStep
           draft={vehicle}
@@ -321,7 +367,7 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
         />
       );
     }
-    if (step === 'photos') {
+    if (step === "photos") {
       return (
         <VehiclePhotosStep
           draft={vehicle}
@@ -341,47 +387,63 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
       const draft = documents[type] as DocumentDraft;
       return (
         <>
-          <KeyValue label={t('onboarding.document.number')} value={draft.number.trim()} />
           <KeyValue
-            label={t('onboarding.document.expiresOn')}
-            value={draft.expiresOn ? formatDate(draft.expiresOn, language) : '—'}
+            label={t("onboarding.document.number")}
+            value={draft.number.trim()}
           />
           <KeyValue
-            label={t('onboarding.document.file')}
-            value={draft.file ? t('onboarding.review.fileAttached') : '—'}
+            label={t("onboarding.document.expiresOn")}
+            value={
+              draft.expiresOn ? formatDate(draft.expiresOn, language) : "—"
+            }
           />
-        </>
-      );
-    }
-    if (id === 'personal') {
-      return (
-        <>
-          <KeyValue label={t('auth.fields.name')} value={name.trim()} />
           <KeyValue
-            label={t('onboarding.personal.photo')}
-            value={user?.photoUrl ? t('onboarding.review.photoOnFile') : '—'}
+            label={t("onboarding.document.file")}
+            value={draft.file ? t("onboarding.review.fileAttached") : "—"}
           />
         </>
       );
     }
-    if (id === 'vehicle') {
+    if (id === "personal") {
+      return (
+        <>
+          <KeyValue label={t("auth.fields.name")} value={name.trim()} />
+          <KeyValue
+            label={t("onboarding.personal.photo")}
+            value={user?.photoUrl ? t("onboarding.review.photoOnFile") : "—"}
+          />
+        </>
+      );
+    }
+    if (id === "vehicle") {
       return (
         <>
           <KeyValue
-            label={t('onboarding.vehicle.title')}
+            label={t("onboarding.vehicle.title")}
             value={`${vehicle.make.trim()} ${vehicle.model.trim()} · ${vehicle.year.trim()}`}
           />
-          <KeyValue label={t('onboarding.vehicle.color')} value={vehicle.color.trim()} />
-          <KeyValue label={t('onboarding.vehicle.plate')} value={vehicle.plate.trim()} />
-          <KeyValue label={t('onboarding.vehicle.seats')} value={vehicle.seats.trim()} />
+          <KeyValue
+            label={t("onboarding.vehicle.color")}
+            value={vehicle.color.trim()}
+          />
+          <KeyValue
+            label={t("onboarding.vehicle.plate")}
+            value={vehicle.plate.trim()}
+          />
+          <KeyValue
+            label={t("onboarding.vehicle.seats")}
+            value={vehicle.seats.trim()}
+          />
         </>
       );
     }
-    if (id === 'photos') {
+    if (id === "photos") {
       return (
         <KeyValue
-          label={t('onboarding.steps.photos')}
-          value={t('onboarding.review.photoCount', { count: vehicle.photos.length })}
+          label={t("onboarding.steps.photos")}
+          value={t("onboarding.review.photoCount", {
+            count: vehicle.photos.length,
+          })}
         />
       );
     }
@@ -389,17 +451,21 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
   };
 
   const renderReview = () => (
-    <View testID="step-review">
-      <SectionTitle>{props.reviewHint}</SectionTitle>
+    <View style={styles.review} testID="step-review">
+      <AppText variant="body" color={colors.textSecondary}>
+        {props.reviewHint}
+      </AppText>
       {failure ? renderFailure() : null}
       {steps
-        .filter((id) => id !== 'review')
+        .filter((id) => id !== "review")
         .map((id) => (
           <Card key={id} testID={`review-${id}`}>
-            <View style={[rowStyle, styles.reviewHeader]}>
-              <SectionTitle>{titleOf(id)}</SectionTitle>
+            <View style={[styles.reviewHeader, flipRows && styles.rowReverse]}>
+              <AppText variant="rowTitle" style={styles.reviewTitle}>
+                {titleOf(id)}
+              </AppText>
               <TextButton
-                title={t('onboarding.actions.edit')}
+                title={t("onboarding.actions.edit")}
                 onPress={() => goTo(steps.indexOf(id))}
                 testID={`review-edit-${id}`}
               />
@@ -407,40 +473,37 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
             {reviewSummary(id)}
           </Card>
         ))}
-      <PrimaryButton
-        title={props.submitLabel}
-        onPress={() => void submit()}
-        busy={busy}
-        testID="wizard-submit"
-      />
     </View>
   );
 
   const renderFailure = () => {
     if (!failure) return null;
-    if (failure.kind === 'fields') {
+    if (failure.kind === "fields") {
       const unknownKeys = Object.keys(failure.unknown);
       if (unknownKeys.length === 0) return null;
       return (
-        <ErrorBanner testID="wizard-error">
-          {[t('onboarding.errors.invalid'), ...unknownKeys.map((key) => `• ${t(messageKeyFor(key))}`)].join(
-            '\n',
-          )}
-        </ErrorBanner>
+        <Banner
+          tone="danger"
+          message={[
+            t("onboarding.errors.invalid"),
+            ...unknownKeys.map((key) => `• ${t(messageKeyFor(key))}`),
+          ].join("\n")}
+          testID="wizard-error"
+        />
       );
     }
     const key =
-      failure.kind === 'conflict'
+      failure.kind === "conflict"
         ? props.conflictKey
-        : failure.kind === 'invalid'
-          ? 'onboarding.errors.invalid'
+        : failure.kind === "invalid"
+          ? "onboarding.errors.invalid"
           : `onboarding.errors.${failure.kind}`;
     return (
       <>
-        <ErrorBanner testID="wizard-error">{t(key)}</ErrorBanner>
-        {failure.kind === 'conflict' ? (
+        <Banner tone="danger" message={t(key)} testID="wizard-error" />
+        {failure.kind === "conflict" ? (
           <TextButton
-            title={t('onboarding.actions.backToStatus')}
+            title={t("onboarding.actions.backToStatus")}
             onPress={props.onExit}
             testID="wizard-conflict-exit"
           />
@@ -449,32 +512,69 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
     );
   };
 
+  const back = index > 0 && !busy ? () => goTo(index - 1) : undefined;
 
   return (
-    <FormScreen key={step} testID={props.testID}>
-      <StepProgress current={index + 1} total={steps.length} title={titleOf(step)} />
-      {stepErrorKey ? <ErrorBanner testID="wizard-step-error">{t(stepErrorKey)}</ErrorBanner> : null}
+    <FormScreen
+      key={step}
+      testID={props.testID}
+      header={
+        <>
+          <ScreenHeader onBack={back} />
+          <StepProgress
+            current={index + 1}
+            total={steps.length}
+            title={titleOf(step)}
+          />
+        </>
+      }
+      footer={
+        <>
+          {step === "review" ? (
+            <PrimaryButton
+              title={props.submitLabel}
+              onPress={() => void submit()}
+              busy={busy}
+              testID="wizard-submit"
+            />
+          ) : (
+            <PrimaryButton
+              title={t("onboarding.actions.next")}
+              onPress={() => void next()}
+              busy={busy}
+              testID="wizard-next"
+            />
+          )}
+          {index > 0 ? (
+            <TextButton
+              title={t("onboarding.actions.back")}
+              onPress={() => goTo(index - 1)}
+              disabled={busy}
+              testID="wizard-back"
+            />
+          ) : null}
+        </>
+      }
+    >
+      {stepErrorKey ? (
+        <Banner
+          tone="danger"
+          message={t(stepErrorKey)}
+          testID="wizard-step-error"
+        />
+      ) : null}
       {renderStep()}
-      {step !== 'review' ? (
-        <PrimaryButton
-          title={t('onboarding.actions.next')}
-          onPress={() => void next()}
-          busy={busy}
-          testID="wizard-next"
-        />
-      ) : null}
-      {index > 0 ? (
-        <TextButton
-          title={t('onboarding.actions.back')}
-          onPress={() => goTo(index - 1)}
-          disabled={busy}
-          testID="wizard-back"
-        />
-      ) : null}
     </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  reviewHeader: { justifyContent: 'space-between' },
+  review: { gap: spacing.ms },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reviewTitle: { flex: 1 },
+  rowReverse: { flexDirection: "row-reverse" },
 });

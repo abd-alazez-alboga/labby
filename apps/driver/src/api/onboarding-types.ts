@@ -4,42 +4,32 @@
  */
 
 export type ApplicationStatus =
-  | 'submitted'
-  | 'under_review'
-  | 'needs_changes'
-  | 'approved'
-  | 'rejected';
+  "submitted" | "under_review" | "needs_changes" | "approved" | "rejected";
 
 export type ReviewStatus =
-  | 'pending'
-  | 'changes_requested'
-  | 'approved'
-  | 'rejected'
-  | 'superseded';
+  "pending" | "changes_requested" | "approved" | "rejected" | "superseded";
 
 export type DocumentType =
-  | 'government_id'
-  | 'drivers_license'
-  | 'vehicle_registration'
-  | 'insurance';
+  "government_id" | "drivers_license" | "vehicle_registration" | "insurance";
 
 /** All four document types, in the order the application asks for them. */
 export const DOCUMENT_TYPES: readonly DocumentType[] = [
-  'government_id',
-  'drivers_license',
-  'vehicle_registration',
-  'insurance',
+  "government_id",
+  "drivers_license",
+  "vehicle_registration",
+  "insurance",
 ];
 
 /** The two documents bound to a vehicle (a vehicle switch re-submits them). */
 export const VEHICLE_DOCUMENT_TYPES: readonly DocumentType[] = [
-  'vehicle_registration',
-  'insurance',
+  "vehicle_registration",
+  "insurance",
 ];
 
-export type FileKind = 'document' | 'vehicle_photo';
+export type FileKind = "document" | "vehicle_photo";
 
-export type FileContentType = 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
+export type FileContentType =
+  "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
 
 export interface UploadedFile {
   fileId: string;
@@ -142,7 +132,7 @@ export interface VehicleWithDocuments extends Vehicle {
 export interface PersonalItem {
   name: string;
   photo?: FileRef | null;
-  reviewStatus: 'pending' | 'changes_requested' | 'approved';
+  reviewStatus: "pending" | "changes_requested" | "approved";
   reviewNote?: string | null;
 }
 

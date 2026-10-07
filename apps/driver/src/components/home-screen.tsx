@@ -1,246 +1,249 @@
-import { Link } from 'expo-router';
-import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  Image,
-  Pressable,
+  ActivityIndicator,
   RefreshControl,
   StyleSheet,
-  Text,
+  useWindowDimensions,
   View,
-} from 'react-native';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ApiStatus } from './api-status';
-import { AvailabilityCard } from './availability/availability-card';
-import { NotificationsBell } from './notifications/notifications-bell';
-import { SafeScrollView } from './safe-area';
-import { useLocale } from '../i18n/LocaleProvider';
-import { useOptionalAvailability } from '../realtime/AvailabilityProvider';
-import { useOptionalRegion } from '../region/RegionProvider';
-import { colors, gradients, radius, spacing } from '../theme/tokens';
+import { ApiStatus } from "./api-status";
+import {
+  AvailabilityGoButton,
+  AvailabilitySheet,
+} from "./availability/availability-sheet";
+import { OsmMap } from "./map/osm-map";
+import { NotificationsBell } from "./notifications/notifications-bell";
+import { takeReturnRoute } from "../i18n/direction-reload";
+import { useLocale } from "../i18n/LocaleProvider";
+import { useOptionalAvailability } from "../realtime/AvailabilityProvider";
+import type { AvailabilityContextValue } from "../realtime/AvailabilityProvider";
+import { useOptionalRegion } from "../region/RegionProvider";
+import type { RegionContextValue } from "../region/RegionProvider";
+import { colors, radius, spacing } from "../theme/tokens";
+import {
+  AppText,
+  Banner,
+  BottomSheet,
+  MapFab,
+  MapScreen,
+  SecondaryButton,
+  useDirection,
+} from "./ui";
 
-// Brand asset copied from /assets/images/labby-logo-white.png (source of truth).
-const logoWhite = require('../../assets/images/labby-logo-white.png');
+/** Floating FAB row height (48) + its offset below the status bar. */
+const FAB_ROW = 48 + spacing.sm;
 
+/**
+ * The map layer: the driver's own position while online (follow-me), a
+ * "waiting for GPS" note until the first fix, and the plain map ground
+ * while offline (no position is read while offline).
+ */
+function HomeMap({
+  ctx,
+  bottom,
+}: {
+  ctx: AvailabilityContextValue | null;
+  bottom: number;
+}) {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { flipRows } = useDirection();
+  const online = ctx?.load.status === "loaded" && ctx.load.data.online;
+  if (!ctx || !online || ctx.gps !== "granted") return null;
+
+  const frame = [
+    StyleSheet.absoluteFill,
+    { bottom: Math.max(0, bottom - radius.sheet) },
+  ];
+  if (!ctx.position) {
+    return (
+      <View style={[frame, styles.waiting]} pointerEvents="none">
+        <View
+          style={[styles.waitingPill, flipRows && styles.rowReverse]}
+          testID="waiting-for-gps"
+        >
+          <ActivityIndicator color={colors.accent} />
+          <AppText variant="secondary" weight="600">
+            {t("availability.waitingForGps")}
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+  const position = { lat: ctx.position.lat, lng: ctx.position.lng };
+  return (
+    <View style={frame}>
+      <OsmMap
+        center={position}
+        markers={[{ id: "self", kind: "self", position }]}
+        followMe
+        fill
+        overlayTop={insets.top + FAB_ROW + spacing.sm}
+        testID="own-position-map"
+      />
+    </View>
+  );
+}
+
+/**
+ * Region resolution (M4-T4) under the status title: region + currency and
+ * its service types once resolved, "finding your area" while loading.
+ */
+function RegionLine({ region }: { region: RegionContextValue | null }) {
+  const { t } = useTranslation();
+  const { language } = useLocale();
+  if (!region) return null;
+  if (region.status === "resolved" && region.config) {
+    const { config } = region;
+    const services = config.serviceTypes
+      .map((type) => (language === "ar" ? type.nameAr : type.nameEn))
+      .join(language === "ar" ? "، " : ", ");
+    return (
+      <AppText variant="secondary" color={colors.textSecondary}>
+        <AppText
+          variant="secondary"
+          color={colors.textSecondary}
+          testID="region-badge"
+        >
+          {`${config.name} · ${config.currency}`}
+        </AppText>
+        {services ? ` · ${services}` : null}
+      </AppText>
+    );
+  }
+  if (region.status === "loading") {
+    return (
+      <AppText
+        variant="secondary"
+        color={colors.textMuted}
+        testID="region-loading"
+      >
+        {t("region.finding")}
+      </AppText>
+    );
+  }
+  return null;
+}
+
+/** Outside the area, location denied or unresolved: the region's own state + retry. */
+function RegionBlocked({ region }: { region: RegionContextValue }) {
+  const { t } = useTranslation();
+  return (
+    <Banner
+      tone={region.status === "outside" ? "neutral" : "warning"}
+      icon={
+        region.status === "permissionDenied" ? "location-outline" : undefined
+      }
+      title={t(`region.${region.status}Title`)}
+      message={t(`region.${region.status}Body`)}
+      testID={`region-${region.status}`}
+    >
+      <SecondaryButton
+        title={t("region.retry")}
+        icon="refresh"
+        onPress={region.retry}
+        testID="region-retry"
+      />
+      {region.status === "permissionDenied" ? (
+        <SecondaryButton
+          title={t("region.openSettings")}
+          icon="settings-outline"
+          onPress={region.openLocationSettings}
+          testID="region-open-settings"
+        />
+      ) : null}
+    </Banner>
+  );
+}
+
+/**
+ * Driver home (design canvas "Driver offline"): full-bleed map, the Menu
+ * and notification FABs, the GO button and the status bottom sheet.
+ */
 export function HomeScreen() {
   const { t } = useTranslation();
-  const { direction, flipRows } = useLocale();
-  const textAlign = direction === 'rtl' ? 'right' : 'left';
+  const router = useRouter();
+
+  // Back to the screen a direction-changing language switch reloaded from.
+  useEffect(() => {
+    void takeReturnRoute().then((route) => {
+      if (route) router.push(route as never);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
+  }, []);
   const availability = useOptionalAvailability();
   // Null when rendered without the provider (provider-less unit tests).
   const region = useOptionalRegion();
-  // Outside the operating area, location denied or unresolved-with-no-cache:
-  // these replace the region line with the matching state card (M4-T4).
-  const blocked =
-    region && region.status !== 'resolved' && region.status !== 'loading'
+  const { height: windowHeight } = useWindowDimensions();
+  const [sheetHeight, setSheetHeight] = useState(0);
+  const regionBlocked =
+    region && region.status !== "resolved" && region.status !== "loading"
       ? region
       : null;
 
   return (
-    <SafeScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scroll}
-      refreshControl={
-        availability ? (
-          <RefreshControl
-            refreshing={false}
-            onRefresh={() => void availability.reload()}
-          />
-        ) : undefined
-      }
+    <MapScreen
       testID="home-screen"
-    >
-      <View style={styles.hero}>
-        <View style={[styles.heroTop, flipRows && styles.heroTopRtl]}>
-          <Image
-            source={logoWhite}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel={t('app.name')}
+      map={<HomeMap ctx={availability} bottom={sheetHeight} />}
+      top={
+        <>
+          <MapFab
+            icon="menu"
+            accessibilityLabel={t("home.goToSettings")}
+            onPress={() => router.push("/settings")}
+            testID="settings-link"
           />
           <NotificationsBell />
-        </View>
-        <Text style={[styles.title, { textAlign }]}>{t('home.title')}</Text>
-        <Text style={[styles.subtitle, { textAlign }]}>
-          {t('home.subtitle')}
-        </Text>
-      </View>
-      <View style={styles.body}>
-        <AvailabilityCard />
-        {blocked ? (
-          <View style={styles.regionCard} testID={`region-${blocked.status}`}>
-            <Text style={[styles.regionTitle, { textAlign }]}>
-              {t(`region.${blocked.status}Title`)}
-            </Text>
-            <Text style={[styles.regionBody, { textAlign }]}>
-              {t(`region.${blocked.status}Body`)}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.regionButton}
-              onPress={blocked.retry}
-              testID="region-retry"
+        </>
+      }
+      bottom={
+        <>
+          <AvailabilityGoButton ctx={availability} />
+          <View
+            onLayout={(event) =>
+              setSheetHeight(event.nativeEvent.layout.height)
+            }
+          >
+            <BottomSheet
+              maxHeight={Math.round(windowHeight * 0.62)}
+              refreshControl={
+                availability ? (
+                  <RefreshControl
+                    refreshing={false}
+                    onRefresh={() => void availability.reload()}
+                  />
+                ) : undefined
+              }
+              testID="home-sheet"
             >
-              <Text style={styles.regionButtonLabel}>{t('region.retry')}</Text>
-            </Pressable>
-            {blocked.status === 'permissionDenied' && (
-              <Pressable
-                accessibilityRole="button"
-                style={styles.regionButtonSecondary}
-                onPress={blocked.openLocationSettings}
-                testID="region-open-settings"
-              >
-                <Text style={styles.regionButtonSecondaryLabel}>
-                  {t('region.openSettings')}
-                </Text>
-              </Pressable>
-            )}
+              <AvailabilitySheet
+                ctx={availability}
+                regionLine={<RegionLine region={region} />}
+              />
+              {regionBlocked ? <RegionBlocked region={regionBlocked} /> : null}
+              <ApiStatus />
+            </BottomSheet>
           </View>
-        ) : region?.status === 'resolved' && region.config ? (
-          <Text style={styles.regionBadge} testID="region-badge">
-            {`${region.config.name} · ${region.config.currency}`}
-          </Text>
-        ) : region ? (
-          <Text style={styles.regionLoading} testID="region-loading">
-            {t('region.finding')}
-          </Text>
-        ) : null}
-        <Link href="/vehicles" style={styles.secondaryLink} testID="vehicles-link">
-          {t('home.myVehicle')}
-        </Link>
-        <Link href="/documents" style={styles.secondaryLink} testID="documents-link">
-          {t('home.myDocuments')}
-        </Link>
-        <Link href="/settings" style={styles.settingsLink} testID="settings-link">
-          {t('home.goToSettings')}
-        </Link>
-        <ApiStatus />
-      </View>
-    </SafeScrollView>
+        </>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgLight,
-  },
-  scroll: {
-    flexGrow: 1,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  heroTopRtl: {
-    flexDirection: 'row-reverse',
-  },
-  hero: {
-    // Solid fallback for --labby-gradient-hero (no gradient lib in the shell).
-    backgroundColor: gradients.hero[0],
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
-  },
-  logo: {
-    width: 150,
-    height: 36,
-  },
-  title: {
-    color: colors.white,
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    color: colors.lilac200,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  body: {
-    padding: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  regionCard: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    padding: spacing.lg,
+  waiting: { alignItems: "center", justifyContent: "center" },
+  waitingPill: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
-    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.ms,
   },
-  regionTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  regionBody: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  regionButton: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.purple700,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-  },
-  regionButtonLabel: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  regionButtonSecondary: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.purple700,
-  },
-  regionButtonSecondaryLabel: {
-    color: colors.purple700,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  regionBadge: {
-    color: colors.purple700,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  regionLoading: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  secondaryLink: {
-    color: colors.purple700,
-    borderColor: colors.purple700,
-    borderWidth: 1,
-    backgroundColor: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    textAlign: 'center',
-    alignSelf: 'stretch',
-  },
-  settingsLink: {
-    // Solid fallback for --labby-gradient-button.
-    backgroundColor: gradients.button[0],
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    textAlign: 'center',
-  },
+  rowReverse: { flexDirection: "row-reverse" },
 });

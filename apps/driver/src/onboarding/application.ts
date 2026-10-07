@@ -1,5 +1,8 @@
-import type { DriverApplication, DriverDocument } from '../api/onboarding-types';
-import { DOCUMENT_TYPES } from '../api/onboarding-types';
+import type {
+  DriverApplication,
+  DriverDocument,
+} from "../api/onboarding-types";
+import { DOCUMENT_TYPES } from "../api/onboarding-types";
 
 export interface FlaggedItems {
   personal: boolean;
@@ -14,11 +17,11 @@ export function flaggedItems(application: DriverApplication): FlaggedItems {
     application.documents.find((document) => document.type === type),
   ).filter(
     (document): document is DriverDocument =>
-      !!document && document.reviewStatus === 'changes_requested',
+      !!document && document.reviewStatus === "changes_requested",
   );
   return {
-    personal: application.personal.reviewStatus === 'changes_requested',
+    personal: application.personal.reviewStatus === "changes_requested",
     documents,
-    vehicle: application.vehicle.reviewStatus === 'changes_requested',
+    vehicle: application.vehicle.reviewStatus === "changes_requested",
   };
 }

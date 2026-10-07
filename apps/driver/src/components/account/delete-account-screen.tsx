@@ -1,24 +1,19 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { deleteMyAccount, requestTwoFactorCode } from '../../api/auth';
+import { deleteMyAccount, requestTwoFactorCode } from "../../api/auth";
+import { OTP_PATTERN, OTP_RESEND_COOLDOWN_SECONDS } from "../../api/auth-types";
+import { clearSession } from "../../auth/session";
+import { errorKeyFor } from "../auth/error-key";
 import {
-  OTP_PATTERN,
-  OTP_RESEND_COOLDOWN_SECONDS,
-} from '../../api/auth-types';
-import { clearSession } from '../../auth/session';
-import {
+  Banner,
   BodyText,
-  ErrorBanner,
-  Field,
   FormScreen,
-  InfoBanner,
-  PrimaryButton,
-  ScreenTitle,
+  DestructiveTextButton,
   TextButton,
-  errorKeyFor,
-} from '../auth/ui';
-import { useCooldown } from '../auth/use-cooldown';
+  TextField,
+} from "../ui";
+import { useCooldown } from "../auth/use-cooldown";
 
 /**
  * UC-S-07 — soft delete with 2FA. The consequences copy states what the
@@ -29,7 +24,7 @@ import { useCooldown } from '../auth/use-cooldown';
 export function DeleteAccountScreen() {
   const { t } = useTranslation();
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -44,7 +39,7 @@ export function DeleteAccountScreen() {
       setCodeSent(true);
       cooldown.start(OTP_RESEND_COOLDOWN_SECONDS);
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 429: 'auth.otp.rateLimited' }));
+      setErrorKey(errorKeyFor(error, { 429: "auth.otp.rateLimited" }));
     } finally {
       setBusy(false);
     }
@@ -52,7 +47,7 @@ export function DeleteAccountScreen() {
 
   const confirmDelete = async () => {
     if (!OTP_PATTERN.test(code.trim())) {
-      setFieldErrorKey('auth.validation.code');
+      setFieldErrorKey("auth.validation.code");
       return;
     }
     setFieldErrorKey(null);
@@ -66,8 +61,8 @@ export function DeleteAccountScreen() {
     } catch (error) {
       setErrorKey(
         errorKeyFor(error, {
-          400: 'account.delete.wrongCode',
-          409: 'account.delete.blocked',
+          400: "account.delete.wrongCode",
+          409: "account.delete.blocked",
         }),
       );
     } finally {
@@ -76,47 +71,50 @@ export function DeleteAccountScreen() {
   };
 
   return (
-    <FormScreen testID="delete-account-screen">
-      <ScreenTitle>{t('account.delete.title')}</ScreenTitle>
+    <FormScreen
+      title={t("account.delete.title")}
+      testID="delete-account-screen"
+    >
       <BodyText testID="delete-consequences">
-        {t('account.delete.consequences')}
+        {t("account.delete.consequences")}
       </BodyText>
 
       {errorKey ? (
-        <ErrorBanner testID="delete-error">{t(errorKey)}</ErrorBanner>
+        <Banner tone="danger" message={t(errorKey)} testID="delete-error" />
       ) : null}
       {codeSent ? (
-        <InfoBanner testID="delete-code-sent">
-          {t('account.password.codeSent')}
-        </InfoBanner>
+        <Banner
+          tone="success"
+          message={t("account.password.codeSent")}
+          testID="delete-code-sent"
+        />
       ) : null}
 
       <TextButton
         title={
           cooldown.active
-            ? t('auth.otp.resendIn', { seconds: cooldown.remaining })
-            : t('account.delete.sendCode')
+            ? t("auth.otp.resendIn", { seconds: cooldown.remaining })
+            : t("account.delete.sendCode")
         }
         onPress={sendCode}
         disabled={cooldown.active || busy}
         testID="delete-send-code"
       />
-      <Field
-        label={t('auth.fields.code')}
+      <TextField
+        label={t("auth.fields.code")}
         keyboardType="number-pad"
         maxLength={6}
         value={code}
         onChangeText={setCode}
         error={
-          fieldErrorKey === 'auth.validation.code' ? t(fieldErrorKey) : null
+          fieldErrorKey === "auth.validation.code" ? t(fieldErrorKey) : null
         }
         testID="delete-code"
       />
-      <PrimaryButton
-        title={t('account.delete.confirm')}
+      <DestructiveTextButton
+        title={t("account.delete.confirm")}
         onPress={confirmDelete}
         busy={busy}
-        danger
         testID="delete-confirm"
       />
     </FormScreen>

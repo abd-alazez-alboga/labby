@@ -1,7 +1,7 @@
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from "react";
 
-import { getUnreadCount } from '../api/notifications';
-import { subscribeToSession, getSession } from '../auth/session';
+import { getUnreadCount } from "../api/notifications";
+import { subscribeToSession, getSession } from "../auth/session";
 
 /**
  * The unread badge (UC-S-11): one in-memory count shared by the bell, the

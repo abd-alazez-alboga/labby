@@ -1,4 +1,4 @@
-import type { LeafletLatLng } from './geojson';
+import type { LeafletLatLng } from "./geojson";
 
 /**
  * The WebView <-> Leaflet bridge — BOTH sides of the protocol live in this
@@ -20,17 +20,17 @@ import type { LeafletLatLng } from './geojson';
  *               `{"type":"followPaused"}`, `{"type":"loadFailed"}`
  */
 
-export const LEAFLET_VERSION = '1.9.4';
+export const LEAFLET_VERSION = "1.9.4";
 const LEAFLET_JS = {
   src: `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js`,
-  integrity: 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=',
+  integrity: "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=",
 };
 const LEAFLET_CSS = {
   href: `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`,
-  integrity: 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=',
+  integrity: "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=",
 };
 
-export type MapMarkerKind = 'self' | 'point';
+export type MapMarkerKind = "self" | "point";
 
 export interface BridgeMarker {
   id: string;
@@ -63,10 +63,10 @@ export interface MapPageOptions {
 }
 
 export type MapMessage =
-  | { type: 'ready' }
-  | { type: 'tiles'; ok: boolean }
-  | { type: 'followPaused' }
-  | { type: 'loadFailed' };
+  | { type: "ready" }
+  | { type: "tiles"; ok: boolean }
+  | { type: "followPaused" }
+  | { type: "loadFailed" };
 
 /**
  * JSON safe to embed in an inline <script> and in injected JS: `<` (so no
@@ -74,26 +74,29 @@ export type MapMessage =
  */
 export function toScriptJson(value: unknown): string {
   return JSON.stringify(value)
-    .replace(/</g, '\\u003c')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 function escapeHtmlText(value: string): string {
   return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /** The page; `initial` is drawn before the first message round-trip. */
-export function buildMapPage(options: MapPageOptions, initial: MapViewState): string {
+export function buildMapPage(
+  options: MapPageOptions,
+  initial: MapViewState,
+): string {
   const config = {
     tileUrl: options.tileUrl,
     // Attribution is plain text (escaped) — links would navigate the WebView.
     attribution: escapeHtmlText(options.attribution),
-    attributionPosition: options.rtl ? 'bottomleft' : 'bottomright',
+    attributionPosition: options.rtl ? "bottomleft" : "bottomright",
     colors: options.colors,
   };
   return `<!DOCTYPE html>
@@ -189,7 +192,8 @@ export function applyStateScript(state: MapViewState): string {
   return `window.labbyMap && window.labbyMap.apply(${toScriptJson(state)}); true;`;
 }
 
-export const RECENTER_SCRIPT = 'window.labbyMap && window.labbyMap.recenter(); true;';
+export const RECENTER_SCRIPT =
+  "window.labbyMap && window.labbyMap.recenter(); true;";
 
 /** Parses a page message; anything unknown is ignored (null). */
 export function parseMapMessage(data: string): MapMessage | null {
@@ -199,15 +203,15 @@ export function parseMapMessage(data: string): MapMessage | null {
   } catch {
     return null;
   }
-  if (typeof parsed !== 'object' || parsed === null) return null;
+  if (typeof parsed !== "object" || parsed === null) return null;
   const message = parsed as { type?: unknown; ok?: unknown };
   switch (message.type) {
-    case 'ready':
-    case 'followPaused':
-    case 'loadFailed':
+    case "ready":
+    case "followPaused":
+    case "loadFailed":
       return { type: message.type };
-    case 'tiles':
-      return { type: 'tiles', ok: message.ok === true };
+    case "tiles":
+      return { type: "tiles", ok: message.ok === true };
     default:
       return null;
   }

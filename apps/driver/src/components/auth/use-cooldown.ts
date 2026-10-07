@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Second-granular countdown for OTP resend buttons (AUTH-04: 60s cooldown).

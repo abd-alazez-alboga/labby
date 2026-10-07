@@ -1,5 +1,5 @@
-import type { DriverAvailability } from '../api/realtime-types';
-import type { SocketLike } from '../realtime/location-streamer';
+import type { DriverAvailability } from "../api/realtime-types";
+import type { SocketLike } from "../realtime/location-streamer";
 
 /**
  * Scriptable WebSocket double for the realtime protocol
@@ -14,7 +14,7 @@ export class MockSocket implements SocketLike {
 
   static latest(): MockSocket {
     const socket = MockSocket.instances[MockSocket.instances.length - 1];
-    if (!socket) throw new Error('No socket was created');
+    if (!socket) throw new Error("No socket was created");
     return socket;
   }
 
@@ -36,8 +36,8 @@ export class MockSocket implements SocketLike {
 
   send(data: string): void {
     this.sent.push(data);
-    if (this.autoPong && JSON.parse(data).type === 'ping') {
-      this.receive({ type: 'pong' });
+    if (this.autoPong && JSON.parse(data).type === "ping") {
+      this.receive({ type: "pong" });
     }
   }
 
@@ -54,13 +54,15 @@ export class MockSocket implements SocketLike {
   }
 
   receive(frame: unknown): void {
-    this.onmessage?.({ data: typeof frame === 'string' ? frame : JSON.stringify(frame) });
+    this.onmessage?.({
+      data: typeof frame === "string" ? frame : JSON.stringify(frame),
+    });
   }
 
   ready(overrides: Record<string, unknown> = {}): void {
     this.receive({
-      type: 'ready',
-      userId: 'user-1',
+      type: "ready",
+      userId: "user-1",
       streamIntervalSeconds: 5,
       staleAfterSeconds: 30,
       ...overrides,
@@ -104,8 +106,8 @@ export function jwtExpiringAt(expMs: number): string {
   const encode = (value: unknown) =>
     globalThis
       .btoa(JSON.stringify(value))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ sub: 'user-1', exp: Math.floor(expMs / 1000) })}.sig`;
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  return `${encode({ alg: "HS256" })}.${encode({ sub: "user-1", exp: Math.floor(expMs / 1000) })}.sig`;
 }

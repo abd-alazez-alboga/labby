@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import Constants from "expo-constants";
 
 /** Typed runtime configuration for the Labby Driver app. */
 export interface AppConfig {
@@ -14,13 +14,15 @@ export interface AppConfig {
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
-  apiBaseUrl: 'http://localhost:8080',
-  mapTileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  mapAttribution: '© OpenStreetMap contributors',
+  apiBaseUrl: "http://localhost:8080",
+  mapTileUrl: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  mapAttribution: "© OpenStreetMap contributors",
 };
 
 function nonEmpty(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+  return typeof value === "string" && value.trim().length > 0
+    ? value
+    : undefined;
 }
 
 /**
@@ -43,7 +45,7 @@ export function getConfig(): AppConfig {
     nonEmpty(process.env.EXPO_PUBLIC_API_BASE_URL) ??
     nonEmpty(extra.apiBaseUrl) ??
     DEFAULT_CONFIG.apiBaseUrl
-  ).replace(/\/+$/, '');
+  ).replace(/\/+$/, "");
 
   const mapTileUrl =
     nonEmpty(process.env.EXPO_PUBLIC_MAP_TILE_URL) ??

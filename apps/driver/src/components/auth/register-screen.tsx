@@ -1,30 +1,32 @@
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import { errorKeyFor } from "./error-key";
 import {
+  Banner,
   BodyText,
   CheckboxRow,
-  ErrorBanner,
-  Field,
   FormScreen,
-  InfoBanner,
   PrimaryButton,
-  ScreenTitle,
   TextButton,
-  errorKeyFor,
-} from './ui';
-import { useCooldown } from './use-cooldown';
-import { registerComplete, registerStart, registerVerify } from '../../api/auth';
+  TextField,
+} from "../ui";
+import { useCooldown } from "./use-cooldown";
+import {
+  registerComplete,
+  registerStart,
+  registerVerify,
+} from "../../api/auth";
 import {
   OTP_PATTERN,
   OTP_RESEND_COOLDOWN_SECONDS,
   PASSWORD_MIN_LENGTH,
   PHONE_PATTERN,
-} from '../../api/auth-types';
-import { useAuth } from '../../auth/AuthProvider';
+} from "../../api/auth-types";
+import { useAuth } from "../../auth/AuthProvider";
 
-type Step = 'phone' | 'code' | 'details' | 'reactivated';
+type Step = "phone" | "code" | "details" | "reactivated";
 
 /**
  * UC-S-01 — register: phone -> OTP (resend after 60s, max 5/hour) ->
@@ -36,13 +38,13 @@ export function RegisterScreen() {
   const router = useRouter();
   const { applySession } = useAuth();
 
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [registrationToken, setRegistrationToken] = useState('');
+  const [step, setStep] = useState<Step>("phone");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [registrationToken, setRegistrationToken] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [fieldErrorKey, setFieldErrorKey] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export function RegisterScreen() {
   const sendCode = async (isResend: boolean) => {
     const trimmed = phone.trim();
     if (!PHONE_PATTERN.test(trimmed)) {
-      setFieldErrorKey('auth.validation.phone');
+      setFieldErrorKey("auth.validation.phone");
       return;
     }
     setFieldErrorKey(null);
@@ -61,13 +63,13 @@ export function RegisterScreen() {
     try {
       await registerStart(trimmed);
       cooldown.start(OTP_RESEND_COOLDOWN_SECONDS);
-      setCode('');
-      if (!isResend) setStep('code');
+      setCode("");
+      if (!isResend) setStep("code");
     } catch (error) {
       setErrorKey(
         errorKeyFor(error, {
-          409: 'auth.register.phoneTaken',
-          429: 'auth.otp.rateLimited',
+          409: "auth.register.phoneTaken",
+          429: "auth.otp.rateLimited",
         }),
       );
     } finally {
@@ -77,7 +79,7 @@ export function RegisterScreen() {
 
   const verifyCode = async () => {
     if (!OTP_PATTERN.test(code.trim())) {
-      setFieldErrorKey('auth.validation.code');
+      setFieldErrorKey("auth.validation.code");
       return;
     }
     setFieldErrorKey(null);
@@ -85,18 +87,18 @@ export function RegisterScreen() {
     setBusy(true);
     try {
       const result = await registerVerify(phone.trim(), code.trim());
-      if (result.mode === 'reactivated') {
+      if (result.mode === "reactivated") {
         // UC-S-08: the deleted account is live again — no new account.
-        setStep('reactivated');
+        setStep("reactivated");
       } else {
-        setRegistrationToken(result.registrationToken ?? '');
-        setStep('details');
+        setRegistrationToken(result.registrationToken ?? "");
+        setStep("details");
       }
     } catch (error) {
       setErrorKey(
         errorKeyFor(error, {
-          400: 'auth.otp.wrongCode',
-          410: 'auth.otp.expired',
+          400: "auth.otp.wrongCode",
+          410: "auth.otp.expired",
         }),
       );
     } finally {
@@ -106,19 +108,19 @@ export function RegisterScreen() {
 
   const complete = async () => {
     if (name.trim().length === 0) {
-      setFieldErrorKey('auth.validation.name');
+      setFieldErrorKey("auth.validation.name");
       return;
     }
     if (password.length < PASSWORD_MIN_LENGTH) {
-      setFieldErrorKey('auth.validation.password');
+      setFieldErrorKey("auth.validation.password");
       return;
     }
     if (confirmPassword !== password) {
-      setFieldErrorKey('auth.validation.confirm');
+      setFieldErrorKey("auth.validation.confirm");
       return;
     }
     if (!termsAccepted) {
-      setFieldErrorKey('auth.validation.terms');
+      setFieldErrorKey("auth.validation.terms");
       return;
     }
     setFieldErrorKey(null);
@@ -135,12 +137,12 @@ export function RegisterScreen() {
       // Navigation happens via the auth guards in the root layout.
     } catch (error) {
       const key = errorKeyFor(error, {
-        400: 'auth.register.invalidToken',
+        400: "auth.register.invalidToken",
         // Concurrent registration won the race — the phone is now taken.
-        409: 'auth.register.phoneTaken',
+        409: "auth.register.phoneTaken",
       });
-      if (key === 'auth.register.phoneTaken') {
-        setStep('phone');
+      if (key === "auth.register.phoneTaken") {
+        setStep("phone");
       }
       setErrorKey(key);
     } finally {
@@ -149,68 +151,72 @@ export function RegisterScreen() {
   };
 
   const startOver = () => {
-    setStep('phone');
-    setCode('');
-    setRegistrationToken('');
+    setStep("phone");
+    setCode("");
+    setRegistrationToken("");
     setErrorKey(null);
     setFieldErrorKey(null);
   };
 
   return (
-    <FormScreen testID={`register-step-${step}`}>
-      <ScreenTitle>{t('auth.register.title')}</ScreenTitle>
+    <FormScreen
+      title={t("auth.register.title")}
+      testID={`register-step-${step}`}
+    >
       {errorKey ? (
-        <ErrorBanner testID="register-error">{t(errorKey)}</ErrorBanner>
+        <Banner tone="danger" message={t(errorKey)} testID="register-error" />
       ) : null}
 
-      {step === 'phone' ? (
+      {step === "phone" ? (
         <>
-          <Field
-            label={t('auth.fields.phone')}
-            placeholder={t('auth.fields.phonePlaceholder')}
+          <TextField
+            label={t("auth.fields.phone")}
+            placeholder={t("auth.fields.phonePlaceholder")}
             keyboardType="phone-pad"
             autoCapitalize="none"
             value={phone}
             onChangeText={setPhone}
             error={
-              fieldErrorKey === 'auth.validation.phone' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.phone"
+                ? t(fieldErrorKey)
+                : null
             }
             testID="register-phone"
           />
           <PrimaryButton
-            title={t('auth.register.phoneCta')}
+            title={t("auth.register.phoneCta")}
             onPress={() => sendCode(false)}
             busy={busy}
             testID="register-send-code"
           />
-          {errorKey === 'auth.register.phoneTaken' ? (
+          {errorKey === "auth.register.phoneTaken" ? (
             <TextButton
-              title={t('auth.register.goToLogin')}
-              onPress={() => router.replace('/login')}
+              title={t("auth.register.goToLogin")}
+              onPress={() => router.replace("/login")}
               testID="register-go-login"
             />
           ) : null}
         </>
       ) : null}
 
-      {step === 'code' ? (
+      {step === "code" ? (
         <>
           <BodyText testID="register-otp-hint">
-            {t('auth.otp.sentTo', { phone: phone.trim() })}
+            {t("auth.otp.sentTo", { phone: phone.trim() })}
           </BodyText>
-          <Field
-            label={t('auth.fields.code')}
+          <TextField
+            label={t("auth.fields.code")}
             keyboardType="number-pad"
             maxLength={6}
             value={code}
             onChangeText={setCode}
             error={
-              fieldErrorKey === 'auth.validation.code' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.code" ? t(fieldErrorKey) : null
             }
             testID="register-code"
           />
           <PrimaryButton
-            title={t('auth.register.verifyCta')}
+            title={t("auth.register.verifyCta")}
             onPress={verifyCode}
             busy={busy}
             testID="register-verify"
@@ -218,8 +224,8 @@ export function RegisterScreen() {
           <TextButton
             title={
               cooldown.active
-                ? t('auth.otp.resendIn', { seconds: cooldown.remaining })
-                : t('auth.otp.resend')
+                ? t("auth.otp.resendIn", { seconds: cooldown.remaining })
+                : t("auth.otp.resend")
             }
             onPress={() => sendCode(true)}
             disabled={cooldown.active || busy}
@@ -228,63 +234,65 @@ export function RegisterScreen() {
         </>
       ) : null}
 
-      {step === 'details' ? (
+      {step === "details" ? (
         <>
-          <BodyText>{t('auth.register.detailsHint')}</BodyText>
-          <Field
-            label={t('auth.fields.name')}
+          <BodyText>{t("auth.register.detailsHint")}</BodyText>
+          <TextField
+            label={t("auth.fields.name")}
             value={name}
             onChangeText={setName}
             maxLength={100}
             error={
-              fieldErrorKey === 'auth.validation.name' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.name" ? t(fieldErrorKey) : null
             }
             testID="register-name"
           />
-          <Field
-            label={t('auth.fields.password')}
+          <TextField
+            label={t("auth.fields.password")}
             secureTextEntry
             autoCapitalize="none"
             value={password}
             onChangeText={setPassword}
             error={
-              fieldErrorKey === 'auth.validation.password'
+              fieldErrorKey === "auth.validation.password"
                 ? t(fieldErrorKey)
                 : null
             }
             testID="register-password"
           />
-          <Field
-            label={t('auth.fields.confirmPassword')}
+          <TextField
+            label={t("auth.fields.confirmPassword")}
             secureTextEntry
             autoCapitalize="none"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             error={
-              fieldErrorKey === 'auth.validation.confirm'
+              fieldErrorKey === "auth.validation.confirm"
                 ? t(fieldErrorKey)
                 : null
             }
             testID="register-confirm-password"
           />
           <CheckboxRow
-            label={t('auth.register.termsLabel')}
+            label={t("auth.register.termsLabel")}
             checked={termsAccepted}
             onToggle={() => setTermsAccepted((value) => !value)}
             error={
-              fieldErrorKey === 'auth.validation.terms' ? t(fieldErrorKey) : null
+              fieldErrorKey === "auth.validation.terms"
+                ? t(fieldErrorKey)
+                : null
             }
             testID="register-terms"
           />
           <PrimaryButton
-            title={t('auth.register.completeCta')}
+            title={t("auth.register.completeCta")}
             onPress={complete}
             busy={busy}
             testID="register-complete"
           />
-          {errorKey === 'auth.register.invalidToken' ? (
+          {errorKey === "auth.register.invalidToken" ? (
             <TextButton
-              title={t('auth.register.startOver')}
+              title={t("auth.register.startOver")}
               onPress={startOver}
               testID="register-start-over"
             />
@@ -292,20 +300,22 @@ export function RegisterScreen() {
         </>
       ) : null}
 
-      {step === 'reactivated' ? (
+      {step === "reactivated" ? (
         <>
-          <InfoBanner testID="register-reactivated">
-            {t('auth.register.reactivatedTitle')}
-          </InfoBanner>
-          <BodyText>{t('auth.register.reactivatedBody')}</BodyText>
+          <Banner
+            tone="success"
+            message={t("auth.register.reactivatedTitle")}
+            testID="register-reactivated"
+          />
+          <BodyText>{t("auth.register.reactivatedBody")}</BodyText>
           <PrimaryButton
-            title={t('auth.register.goToLogin')}
-            onPress={() => router.replace('/login')}
+            title={t("auth.register.goToLogin")}
+            onPress={() => router.replace("/login")}
             testID="register-reactivated-login"
           />
           <TextButton
-            title={t('auth.login.forgot')}
-            onPress={() => router.replace('/forgot-password')}
+            title={t("auth.login.forgot")}
+            onPress={() => router.replace("/forgot-password")}
             testID="register-reactivated-reset"
           />
         </>

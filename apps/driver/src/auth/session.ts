@@ -1,6 +1,6 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
 
-import type { UserProfile } from '../api/auth-types';
+import type { UserProfile } from "../api/auth-types";
 
 /**
  * Secure session store: the token pair + the signed-in profile, persisted
@@ -11,7 +11,7 @@ import type { UserProfile } from '../api/auth-types';
  * React via subscribe/getSession.
  */
 
-export const SESSION_STORAGE_KEY = 'labby-driver.session';
+export const SESSION_STORAGE_KEY = "labby-driver.session";
 
 export interface StoredSession {
   accessToken: string;
@@ -41,12 +41,12 @@ export function subscribeToSession(listener: () => void): () => void {
 }
 
 function isStoredSession(value: unknown): value is StoredSession {
-  if (typeof value !== 'object' || value === null) return false;
+  if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<StoredSession>;
   return (
-    typeof candidate.accessToken === 'string' &&
-    typeof candidate.refreshToken === 'string' &&
-    typeof candidate.user === 'object' &&
+    typeof candidate.accessToken === "string" &&
+    typeof candidate.refreshToken === "string" &&
+    typeof candidate.user === "object" &&
     candidate.user !== null &&
     Array.isArray(candidate.user.roles)
   );

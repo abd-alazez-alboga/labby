@@ -1,33 +1,45 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Linking,
   RefreshControl,
   StyleSheet,
   Switch,
-  Text,
   View,
-} from 'react-native';
+} from "react-native";
 
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
-} from '../../api/notifications';
-import { NOTIFICATION_CATEGORIES } from '../../api/realtime-types';
-import type { NotificationCategory, NotificationPreference } from '../../api/realtime-types';
-import { getPushPermission } from '../../notifications/push';
-import { useRemote } from '../../onboarding/use-remote';
-import { colors, radius, spacing } from '../../theme/tokens';
-import { BodyText, ErrorBanner } from '../auth/ui';
-import { FailureState, LoadingState, SecondaryButton, useRowStyle, useTextAlign } from '../onboarding/ui';
-import { SafeScrollView } from '../safe-area';
+} from "../../api/notifications";
+import { NOTIFICATION_CATEGORIES } from "../../api/realtime-types";
+import type {
+  NotificationCategory,
+  NotificationPreference,
+} from "../../api/realtime-types";
+import { getPushPermission } from "../../notifications/push";
+import { useRemote } from "../../onboarding/use-remote";
+import { colors, spacing } from "../../theme/tokens";
+import {
+  AppText,
+  Banner,
+  BodyText,
+  FailureState,
+  LoadingState,
+  Screen,
+  SecondaryButton,
+  useDirection,
+} from "../ui";
 
-function ordered(preferences: NotificationPreference[]): NotificationPreference[] {
+function ordered(
+  preferences: NotificationPreference[],
+): NotificationPreference[] {
   return [...preferences].sort(
     (a, b) =>
-      NOTIFICATION_CATEGORIES.indexOf(a.category) - NOTIFICATION_CATEGORIES.indexOf(b.category),
+      NOTIFICATION_CATEGORIES.indexOf(a.category) -
+      NOTIFICATION_CATEGORIES.indexOf(b.category),
   );
 }
 
@@ -35,44 +47,62 @@ function PreferenceRow({
   preference,
   saving,
   onToggle,
+  last,
 }: {
   preference: NotificationPreference;
   saving: boolean;
   onToggle: (category: NotificationCategory, enabled: boolean) => void;
+  last: boolean;
 }) {
   const { t } = useTranslation();
-  const textAlign = useTextAlign();
-  const rowStyle = useRowStyle();
+  const { flipRows } = useDirection();
   const { category, locked } = preference;
   // Locked categories always deliver, whatever the stored flag says (NTF-02).
   const enabled = locked ? true : preference.enabled;
   return (
-    <View style={[rowStyle, styles.row]} testID={`pref-${category}`}>
+    <View
+      style={[
+        styles.row,
+        flipRows && styles.rowReverse,
+        !last && styles.divider,
+      ]}
+      testID={`pref-${category}`}
+    >
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { textAlign }]}>
+        <AppText variant="bodyStrong">
           {t(`notifications.categories.${category}`)}
-        </Text>
-        <Text style={[styles.rowBody, { textAlign }]}>
+        </AppText>
+        <AppText variant="secondary" color={colors.textMuted}>
           {t(`notifications.prefs.descriptions.${category}`)}
-        </Text>
+        </AppText>
         {locked ? (
-          <View style={[rowStyle, styles.locked]} testID={`pref-${category}-locked`}>
+          <View
+            style={[styles.locked, flipRows && styles.rowReverse]}
+            testID={`pref-${category}-locked`}
+          >
             <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
-            <Text style={styles.lockedText}>
-              {`${t('notifications.prefs.locked')} · ${t('notifications.prefs.lockedHint')}`}
-            </Text>
+            <AppText
+              variant="caption"
+              color={colors.textMuted}
+              style={styles.lockedText}
+            >
+              {`${t("notifications.prefs.locked")} · ${t("notifications.prefs.lockedHint")}`}
+            </AppText>
           </View>
         ) : null}
       </View>
       {saving ? (
-        <ActivityIndicator color={colors.purple700} testID={`pref-${category}-saving`} />
+        <ActivityIndicator
+          color={colors.accent}
+          testID={`pref-${category}-saving`}
+        />
       ) : (
         <Switch
           value={enabled}
           disabled={locked}
           onValueChange={(next) => onToggle(category, next)}
-          trackColor={{ true: colors.purple500, false: colors.lavender300 }}
-          thumbColor={colors.white}
+          trackColor={{ true: colors.accent, false: colors.lineStrong }}
+          thumbColor={colors.surface}
           accessibilityLabel={t(`notifications.categories.${category}`)}
           accessibilityState={{ disabled: locked, checked: enabled }}
           testID={`pref-${category}-switch`}
@@ -91,74 +121,90 @@ function PreferenceRow({
 export function NotificationPreferencesScreen() {
   const { t } = useTranslation();
   const { state, refreshing, reload } = useRemote(getNotificationPreferences);
-  const [preferences, setPreferences] = useState<NotificationPreference[] | null>(null);
+  const [preferences, setPreferences] = useState<
+    NotificationPreference[] | null
+  >(null);
   const [saving, setSaving] = useState<NotificationCategory | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [pushDenied, setPushDenied] = useState(false);
 
   useEffect(() => {
-    if (state.status === 'loaded') setPreferences(ordered(state.data));
+    if (state.status === "loaded") setPreferences(ordered(state.data));
   }, [state]);
 
   useEffect(() => {
     let cancelled = false;
     void getPushPermission().then((permission) => {
-      if (!cancelled && permission === 'denied') setPushDenied(true);
+      if (!cancelled && permission === "denied") setPushDenied(true);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const toggle = useCallback(async (category: NotificationCategory, enabled: boolean) => {
-    setErrorKey(null);
-    setSaving(category);
-    try {
-      const updated = await updateNotificationPreferences([{ category, enabled }]);
-      setPreferences(ordered(updated));
-    } catch {
-      setErrorKey('notifications.prefs.saveFailed');
-    } finally {
-      setSaving(null);
-    }
-  }, []);
+  const toggle = useCallback(
+    async (category: NotificationCategory, enabled: boolean) => {
+      setErrorKey(null);
+      setSaving(category);
+      try {
+        const updated = await updateNotificationPreferences([
+          { category, enabled },
+        ]);
+        setPreferences(ordered(updated));
+      } catch {
+        setErrorKey("notifications.prefs.saveFailed");
+      } finally {
+        setSaving(null);
+      }
+    },
+    [],
+  );
 
   return (
-    <SafeScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
+    <Screen
+      title={t("notifications.settings")}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => void reload()} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void reload()}
+        />
       }
       testID="notification-preferences"
     >
       {pushDenied ? (
-        <View style={styles.pushOff} testID="push-permission-denied">
-          <Text style={styles.pushOffTitle}>{t('notifications.prefs.pushOffTitle')}</Text>
-          <Text style={styles.pushOffBody}>{t('notifications.prefs.pushOffBody')}</Text>
+        <Banner
+          tone="warning"
+          icon="notifications-off-outline"
+          title={t("notifications.prefs.pushOffTitle")}
+          message={t("notifications.prefs.pushOffBody")}
+          testID="push-permission-denied"
+        >
           <SecondaryButton
-            title={t('notifications.prefs.openSettings')}
+            title={t("notifications.prefs.openSettings")}
             icon="settings-outline"
             onPress={() => {
               Linking.openSettings().catch(() => {});
             }}
             testID="push-open-settings"
           />
-        </View>
+        </Banner>
       ) : null}
-      <BodyText>{t('notifications.prefs.intro')}</BodyText>
-      {errorKey ? <ErrorBanner testID="prefs-error">{t(errorKey)}</ErrorBanner> : null}
-      {state.status === 'loading' && !preferences ? <LoadingState /> : null}
-      {state.status === 'error' && !preferences ? (
+      <BodyText>{t("notifications.prefs.intro")}</BodyText>
+      {errorKey ? (
+        <Banner tone="danger" message={t(errorKey)} testID="prefs-error" />
+      ) : null}
+      {state.status === "loading" && !preferences ? <LoadingState /> : null}
+      {state.status === "error" && !preferences ? (
         <FailureState kind={state.kind} onRetry={() => void reload()} />
       ) : null}
       {preferences ? (
-        <View style={styles.list}>
-          {preferences.map((preference) => (
+        <View>
+          {preferences.map((preference, index) => (
             <PreferenceRow
               key={preference.category}
               preference={preference}
               saving={saving === preference.category}
+              last={index === preferences.length - 1}
               onToggle={(category, enabled) => {
                 if (!saving) void toggle(category, enabled);
               }}
@@ -166,41 +212,26 @@ export function NotificationPreferencesScreen() {
           ))}
         </View>
       ) : null}
-    </SafeScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bgLight },
-  content: { padding: spacing.lg, gap: spacing.md },
-  list: {
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.lilac200,
-  },
   row: {
-    minHeight: 72,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 76,
+    paddingVertical: spacing.ms,
     gap: spacing.md,
-    justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.lilac200,
   },
+  rowReverse: { flexDirection: "row-reverse" },
+  divider: { borderBottomWidth: 1, borderBottomColor: colors.line },
   rowText: { flex: 1, gap: 2 },
-  rowTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  rowBody: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-  locked: { gap: spacing.xs, marginTop: 2 },
-  lockedText: { color: colors.textMuted, fontSize: 12, fontWeight: '600', flexShrink: 1 },
-  pushOff: {
-    backgroundColor: colors.warningBg,
-    borderColor: colors.warning,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
+  locked: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: 2,
   },
-  pushOffTitle: { color: colors.warning, fontSize: 15, fontWeight: '700' },
-  pushOffBody: { color: colors.textSecondary, fontSize: 14 },
+  lockedText: { flexShrink: 1 },
 });

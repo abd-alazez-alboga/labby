@@ -1,4 +1,4 @@
-import { isAfterToday, maxVehicleYear } from './dates';
+import { isAfterToday, maxVehicleYear } from "./dates";
 import type {
   DocumentInput,
   DocumentType,
@@ -7,7 +7,7 @@ import type {
   FileRef,
   Vehicle,
   VehicleInput,
-} from '../api/onboarding-types';
+} from "../api/onboarding-types";
 import {
   DOCUMENT_NUMBER_MAX,
   VEHICLE_COLOR_MAX,
@@ -18,8 +18,8 @@ import {
   VEHICLE_SEATS_MIN,
   VEHICLE_TEXT_MAX,
   VEHICLE_YEAR_MIN,
-} from '../api/onboarding-types';
-import { resolveFileUrl } from '../api/onboarding';
+} from "../api/onboarding-types";
+import { resolveFileUrl } from "../api/onboarding";
 
 /**
  * Client-side drafts of the onboarding forms plus their validation. Every
@@ -53,16 +53,25 @@ export interface VehicleDraft {
   photos: PickedFile[];
 }
 
-export type DocumentField = 'file' | 'number' | 'expiresOn';
-export type VehicleField = 'make' | 'model' | 'year' | 'color' | 'plate' | 'seats';
+export type DocumentField = "file" | "number" | "expiresOn";
+export type VehicleField =
+  "make" | "model" | "year" | "color" | "plate" | "seats";
 export type FieldErrors<F extends string> = Partial<Record<F, string>>;
 
 export function emptyDocument(type: DocumentType): DocumentDraft {
-  return { type, file: null, number: '', expiresOn: null };
+  return { type, file: null, number: "", expiresOn: null };
 }
 
 export function emptyVehicle(): VehicleDraft {
-  return { make: '', model: '', year: '', color: '', plate: '', seats: '', photos: [] };
+  return {
+    make: "",
+    model: "",
+    year: "",
+    color: "",
+    plate: "",
+    seats: "",
+    photos: [],
+  };
 }
 
 export function fileFromRef(ref: FileRef, name: string): PickedFile {
@@ -104,14 +113,16 @@ export function validateDocument(
   now: Date = new Date(),
 ): FieldErrors<DocumentField> {
   const errors: FieldErrors<DocumentField> = {};
-  if (!draft.file) errors.file = 'onboarding.validation.fileRequired';
+  if (!draft.file) errors.file = "onboarding.validation.fileRequired";
   const number = draft.number.trim();
-  if (number.length === 0) errors.number = 'onboarding.validation.numberRequired';
+  if (number.length === 0)
+    errors.number = "onboarding.validation.numberRequired";
   else if (number.length > DOCUMENT_NUMBER_MAX)
-    errors.number = 'onboarding.validation.numberTooLong';
-  if (!draft.expiresOn) errors.expiresOn = 'onboarding.validation.expiryRequired';
+    errors.number = "onboarding.validation.numberTooLong";
+  if (!draft.expiresOn)
+    errors.expiresOn = "onboarding.validation.expiryRequired";
   else if (!isAfterToday(draft.expiresOn, now))
-    errors.expiresOn = 'onboarding.validation.expired';
+    errors.expiresOn = "onboarding.validation.expired";
   return errors;
 }
 
@@ -132,32 +143,37 @@ export function validateVehicleDetails(
   now: Date = new Date(),
 ): FieldErrors<VehicleField> {
   const errors: FieldErrors<VehicleField> = {};
-  const text = (
-    field: 'make' | 'model' | 'color' | 'plate',
-    max: number,
-  ) => {
+  const text = (field: "make" | "model" | "color" | "plate", max: number) => {
     const value = draft[field].trim();
-    if (value.length === 0) errors[field] = `onboarding.validation.${field}Required`;
-    else if (value.length > max) errors[field] = 'onboarding.validation.tooLong';
+    if (value.length === 0)
+      errors[field] = `onboarding.validation.${field}Required`;
+    else if (value.length > max)
+      errors[field] = "onboarding.validation.tooLong";
   };
-  text('make', VEHICLE_TEXT_MAX);
-  text('model', VEHICLE_TEXT_MAX);
+  text("make", VEHICLE_TEXT_MAX);
+  text("model", VEHICLE_TEXT_MAX);
   const year = parseWholeNumber(draft.year);
   if (year === null || year < VEHICLE_YEAR_MIN || year > maxVehicleYear(now)) {
-    errors.year = 'onboarding.validation.year';
+    errors.year = "onboarding.validation.year";
   }
-  text('color', VEHICLE_COLOR_MAX);
-  text('plate', VEHICLE_PLATE_MAX);
+  text("color", VEHICLE_COLOR_MAX);
+  text("plate", VEHICLE_PLATE_MAX);
   const seats = parseWholeNumber(draft.seats);
-  if (seats === null || seats < VEHICLE_SEATS_MIN || seats > VEHICLE_SEATS_MAX) {
-    errors.seats = 'onboarding.validation.seats';
+  if (
+    seats === null ||
+    seats < VEHICLE_SEATS_MIN ||
+    seats > VEHICLE_SEATS_MAX
+  ) {
+    errors.seats = "onboarding.validation.seats";
   }
   return errors;
 }
 
 export function validateVehiclePhotos(draft: VehicleDraft): string | null {
-  if (draft.photos.length < VEHICLE_PHOTOS_MIN) return 'onboarding.validation.photosRequired';
-  if (draft.photos.length > VEHICLE_PHOTOS_MAX) return 'onboarding.validation.photosTooMany';
+  if (draft.photos.length < VEHICLE_PHOTOS_MIN)
+    return "onboarding.validation.photosRequired";
+  if (draft.photos.length > VEHICLE_PHOTOS_MAX)
+    return "onboarding.validation.photosTooMany";
   return null;
 }
 

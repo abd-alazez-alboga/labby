@@ -2,9 +2,10 @@
   "app": {
     "name": "Labby Driver"
   },
+  "nav": {
+    "back": "Back"
+  },
   "home": {
-    "title": "Welcome to Labby Driver",
-    "subtitle": "Your trips will appear here once rides go live.",
     "goToSettings": "Settings",
     "myVehicle": "My vehicle",
     "myDocuments": "My documents",
@@ -29,7 +30,6 @@
     "direction": "Layout direction",
     "ltr": "Left to right",
     "rtl": "Right to left",
-    "restartNote": "Full right-to-left mirroring is applied after the app restarts.",
     "apiChecking": "Checking backend…",
     "apiOffline": "Backend unreachable",
     "apiVersion": "Backend version: {{version}}"
@@ -122,9 +122,9 @@
     "renewDocuments": "Renew my documents",
     "checkStatus": "Check my status again",
     "needTitle": "What you'll need",
-    "needPersonal": "• Your name and a clear profile photo",
-    "needDocuments": "• Government ID, driver's license, vehicle registration and insurance — each with its number and expiry date",
-    "needVehicle": "• Your vehicle's details and 1 to 4 photos of it",
+    "needPersonal": "Your name and a clear profile photo",
+    "needDocuments": "Government ID, driver's license, vehicle registration and insurance — each with its number and expiry date",
+    "needVehicle": "Your vehicle's details and 1 to 4 photos of it",
     "start": "Start my application"
   },
   "account": {
@@ -369,6 +369,7 @@
       "renewalRejected": "Renewal rejected",
       "noReason": "No reason given.",
       "renew": "Renew",
+      "renewNamed": "Renew {{document}}",
       "notApproved": "Your documents appear here once you're an approved driver.",
       "expiredBanner": "An expired document pauses your driver access until its renewal is approved."
     },
@@ -411,6 +412,7 @@
     "onlineHint": "Keep Labby open while you're online — your location is shared every few seconds.",
     "onlineSince": "Online since {{time}}",
     "goOnline": "Go online",
+    "go": "GO",
     "goOffline": "Go offline",
     "noProfile": "Your driver profile isn't set up yet, so you can't go online.",
     "blockedTitle": "You can't go online",

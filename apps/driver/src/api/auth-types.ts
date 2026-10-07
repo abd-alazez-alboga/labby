@@ -4,14 +4,14 @@
  * depend on them without cycles.
  */
 
-export type AppLanguage = 'en' | 'ar';
+export type AppLanguage = "en" | "ar";
 
-export type RoleName = 'rider' | 'driver' | 'admin';
-export type RoleState = 'active' | 'suspended';
-export type AccountState = 'active' | 'suspended' | 'deleted';
+export type RoleName = "rider" | "driver" | "admin";
+export type RoleState = "active" | "suspended";
+export type AccountState = "active" | "suspended" | "deleted";
 
 /** Why a role is suspended (USR-04); M5 adds `document_expired` (DRV-04). */
-export type SuspensionReason = 'document_expired';
+export type SuspensionReason = "document_expired";
 
 export interface RoleAssignment {
   role: RoleName;
@@ -37,7 +37,7 @@ export interface AuthTokensResponse {
   user: UserProfile;
 }
 
-export type RegisterVerifyMode = 'new' | 'reactivated';
+export type RegisterVerifyMode = "new" | "reactivated";
 
 export interface RegisterVerifyResponse {
   mode: RegisterVerifyMode;
@@ -50,7 +50,7 @@ export interface PasswordResetVerifyResponse {
 }
 
 /** Client identifier the login endpoint expects — this app is the driver one. */
-export const DRIVER_CLIENT = 'driver' as const;
+export const DRIVER_CLIENT = "driver" as const;
 
 /** Contract validation patterns (components.schemas in auth-v1.yaml). */
 export const PHONE_PATTERN = /^\+?[0-9]{8,15}$/;
@@ -63,12 +63,13 @@ export const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
 /** The account's `driver` role assignment, if any. */
 export function driverRoleOf(user: UserProfile): RoleAssignment | null {
-  return user.roles.find((assignment) => assignment.role === 'driver') ?? null;
+  return user.roles.find((assignment) => assignment.role === "driver") ?? null;
 }
 
 /** True when the profile holds an ACTIVE `driver` role (the in-app gate). */
 export function hasActiveDriverRole(user: UserProfile): boolean {
   return user.roles.some(
-    (assignment) => assignment.role === 'driver' && assignment.state === 'active',
+    (assignment) =>
+      assignment.role === "driver" && assignment.state === "active",
   );
 }

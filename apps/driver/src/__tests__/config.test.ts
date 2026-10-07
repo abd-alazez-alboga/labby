@@ -1,6 +1,6 @@
-import { DEFAULT_CONFIG, getConfig } from '../config';
+import { DEFAULT_CONFIG, getConfig } from "../config";
 
-describe('config accessor', () => {
+describe("config accessor", () => {
   const originalEnv = process.env.EXPO_PUBLIC_API_BASE_URL;
   const originalTiles = process.env.EXPO_PUBLIC_MAP_TILE_URL;
 
@@ -17,7 +17,7 @@ describe('config accessor', () => {
     }
   });
 
-  it('returns the app-config / default apiBaseUrl when no env override is set', () => {
+  it("returns the app-config / default apiBaseUrl when no env override is set", () => {
     delete process.env.EXPO_PUBLIC_API_BASE_URL;
 
     const config = getConfig();
@@ -26,28 +26,33 @@ describe('config accessor', () => {
     expect(config.apiBaseUrl).toBe(DEFAULT_CONFIG.apiBaseUrl);
   });
 
-  it('prefers EXPO_PUBLIC_API_BASE_URL over the baked-in value', () => {
-    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
+  it("prefers EXPO_PUBLIC_API_BASE_URL over the baked-in value", () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.example.test";
 
-    expect(getConfig().apiBaseUrl).toBe('https://api.example.test');
+    expect(getConfig().apiBaseUrl).toBe("https://api.example.test");
   });
 
-  it('strips trailing slashes so paths join cleanly', () => {
-    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test/';
+  it("strips trailing slashes so paths join cleanly", () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.example.test/";
 
-    expect(getConfig().apiBaseUrl).toBe('https://api.example.test');
+    expect(getConfig().apiBaseUrl).toBe("https://api.example.test");
   });
 
-  it('defaults the map tiles to the public OSM server with its attribution (ES-04)', () => {
+  it("defaults the map tiles to the public OSM server with its attribution (ES-04)", () => {
     delete process.env.EXPO_PUBLIC_MAP_TILE_URL;
 
-    expect(getConfig().mapTileUrl).toBe('https://tile.openstreetmap.org/{z}/{x}/{y}.png');
-    expect(getConfig().mapAttribution).toBe('© OpenStreetMap contributors');
+    expect(getConfig().mapTileUrl).toBe(
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    );
+    expect(getConfig().mapAttribution).toBe("© OpenStreetMap contributors");
   });
 
-  it('takes the tile URL template from config, never hard-coded', () => {
-    process.env.EXPO_PUBLIC_MAP_TILE_URL = 'https://tiles.labby.example/{z}/{x}/{y}.png';
+  it("takes the tile URL template from config, never hard-coded", () => {
+    process.env.EXPO_PUBLIC_MAP_TILE_URL =
+      "https://tiles.labby.example/{z}/{x}/{y}.png";
 
-    expect(getConfig().mapTileUrl).toBe('https://tiles.labby.example/{z}/{x}/{y}.png');
+    expect(getConfig().mapTileUrl).toBe(
+      "https://tiles.labby.example/{z}/{x}/{y}.png",
+    );
   });
 });

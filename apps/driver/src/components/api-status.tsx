@@ -1,16 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { getMeta } from '../api/meta';
-import type { ApiMeta } from '../api/meta';
-import { useLocale } from '../i18n/LocaleProvider';
-import { colors, spacing } from '../theme/tokens';
+import { getMeta } from "../api/meta";
+import type { ApiMeta } from "../api/meta";
+import { colors } from "../theme/tokens";
+import { AppText } from "./ui";
 
 type ApiStatusState =
-  | { kind: 'loading' }
-  | { kind: 'ok'; meta: ApiMeta }
-  | { kind: 'offline' };
+  { kind: "loading" } | { kind: "ok"; meta: ApiMeta } | { kind: "offline" };
 
 /**
  * Shows the backend's live version fetched on mount, or a friendly offline
@@ -19,17 +16,16 @@ type ApiStatusState =
  */
 export function ApiStatus() {
   const { t } = useTranslation();
-  const { direction } = useLocale();
-  const [state, setState] = useState<ApiStatusState>({ kind: 'loading' });
+  const [state, setState] = useState<ApiStatusState>({ kind: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     getMeta()
       .then((meta) => {
-        if (!cancelled) setState({ kind: 'ok', meta });
+        if (!cancelled) setState({ kind: "ok", meta });
       })
       .catch(() => {
-        if (!cancelled) setState({ kind: 'offline' });
+        if (!cancelled) setState({ kind: "offline" });
       });
     return () => {
       cancelled = true;
@@ -37,32 +33,20 @@ export function ApiStatus() {
   }, []);
 
   const text =
-    state.kind === 'loading'
-      ? t('settings.apiChecking')
-      : state.kind === 'offline'
-        ? t('settings.apiOffline')
-        : t('settings.apiVersion', { version: state.meta.version });
+    state.kind === "loading"
+      ? t("settings.apiChecking")
+      : state.kind === "offline"
+        ? t("settings.apiOffline")
+        : t("settings.apiVersion", { version: state.meta.version });
 
   return (
-    <View style={styles.container} testID={`api-status-${state.kind}`}>
-      <Text
-        style={[
-          styles.text,
-          { textAlign: direction === 'rtl' ? 'right' : 'left' },
-        ]}
-      >
-        {text}
-      </Text>
-    </View>
+    <AppText
+      variant="caption"
+      weight="400"
+      color={colors.textMuted}
+      testID={`api-status-${state.kind}`}
+    >
+      {text}
+    </AppText>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginTop: spacing.md,
-  },
-  text: {
-    color: colors.textSubtle,
-    fontSize: 13,
-  },
-});

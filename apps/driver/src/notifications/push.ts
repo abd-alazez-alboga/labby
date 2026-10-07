@@ -1,11 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isRunningInExpoGo } from 'expo';
-import type * as ExpoNotifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { isRunningInExpoGo } from "expo";
+import type * as ExpoNotifications from "expo-notifications";
+import { Platform } from "react-native";
 
-import { registerDevice, unregisterDevice } from '../api/notifications';
-import type { DevicePlatform } from '../api/realtime-types';
-import { runExclusive } from '../permissions/permission-queue';
+import { registerDevice, unregisterDevice } from "../api/notifications";
+import type { DevicePlatform } from "../api/realtime-types";
+import { runExclusive } from "../permissions/permission-queue";
 
 /**
  * Push plumbing (NTF-01, UC-S-25) — the ONLY module touching
@@ -20,15 +20,16 @@ import { runExclusive } from '../permissions/permission-queue';
  *   FCM sender needs an FCM token, so iOS needs a decision at T5).
  */
 
-export const PUSH_TOKEN_STORAGE_KEY = 'labby-driver.push-token';
+export const PUSH_TOKEN_STORAGE_KEY = "labby-driver.push-token";
 /** Android notification channel for every push (same id as the rider app). */
-export const ANDROID_CHANNEL_ID = 'default';
+export const ANDROID_CHANNEL_ID = "default";
 
-export type PushPermission = 'granted' | 'denied' | 'undetermined' | 'unsupported';
+export type PushPermission =
+  "granted" | "denied" | "undetermined" | "unsupported";
 
 /** Remote push can work in this runtime (native build on Android/iOS). */
 export function pushSupported(): boolean {
-  if (Platform.OS !== 'android' && Platform.OS !== 'ios') return false;
+  if (Platform.OS !== "android" && Platform.OS !== "ios") return false;
   try {
     return !isRunningInExpoGo();
   } catch {
@@ -46,10 +47,10 @@ let loadedNotifications: typeof ExpoNotifications | null = null;
 function notifications(): typeof ExpoNotifications {
   if (loadedNotifications) return loadedNotifications;
   if (!pushSupported()) {
-    throw new Error('expo-notifications is unavailable in this runtime');
+    throw new Error("expo-notifications is unavailable in this runtime");
   }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const loaded = require('expo-notifications') as typeof ExpoNotifications;
+  const loaded = require("expo-notifications") as typeof ExpoNotifications;
   loadedNotifications = loaded;
   return loaded;
 }
@@ -65,19 +66,19 @@ function toPermission(
   granted: boolean,
   canAskAgain: boolean | undefined,
 ): PushPermission {
-  if (granted) return 'granted';
-  if (status === 'denied' && canAskAgain === false) return 'denied';
-  return 'undetermined';
+  if (granted) return "granted";
+  if (status === "denied" && canAskAgain === false) return "denied";
+  return "undetermined";
 }
 
 /** Current OS permission without prompting. */
 export async function getPushPermission(): Promise<PushPermission> {
-  if (!pushSupported()) return 'unsupported';
+  if (!pushSupported()) return "unsupported";
   try {
     const result = await notifications().getPermissionsAsync();
     return toPermission(result.status, result.granted, result.canAskAgain);
   } catch {
-    return 'unsupported';
+    return "unsupported";
   }
 }
 
@@ -89,12 +90,12 @@ export async function getPushPermission(): Promise<PushPermission> {
 export function ensurePushPermission(): Promise<PushPermission> {
   return runExclusive(async () => {
     const current = await getPushPermission();
-    if (current !== 'undetermined') return current;
+    if (current !== "undetermined") return current;
     try {
       const result = await notifications().requestPermissionsAsync();
       return toPermission(result.status, result.granted, result.canAskAgain);
     } catch {
-      return 'unsupported';
+      return "unsupported";
     }
   });
 }
@@ -105,10 +106,10 @@ export function ensurePushPermission(): Promise<PushPermission> {
  * Idempotent; best-effort.
  */
 async function ensureAndroidChannel(): Promise<void> {
-  if (Platform.OS !== 'android' || !pushSupported()) return;
+  if (Platform.OS !== "android" || !pushSupported()) return;
   try {
     await notifications().setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-      name: 'Labby',
+      name: "Labby",
       importance: notifications().AndroidImportance.HIGH,
     });
   } catch {
@@ -117,7 +118,7 @@ async function ensureAndroidChannel(): Promise<void> {
 }
 
 function platform(): DevicePlatform {
-  return Platform.OS === 'ios' ? 'ios' : 'android';
+  return Platform.OS === "ios" ? "ios" : "android";
 }
 
 async function rememberToken(token: string | null): Promise<void> {
@@ -139,7 +140,7 @@ async function rememberedToken(): Promise<string | null> {
 
 /** `PUT /devices` for a token (login, rotation). Rejects on API failure. */
 export async function registerToken(token: string): Promise<void> {
-  await registerDevice({ token, platform: platform(), app: 'driver' });
+  await registerDevice({ token, platform: platform(), app: "driver" });
   await rememberToken(token);
 }
 
@@ -160,12 +161,14 @@ export async function registerThisDevice(
 ): Promise<boolean> {
   await ensureAndroidChannel();
   const permission =
-    options.prompt === false ? await getPushPermission() : await ensurePushPermission();
-  if (permission !== 'granted') return false;
+    options.prompt === false
+      ? await getPushPermission()
+      : await ensurePushPermission();
+  if (permission !== "granted") return false;
   let token: string;
   try {
     const result = await notifications().getDevicePushTokenAsync();
-    token = typeof result.data === 'string' ? result.data : '';
+    token = typeof result.data === "string" ? result.data : "";
   } catch {
     return false;
   }
@@ -186,11 +189,13 @@ export async function unregisterThisDevice(): Promise<void> {
 }
 
 /** FCM rotated the token: re-register it. */
-export function onPushTokenChange(listener: (token: string) => void): () => void {
+export function onPushTokenChange(
+  listener: (token: string) => void,
+): () => void {
   if (!pushSupported()) return () => {};
   try {
     const subscription = notifications().addPushTokenListener((token) => {
-      if (typeof token.data === 'string' && token.data) listener(token.data);
+      if (typeof token.data === "string" && token.data) listener(token.data);
     });
     return () => subscription.remove();
   } catch {
@@ -199,11 +204,14 @@ export function onPushTokenChange(listener: (token: string) => void): () => void
 }
 
 /** The data payload of a tapped notification. */
-export function onNotificationTap(listener: (data: unknown) => void): () => void {
+export function onNotificationTap(
+  listener: (data: unknown) => void,
+): () => void {
   try {
-    const subscription = notifications().addNotificationResponseReceivedListener((response) =>
-      listener(response.notification.request.content.data),
-    );
+    const subscription =
+      notifications().addNotificationResponseReceivedListener((response) =>
+        listener(response.notification.request.content.data),
+      );
     return () => subscription.remove();
   } catch {
     return () => {};
@@ -215,7 +223,9 @@ export async function takeLaunchTap(): Promise<unknown | null> {
   try {
     const response = await notifications().getLastNotificationResponseAsync();
     if (!response) return null;
-    await notifications().clearLastNotificationResponseAsync().catch(() => {});
+    await notifications()
+      .clearLastNotificationResponseAsync()
+      .catch(() => {});
     return response.notification.request.content.data;
   } catch {
     return null;
@@ -225,7 +235,9 @@ export async function takeLaunchTap(): Promise<unknown | null> {
 /** A push arrived while the app is open. */
 export function onNotificationReceived(listener: () => void): () => void {
   try {
-    const subscription = notifications().addNotificationReceivedListener(() => listener());
+    const subscription = notifications().addNotificationReceivedListener(() =>
+      listener(),
+    );
     return () => subscription.remove();
   } catch {
     return () => {};

@@ -1,29 +1,29 @@
 /* eslint-disable import/no-named-as-default-member --
    i18next is used as the documented singleton (i18n.use/init/changeLanguage). */
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getLocales } from 'expo-localization';
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-import { I18nManager } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getLocales } from "expo-localization";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { I18nManager } from "react-native";
 
-import ar from './translations/ar.json';
-import en from './translations/en.json';
+import ar from "./translations/ar.json";
+import en from "./translations/en.json";
 
-export const LANGUAGE_STORAGE_KEY = 'labby-driver.language';
+export const LANGUAGE_STORAGE_KEY = "labby-driver.language";
 
-export const SUPPORTED_LANGUAGES = ['en', 'ar'] as const;
+export const SUPPORTED_LANGUAGES = ["en", "ar"] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
-export type Direction = 'ltr' | 'rtl';
+export type Direction = "ltr" | "rtl";
 
 export function isSupportedLanguage(value: unknown): value is Language {
   return (
-    typeof value === 'string' &&
+    typeof value === "string" &&
     (SUPPORTED_LANGUAGES as readonly string[]).includes(value)
   );
 }
 
 export function directionFor(language: Language): Direction {
-  return language === 'ar' ? 'rtl' : 'ltr';
+  return language === "ar" ? "rtl" : "ltr";
 }
 
 /** Persisted language choice, or null when unset/unreadable. */
@@ -40,9 +40,9 @@ export async function loadStoredLanguage(): Promise<Language | null> {
 export function deviceLanguage(): Language {
   try {
     const code = getLocales()[0]?.languageCode;
-    return isSupportedLanguage(code) ? code : 'en';
+    return isSupportedLanguage(code) ? code : "en";
   } catch {
-    return 'en';
+    return "en";
   }
 }
 
@@ -57,7 +57,7 @@ export function deviceLanguage(): Language {
  * instantly and is what shell components use for text alignment.
  */
 export function syncNativeDirection(language: Language): void {
-  const shouldBeRTL = directionFor(language) === 'rtl';
+  const shouldBeRTL = directionFor(language) === "rtl";
   I18nManager.allowRTL(true);
   if (I18nManager.isRTL !== shouldBeRTL) {
     I18nManager.forceRTL(shouldBeRTL);
@@ -80,7 +80,7 @@ export async function initI18n(): Promise<Language> {
         ar: { translation: ar },
       },
       lng: language,
-      fallbackLng: 'en',
+      fallbackLng: "en",
       interpolation: { escapeValue: false },
     });
   }

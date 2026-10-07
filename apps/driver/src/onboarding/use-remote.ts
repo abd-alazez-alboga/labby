@@ -1,9 +1,9 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError } from '../api/client';
-import { failureKindOf } from './server-errors';
-import type { FailureKind } from './server-errors';
+import { ApiError } from "../api/client";
+import { failureKindOf } from "./server-errors";
+import type { FailureKind } from "./server-errors";
 
 /**
  * Facade hook for one onboarding resource (application, vehicles, document
@@ -16,10 +16,10 @@ import type { FailureKind } from './server-errors';
  * constants), as they key the reload callback.
  */
 export type RemoteState<T> =
-  | { status: 'loading' }
-  | { status: 'loaded'; data: T }
-  | { status: 'absent'; httpStatus: number }
-  | { status: 'error'; kind: FailureKind };
+  | { status: "loading" }
+  | { status: "loaded"; data: T }
+  | { status: "absent"; httpStatus: number }
+  | { status: "error"; kind: FailureKind };
 
 export interface Remote<T> {
   state: RemoteState<T>;
@@ -34,7 +34,7 @@ export function useRemote<T>(
   load: () => Promise<T>,
   absentStatuses: readonly number[] = NONE,
 ): Remote<T> {
-  const [state, setState] = useState<RemoteState<T>>({ status: 'loading' });
+  const [state, setState] = useState<RemoteState<T>>({ status: "loading" });
   const [refreshing, setRefreshing] = useState(false);
   const hasDataRef = useRef(false);
   const mountedRef = useRef(true);
@@ -48,19 +48,19 @@ export function useRemote<T>(
 
   const reload = useCallback(async () => {
     if (hasDataRef.current) setRefreshing(true);
-    else setState({ status: 'loading' });
+    else setState({ status: "loading" });
     try {
       const data = await load();
       if (!mountedRef.current) return;
       hasDataRef.current = true;
-      setState({ status: 'loaded', data });
+      setState({ status: "loaded", data });
     } catch (error) {
       if (!mountedRef.current) return;
       hasDataRef.current = false;
       if (error instanceof ApiError && absentStatuses.includes(error.status)) {
-        setState({ status: 'absent', httpStatus: error.status });
+        setState({ status: "absent", httpStatus: error.status });
       } else {
-        setState({ status: 'error', kind: failureKindOf(error) });
+        setState({ status: "error", kind: failureKindOf(error) });
       }
     } finally {
       if (mountedRef.current) setRefreshing(false);

@@ -1,4 +1,4 @@
-import { authFetch } from './client';
+import { authFetch } from "./client";
 
 /**
  * Client slice of the regions contract (backend/docs/api/regions-v1.yaml,
@@ -31,5 +31,7 @@ export interface RegionConfig {
 
 /** `GET /api/v1/regions/resolve` — 200 config, 404 outside operating area. */
 export function resolveRegion(lat: number, lng: number): Promise<RegionConfig> {
-  return authFetch<RegionConfig>(`/api/v1/regions/resolve?lat=${lat}&lng=${lng}`);
+  return authFetch<RegionConfig>(
+    `/api/v1/regions/resolve?lat=${lat}&lng=${lng}`,
+  );
 }

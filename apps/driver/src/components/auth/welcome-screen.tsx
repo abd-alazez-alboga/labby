@@ -1,51 +1,58 @@
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from "expo-router";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { Image, StyleSheet, View } from "react-native";
 
-import { PrimaryButton, TextButton } from './ui';
-import { useSafeBottomBar, useSafeTop } from '../safe-area';
-import { useLocale } from '../../i18n/LocaleProvider';
-import { colors, gradients, radius, spacing } from '../../theme/tokens';
+import { colors, spacing } from "../../theme/tokens";
+import {
+  AppText,
+  PrimaryButton,
+  TextButton,
+  useDirection,
+  useSafeBottomBar,
+  useSafeTop,
+} from "../ui";
 
-// Brand asset copied from /assets/images/labby-logo-white.png (source of truth).
-const logoWhite = require('../../../assets/images/labby-logo-white.png');
+// Brand asset copied from /assets/images/labby-logo.png (source of truth).
+const logo = require("../../../assets/images/labby-logo.png");
 
 export function WelcomeScreen() {
   const { t } = useTranslation();
-  const { direction } = useLocale();
   const router = useRouter();
-  const textAlign = direction === 'rtl' ? 'right' : 'left';
-  // Headerless + edge-to-edge: the hero runs under the status bar and the
+  const { flipRows } = useDirection();
+  // Headerless + edge-to-edge: content starts below the status bar and the
   // buttons stay above the system navigation bar.
-  const heroTop = useSafeTop(spacing.xl * 2);
-  const bodyBottom = useSafeBottomBar(spacing.lg);
+  const top = useSafeTop(spacing.xl);
+  const bottom = useSafeBottomBar();
 
   return (
     <View style={styles.container} testID="welcome-screen">
-      <View style={[styles.hero, { paddingTop: heroTop }]}>
+      <View style={[styles.hero, { paddingTop: top }]}>
         <Image
-          source={logoWhite}
-          style={styles.logo}
+          source={logo}
+          style={[styles.logo, flipRows && styles.logoEnd]}
           resizeMode="contain"
-          accessibilityLabel={t('app.name')}
+          accessibilityLabel={t("app.name")}
         />
-        <Text style={[styles.title, { textAlign }]}>
-          {t('auth.welcome.title')}
-        </Text>
-        <Text style={[styles.subtitle, { textAlign }]}>
-          {t('auth.welcome.subtitle')}
-        </Text>
+        <View style={styles.copy}>
+          <AppText variant="display">{t("auth.welcome.title")}</AppText>
+          <AppText variant="body" color={colors.textSecondary}>
+            {t("auth.welcome.subtitle")}
+          </AppText>
+        </View>
       </View>
-      <View style={[styles.body, { paddingBottom: bodyBottom }]} testID="welcome-actions">
+      <View
+        style={[styles.actions, { paddingBottom: bottom }]}
+        testID="welcome-actions"
+      >
         <PrimaryButton
-          title={t('auth.welcome.login')}
-          onPress={() => router.push('/login')}
+          title={t("auth.welcome.login")}
+          onPress={() => router.push("/login")}
           testID="welcome-login"
         />
         <TextButton
-          title={t('auth.welcome.register')}
-          onPress={() => router.push('/register')}
+          title={t("auth.welcome.register")}
+          onPress={() => router.push("/register")}
           testID="welcome-register"
         />
       </View>
@@ -54,40 +61,14 @@ export function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgLight,
-  },
-  hero: {
-    // Solid fallback for --labby-gradient-hero.
-    backgroundColor: gradients.hero[0],
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl * 2,
-    paddingBottom: spacing.xl,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
-  },
-  logo: {
-    width: 180,
-    height: 40,
-    alignSelf: 'center',
-    marginBottom: spacing.lg,
-  },
-  title: {
-    color: colors.white,
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    color: colors.lilac200,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  body: {
-    flex: 1,
-    padding: spacing.lg,
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
+  container: { flex: 1, backgroundColor: colors.surface },
+  hero: { flex: 1, paddingHorizontal: spacing.ml, gap: spacing.xl },
+  logo: { width: 150, height: 27, alignSelf: "flex-start" },
+  logoEnd: { alignSelf: "flex-end" },
+  copy: { flex: 1, justifyContent: "center", gap: spacing.ms },
+  actions: {
+    paddingHorizontal: spacing.ml,
+    paddingTop: spacing.md,
+    gap: spacing.xs,
   },
 });

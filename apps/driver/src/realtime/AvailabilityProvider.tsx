@@ -15,7 +15,7 @@
  * - A user-initiated sign-out takes an online driver offline first
  *   (best-effort sign-out task).
  */
-import * as Location from 'expo-location';
+import * as Location from "expo-location";
 import React, {
   createContext,
   useCallback,
@@ -24,44 +24,48 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import { AppState, Linking } from 'react-native';
+} from "react";
+import { AppState, Linking } from "react-native";
 
-import { getAvailability, postLocationSamples, setAvailability } from '../api/availability';
-import { ApiError, refreshSession } from '../api/client';
-import type { DriverAvailability, LocationSample } from '../api/realtime-types';
-import { useAuth } from '../auth/AuthProvider';
-import { getSession, subscribeToSession } from '../auth/session';
-import { addSignOutTask } from '../auth/sign-out-tasks';
-import { getConfig } from '../config';
-import { failureKindOf } from '../onboarding/server-errors';
-import { runExclusive } from '../permissions/permission-queue';
-import type { FailureKind } from '../onboarding/server-errors';
-import { foregroundLocationSource } from './location-source';
-import { LocationStreamer } from './location-streamer';
-import type { SocketLike, StreamStatus } from './location-streamer';
-import { realtimeUrl } from './protocol';
+import {
+  getAvailability,
+  postLocationSamples,
+  setAvailability,
+} from "../api/availability";
+import { ApiError, refreshSession } from "../api/client";
+import type { DriverAvailability, LocationSample } from "../api/realtime-types";
+import { useAuth } from "../auth/AuthProvider";
+import { getSession, subscribeToSession } from "../auth/session";
+import { addSignOutTask } from "../auth/sign-out-tasks";
+import { getConfig } from "../config";
+import { failureKindOf } from "../onboarding/server-errors";
+import { runExclusive } from "../permissions/permission-queue";
+import type { FailureKind } from "../onboarding/server-errors";
+import { foregroundLocationSource } from "./location-source";
+import { LocationStreamer } from "./location-streamer";
+import type { SocketLike, StreamStatus } from "./location-streamer";
+import { realtimeUrl } from "./protocol";
 
 export type AvailabilityLoad =
-  | { status: 'loading' }
-  | { status: 'loaded'; data: DriverAvailability }
+  | { status: "loading" }
+  | { status: "loaded"; data: DriverAvailability }
   /** 409 on GET: the account has no driver profile. */
-  | { status: 'noProfile' }
-  | { status: 'error'; kind: FailureKind };
+  | { status: "noProfile" }
+  | { status: "error"; kind: FailureKind };
 
-export type GpsPermission = 'unknown' | 'granted' | 'denied';
+export type GpsPermission = "unknown" | "granted" | "denied";
 
 export type AvailabilityActionError =
   | FailureKind
   /** PUT online refused although the GET reports no reason. */
-  | 'onlineRefused'
+  | "onlineRefused"
   /** PUT offline refused (M7: an active ride must finish first). */
-  | 'offlineConflict';
+  | "offlineConflict";
 
 export interface AvailabilityContextValue {
   load: AvailabilityLoad;
   /** A toggle request in flight. */
-  pending: 'online' | 'offline' | null;
+  pending: "online" | "offline" | null;
   actionError: AvailabilityActionError | null;
   gps: GpsPermission;
   /** false once the OS will no longer show the permission prompt. */
@@ -83,7 +87,9 @@ export interface AvailabilityContextValue {
   openSettings: () => void;
 }
 
-const AvailabilityContext = createContext<AvailabilityContextValue | null>(null);
+const AvailabilityContext = createContext<AvailabilityContextValue | null>(
+  null,
+);
 
 /** Floor for the online poll, whatever the server's stale window. */
 const MIN_POLL_MS = 15000;
@@ -92,19 +98,24 @@ function createWebSocket(url: string): SocketLike {
   return new WebSocket(url) as unknown as SocketLike;
 }
 
-export function AvailabilityProvider({ children }: { children: React.ReactNode }) {
+export function AvailabilityProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { status: authStatus, isDriver } = useAuth();
-  const active = authStatus === 'signedIn' && isDriver;
+  const active = authStatus === "signedIn" && isDriver;
 
-  const [load, setLoad] = useState<AvailabilityLoad>({ status: 'loading' });
-  const [pending, setPending] = useState<'online' | 'offline' | null>(null);
-  const [actionError, setActionError] = useState<AvailabilityActionError | null>(null);
-  const [gps, setGps] = useState<GpsPermission>('unknown');
+  const [load, setLoad] = useState<AvailabilityLoad>({ status: "loading" });
+  const [pending, setPending] = useState<"online" | "offline" | null>(null);
+  const [actionError, setActionError] =
+    useState<AvailabilityActionError | null>(null);
+  const [gps, setGps] = useState<GpsPermission>("unknown");
   const [gpsCanAskAgain, setGpsCanAskAgain] = useState(true);
   const [gpsUnavailable, setGpsUnavailable] = useState(false);
-  const [stream, setStream] = useState<StreamStatus>('idle');
+  const [stream, setStream] = useState<StreamStatus>("idle");
   const [serverHealthy, setServerHealthy] = useState<boolean | null>(null);
-  const streamRef = useRef<StreamStatus>('idle');
+  const streamRef = useRef<StreamStatus>("idle");
   streamRef.current = stream;
   const [position, setPosition] = useState<LocationSample | null>(null);
 
@@ -112,7 +123,7 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
   const activeRef = useRef(active);
   activeRef.current = active;
   const dataRef = useRef<DriverAvailability | null>(null);
-  dataRef.current = load.status === 'loaded' ? load.data : null;
+  dataRef.current = load.status === "loaded" ? load.data : null;
 
   useEffect(() => {
     mounted.current = true;
@@ -124,13 +135,13 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
   /** GET; `quiet` keeps the current state on failure (polls, foreground). */
   const fetchAvailability = useCallback(
     async (quiet: boolean): Promise<DriverAvailability | null> => {
-      if (!quiet) setLoad({ status: 'loading' });
-      const liveAtStart = streamRef.current === 'live';
+      if (!quiet) setLoad({ status: "loading" });
+      const liveAtStart = streamRef.current === "live";
       try {
         const data = await getAvailability();
         if (mounted.current && activeRef.current) {
-          setLoad({ status: 'loaded', data });
-          if (liveAtStart && streamRef.current === 'live') {
+          setLoad({ status: "loaded", data });
+          if (liveAtStart && streamRef.current === "live") {
             setServerHealthy(data.streamHealthy ?? null);
           }
         }
@@ -138,9 +149,9 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
       } catch (error) {
         if (!mounted.current || !activeRef.current) return null;
         if (error instanceof ApiError && error.status === 409) {
-          setLoad({ status: 'noProfile' });
+          setLoad({ status: "noProfile" });
         } else if (!quiet || !dataRef.current) {
-          setLoad({ status: 'error', kind: failureKindOf(error) });
+          setLoad({ status: "error", kind: failureKindOf(error) });
         }
         return null;
       }
@@ -163,30 +174,31 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
         Location.requestForegroundPermissionsAsync(),
       );
       if (!mounted.current) return false;
-      setGps(permission.granted ? 'granted' : 'denied');
+      setGps(permission.granted ? "granted" : "denied");
       setGpsCanAskAgain(permission.canAskAgain !== false);
       return permission.granted;
     } catch {
-      if (mounted.current) setGps('denied');
+      if (mounted.current) setGps("denied");
       return false;
     }
   }, []);
 
   const goOnline = useCallback(async () => {
     setActionError(null);
-    setPending('online');
+    setPending("online");
     try {
       // UC-D-04 E3: no location, no going online.
       if (!(await askLocation())) return;
       setGpsUnavailable(false);
       try {
         const data = await setAvailability(true);
-        if (mounted.current) setLoad({ status: 'loaded', data });
+        if (mounted.current) setLoad({ status: "loaded", data });
       } catch (error) {
         if (error instanceof ApiError && error.status === 409) {
           // The GET carries the machine-readable reason (E1).
           const fresh = await fetchAvailability(true);
-          if (mounted.current && fresh?.canGoOnline) setActionError('onlineRefused');
+          if (mounted.current && fresh?.canGoOnline)
+            setActionError("onlineRefused");
         } else if (mounted.current) {
           setActionError(failureKindOf(error));
         }
@@ -198,15 +210,15 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
 
   const goOffline = useCallback(async () => {
     setActionError(null);
-    setPending('offline');
+    setPending("offline");
     try {
       const data = await setAvailability(false);
-      if (mounted.current) setLoad({ status: 'loaded', data });
+      if (mounted.current) setLoad({ status: "loaded", data });
     } catch (error) {
       if (!mounted.current) return;
       setActionError(
         error instanceof ApiError && error.status === 409
-          ? 'offlineConflict'
+          ? "offlineConflict"
           : failureKindOf(error),
       );
     } finally {
@@ -221,25 +233,25 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
   // Activation / deactivation.
   useEffect(() => {
     if (!active) {
-      setLoad({ status: 'loading' });
+      setLoad({ status: "loading" });
       setPending(null);
       setActionError(null);
-      setGps('unknown');
+      setGps("unknown");
       setGpsUnavailable(false);
       return;
     }
     void fetchAvailability(false);
   }, [active, fetchAvailability]);
 
-  const online = load.status === 'loaded' && load.data.online;
+  const online = load.status === "loaded" && load.data.online;
 
   // Online on arrival (app restarted while online): check location once.
   useEffect(() => {
-    if (active && online && gps === 'unknown') void askLocation();
+    if (active && online && gps === "unknown") void askLocation();
   }, [active, online, gps, askLocation]);
 
   // The stream runs exactly while online with location granted.
-  const shouldStream = active && online && gps === 'granted';
+  const shouldStream = active && online && gps === "granted";
   useEffect(() => {
     if (!shouldStream) return undefined;
     const data = dataRef.current;
@@ -258,14 +270,17 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
       onStatus: (next) => {
         if (!mounted.current) return;
         setStream(next);
-        if (next !== 'live') setServerHealthy(null);
+        if (next !== "live") setServerHealthy(null);
         // Confirm server-side health one interval after (re)connecting.
-        if (next === 'live') {
+        if (next === "live") {
           if (healthTimer) clearTimeout(healthTimer);
-          healthTimer = setTimeout(() => {
-            healthTimer = null;
-            if (streamRef.current === 'live') void fetchAvailability(true);
-          }, intervalSeconds * 1000 + 2000);
+          healthTimer = setTimeout(
+            () => {
+              healthTimer = null;
+              if (streamRef.current === "live") void fetchAvailability(true);
+            },
+            intervalSeconds * 1000 + 2000,
+          );
         }
       },
       onFix: (sample) => {
@@ -286,7 +301,7 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
       if (healthTimer) clearTimeout(healthTimer);
       streamer.stop();
       if (mounted.current) {
-        setStream('idle');
+        setStream("idle");
         setServerHealthy(null);
         setPosition(null);
       }
@@ -295,13 +310,13 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
 
   // While online and in the foreground, re-read the server's view.
   const pollMs =
-    load.status === 'loaded'
+    load.status === "loaded"
       ? Math.max(MIN_POLL_MS, load.data.staleAfterSeconds * 1000)
       : MIN_POLL_MS;
   useEffect(() => {
     if (!active || !online) return undefined;
     const timer = setInterval(() => {
-      if (AppState.currentState === 'active') void fetchAvailability(true);
+      if (AppState.currentState === "active") void fetchAvailability(true);
     }, pollMs);
     return () => clearInterval(timer);
   }, [active, online, pollMs, fetchAvailability]);
@@ -310,8 +325,9 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!active) return undefined;
     let previous = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'active' && previous !== 'active') void fetchAvailability(true);
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && previous !== "active")
+        void fetchAvailability(true);
       previous = next;
     });
     return () => subscription.remove();
@@ -359,7 +375,9 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
   );
 
   return (
-    <AvailabilityContext.Provider value={value}>{children}</AvailabilityContext.Provider>
+    <AvailabilityContext.Provider value={value}>
+      {children}
+    </AvailabilityContext.Provider>
   );
 }
 

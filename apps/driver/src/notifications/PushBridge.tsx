@@ -1,11 +1,11 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { useRouter } from "expo-router";
+import { useEffect, useRef } from "react";
+import { AppState } from "react-native";
 
-import { markNotificationRead } from '../api/notifications';
-import { useAuth } from '../auth/AuthProvider';
-import { addSignOutTask } from '../auth/sign-out-tasks';
-import { hrefForLink, parsePushPayload } from './deep-links';
+import { markNotificationRead } from "../api/notifications";
+import { useAuth } from "../auth/AuthProvider";
+import { addSignOutTask } from "../auth/sign-out-tasks";
+import { hrefForLink, parsePushPayload } from "./deep-links";
 import {
   configureForegroundPresentation,
   onNotificationReceived,
@@ -15,8 +15,8 @@ import {
   registerToken,
   takeLaunchTap,
   unregisterThisDevice,
-} from './push';
-import { refreshUnread } from './unread-store';
+} from "./push";
+import { refreshUnread } from "./unread-store";
 
 /**
  * Root-level push wiring (renders nothing), active for ANY signed-in
@@ -32,7 +32,7 @@ import { refreshUnread } from './unread-store';
 export function PushBridge() {
   const router = useRouter();
   const { status, isDriver } = useAuth();
-  const signedIn = status === 'signedIn';
+  const signedIn = status === "signedIn";
   const context = useRef({ signedIn, isDriver });
   context.current = { signedIn, isDriver };
 
@@ -62,8 +62,8 @@ export function PushBridge() {
         });
     };
     attempt();
-    const appState = AppState.addEventListener('change', (next) => {
-      if (next === 'active') attempt();
+    const appState = AppState.addEventListener("change", (next) => {
+      if (next === "active") attempt();
     });
     const tokenListener = onPushTokenChange((token) => {
       registerToken(token).catch(() => {});
@@ -87,7 +87,9 @@ export function PushBridge() {
           .catch(() => {})
           .finally(() => void refreshUnread());
       }
-      router.navigate(hrefForLink(link, { isDriver: context.current.isDriver }));
+      router.navigate(
+        hrefForLink(link, { isDriver: context.current.isDriver }),
+      );
     };
     const removeTap = onNotificationTap(open);
     let cancelled = false;

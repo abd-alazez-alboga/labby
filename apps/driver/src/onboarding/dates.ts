@@ -17,7 +17,7 @@ export function toIsoDate(date: Date): string {
 
 /** Local midnight of an ISO calendar date. */
 export function fromIsoDate(iso: string): Date {
-  const [year, month, day] = iso.split('-').map(Number);
+  const [year, month, day] = iso.split("-").map(Number);
   return new Date(year, month - 1, day);
 }
 
@@ -43,10 +43,10 @@ export function maxVehicleYear(now: Date = new Date()): number {
 /** Human date for display, localized when Intl is available. */
 export function formatDate(iso: string, language: string): string {
   try {
-    return new Intl.DateTimeFormat(language === 'ar' ? 'ar' : 'en-GB', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Intl.DateTimeFormat(language === "ar" ? "ar" : "en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     }).format(fromIsoDate(iso.slice(0, 10)));
   } catch {
     return iso.slice(0, 10);
@@ -56,12 +56,12 @@ export function formatDate(iso: string, language: string): string {
 /** Human date-time for history entries (ISO date-time input). */
 export function formatDateTime(iso: string, language: string): string {
   try {
-    return new Intl.DateTimeFormat(language === 'ar' ? 'ar' : 'en-GB', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Intl.DateTimeFormat(language === "ar" ? "ar" : "en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(new Date(iso));
   } catch {
     return iso;

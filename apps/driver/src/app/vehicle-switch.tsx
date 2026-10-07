@@ -1,3 +1,3 @@
-import { VehicleSwitchScreen } from '../components/onboarding/vehicle-switch-screen';
+import { VehicleSwitchScreen } from "../components/onboarding/vehicle-switch-screen";
 
 export default VehicleSwitchScreen;
