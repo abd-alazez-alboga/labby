@@ -17,10 +17,10 @@ import {
   seedSession,
 } from '../test-utils/contract';
 
-const mockRegisterThisDevice = jest.fn(() => Promise.resolve(true));
+const mockRegisterThisDevice = jest.fn((_options?: { prompt?: boolean }) => Promise.resolve(true));
 jest.mock('../notifications/push', () => ({
   ...jest.requireActual('../notifications/push'),
-  registerThisDevice: (options: unknown) => mockRegisterThisDevice(options),
+  registerThisDevice: (options?: { prompt?: boolean }) => mockRegisterThisDevice(options),
 }));
 
 function renderScreen(Component: React.ComponentType) {

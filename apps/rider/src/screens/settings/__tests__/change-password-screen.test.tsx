@@ -11,10 +11,10 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
 }));
 
-const mockRegisterForPush = jest.fn(() => Promise.resolve('registered'));
+const mockRegisterForPush = jest.fn((_options?: { prompt?: boolean }) => Promise.resolve('registered'));
 jest.mock('../../../notifications/push-registration', () => ({
   ...jest.requireActual('../../../notifications/push-registration'),
-  registerForPush: (options: unknown) => mockRegisterForPush(options),
+  registerForPush: (options?: { prompt?: boolean }) => mockRegisterForPush(options),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
