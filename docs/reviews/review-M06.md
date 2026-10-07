@@ -164,3 +164,90 @@ All four gates were run. The backend ran on a `git archive HEAD` export in a scr
 | `apps/rider: npm run check` | **PASS** (with caveat): lint and typecheck clean. The first test run failed 13/24 suites, each on its first test with a 5 s Jest timeout and suite times around 35 s, under emulator load. An immediate `npx jest --ci` re-run gave 24 suites / 139 tests green, exit 0 |
 
 GitHub CI (`gh run list`, read-only) is green on HEAD `f7b6b67` and on every push in the range except `bd5808d`, whose run was cancelled when the next push superseded it.
+
+## Re-audit (2026-10-07, range f7b6b67..HEAD)
+_3 commits (`ce005c2` apps, `7821306` backend, `5883131` password-change re-register) · 41 files · HEAD `5883131` · independent re-audit_
+
+### Summary
+
+The fixes are correct and well tested. Push tokens are deleted on every revoke-all path, including the deleted-account refresh path. The dispatcher also refuses to push to an account with no live session. Five integration tests prove this over HTTP. The dispatcher claim (V8 `claimed_at`, 2-minute stale takeover) is race-free under READ COMMITTED with `SKIP LOCKED`, and a two-pass concurrent test proves each entry is pushed exactly once. The rider now has FCM config and retries registration on foreground without prompting. The driver map sends a Referer, the battery choices are documented, and the classpath regression test does its job (verified below). All original findings are resolved or accepted.
+
+The re-audit cannot pass yet for one reason: **CI is red on `main` HEAD**. The last fix commit (`5883131`) added two test mocks that do not typecheck, so `npm run check` fails in both mobile apps, locally and in GitHub CI. The fix is two lines, but CLAUDE.md requires red CI on `main` to be fixed first, and a passing audit records HEAD as the next review baseline.
+
+**Verdict:** Fail (gate only). Fix R1, confirm CI is green on the new HEAD, and the milestone can pass without another full audit.
+**New findings:** Critical 0 · High 1 · Warning 1 · Info 3
+
+### Status of the original findings
+
+| Finding | Status | Evidence |
+|---|---|---|
+| **H1** push outlives revocation | **Resolved** (account-level design, as approved) | Every revoke-all path deletes all of the account's tokens: `AuthServiceImpl.java:167` (reuse), `:182` (deleted account on refresh), `:240` (reset) via `revokeAllSessions` (`:244-247`, same transaction, `noRollbackFor` keeps it on the 401 path); `MeServiceImpl.java:100-103` (password change) and `:182` (deletion). Defense in depth: `DeviceTokenRepository.findPushable` (`:80-87`) requires a non-revoked, unexpired refresh token for the account, and `NotificationDeliveryWriter.java:131-135` uses it. A revoked device cannot re-register, because `JwtAuthFilter` checks `sid` liveness on every request (`JwtAuthFilter.java:50`). Tests: `PushRevocationIntegrationTest` (5): reuse, reset, change (plus re-register → push), deletion (center row kept), logged out or expired → no push; `AuthServiceImplTest`, `MeServiceImplTest` verify `removeAllForUser`. Tokens are not bound to sessions, per the approved plan; the remaining exposure is in Info N2 |
+| **H2** rider has no FCM config / no retry | **Resolved in code**; device proof still open (R2) | `apps/rider/app.config.ts:42` `googleServicesFile: process.env.GOOGLE_SERVICES_JSON`; README documents it. Foreground retry with `prompt: false` (`notifications-context.tsx:118-151`, `push-registration.ts:96-109`), and Android 13 "denied but askable" handled (`push-registration.ts:72-79`). Tests: `push-lifecycle.test.tsx`: retry after Settings grant, no dialog loop, A13 first prompt |
+| **W1** driver map has no Referer | **Resolved** | `osm-map.tsx:96,207` `source={{ html, baseUrl }}` = `${apiBaseUrl}/`, same as the rider. The navigation guard allows only the exact base URL (iOS reports the initial load as a navigation to it) and still sends every other top-frame URL to `Linking` (`osm-map.tsx:215`). `osm-map.test.tsx` asserts both |
+| **W2** deferred items without a ticket | **Resolved** (tracker tickets) | `docs/milestones/README.md:134-135`: M6-X1 iOS push (blocked on the owner's Apple account; owner input row `:22`) and M6-X2 background location ("must land before M7-T4 dispatch testing") |
+| **W3** battery choices undocumented | **Resolved** | `apps/driver/README.md` "Battery": GPS accuracy/interval, deliberate `distanceInterval: 0`, stale suppression, ping/backoff/buffer, poll cadence, stop-when-offline, foreground-only limit, plan for the background source. `location-streamer.ts:43-44` points to it |
+| **W4** dispatcher double-push across instances | **Resolved** (at-least-once with a 2-minute stale claim, as approved) | `V8__notification_dispatch_claim.sql`; `NotificationOutboxRepository.findPendingIds`/`lockClaimable` skip fresh claims (`claimed_at IS NULL OR claimed_at < :staleBefore` + `FOR UPDATE SKIP LOCKED`); `prepare` stamps `claimedAt` in the transaction that commits the center row (`NotificationDeliveryWriter.java:103-108`). Race walk-through: a second dispatcher either hits the row lock (skipped) or, after commit, sees the fresh claim (filtered). Tests: `NotificationDispatchClaimIntegrationTest`: two concurrent passes push 6 entries exactly once; a dead instance's claim blocks until stale, then delivers once. Re-push is possible only past `CLAIM_TIMEOUT` (documented at-least-once) |
+| **W5** tracker drift | **Partially resolved** | Fixed: Firebase inputs row (`:21`), current milestone M6 (`:28`), safe-area and prompt fixes marked done (`:30`). Still stale: the M6-T5 record (`:31`) still says "(fix in progress)" and "being fixed now"; the T2 record (`:32`) still says "single-instance assumption", which V8 supersedes. The approved fix decisions are recorded only in the contract and code comments, not the tracker: password change drops all tokens and the staying device re-registers silently; at-least-once delivery with the 2-minute claim; tokens are account-level, not session-bound; Info 3 (routing throttle) is deferred. Fold these into the closure commit; not blocking on its own |
+| **W6** no regression test for the FCM classpath | **Resolved** | `unit/config/PushConfigTest` builds `FcmPushSender` from a generated service-account key, offline. **Verified** on a scratch copy: with `google-http-client-jackson2` removed from `pom.xml`, the test fails with `NoClassDefFoundError: …jackson2/JacksonFactory`. With `httpclient5` set back to `test` scope, httpclient5, httpcore5 and httpcore5-h2 stay on the runtime classpath (`dependency:build-classpath -Dmdep.includeScope=runtime`), so that half of the original failure does not reproduce with the current tree |
+| Info 1 stale `parsePushPayload` comments | **Resolved** (comment); nested `link` kept on purpose as "tolerated" | `apps/{driver,rider}/src/notifications/deep-links.ts:76-83` |
+| Info 2 Android channel | **Resolved** | Server `FcmPushSender.java:71-75` sets `channel_id = "default"` (asserted on the wire format in `FcmPushSenderTest.shouldTargetTheDefaultAndroidChannel`). The driver now creates `default` HIGH before prompting (`push.ts:102-117`, tested); the rider already did (`push-registration.ts:28,58-63`). Contract `realtime-v1.yaml:23-25` matches |
+| Info 3 unthrottled OSRM proxy | Open (not addressed, not tracked) | `RoutingController.java:31`. Track before M7 fare estimates (see W5 note) |
+| Info 4 suspension deep link | **Resolved** | `NotificationRenderer.java:214-229`: only `document_expired` links to `driver_documents`, otherwise `link: null`. Contract `realtime-v1.yaml:44-46`; `NotificationRendererTest` covers `{}` and `manual` |
+| Info 5 per-socket liveness query | Open (V2 note, no action expected) | Unchanged |
+
+### New findings
+
+#### High
+
+**R1: CI is red on `main` HEAD. Two test mocks added in `5883131` fail `tsc` (TS2554), so `npm run check` fails in both mobile apps**
+- Category: tests · Severity: High (trivially fixable) · Certainty: High
+- Location: `apps/driver/src/__tests__/account-screens.test.tsx:20,23`; `apps/rider/src/screens/settings/__tests__/change-password-screen.test.tsx:14,17`
+- Rationale: `jest.fn(() => Promise.resolve(true))` is typed with zero parameters, and the mock factory then calls it with `options`, which TypeScript rejects ("Expected 0 arguments, but got 1"). GitHub CI run 37605671812 on `5883131` fails the driver and rider jobs on exactly these lines; the backend and admin jobs pass. `ce005c2` was green. CLAUDE.md: "A red CI on `main` is fixed before any new work", and a passing audit records HEAD as the review baseline. The Jest suites themselves pass (driver 183, rider 142) because babel strips types; only the gate's `typecheck` step fails.
+- Fix Suggestion: type the mock's parameter, e.g. `const mockRegisterThisDevice = jest.fn((_options?: { prompt?: boolean }) => Promise.resolve(true));`, and the same for `mockRegisterForPush` (returning `Promise.resolve('registered' as const)`). Run `npm run check` in both apps before pushing.
+
+#### Warning
+
+**R2: Rider push is still not device-proven, and no ticket or acceptance criterion owns the proof (H2 / T5 residual)**
+- Category: integration · Severity: Warning · Certainty: High
+- Location: `docs/milestones/README.md:31` (the T5 record proves push with the driver app only); `docs/milestones/M07-ride-loop.md` (no push acceptance criterion; the only end-to-end check is the scripted ride loop)
+- Rationale: The H2 fix was code-only. Its suggestion asked for one rider push on the emulator now, or an explicit M7 acceptance criterion. Neither happened. The rider is the main audience for M7 ride pushes, so a missing or incorrect `GOOGLE_SERVICES_JSON` in the rider build would surface only during M7 device testing.
+- Fix Suggestion: either run one rider-audience push on the emulator dev build now (a test outbox row is enough) and record it in the T5 record, or add an acceptance criterion to the M7 ticket that emits the first rider push ("rider receives the ride push on an Android dev build and the tap opens the ride").
+
+#### Info
+
+1. **N1: The re-registration after a password change is fire-and-forget and is never retried if it fails.** `apps/driver/src/components/account/change-password-screen.tsx:114` and `apps/rider/src/screens/settings/change-password-screen.tsx:104` call `registerThisDevice` / `registerForPush({ prompt: false })` and swallow errors. The lifecycle owners (`PushBridge.tsx:51`, `notifications-context.tsx:127`) already hold `registered = true` from sign-in, so a foreground re-entry never retries. One failed PUT (flaky network right after the change) leaves the device without push until the next sign-in or cold start. Suggestion: let the bridge/context expose a `reRegister()` that clears `registered` and attempts once, so a failure falls back to the existing foreground retry.
+2. **N2: Residual exposure of the account-level design (accepted).** `findPushable` checks that *some* session of the account is live, not the device's own session. A device whose only session ended without the client's `DELETE /devices` therefore keeps receiving pushes while any other session of the account is live. Examples: a lost phone whose refresh token simply expired, an offline logout, or a `PUT /devices` already past the auth filter when a revoke-all commits (a millisecond window). The contract documents the single-logout case (`realtime-v1.yaml` PUT /devices). Revisit session binding (`device_tokens.session_id`, carried across rotation) before SOS or chat content goes out by push (M10).
+3. **N3: `FcmPushSenderTest.shouldTargetTheDefaultAndroidChannel` reflects into the SDK's private `MulticastMessage.getMessageList`.** An SDK bump can break it as a test failure, not a product bug. Acceptable, since the wire-format assertion is valuable; note it for dependency upgrades.
+
+### Diff review notes (no finding)
+
+- The contract text matches the implementation. `realtime-v1.yaml` PUT /devices lists the four revoke-all paths that delete all tokens plus the live-session filter, and the deleted-account refresh path also deletes them. The Android channel paragraph and the "no link → center" rule match the code.
+- V8 is additive (a nullable `claimed_at`, no backfill needed: existing undelivered rows are simply unclaimed). `findPushable` uses the existing `idx_refresh_tokens_user`.
+- A supported event whose render fails would now leave a claim and retry every 2 minutes instead of every 5 seconds. Today that is unreachable, because `findPendingIds` already filters to renderable events.
+- The driver map's `pageBaseUrl` is memoized once (`[]`). The runtime config is read at boot, so this is fine.
+
+### Gate results (re-audit)
+
+The backend gate ran on a `git archive HEAD` export in the scratch directory, so the running dev backend was not disturbed. The apps ran in place; the working tree equals HEAD apart from the unrelated `.claude/launch.json`. The load average was about 7.
+
+| Command | Result |
+|---|---|
+| `backend: make check` | **PASS**: `./mvnw -B verify` BUILD SUCCESS, 263 tests, 0 failures/errors; spotless clean; 0 Checkstyle violations; `LayeredArchitectureTest` 7/7. New/changed: PushRevocationIntegration 5, NotificationDispatchClaimIntegration 2, PushConfig 2, FcmPushSender 3, NotificationDeliveryWriter 3, NotificationRenderer 4, AuthServiceImpl 12, MeServiceImpl 10, Notifications 9, RealtimeMigration 6 |
+| `apps/admin: npm run check` | **PASS**: 29 files / 187 tests, exit 0 |
+| `apps/driver: npm run check` | **FAIL** (R1): lint clean; `tsc` TS2554 at `account-screens.test.tsx:23`, exit 2. `npm run test` alone: 21 suites / 183 tests green |
+| `apps/rider: npm run check` | **FAIL** (R1): lint clean; `tsc` TS2554 at `change-password-screen.test.tsx:17`, exit 2. `npm run test` alone: 24 suites / 142 tests green (no load timeouts this run) |
+| W6 check (scratch copy, offline Maven) | `PushConfigTest` fails without `google-http-client-jackson2` (NoClassDefFoundError JacksonFactory). With `httpclient5` set to test scope, the runtime classpath still contains httpclient5/httpcore5/httpcore5-h2 |
+| GitHub CI (`gh run list`, read-only) | `ce005c2` green; **`5883131` red** (driver and rider jobs, TS2554; backend and admin green) |
+
+### Re-audit verdict
+
+**Fail (gate only).** H1, H2 (code), W1–W4, W6 and Info 1/2/4 are resolved; W2 is handled as tracker tickets M6-X1/M6-X2. Remaining before M6 can be `review_passed`:
+1. Fix R1 and confirm CI is green on the new HEAD. No other re-audit is needed for this.
+2. In the closure commit: finish W5 (stale T5/T2 record phrases; record the approved decisions: account-level token deletion plus silent re-register, at-least-once with the 2-minute claim, Info 3 deferral) and resolve R2 (prove a rider push now, or add the M7 acceptance criterion).
+
+## Closure (2026-10-07)
+- R1 (red CI from the test mocks in `5883131`) fixed in `1bab319`; GitHub CI green on `1bab319` (all four jobs).
+- R2 (rider push device proof) → added as an M7 milestone acceptance criterion (`docs/milestones/M07-ride-loop.md`).
+- W5 completed in the closure commit: stale tracker phrases corrected and the accepted design decisions (account-scoped tokens, silent re-register after password change, at-least-once delivery with a 2-minute claim) recorded in `docs/milestones/README.md`.
+- Info 3 (unthrottled OSRM proxy), N1–N3 and Info 5 recorded as backlog in the tracker. **M6 → review_passed; review baseline `1bab319`.**
+

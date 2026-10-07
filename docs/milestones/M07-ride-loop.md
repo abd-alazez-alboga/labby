@@ -49,4 +49,5 @@ T1 → (T2 ∥ T3 ∥ T4) → T5 → T6
 - A complete real ride works end-to-end on the demo region with simulated movement, cash-paid, receipted.
 - Dispatch is provably sequential, race-safe, and metric-recording.
 - Fare = stored components = what both parties saw.
+- Ride pushes reach BOTH apps on a real Android dev build: the rider receives a ride push and tapping it opens the ride (carried over from the M6 re-audit, R2 — the rider app's push was proven in code only in M6).
 - Tracker updated; review audit passed.
