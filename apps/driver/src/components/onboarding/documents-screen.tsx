@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 
 import { getMyDocuments } from '../../api/onboarding';
 import type { DocumentSlot } from '../../api/onboarding-types';
@@ -11,6 +11,7 @@ import { formatDate } from '../../onboarding/dates';
 import { useRemote } from '../../onboarding/use-remote';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { BodyText, ErrorBanner } from '../auth/ui';
+import { SafeScrollView } from '../safe-area';
 import {
   Card,
   FailureState,
@@ -108,7 +109,7 @@ export function DocumentsScreen() {
   const anyExpired = ordered.some((slot) => slot.expired);
 
   return (
-    <ScrollView
+    <SafeScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
       refreshControl={
@@ -138,7 +139,7 @@ export function DocumentsScreen() {
           ))}
         </>
       ) : null}
-    </ScrollView>
+    </SafeScrollView>
   );
 }
 

@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import type { LocalFile } from '../api/onboarding';
 import type { FileKind } from '../api/onboarding-types';
 import { DRIVER_FILE_MAX_BYTES } from '../api/onboarding-types';
+import { runExclusive } from '../permissions/permission-queue';
 
 /**
  * Picking files for the onboarding forms: camera, photo library, or the
@@ -70,7 +71,7 @@ async function fromImagePicker(
   source: 'camera' | 'library',
 ): Promise<PickResult> {
   if (source === 'camera') {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    const permission = await runExclusive(() => ImagePicker.requestCameraPermissionsAsync());
     if (!permission.granted) {
       return { status: 'invalid', errorKey: 'onboarding.file.cameraDenied' };
     }

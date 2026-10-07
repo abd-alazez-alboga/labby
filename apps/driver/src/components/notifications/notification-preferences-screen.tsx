@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Linking,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -23,6 +22,7 @@ import { useRemote } from '../../onboarding/use-remote';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { BodyText, ErrorBanner } from '../auth/ui';
 import { FailureState, LoadingState, SecondaryButton, useRowStyle, useTextAlign } from '../onboarding/ui';
+import { SafeScrollView } from '../safe-area';
 
 function ordered(preferences: NotificationPreference[]): NotificationPreference[] {
   return [...preferences].sort(
@@ -124,7 +124,7 @@ export function NotificationPreferencesScreen() {
   }, []);
 
   return (
-    <ScrollView
+    <SafeScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
       refreshControl={
@@ -166,7 +166,7 @@ export function NotificationPreferencesScreen() {
           ))}
         </View>
       ) : null}
-    </ScrollView>
+    </SafeScrollView>
   );
 }
 

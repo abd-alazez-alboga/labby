@@ -34,6 +34,7 @@ import { ApiError } from '../api/client';
 import { resolveRegion } from '../api/regions';
 import type { RegionConfig } from '../api/regions';
 import { useAuth } from '../auth/AuthProvider';
+import { runExclusive } from '../permissions/permission-queue';
 
 export const REGION_CACHE_KEY = 'labby-driver.region';
 
@@ -212,7 +213,7 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
     let permission: Location.LocationPermissionResponse;
     try {
       permission = prompt
-        ? await Location.requestForegroundPermissionsAsync()
+        ? await runExclusive(() => Location.requestForegroundPermissionsAsync())
         : await Location.getForegroundPermissionsAsync();
     } catch {
       degradeToFallback();

@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { getMyVehicles, resolveFileUrl } from '../../api/onboarding';
 import type { Vehicle, VehicleWithDocuments } from '../../api/onboarding-types';
@@ -9,6 +9,7 @@ import { useLocale } from '../../i18n/LocaleProvider';
 import { useRemote } from '../../onboarding/use-remote';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { BodyText, PrimaryButton } from '../auth/ui';
+import { SafeScrollView } from '../safe-area';
 import {
   Card,
   FailureState,
@@ -58,7 +59,7 @@ export function VehiclesScreen() {
   const rejected = vehicles.filter((vehicle) => vehicle.reviewStatus === 'rejected');
 
   return (
-    <ScrollView
+    <SafeScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
       refreshControl={
@@ -127,7 +128,7 @@ export function VehiclesScreen() {
           />
         </>
       ) : null}
-    </ScrollView>
+    </SafeScrollView>
   );
 }
 

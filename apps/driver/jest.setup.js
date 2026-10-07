@@ -114,3 +114,10 @@ jest.mock('@react-native-community/datetimepicker', () => {
 // render deterministically with no act() noise. Suites that assert on API
 // states override this per test.
 globalThis.fetch = jest.fn(() => new Promise(() => {}));
+
+// Safe-area insets: the library's official mock (zero insets) so screens can
+// render without the native provider; inset suites wrap the tree in a
+// SafeAreaProvider with initialMetrics.
+jest.mock('react-native-safe-area-context', () =>
+  require('react-native-safe-area-context/jest/mock').default,
+);

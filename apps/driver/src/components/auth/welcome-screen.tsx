@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton, TextButton } from './ui';
+import { useSafeBottomBar, useSafeTop } from '../safe-area';
 import { useLocale } from '../../i18n/LocaleProvider';
 import { colors, gradients, radius, spacing } from '../../theme/tokens';
 
@@ -15,10 +16,14 @@ export function WelcomeScreen() {
   const { direction } = useLocale();
   const router = useRouter();
   const textAlign = direction === 'rtl' ? 'right' : 'left';
+  // Headerless + edge-to-edge: the hero runs under the status bar and the
+  // buttons stay above the system navigation bar.
+  const heroTop = useSafeTop(spacing.xl * 2);
+  const bodyBottom = useSafeBottomBar(spacing.lg);
 
   return (
     <View style={styles.container} testID="welcome-screen">
-      <View style={styles.hero}>
+      <View style={[styles.hero, { paddingTop: heroTop }]}>
         <Image
           source={logoWhite}
           style={styles.logo}
@@ -32,7 +37,7 @@ export function WelcomeScreen() {
           {t('auth.welcome.subtitle')}
         </Text>
       </View>
-      <View style={styles.body}>
+      <View style={[styles.body, { paddingBottom: bodyBottom }]} testID="welcome-actions">
         <PrimaryButton
           title={t('auth.welcome.login')}
           onPress={() => router.push('/login')}

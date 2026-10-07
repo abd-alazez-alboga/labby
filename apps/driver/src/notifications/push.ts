@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 
 import { registerDevice, unregisterDevice } from '../api/notifications';
 import type { DevicePlatform } from '../api/realtime-types';
+import { runExclusive } from '../permissions/permission-queue';
 
 /**
  * Push plumbing (NTF-01, UC-S-25) — the ONLY module touching
@@ -51,9 +52,19 @@ function notifications(): typeof ExpoNotifications {
   return loaded;
 }
 
-function toPermission(status: string | undefined, granted: boolean): PushPermission {
+/**
+ * Android 13+ reports POST_NOTIFICATIONS as `denied` before the app has EVER asked
+ * (with `canAskAgain: true`); only `canAskAgain: false` is a real, final denial.
+ * Treating the first state as denied meant the app never prompted (found on a
+ * fresh Android 15 install, M6-T5).
+ */
+function toPermission(
+  status: string | undefined,
+  granted: boolean,
+  canAskAgain: boolean | undefined,
+): PushPermission {
   if (granted) return 'granted';
-  if (status === 'denied') return 'denied';
+  if (status === 'denied' && canAskAgain === false) return 'denied';
   return 'undetermined';
 }
 
@@ -62,22 +73,28 @@ export async function getPushPermission(): Promise<PushPermission> {
   if (!pushSupported()) return 'unsupported';
   try {
     const result = await notifications().getPermissionsAsync();
-    return toPermission(result.status, result.granted);
+    return toPermission(result.status, result.granted, result.canAskAgain);
   } catch {
     return 'unsupported';
   }
 }
 
-/** Asks for permission when still undetermined (shows the OS prompt once). */
-export async function ensurePushPermission(): Promise<PushPermission> {
-  const current = await getPushPermission();
-  if (current !== 'undetermined') return current;
-  try {
-    const result = await notifications().requestPermissionsAsync();
-    return toPermission(result.status, result.granted);
-  } catch {
-    return 'unsupported';
-  }
+/**
+ * Asks for permission when still undetermined (shows the OS prompt once).
+ * Queued behind any other permission dialog (Android drops a prompt made
+ * while another is showing) and re-checked once its turn comes.
+ */
+export function ensurePushPermission(): Promise<PushPermission> {
+  return runExclusive(async () => {
+    const current = await getPushPermission();
+    if (current !== 'undetermined') return current;
+    try {
+      const result = await notifications().requestPermissionsAsync();
+      return toPermission(result.status, result.granted, result.canAskAgain);
+    } catch {
+      return 'unsupported';
+    }
+  });
 }
 
 function platform(): DevicePlatform {

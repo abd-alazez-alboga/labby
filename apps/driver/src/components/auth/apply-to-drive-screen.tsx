@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from './ui';
 import { getMyProfile } from '../../api/auth';
@@ -15,6 +15,7 @@ import { colors, gradients, radius, spacing } from '../../theme/tokens';
 import { NotificationsBell } from '../notifications/notifications-bell';
 import { ApplicationTracker } from '../onboarding/application-tracker';
 import { Card, FailureState, FieldError, LoadingState, Muted, SecondaryButton, SectionTitle } from '../onboarding/ui';
+import { SafeScrollView, useSafeTop } from '../safe-area';
 
 // Brand asset copied from /assets/images/labby-logo-white.png (source of truth).
 const logoWhite = require('../../../assets/images/labby-logo-white.png');
@@ -62,10 +63,13 @@ function GateLayout({
   const { user, signOut } = useAuth();
   const { direction } = useLocale();
   const textAlign = direction === 'rtl' ? 'right' : 'left';
+  // Headerless gate: the hero runs under the status bar, its content below it.
+  const heroTop = useSafeTop(spacing.xl);
+  const bellTop = useSafeTop(spacing.sm);
 
   return (
     <View style={styles.container} testID="apply-to-drive-screen">
-      <ScrollView
+      <SafeScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
           onRefresh ? (
@@ -73,9 +77,15 @@ function GateLayout({
           ) : undefined
         }
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, { paddingTop: heroTop }]}>
           {/* Applicants get their stage updates in the center too (UC-S-11). */}
-          <View style={[styles.bell, direction === 'rtl' ? styles.bellRtl : null]}>
+          <View
+            style={[
+              styles.bell,
+              { top: bellTop },
+              direction === 'rtl' ? styles.bellRtl : null,
+            ]}
+          >
             <NotificationsBell />
           </View>
           <Image
@@ -104,7 +114,7 @@ function GateLayout({
             testID="gate-logout"
           />
         </View>
-      </ScrollView>
+      </SafeScrollView>
     </View>
   );
 }

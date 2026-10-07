@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ApiStatus } from './api-status';
+import { SafeScrollView } from './safe-area';
 import { useOptionalAuth } from '../auth/AuthProvider';
 import { useLocale } from '../i18n/LocaleProvider';
 import { SUPPORTED_LANGUAGES } from '../i18n';
@@ -31,7 +32,11 @@ export function SettingsScreen() {
   const textAlign = direction === 'rtl' ? 'right' : 'left';
 
   return (
-    <View style={styles.container} testID="settings-screen">
+    <SafeScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      testID="settings-screen"
+    >
       {auth?.status === 'signedIn' && auth.user ? (
         <>
           <Text style={[styles.sectionLabel, { textAlign }]}>
@@ -104,7 +109,7 @@ export function SettingsScreen() {
         {t('settings.restartNote')}
       </Text>
       <ApiStatus />
-    </View>
+    </SafeScrollView>
   );
 }
 
@@ -112,6 +117,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgLight,
+  },
+  content: {
     padding: spacing.lg,
   },
   sectionLabel: {

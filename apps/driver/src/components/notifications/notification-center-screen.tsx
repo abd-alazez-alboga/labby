@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -34,6 +33,7 @@ import type { FailureKind } from '../../onboarding/server-errors';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { ErrorBanner } from '../auth/ui';
 import { FailureState, LoadingState, useRowStyle, useTextAlign } from '../onboarding/ui';
+import { SafeFlatList } from '../safe-area';
 
 type Filter = NotificationCategory | 'all';
 
@@ -322,7 +322,7 @@ export function NotificationCenterScreen() {
     ) : null;
 
   return (
-    <FlatList
+    <SafeFlatList
       style={styles.screen}
       contentContainerStyle={styles.content}
       data={state.status === 'loaded' ? state.items : []}

@@ -35,6 +35,7 @@ import { getSession, subscribeToSession } from '../auth/session';
 import { addSignOutTask } from '../auth/sign-out-tasks';
 import { getConfig } from '../config';
 import { failureKindOf } from '../onboarding/server-errors';
+import { runExclusive } from '../permissions/permission-queue';
 import type { FailureKind } from '../onboarding/server-errors';
 import { foregroundLocationSource } from './location-source';
 import { LocationStreamer } from './location-streamer';
@@ -158,7 +159,9 @@ export function AvailabilityProvider({ children }: { children: React.ReactNode }
 
   const askLocation = useCallback(async (): Promise<boolean> => {
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const permission = await runExclusive(() =>
+        Location.requestForegroundPermissionsAsync(),
+      );
       if (!mounted.current) return false;
       setGps(permission.granted ? 'granted' : 'denied');
       setGpsCanAskAgain(permission.canAskAgain !== false);

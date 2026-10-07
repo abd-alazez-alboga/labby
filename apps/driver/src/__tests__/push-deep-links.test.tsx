@@ -18,6 +18,7 @@ import { clearSession } from '../auth/session';
 import { hrefForLink, parsePushPayload } from '../notifications/deep-links';
 import { PUSH_TOKEN_STORAGE_KEY, registerThisDevice } from '../notifications/push';
 import { PushBridge } from '../notifications/PushBridge';
+import { runExclusive } from '../permissions/permission-queue';
 import { driverUser, installContractFetch, riderOnlyUser, seedSession } from '../test-utils/contract';
 import type { MockResponse } from '../test-utils/contract';
 import { slotFixture } from '../test-utils/onboarding';
@@ -51,6 +52,8 @@ function mockPush({ permission = 'granted' as 'granted' | 'denied' | 'undetermin
   notificationsMock.getPermissionsAsync.mockResolvedValue({
     status: permission === 'undetermined' ? 'undetermined' : permission,
     granted: permission === 'granted',
+    // A real (final) Android denial can no longer be asked again.
+    canAskAgain: permission !== 'denied',
   } as Notifications.NotificationPermissionsStatus);
   notificationsMock.requestPermissionsAsync.mockResolvedValue({
     status: 'granted',
@@ -183,6 +186,36 @@ describe('push registration + taps (UC-S-25)', () => {
     return contract;
   }
 
+  it('prompts when Android 13+ reports "denied" before ever asking (canAskAgain: true)', async () => {
+    notificationsMock.getPermissionsAsync.mockResolvedValue({
+      status: 'denied',
+      granted: false,
+      canAskAgain: true,
+    } as Notifications.NotificationPermissionsStatus);
+    notificationsMock.requestPermissionsAsync.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+    } as Notifications.NotificationPermissionsStatus);
+    notificationsMock.getDevicePushTokenAsync.mockResolvedValue({ type: 'android', data: 'fcm-a13' });
+    await seedSession(driverUser());
+    installContractFetch({ 'PUT /api/v1/devices': { status: 204 } });
+
+    await expect(registerThisDevice()).resolves.toBe(true);
+    expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('never prompts after a final denial (canAskAgain: false)', async () => {
+    notificationsMock.getPermissionsAsync.mockResolvedValue({
+      status: 'denied',
+      granted: false,
+      canAskAgain: false,
+    } as Notifications.NotificationPermissionsStatus);
+
+    await expect(registerThisDevice()).resolves.toBe(false);
+    expect(notificationsMock.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
   it('re-checks without prompting on foreground re-entry (no permission-dialog loop)', async () => {
     // The OS dialog backgrounds the app and a dismissed dialog stays "undetermined":
     // prompting on every foreground looped the dialog on a fresh Android install (M6-T5).
@@ -190,6 +223,25 @@ describe('push registration + taps (UC-S-25)', () => {
 
     await expect(registerThisDevice({ prompt: false })).resolves.toBe(false);
     expect(notificationsMock.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('waits for an open location dialog before showing the notification prompt', async () => {
+    // Android drops a permission request made while another dialog is up.
+    mockPush({ permission: 'undetermined' });
+    notificationsMock.getDevicePushTokenAsync.mockRejectedValueOnce(new Error('no token'));
+    let closeLocationDialog!: () => void;
+    const locationDialog = runExclusive(
+      () => new Promise<void>((resolve) => (closeLocationDialog = resolve)),
+    );
+
+    const registering = registerThisDevice({ prompt: true });
+    await flush();
+    expect(notificationsMock.requestPermissionsAsync).not.toHaveBeenCalled();
+
+    closeLocationDialog();
+    await locationDialog;
+    await expect(registering).resolves.toBe(false);
+    expect(notificationsMock.requestPermissionsAsync).toHaveBeenCalledTimes(1);
   });
 
   it('asks permission and registers the native device token after login', async () => {

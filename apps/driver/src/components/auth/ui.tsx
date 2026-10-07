@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +14,7 @@ import type { TextInputProps } from 'react-native';
 import { ApiError } from '../../api/client';
 import { useLocale } from '../../i18n/LocaleProvider';
 import { colors, gradients, radius, spacing } from '../../theme/tokens';
+import { SafeScrollView } from '../safe-area';
 
 /**
  * Shared form primitives for the auth and account screens. Text alignment
@@ -41,14 +41,14 @@ export function FormScreen({
   testID?: string;
 }) {
   return (
-    <ScrollView
+    <SafeScrollView
       style={styles.screen}
       contentContainerStyle={styles.screenContent}
       keyboardShouldPersistTaps="handled"
       testID={testID}
     >
       {children}
-    </ScrollView>
+    </SafeScrollView>
   );
 }
 

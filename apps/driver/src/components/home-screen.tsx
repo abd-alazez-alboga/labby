@@ -5,7 +5,6 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,6 +13,7 @@ import {
 import { ApiStatus } from './api-status';
 import { AvailabilityCard } from './availability/availability-card';
 import { NotificationsBell } from './notifications/notifications-bell';
+import { SafeScrollView } from './safe-area';
 import { useLocale } from '../i18n/LocaleProvider';
 import { useOptionalAvailability } from '../realtime/AvailabilityProvider';
 import { useOptionalRegion } from '../region/RegionProvider';
@@ -37,7 +37,7 @@ export function HomeScreen() {
       : null;
 
   return (
-    <ScrollView
+    <SafeScrollView
       style={styles.container}
       contentContainerStyle={styles.scroll}
       refreshControl={
@@ -116,7 +116,7 @@ export function HomeScreen() {
         </Link>
         <ApiStatus />
       </View>
-    </ScrollView>
+    </SafeScrollView>
   );
 }
 
