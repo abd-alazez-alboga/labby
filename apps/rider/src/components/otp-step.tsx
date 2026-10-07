@@ -4,13 +4,13 @@
  * API calls and the cooldown clock (so it can arm it whenever a code is
  * actually sent) — this component is pure presentation + local code state.
  */
-import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import { isValidOtp } from '../api/auth';
-import { useLocale } from '../i18n/locale-context';
-import { colors, fontSize, spacing } from '../theme/tokens';
-import { Button, ErrorBanner, FormField } from './form';
+import { isValidOtp } from "../api/auth";
+import { useLocale } from "../i18n/locale-context";
+import { spacing } from "../theme/tokens";
+import { AppText, Banner, PrimaryButton, TextButton, TextField } from "./ui";
 
 export interface OtpStepProps {
   /** Localized hint line, e.g. "Enter the 6-digit code we sent to …". */
@@ -33,15 +33,15 @@ export function OtpStep({
   onVerify,
   onResend,
   resendSecondsLeft = 0,
-  testIDPrefix = 'otp',
+  testIDPrefix = "otp",
 }: OtpStepProps) {
-  const { t, isRTL } = useLocale();
-  const [code, setCode] = useState('');
+  const { t } = useLocale();
+  const [code, setCode] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
   const submit = () => {
     if (!isValidOtp(code)) {
-      setLocalError(t('auth.otpInvalid'));
+      setLocalError(t("auth.otpInvalid"));
       return;
     }
     setLocalError(null);
@@ -50,10 +50,18 @@ export function OtpStep({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.hint, isRTL && styles.textRtl]}>{hint}</Text>
-      {error ? <ErrorBanner message={error} testID={`${testIDPrefix}-server-error`} /> : null}
-      <FormField
-        label={t('auth.otpLabel')}
+      <AppText variant="body" tone="secondary">
+        {hint}
+      </AppText>
+      {error ? (
+        <Banner
+          tone="danger"
+          message={error}
+          testID={`${testIDPrefix}-server-error`}
+        />
+      ) : null}
+      <TextField
+        label={t("auth.otpLabel")}
         value={code}
         onChangeText={setCode}
         keyboardType="number-pad"
@@ -62,19 +70,18 @@ export function OtpStep({
         error={localError}
         testID={`${testIDPrefix}-code-input`}
       />
-      <Button
-        label={t('auth.verify')}
+      <PrimaryButton
+        label={t("auth.verify")}
         onPress={submit}
         loading={busy}
         testID={`${testIDPrefix}-verify`}
       />
       {onResend ? (
-        <Button
-          variant="link"
+        <TextButton
           label={
             resendSecondsLeft > 0
-              ? t('auth.otpResendIn', { seconds: resendSecondsLeft })
-              : t('auth.otpResend')
+              ? t("auth.otpResendIn", { seconds: resendSecondsLeft })
+              : t("auth.otpResend")
           }
           onPress={onResend}
           disabled={resendSecondsLeft > 0 || busy}
@@ -87,14 +94,6 @@ export function OtpStep({
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.md,
-  },
-  hint: {
-    color: colors.textSecondary,
-    fontSize: fontSize.md,
-  },
-  textRtl: {
-    writingDirection: 'rtl',
-    textAlign: 'right',
+    gap: spacing.lg,
   },
 });

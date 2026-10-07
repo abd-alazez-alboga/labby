@@ -4,9 +4,9 @@
  * read-all and deep links. Because it is server-side it survives reinstalls
  * and device changes (UC-S-11 A1).
  */
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -14,29 +14,40 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
-} from 'react-native';
+} from "react-native";
 
 import {
   type AppNotification,
   NOTIFICATION_CATEGORIES,
   type NotificationCategory,
-} from '../../api/notifications';
-import { Button, ErrorBanner } from '../../components/form';
-import { useInsetContentStyle } from '../../components/screen';
-import { EmptyView, ErrorView, LoadingView } from '../../components/status-view';
-import { useLocale } from '../../i18n/locale-context';
-import { opensNotificationCenter, resolveDeepLink } from '../../notifications/deep-links';
-import { formatNotificationTime } from '../../notifications/format-time';
-import { useNotificationCenter } from '../../notifications/use-notification-center';
-import { colors, fontSize, radius, spacing } from '../../theme/tokens';
+} from "../../api/notifications";
+import {
+  AppText,
+  Banner,
+  ChoiceChip,
+  EmptyView,
+  ErrorView,
+  LoadingView,
+  TextButton,
+  useDirection,
+  useInsetContentStyle,
+} from "../../components/ui";
+import { useLocale } from "../../i18n/locale-context";
+import {
+  opensNotificationCenter,
+  resolveDeepLink,
+} from "../../notifications/deep-links";
+import { formatNotificationTime } from "../../notifications/format-time";
+import { useNotificationCenter } from "../../notifications/use-notification-center";
+import { colors, radius, spacing } from "../../theme/tokens";
 
 type Filter = NotificationCategory | null;
 const FILTERS: Filter[] = [null, ...NOTIFICATION_CATEGORIES];
 
 export default function NotificationCenterScreen() {
-  const { t, locale, isRTL, flipRows } = useLocale();
+  const { t, locale } = useLocale();
+  const { row } = useDirection();
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>(null);
   const center = useNotificationCenter(filter);
@@ -53,31 +64,38 @@ export default function NotificationCenterScreen() {
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: !item.read }}
-      accessibilityHint={item.read ? undefined : t('notifications.unreadHint')}
+      accessibilityHint={item.read ? undefined : t("notifications.unreadHint")}
       onPress={() => open(item)}
       style={({ pressed }) => [
         styles.item,
-        flipRows && styles.rowRtl,
-        !item.read && styles.itemUnread,
+        { flexDirection: row },
         pressed && styles.itemPressed,
       ]}
       testID={`notification-${item.id}`}
     >
       <View
         style={[styles.dot, item.read && styles.dotRead]}
-        testID={item.read ? `notification-${item.id}-read` : `notification-${item.id}-unread`}
+        testID={
+          item.read
+            ? `notification-${item.id}-read`
+            : `notification-${item.id}-unread`
+        }
       />
       <View style={styles.itemText}>
-        <View style={[styles.itemHeader, flipRows && styles.rowRtl]}>
-          <Text style={[styles.category, isRTL && styles.textRtl]}>
+        <View style={[styles.itemHeader, { flexDirection: row }]}>
+          <AppText variant="caption" weight={700} tone="accent">
             {t(`notifications.categories.${item.category}`)}
-          </Text>
-          <Text style={styles.time}>{formatNotificationTime(item.createdAt, locale)}</Text>
+          </AppText>
+          <AppText variant="caption" weight={400} tone="muted">
+            {formatNotificationTime(item.createdAt, locale)}
+          </AppText>
         </View>
-        <Text style={[styles.title, !item.read && styles.titleUnread, isRTL && styles.textRtl]}>
+        <AppText variant={item.read ? "body" : "bodyStrong"}>
           {item.title}
-        </Text>
-        <Text style={[styles.body, isRTL && styles.textRtl]}>{item.body}</Text>
+        </AppText>
+        <AppText variant="secondary" tone="secondary" style={styles.body}>
+          {item.body}
+        </AppText>
       </View>
     </Pressable>
   );
@@ -86,19 +104,20 @@ export default function NotificationCenterScreen() {
     if (center.loadingMore) {
       return (
         <View style={styles.footer} testID="notifications-loading-more">
-          <ActivityIndicator color={colors.purple700} />
+          <ActivityIndicator color={colors.accent} />
         </View>
       );
     }
     if (center.loadMoreError) {
       return (
         <View style={styles.footer} testID="notifications-load-more-error">
-          <Text style={[styles.footerText, isRTL && styles.textRtl]}>
-            {t(`notifications.loadMore${center.loadMoreError === 'network' ? 'Network' : 'Server'}Error`)}
-          </Text>
-          <Button
-            variant="link"
-            label={t('common.retry')}
+          <AppText variant="secondary" tone="muted" align="center">
+            {t(
+              `notifications.loadMore${center.loadMoreError === "network" ? "Network" : "Server"}Error`,
+            )}
+          </AppText>
+          <TextButton
+            label={t("common.retry")}
             onPress={center.loadMore}
             testID="notifications-load-more-retry"
           />
@@ -108,7 +127,9 @@ export default function NotificationCenterScreen() {
     if (!center.hasMore && center.items.length > 0) {
       return (
         <View style={styles.footer} testID="notifications-end">
-          <Text style={styles.footerText}>{t('notifications.endOfList')}</Text>
+          <AppText variant="secondary" tone="muted" align="center">
+            {t("notifications.endOfList")}
+          </AppText>
         </View>
       );
     }
@@ -116,9 +137,9 @@ export default function NotificationCenterScreen() {
   };
 
   let content: React.ReactNode;
-  if (center.status.kind === 'loading') {
+  if (center.status.kind === "loading") {
     content = <LoadingView testID="notifications-loading" />;
-  } else if (center.status.kind === 'error') {
+  } else if (center.status.kind === "error") {
     content = (
       <ErrorView
         kind={center.status.failure}
@@ -129,8 +150,16 @@ export default function NotificationCenterScreen() {
   } else if (center.items.length === 0) {
     content = (
       <EmptyView
-        title={t(filter ? 'notifications.emptyFilteredTitle' : 'notifications.emptyTitle')}
-        body={t(filter ? 'notifications.emptyFilteredBody' : 'notifications.emptyBody')}
+        title={t(
+          filter
+            ? "notifications.emptyFilteredTitle"
+            : "notifications.emptyTitle",
+        )}
+        body={t(
+          filter
+            ? "notifications.emptyFilteredBody"
+            : "notifications.emptyBody",
+        )}
         testID="notifications-empty"
       />
     );
@@ -150,8 +179,8 @@ export default function NotificationCenterScreen() {
           <RefreshControl
             refreshing={center.refreshing}
             onRefresh={center.refresh}
-            tintColor={colors.purple700}
-            colors={[colors.purple700]}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }
         testID="notification-list"
@@ -159,74 +188,89 @@ export default function NotificationCenterScreen() {
     );
   }
 
+  const readAllDisabled = center.unread === 0 || center.markingAll;
+
   return (
     <View style={styles.container} testID="notification-center-screen">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.filterBar}
-        contentContainerStyle={[styles.filters, flipRows && styles.rowRtl]}
+        contentContainerStyle={[styles.filters, { flexDirection: row }]}
       >
         {FILTERS.map((candidate) => {
-          const selected = candidate === filter;
-          const key = candidate ?? 'all';
+          const key = candidate ?? "all";
           return (
-            <Pressable
+            <ChoiceChip
               key={key}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
+              label={t(
+                candidate
+                  ? `notifications.categories.${candidate}`
+                  : "notifications.filterAll",
+              )}
+              selected={candidate === filter}
               onPress={() => setFilter(candidate)}
-              style={[styles.chip, selected && styles.chipSelected]}
               testID={`notification-filter-${key}`}
-            >
-              <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
-                {t(candidate ? `notifications.categories.${candidate}` : 'notifications.filterAll')}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </ScrollView>
 
-      <View style={[styles.toolbar, flipRows && styles.rowRtl]}>
+      <View style={[styles.toolbar, { flexDirection: row }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: center.unread === 0 || center.markingAll }}
-          disabled={center.unread === 0 || center.markingAll}
+          accessibilityState={{ disabled: readAllDisabled }}
+          disabled={readAllDisabled}
           onPress={center.markAllRead}
-          style={[styles.toolbarButton, flipRows && styles.rowRtl]}
+          style={({ pressed }) => [
+            styles.toolbarButton,
+            { flexDirection: row },
+            pressed && styles.itemPressed,
+          ]}
           testID="notifications-read-all"
         >
           {center.markingAll ? (
-            <ActivityIndicator size="small" color={colors.purple700} />
+            <ActivityIndicator size="small" color={colors.accent} />
           ) : (
             <Ionicons
               name="checkmark-done-outline"
               size={18}
-              color={center.unread === 0 ? colors.textSubtle : colors.purple700}
+              color={center.unread === 0 ? colors.textMuted : colors.accent}
             />
           )}
-          <Text style={[styles.toolbarLabel, center.unread === 0 && styles.toolbarLabelDisabled]}>
-            {t('notifications.markAllRead')}
-          </Text>
+          <AppText
+            variant="label"
+            weight={700}
+            tone={center.unread === 0 ? "muted" : "accent"}
+          >
+            {t("notifications.markAllRead")}
+          </AppText>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/notification-preferences')}
-          style={[styles.toolbarButton, flipRows && styles.rowRtl]}
+          onPress={() => router.push("/notification-preferences")}
+          style={({ pressed }) => [
+            styles.toolbarButton,
+            { flexDirection: row },
+            pressed && styles.itemPressed,
+          ]}
           testID="notifications-open-preferences"
         >
-          <Ionicons name="options-outline" size={18} color={colors.purple700} />
-          <Text style={styles.toolbarLabel}>{t('notifications.preferences')}</Text>
+          <Ionicons name="options-outline" size={18} color={colors.accent} />
+          <AppText variant="label" weight={700} tone="accent">
+            {t("notifications.preferences")}
+          </AppText>
         </Pressable>
       </View>
 
       {center.markAllError ? (
         <View style={styles.banner}>
-          <ErrorBanner
+          <Banner
+            tone="danger"
             message={t(
-              center.markAllError === 'network'
-                ? 'common.networkErrorBody'
-                : 'notifications.markAllFailed',
+              center.markAllError === "network"
+                ? "common.networkErrorBody"
+                : "notifications.markAllFailed",
             )}
             testID="notifications-read-all-error"
           />
@@ -241,137 +285,69 @@ export default function NotificationCenterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgLight,
+    backgroundColor: colors.surface,
   },
   filterBar: {
     flexGrow: 0,
   },
   filters: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
     gap: spacing.sm,
-    flexDirection: 'row',
-  },
-  chip: {
-    paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.lavender200,
-    backgroundColor: colors.white,
-  },
-  chipSelected: {
-    backgroundColor: colors.purple700,
-    borderColor: colors.purple700,
-  },
-  chipLabel: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
-  chipLabelSelected: {
-    color: colors.white,
   },
   toolbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.xl,
   },
   toolbarButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: "center",
     gap: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  toolbarLabel: {
-    color: colors.purple700,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
-  toolbarLabelDisabled: {
-    color: colors.textSubtle,
-  },
-  rowRtl: {
-    flexDirection: 'row-reverse',
+    minHeight: 48,
   },
   banner: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.sm,
   },
   content: {
     flex: 1,
   },
   list: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   item: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  itemUnread: {
-    backgroundColor: colors.lavender100,
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
   itemPressed: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   dot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
-    marginTop: 6,
-    backgroundColor: colors.purple500,
+    borderRadius: radius.round,
+    marginTop: 4,
+    backgroundColor: colors.accent,
   },
   dotRead: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   itemText: {
     flex: 1,
     gap: spacing.xs,
   },
   itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
     gap: spacing.sm,
   },
-  category: {
-    color: colors.purple700,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
-  time: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.md,
-  },
-  titleUnread: {
-    fontWeight: '700',
-  },
   body: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    lineHeight: 19,
-  },
-  textRtl: {
-    writingDirection: 'rtl',
-    textAlign: 'right',
+    lineHeight: 20,
   },
   footer: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
+    alignItems: "center",
+    paddingVertical: spacing.lg,
     gap: spacing.xs,
-  },
-  footerText: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
   },
 });

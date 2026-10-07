@@ -14,17 +14,19 @@ export interface LatLng {
 
 /** GeoJSON LineString as returned by `POST /api/v1/routing/route`. */
 export interface GeoJsonLineString {
-  type: 'LineString';
+  type: "LineString";
   /** `[lng, lat]` pairs (GeoJSON order). */
   coordinates: number[][];
 }
 
 function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 /** True for a point inside the valid WGS84 range. */
-export function isValidLatLng(point: LatLng | null | undefined): point is LatLng {
+export function isValidLatLng(
+  point: LatLng | null | undefined,
+): point is LatLng {
   return (
     !!point &&
     isFiniteNumber(point.lat) &&
@@ -41,8 +43,14 @@ export function isValidLatLng(point: LatLng | null | undefined): point is LatLng
  * out-of-range positions are dropped rather than drawn in the wrong place;
  * a non-LineString yields an empty list.
  */
-export function lineStringToLatLngs(geometry: GeoJsonLineString | null | undefined): LatLng[] {
-  if (!geometry || geometry.type !== 'LineString' || !Array.isArray(geometry.coordinates)) {
+export function lineStringToLatLngs(
+  geometry: GeoJsonLineString | null | undefined,
+): LatLng[] {
+  if (
+    !geometry ||
+    geometry.type !== "LineString" ||
+    !Array.isArray(geometry.coordinates)
+  ) {
     return [];
   }
   const points: LatLng[] = [];

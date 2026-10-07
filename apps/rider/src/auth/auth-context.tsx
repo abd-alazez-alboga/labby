@@ -13,7 +13,7 @@
  * - Logout unregisters this device's push token first (while the session
  *   is still valid); every local sign-out forgets it (M6-T4, ES-03).
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -22,29 +22,32 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
+} from "react";
 
 import {
   getMe,
   logout as apiLogout,
   type AuthTokensResponse,
   type UserProfile,
-} from '../api/auth';
-import { ApiError } from '../api/http-client';
-import { forgetPushToken, unregisterPushToken } from '../notifications/push-registration';
+} from "../api/auth";
+import { ApiError } from "../api/http-client";
+import {
+  forgetPushToken,
+  unregisterPushToken,
+} from "../notifications/push-registration";
 import {
   addSessionExpiredListener,
   clearTokens,
   getStoredTokens,
   saveTokens,
-} from './session-store';
+} from "./session-store";
 
-export const PROFILE_CACHE_KEY = 'labby.rider.profile';
+export const PROFILE_CACHE_KEY = "labby.rider.profile";
 
-export type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
+export type AuthStatus = "loading" | "signedOut" | "signedIn";
 
 /** Why the last local sign-out happened (drives the welcome screen copy). */
-export type SignOutReason = 'manual' | 'expired' | 'deleted' | null;
+export type SignOutReason = "manual" | "expired" | "deleted" | null;
 
 export interface AuthContextValue {
   status: AuthStatus;
@@ -84,7 +87,7 @@ async function writeCachedProfile(user: UserProfile | null): Promise<void> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>('loading');
+  const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUserState] = useState<UserProfile | null>(null);
   const [signOutReason, setSignOutReason] = useState<SignOutReason>(null);
   const mounted = useRef(true);
@@ -102,14 +105,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const tokens = await getStoredTokens();
       if (!tokens) {
-        if (!cancelled) setStatus('signedOut');
+        if (!cancelled) setStatus("signedOut");
         return;
       }
       const cached = await readCachedProfile();
       if (cached) {
         if (!cancelled) {
           setUserState(cached);
-          setStatus('signedIn');
+          setStatus("signedIn");
         }
         // Background refresh of the profile; ignore failures (offline, …).
         getMe()
@@ -129,15 +132,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await writeCachedProfile(fresh);
         if (!cancelled) {
           setUserState(fresh);
-          setStatus('signedIn');
+          setStatus("signedIn");
         }
       } catch (error) {
         // Only an auth rejection invalidates the session; a network failure
         // (offline launch) keeps the tokens for the next start.
-        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        if (
+          error instanceof ApiError &&
+          (error.status === 401 || error.status === 403)
+        ) {
           await clearTokens();
         }
-        if (!cancelled) setStatus('signedOut');
+        if (!cancelled) setStatus("signedOut");
       }
     })();
     return () => {
@@ -152,24 +158,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (mounted.current) {
       setUserState(null);
       setSignOutReason(reason);
-      setStatus('signedOut');
+      setStatus("signedOut");
     }
   }, []);
 
   // A failed refresh in the http client kills the session.
   useEffect(() => {
     return addSessionExpiredListener(() => {
-      void clearLocalSession('expired');
+      void clearLocalSession("expired");
     });
   }, [clearLocalSession]);
 
   const signIn = useCallback(async (tokens: AuthTokensResponse) => {
-    await saveTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+    await saveTokens({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
     await writeCachedProfile(tokens.user);
     if (mounted.current) {
       setUserState(tokens.user);
       setSignOutReason(null);
-      setStatus('signedIn');
+      setStatus("signedIn");
     }
   }, []);
 
@@ -193,11 +202,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ignore — token expires server-side anyway
       }
     }
-    await clearLocalSession('manual');
+    await clearLocalSession("manual");
   }, [clearLocalSession]);
 
   const signOutAfterDeletion = useCallback(async () => {
-    await clearLocalSession('deleted');
+    await clearLocalSession("deleted");
   }, [clearLocalSession]);
 
   const setUser = useCallback((next: UserProfile) => {
@@ -206,11 +215,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, signOutReason, signIn, signOut, signOutAfterDeletion, setUser }),
-    [status, user, signOutReason, signIn, signOut, signOutAfterDeletion, setUser],
+    () => ({
+      status,
+      user,
+      signOutReason,
+      signIn,
+      signOut,
+      signOutAfterDeletion,
+      setUser,
+    }),
+    [
+      status,
+      user,
+      signOutReason,
+      signIn,
+      signOut,
+      signOutAfterDeletion,
+      setUser,
+    ],
   );
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return null; // splash stays visible until the stored session is restored
   }
 
@@ -220,7 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return ctx;
 }

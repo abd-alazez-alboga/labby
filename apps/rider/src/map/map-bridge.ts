@@ -17,21 +17,21 @@
  *   NFR-A3 degrade notice) and `{type:'error', reason}` (Leaflet failed to
  *   load or the page crashed).
  */
-import { colors } from '../theme/tokens';
-import { type LatLng, toLeafletLatLng } from './geo';
+import { colors } from "../theme/tokens";
+import { type LatLng, toLeafletLatLng } from "./geo";
 
-export const LEAFLET_VERSION = '1.9.4';
+export const LEAFLET_VERSION = "1.9.4";
 const LEAFLET_CSS = {
   href: `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`,
-  integrity: 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=',
+  integrity: "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=",
 };
 const LEAFLET_JS = {
   src: `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js`,
-  integrity: 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=',
+  integrity: "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=",
 };
 
 /** What a marker stands for; decides its look. */
-export type MapMarkerKind = 'self' | 'origin' | 'destination';
+export type MapMarkerKind = "self" | "origin" | "destination";
 
 export interface MapMarker {
   id: string;
@@ -50,9 +50,9 @@ export interface MapViewState {
 }
 
 export type MapEvent =
-  | { type: 'ready' }
-  | { type: 'tiles'; ok: boolean }
-  | { type: 'error'; reason: string };
+  | { type: "ready" }
+  | { type: "tiles"; ok: boolean }
+  | { type: "error"; reason: string };
 
 export function toMapViewState(input: {
   center: LatLng;
@@ -79,30 +79,45 @@ export function toMapViewState(input: {
 /** JSON that is safe inside an inline <script> (no `</script>` breakout). */
 function scriptJson(value: unknown): string {
   return JSON.stringify(value)
-    .replace(/</g, '\\u003c')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 const MARKER_STYLES: Record<MapMarkerKind, Record<string, unknown>> = {
-  self: { radius: 8, color: colors.white, weight: 3, fillColor: colors.purple500, fillOpacity: 1 },
-  origin: { radius: 7, color: colors.purple700, weight: 3, fillColor: colors.white, fillOpacity: 1 },
+  self: {
+    radius: 8,
+    color: colors.surface,
+    weight: 3,
+    fillColor: colors.accent,
+    fillOpacity: 1,
+  },
+  origin: {
+    radius: 7,
+    color: colors.accent,
+    weight: 3,
+    fillColor: colors.surface,
+    fillOpacity: 1,
+  },
   destination: {
     radius: 7,
-    color: colors.white,
+    color: colors.surface,
     weight: 3,
-    fillColor: colors.purple900,
+    fillColor: colors.text,
     fillOpacity: 1,
   },
 };
 
 /** The full page: Leaflet + the tile layer + `window.labbyMap.apply`. */
-export function buildMapHtml(options: { tileUrlTemplate: string; initialState: MapViewState }): string {
+export function buildMapHtml(options: {
+  tileUrlTemplate: string;
+  initialState: MapViewState;
+}): string {
   const config = scriptJson({
     tileUrl: options.tileUrlTemplate,
     state: options.initialState,
     markerStyles: MARKER_STYLES,
-    routeColor: colors.purple700,
+    routeColor: colors.accent,
   });
   return `<!DOCTYPE html>
 <html>
@@ -110,7 +125,7 @@ export function buildMapHtml(options: { tileUrlTemplate: string; initialState: M
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <link rel="stylesheet" href="${LEAFLET_CSS.href}" integrity="${LEAFLET_CSS.integrity}" crossorigin="" />
-<style>html,body,#map{height:100%;width:100%;margin:0;padding:0;background:${colors.bgTint};}</style>
+<style>html,body,#map{height:100%;width:100%;margin:0;padding:0;background:${colors.surfaceMap};}</style>
 </head>
 <body>
 <div id="map"></div>
@@ -181,13 +196,17 @@ export function parseMapEvent(data: string): MapEvent | null {
   } catch {
     return null;
   }
-  if (!message || typeof message !== 'object') return null;
+  if (!message || typeof message !== "object") return null;
   const { type } = message as { type?: unknown };
-  if (type === 'ready') return { type: 'ready' };
-  if (type === 'tiles') return { type: 'tiles', ok: (message as { ok?: unknown }).ok === true };
-  if (type === 'error') {
+  if (type === "ready") return { type: "ready" };
+  if (type === "tiles")
+    return { type: "tiles", ok: (message as { ok?: unknown }).ok === true };
+  if (type === "error") {
     const reason = (message as { reason?: unknown }).reason;
-    return { type: 'error', reason: typeof reason === 'string' ? reason : 'unknown' };
+    return {
+      type: "error",
+      reason: typeof reason === "string" ? reason : "unknown",
+    };
   }
   return null;
 }

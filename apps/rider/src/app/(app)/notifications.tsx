@@ -1,1 +1,1 @@
-export { default } from '../../screens/notifications/notification-center-screen';
+export { default } from "../../screens/notifications/notification-center-screen";

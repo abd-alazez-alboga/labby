@@ -16,22 +16,23 @@
  * unsupported runtime (Expo Go, see push-support.ts) or a network failure
  * never blocks the app — the center still records everything (NFR-A3).
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
-import { type DevicePlatform, registerDevice, unregisterDevice } from '../api/devices';
-import { runExclusive } from '../permissions/permission-queue';
-import { notifications } from './notifications-module';
-import { isRemotePushSupported } from './push-support';
+import {
+  type DevicePlatform,
+  registerDevice,
+  unregisterDevice,
+} from "../api/devices";
+import { runExclusive } from "../permissions/permission-queue";
+import { notifications } from "./notifications-module";
+import { isRemotePushSupported } from "./push-support";
 
-export const PUSH_TOKEN_KEY = 'labby.rider.pushToken';
-export const ANDROID_CHANNEL_ID = 'default';
+export const PUSH_TOKEN_KEY = "labby.rider.pushToken";
+export const ANDROID_CHANNEL_ID = "default";
 
 export type PushRegistrationResult =
-  | 'registered'
-  | 'unsupported'
-  | 'permissionDenied'
-  | 'failed';
+  "registered" | "unsupported" | "permissionDenied" | "failed";
 
 async function readRegisteredToken(): Promise<string | null> {
   try {
@@ -51,14 +52,14 @@ async function writeRegisteredToken(token: string | null): Promise<void> {
 }
 
 function devicePlatform(): DevicePlatform {
-  return Platform.OS === 'ios' ? 'ios' : 'android';
+  return Platform.OS === "ios" ? "ios" : "android";
 }
 
 /** Android 13+ only shows the permission prompt once a channel exists. */
 async function ensureAndroidChannel(): Promise<void> {
-  if (Platform.OS !== 'android') return;
+  if (Platform.OS !== "android") return;
   await notifications().setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-    name: 'Labby',
+    name: "Labby",
     importance: notifications().AndroidImportance.HIGH,
   });
 }
@@ -74,7 +75,9 @@ async function ensurePermission(prompt: boolean): Promise<boolean> {
   if (!prompt || !current.canAskAgain) return false;
   // Queued behind any other runtime prompt: fired alongside the location
   // prompt after sign-in, Android would otherwise drop one of them.
-  const requested = await runExclusive(() => notifications().requestPermissionsAsync());
+  const requested = await runExclusive(() =>
+    notifications().requestPermissionsAsync(),
+  );
   return requested.granted;
 }
 
@@ -95,16 +98,17 @@ export async function registerToken(token: string): Promise<void> {
 export async function registerForPush(
   options: { prompt?: boolean } = {},
 ): Promise<PushRegistrationResult> {
-  if (!isRemotePushSupported()) return 'unsupported';
+  if (!isRemotePushSupported()) return "unsupported";
   try {
     await ensureAndroidChannel();
-    if (!(await ensurePermission(options.prompt !== false))) return 'permissionDenied';
+    if (!(await ensurePermission(options.prompt !== false)))
+      return "permissionDenied";
     const { data } = await notifications().getDevicePushTokenAsync();
-    if (typeof data !== 'string' || !data) return 'failed';
+    if (typeof data !== "string" || !data) return "failed";
     await registerToken(data);
-    return 'registered';
+    return "registered";
   } catch {
-    return 'failed';
+    return "failed";
   }
 }
 
@@ -115,7 +119,7 @@ export async function registerForPush(
 export function watchPushTokenRotation(): () => void {
   if (!isRemotePushSupported()) return () => {};
   const subscription = notifications().addPushTokenListener(({ data }) => {
-    if (typeof data === 'string' && data) {
+    if (typeof data === "string" && data) {
       registerToken(data).catch(() => {});
     }
   });

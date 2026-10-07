@@ -15,14 +15,18 @@
  * user who granted the permission in the system settings sees the map
  * without pressing anything.
  */
-import * as Location from 'expo-location';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Linking } from 'react-native';
+import * as Location from "expo-location";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Linking } from "react-native";
 
-import type { LatLng } from '../map/geo';
-import { readLocationPermission, requestLocationPermission } from './location-permission';
+import type { LatLng } from "../map/geo";
+import {
+  readLocationPermission,
+  requestLocationPermission,
+} from "./location-permission";
 
-export type PositionStatus = 'locating' | 'ready' | 'permissionDenied' | 'unavailable';
+export type PositionStatus =
+  "locating" | "ready" | "permissionDenied" | "unavailable";
 
 /** Watch granularity: enough to keep the "you are here" dot honest. */
 const WATCH_DISTANCE_INTERVAL_M = 10;
@@ -40,10 +44,10 @@ function toLatLng(location: Location.LocationObject): LatLng {
 }
 
 export function useCurrentPosition(): CurrentPosition {
-  const [status, setStatus] = useState<PositionStatus>('locating');
+  const [status, setStatus] = useState<PositionStatus>("locating");
   const [position, setPosition] = useState<LatLng | null>(null);
   const watch = useRef<Location.LocationSubscription | null>(null);
-  const statusRef = useRef<PositionStatus>('locating');
+  const statusRef = useRef<PositionStatus>("locating");
   const mounted = useRef(true);
 
   const update = useCallback((next: PositionStatus, point?: LatLng) => {
@@ -62,7 +66,7 @@ export function useCurrentPosition(): CurrentPosition {
           distanceInterval: WATCH_DISTANCE_INTERVAL_M,
           timeInterval: WATCH_TIME_INTERVAL_MS,
         },
-        (location) => update('ready', toLatLng(location)),
+        (location) => update("ready", toLatLng(location)),
       );
       if (!mounted.current) {
         subscription.remove();
@@ -74,27 +78,34 @@ export function useCurrentPosition(): CurrentPosition {
     }
   }, [update]);
 
-  const locate = useCallback(async (prompt = true) => {
-    let permission: Location.LocationPermissionResponse;
-    try {
-      permission = prompt ? await requestLocationPermission() : await readLocationPermission();
-    } catch {
-      update('unavailable');
-      return;
-    }
-    if (!permission.granted) {
-      update('permissionDenied');
-      return;
-    }
-    void startWatch();
-    try {
-      const fix = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      update('ready', toLatLng(fix));
-    } catch {
-      // A watch update may still arrive; until then say so honestly.
-      if (statusRef.current !== 'ready') update('unavailable');
-    }
-  }, [startWatch, update]);
+  const locate = useCallback(
+    async (prompt = true) => {
+      let permission: Location.LocationPermissionResponse;
+      try {
+        permission = prompt
+          ? await requestLocationPermission()
+          : await readLocationPermission();
+      } catch {
+        update("unavailable");
+        return;
+      }
+      if (!permission.granted) {
+        update("permissionDenied");
+        return;
+      }
+      void startWatch();
+      try {
+        const fix = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        update("ready", toLatLng(fix));
+      } catch {
+        // A watch update may still arrive; until then say so honestly.
+        if (statusRef.current !== "ready") update("unavailable");
+      }
+    },
+    [startWatch, update],
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -110,10 +121,14 @@ export function useCurrentPosition(): CurrentPosition {
 
   useEffect(() => {
     let previous = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (next) => {
-      const cameBack = next === 'active' && previous !== 'active';
+    const subscription = AppState.addEventListener("change", (next) => {
+      const cameBack = next === "active" && previous !== "active";
       previous = next;
-      if (cameBack && (statusRef.current === 'permissionDenied' || statusRef.current === 'unavailable')) {
+      if (
+        cameBack &&
+        (statusRef.current === "permissionDenied" ||
+          statusRef.current === "unavailable")
+      ) {
         void locate(false);
       }
     });
@@ -121,7 +136,7 @@ export function useCurrentPosition(): CurrentPosition {
   }, [locate]);
 
   const retry = useCallback(() => {
-    update('locating');
+    update("locating");
     void locate();
   }, [locate, update]);
 

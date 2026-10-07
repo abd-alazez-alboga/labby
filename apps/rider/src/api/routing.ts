@@ -1,5 +1,5 @@
-import type { GeoJsonLineString, LatLng } from '../map/geo';
-import { apiFetch } from './http-client';
+import type { GeoJsonLineString, LatLng } from "../map/geo";
+import { apiFetch } from "./http-client";
 
 /**
  * Client slice of the routing contract (realtime-v1.yaml `Routing`, ES-04,
@@ -16,9 +16,11 @@ export interface Route {
 
 /** `POST /api/v1/routing/route` through 2..5 points. */
 export function getRoute(points: LatLng[]): Promise<Route> {
-  return apiFetch<Route>('/api/v1/routing/route', {
-    method: 'POST',
+  return apiFetch<Route>("/api/v1/routing/route", {
+    method: "POST",
     auth: true,
-    body: JSON.stringify({ points: points.map(({ lat, lng }) => ({ lat, lng })) }),
+    body: JSON.stringify({
+      points: points.map(({ lat, lng }) => ({ lat, lng })),
+    }),
   });
 }

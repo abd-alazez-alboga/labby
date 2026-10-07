@@ -7,11 +7,11 @@
  * runtimes registration is skipped silently; the notification center keeps
  * working (it is server-side, NTF-03).
  */
-import { isRunningInExpoGo } from 'expo';
-import { Platform } from 'react-native';
+import { isRunningInExpoGo } from "expo";
+import { Platform } from "react-native";
 
 export function isRemotePushSupported(): boolean {
-  if (Platform.OS !== 'android' && Platform.OS !== 'ios') return false;
+  if (Platform.OS !== "android" && Platform.OS !== "ios") return false;
   try {
     return !isRunningInExpoGo();
   } catch {

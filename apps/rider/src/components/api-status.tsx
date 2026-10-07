@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import { getMeta, type ApiMeta } from '../api/meta';
-import { useLocale } from '../i18n/locale-context';
-import { colors, fontSize, spacing } from '../theme/tokens';
+import { getMeta, type ApiMeta } from "../api/meta";
+import { useLocale } from "../i18n/locale-context";
+import { AppText } from "./ui";
 
-type ApiStatusState = { kind: 'loading' } | { kind: 'ok'; meta: ApiMeta } | { kind: 'offline' };
+type ApiStatusState =
+  { kind: "loading" } | { kind: "ok"; meta: ApiMeta } | { kind: "offline" };
 
 /**
  * Shows the backend's live version fetched on mount, or a friendly offline
@@ -13,17 +14,17 @@ type ApiStatusState = { kind: 'loading' } | { kind: 'ok'; meta: ApiMeta } | { ki
  * crash the shell.
  */
 export function ApiStatus() {
-  const { t, isRTL } = useLocale();
-  const [state, setState] = useState<ApiStatusState>({ kind: 'loading' });
+  const { t } = useLocale();
+  const [state, setState] = useState<ApiStatusState>({ kind: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     getMeta()
       .then((meta) => {
-        if (!cancelled) setState({ kind: 'ok', meta });
+        if (!cancelled) setState({ kind: "ok", meta });
       })
       .catch(() => {
-        if (!cancelled) setState({ kind: 'offline' });
+        if (!cancelled) setState({ kind: "offline" });
       });
     return () => {
       cancelled = true;
@@ -31,29 +32,23 @@ export function ApiStatus() {
   }, []);
 
   const text =
-    state.kind === 'loading'
-      ? t('settings.apiChecking')
-      : state.kind === 'offline'
-        ? t('settings.apiOffline')
-        : `${t('settings.apiVersionLabel')} ${state.meta.version}`;
+    state.kind === "loading"
+      ? t("settings.apiChecking")
+      : state.kind === "offline"
+        ? t("settings.apiOffline")
+        : `${t("settings.apiVersionLabel")} ${state.meta.version}`;
 
   return (
     <View style={styles.container} testID={`api-status-${state.kind}`}>
-      <Text style={[styles.text, isRTL && styles.textRtl]}>{text}</Text>
+      <AppText variant="caption" tone="muted">
+        {text}
+      </AppText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: spacing.md,
-  },
-  text: {
-    color: colors.textSubtle,
-    fontSize: fontSize.sm,
-  },
-  textRtl: {
-    writingDirection: 'rtl',
-    textAlign: 'right',
+    paddingVertical: 4,
   },
 });

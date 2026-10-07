@@ -1,1 +1,1 @@
-export { default } from '../../screens/settings/change-phone-screen';
+export { default } from "../../screens/settings/change-phone-screen";

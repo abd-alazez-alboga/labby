@@ -1,1 +1,1 @@
-export { default } from '../../screens/auth/register-screen';
+export { default } from "../../screens/auth/register-screen";

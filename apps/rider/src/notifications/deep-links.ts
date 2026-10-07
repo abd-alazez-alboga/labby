@@ -8,11 +8,11 @@
  * today every link lands on the center — where the notification itself is
  * readable — and M7 replaces the `ride` entry with the ride screen.
  */
-import type { Href } from 'expo-router';
+import type { Href } from "expo-router";
 
-import type { DeepLink } from '../api/notifications';
+import type { DeepLink } from "../api/notifications";
 
-export const NOTIFICATION_CENTER_HREF = '/notifications' satisfies Href;
+export const NOTIFICATION_CENTER_HREF = "/notifications" satisfies Href;
 
 type RouteBuilder = (params: Record<string, string>) => Href;
 
@@ -25,7 +25,7 @@ const CATALOG: Record<string, RouteBuilder> = {
 };
 
 export function resolveDeepLink(link: DeepLink | null | undefined): Href {
-  if (!link || typeof link.screen !== 'string') return NOTIFICATION_CENTER_HREF;
+  if (!link || typeof link.screen !== "string") return NOTIFICATION_CENTER_HREF;
   const build = Object.prototype.hasOwnProperty.call(CATALOG, link.screen)
     ? CATALOG[link.screen]
     : null;
@@ -33,12 +33,14 @@ export function resolveDeepLink(link: DeepLink | null | undefined): Href {
 }
 
 /** True when the link lands on the center itself (no navigation needed there). */
-export function opensNotificationCenter(link: DeepLink | null | undefined): boolean {
+export function opensNotificationCenter(
+  link: DeepLink | null | undefined,
+): boolean {
   return resolveDeepLink(link) === NOTIFICATION_CENTER_HREF;
 }
 
 function parseMaybeJson(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
+  if (typeof value !== "string") return value;
   try {
     return JSON.parse(value);
   } catch {
@@ -48,19 +50,20 @@ function parseMaybeJson(value: unknown): unknown {
 
 function asParams(value: unknown): Record<string, string> | undefined {
   const parsed = parseMaybeJson(value);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return undefined;
   const params: Record<string, string> = {};
   for (const [key, raw] of Object.entries(parsed as Record<string, unknown>)) {
-    if (typeof raw === 'string') params[key] = raw;
+    if (typeof raw === "string") params[key] = raw;
   }
   return params;
 }
 
 function asDeepLink(value: unknown): DeepLink | null {
   const parsed = parseMaybeJson(value);
-  if (!parsed || typeof parsed !== 'object') return null;
+  if (!parsed || typeof parsed !== "object") return null;
   const { screen, params } = parsed as { screen?: unknown; params?: unknown };
-  if (typeof screen !== 'string' || !screen) return null;
+  if (typeof screen !== "string" || !screen) return null;
   const link: DeepLink = { screen };
   const parsedParams = asParams(params);
   if (parsedParams) link.params = parsedParams;
@@ -80,12 +83,19 @@ export interface PushPayload {
  * A nested `link` (object or JSON string) is also tolerated, though the
  * backend does not send it. Anything else opens the center.
  */
-export function parsePushPayload(data: Record<string, unknown> | null | undefined): PushPayload {
-  if (!data || typeof data !== 'object') return { notificationId: null, link: null };
+export function parsePushPayload(
+  data: Record<string, unknown> | null | undefined,
+): PushPayload {
+  if (!data || typeof data !== "object")
+    return { notificationId: null, link: null };
   const notificationId =
-    typeof data.notificationId === 'string' && data.notificationId ? data.notificationId : null;
+    typeof data.notificationId === "string" && data.notificationId
+      ? data.notificationId
+      : null;
   const link =
     asDeepLink(data.link) ??
-    (typeof data.screen === 'string' ? asDeepLink({ screen: data.screen, params: data.params }) : null);
+    (typeof data.screen === "string"
+      ? asDeepLink({ screen: data.screen, params: data.params })
+      : null);
   return { notificationId, link };
 }

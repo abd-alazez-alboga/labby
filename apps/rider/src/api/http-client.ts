@@ -13,13 +13,13 @@
  *   stored tokens are cleared and `sessionExpired` is emitted so the auth
  *   context signs the user out.
  */
-import { getAppConfig } from '../config/app-config';
+import { getAppConfig } from "../config/app-config";
 import {
   clearTokens,
   emitSessionExpired,
   getStoredTokens,
   saveTokens,
-} from '../auth/session-store';
+} from "../auth/session-store";
 
 /** Global error body shape from M1 (status, message, fieldErrors?). */
 export interface ApiErrorBody {
@@ -35,8 +35,12 @@ export class ApiError extends Error {
     readonly body?: ApiErrorBody,
     message?: string,
   ) {
-    super(message ?? body?.message ?? `API request to ${path} failed with status ${status}`);
-    this.name = 'ApiError';
+    super(
+      message ??
+        body?.message ??
+        `API request to ${path} failed with status ${status}`,
+    );
+    this.name = "ApiError";
   }
 }
 
@@ -47,22 +51,30 @@ export interface ApiFetchOptions extends RequestInit {
 
 function buildUrl(path: string): string {
   const { apiBaseUrl } = getAppConfig();
-  return `${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-function buildHeaders(init: ApiFetchOptions | undefined, accessToken?: string): HeadersInit {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+function buildHeaders(
+  init: ApiFetchOptions | undefined,
+  accessToken?: string,
+): HeadersInit {
+  const headers: Record<string, string> = { Accept: "application/json" };
   // Let fetch set the multipart boundary itself for FormData bodies.
   if (!(init?.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
   }
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
-  return { ...headers, ...(init?.headers as Record<string, string> | undefined) };
+  return {
+    ...headers,
+    ...(init?.headers as Record<string, string> | undefined),
+  };
 }
 
-async function parseErrorBody(response: Response): Promise<ApiErrorBody | undefined> {
+async function parseErrorBody(
+  response: Response,
+): Promise<ApiErrorBody | undefined> {
   try {
     return (await response.json()) as ApiErrorBody;
   } catch {
@@ -98,9 +110,12 @@ async function doRefresh(): Promise<string | null> {
     return null;
   }
   try {
-    const response = await fetch(buildUrl('/api/v1/auth/refresh'), {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    const response = await fetch(buildUrl("/api/v1/auth/refresh"), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ refreshToken: tokens.refreshToken }),
     });
     if (response.status === 401) {
@@ -113,8 +128,14 @@ async function doRefresh(): Promise<string | null> {
       // Transient server trouble (5xx/429): keep the tokens, fail this request.
       return null;
     }
-    const pair = (await response.json()) as { accessToken: string; refreshToken: string };
-    await saveTokens({ accessToken: pair.accessToken, refreshToken: pair.refreshToken });
+    const pair = (await response.json()) as {
+      accessToken: string;
+      refreshToken: string;
+    };
+    await saveTokens({
+      accessToken: pair.accessToken,
+      refreshToken: pair.refreshToken,
+    });
     return pair.accessToken;
   } catch {
     // Network failure during refresh: keep the tokens (the session may still
@@ -123,7 +144,10 @@ async function doRefresh(): Promise<string | null> {
   }
 }
 
-export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  init?: ApiFetchOptions,
+): Promise<T> {
   const { auth, ...rest } = init ?? {};
   const url = buildUrl(path);
 
@@ -132,7 +156,10 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
     accessToken = (await getStoredTokens())?.accessToken;
   }
 
-  const response = await fetch(url, { ...rest, headers: buildHeaders(init, accessToken) });
+  const response = await fetch(url, {
+    ...rest,
+    headers: buildHeaders(init, accessToken),
+  });
 
   if (response.ok) {
     return parseResult<T>(response);
@@ -164,8 +191,8 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
  * Coarse failure class for UI copy: `server` when the backend answered with
  * an error status, `network` when it could not be reached at all.
  */
-export type FailureKind = 'network' | 'server';
+export type FailureKind = "network" | "server";
 
 export function failureKind(error: unknown): FailureKind {
-  return error instanceof ApiError ? 'server' : 'network';
+  return error instanceof ApiError ? "server" : "network";
 }

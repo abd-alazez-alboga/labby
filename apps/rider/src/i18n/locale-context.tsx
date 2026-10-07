@@ -5,15 +5,15 @@
  * RTL approach (documented honestly):
  * - `I18nManager.allowRTL(true)` + `forceRTL(locale === 'ar')` is called when
  *   the language changes. React Native only applies a forced direction flip
- *   to native layout **after the app restarts** — that caveat is surfaced to
- *   the user on the settings screen (settings.rtlNote).
- * - For immediate feedback the context also exposes `isRTL` / `direction`,
- *   and shell screens use direction-aware styles (row reversal, text align)
- *   driven by those flags, so the UI reads correctly right after the switch.
+ *   to native layout when the React host restarts, so a direction-changing
+ *   switch reloads the app (`reloadIfDirectionChanged`, owner decision
+ *   2026-10-07) and returns to the screen it happened on.
+ * - The context also exposes `isRTL` / `direction` / `flipRows`; `flipRows`
+ *   is the manual-mirroring fallback for a host that cannot reload (tests).
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getLocales } from 'expo-localization';
-import { I18n, type TranslateOptions } from 'i18n-js';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getLocales } from "expo-localization";
+import { I18n, type TranslateOptions } from "i18n-js";
 import React, {
   createContext,
   useCallback,
@@ -21,24 +21,68 @@ import React, {
   useEffect,
   useMemo,
   useState,
-} from 'react';
-import { I18nManager } from 'react-native';
+} from "react";
+import { I18nManager } from "react-native";
 
-import { type AppLocale, SUPPORTED_LOCALES, translations } from './translations';
+import { reloadForDirection } from "./direction-reload";
 
-export const LANGUAGE_STORAGE_KEY = 'labby.rider.language';
+import {
+  type AppLocale,
+  SUPPORTED_LOCALES,
+  translations,
+} from "./translations";
+
+export const LANGUAGE_STORAGE_KEY = "labby.rider.language";
 
 const i18n = new I18n(translations);
 i18n.enableFallback = true;
-i18n.defaultLocale = 'en';
+i18n.defaultLocale = "en";
 
 function deviceLocale(): AppLocale {
   const code = getLocales()[0]?.languageCode;
-  return code === 'ar' ? 'ar' : 'en';
+  return code === "ar" ? "ar" : "en";
+}
+
+/**
+ * The native layout direction this process launched with. `I18nManager.isRTL`
+ * already reports a pending `forceRTL` before the restart that applies it, so
+ * it is read once here, at import (before any locale switch can run).
+ */
+const NATIVE_RTL_AT_LAUNCH: boolean = (() => {
+  try {
+    return I18nManager.isRTL;
+  } catch {
+    return false; // native module unavailable in some test environments
+  }
+})();
+
+/**
+ * Rows, absolute start/end and physical text alignment must be flipped by
+ * hand exactly when the locale direction differs from the native layout the
+ * app launched with (a switch either way, before the restart applies it).
+ */
+export function needsManualFlip(
+  localeRTL: boolean,
+  nativeRTLAtLaunch: boolean,
+): boolean {
+  return localeRTL !== nativeRTLAtLaunch;
+}
+
+/**
+ * Reloads the app when `locale`'s direction differs from the native layout
+ * the app launched with, reopening `returnTo` afterwards.
+ */
+export async function reloadIfDirectionChanged(
+  locale: AppLocale,
+  returnTo?: string,
+): Promise<void> {
+  if (needsManualFlip(locale === "ar", NATIVE_RTL_AT_LAUNCH)) {
+    await reloadForDirection(returnTo);
+  }
 }
 
 function applyNativeDirection(locale: AppLocale): void {
-  const rtl = locale === 'ar';
+  const rtl = locale === "ar";
   try {
     I18nManager.allowRTL(true);
     if (I18nManager.isRTL !== rtl) {
@@ -53,13 +97,14 @@ function applyNativeDirection(locale: AppLocale): void {
 export interface LocaleContextValue {
   locale: AppLocale;
   isRTL: boolean;
-  direction: 'ltr' | 'rtl';
+  direction: "ltr" | "rtl";
   /**
-   * Whether row/position styles must be flipped MANUALLY: true only while the
-   * locale is RTL but the native layout has not restarted into RTL yet. Once
-   * `I18nManager.isRTL` is live, React Native mirrors rows and logical
-   * start/end itself — flipping again would undo it. Key structural overrides
-   * (row-reverse, absolute start/end) on this; text alignment stays on isRTL.
+   * Whether row/position styles must be flipped MANUALLY: true while the
+   * locale's direction differs from the native layout direction the app
+   * launched with (a switch either way, before the restart applies it). Once
+   * native RTL is live, React Native mirrors rows and swaps left/right itself —
+   * flipping again would undo it. Key structural overrides (row-reverse,
+   * absolute start/end) and physical text alignment on this.
    */
   flipRows: boolean;
   t: (key: string, options?: TranslateOptions) => string;
@@ -69,7 +114,7 @@ export interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | undefined>(undefined);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<AppLocale>('en');
+  const [locale, setLocaleState] = useState<AppLocale>("en");
   const [ready, setReady] = useState(false);
 
   // Applied on launch: persisted language wins, device language is the default.
@@ -116,18 +161,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<LocaleContextValue>(() => {
-    let nativeRTL = false;
-    try {
-      nativeRTL = I18nManager.isRTL;
-    } catch {
-      // native module unavailable in some test environments
-    }
-    const isRTL = locale === 'ar';
+    const isRTL = locale === "ar";
     return {
       locale,
       isRTL,
-      direction: isRTL ? 'rtl' : 'ltr',
-      flipRows: isRTL && !nativeRTL,
+      direction: isRTL ? "rtl" : "ltr",
+      flipRows: needsManualFlip(isRTL, NATIVE_RTL_AT_LAUNCH),
       t,
       setLocale,
     };
@@ -137,13 +176,20 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     return null; // splash screen stays visible until the stored language is applied
   }
 
-  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
+  return (
+    <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
+  );
 }
 
 export function useLocale(): LocaleContextValue {
   const ctx = useContext(LocaleContext);
   if (!ctx) {
-    throw new Error('useLocale must be used within a LocaleProvider');
+    throw new Error("useLocale must be used within a LocaleProvider");
   }
   return ctx;
+}
+
+/** The locale when rendered inside a LocaleProvider, else null (shared UI primitives). */
+export function useOptionalLocale(): LocaleContextValue | null {
+  return useContext(LocaleContext) ?? null;
 }

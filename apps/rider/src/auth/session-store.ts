@@ -6,10 +6,10 @@
  * context subscribes to `addSessionExpiredListener` so a failed refresh
  * anywhere in the app signs the user out exactly once.
  */
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
 
-export const ACCESS_TOKEN_KEY = 'labby.rider.accessToken';
-export const REFRESH_TOKEN_KEY = 'labby.rider.refreshToken';
+export const ACCESS_TOKEN_KEY = "labby.rider.accessToken";
+export const REFRESH_TOKEN_KEY = "labby.rider.refreshToken";
 
 export interface StoredTokens {
   accessToken: string;
@@ -50,7 +50,9 @@ type SessionExpiredListener = () => void;
 const sessionExpiredListeners = new Set<SessionExpiredListener>();
 
 /** Fired when a 401 could not be recovered by a refresh (session is dead). */
-export function addSessionExpiredListener(listener: SessionExpiredListener): () => void {
+export function addSessionExpiredListener(
+  listener: SessionExpiredListener,
+): () => void {
   sessionExpiredListeners.add(listener);
   return () => {
     sessionExpiredListeners.delete(listener);

@@ -1,4 +1,4 @@
-import { apiFetch } from './http-client';
+import { apiFetch } from "./http-client";
 
 /** Response of `GET /api/v1/meta` — the backend's public metadata. */
 export interface ApiMeta {
@@ -8,5 +8,5 @@ export interface ApiMeta {
 
 /** Fetches the backend's name and version (the M1-T6 integration smoke call). */
 export function getMeta(): Promise<ApiMeta> {
-  return apiFetch<ApiMeta>('/api/v1/meta');
+  return apiFetch<ApiMeta>("/api/v1/meta");
 }

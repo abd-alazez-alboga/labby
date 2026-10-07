@@ -7,11 +7,11 @@
  * unmocked routes reject with a TypeError, which the app treats as a
  * network failure — exactly how an unexpected endpoint should surface.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import type { AuthTokensResponse, UserProfile } from '../api/auth';
-import { PROFILE_CACHE_KEY } from '../auth/auth-context';
-import { saveTokens } from '../auth/session-store';
+import type { AuthTokensResponse, UserProfile } from "../api/auth";
+import { PROFILE_CACHE_KEY } from "../auth/auth-context";
+import { saveTokens } from "../auth/session-store";
 
 export interface MockReply {
   status: number;
@@ -34,7 +34,9 @@ export interface MockApi {
   callsTo: (method: string, path: string) => RecordedCall[];
 }
 
-export function mockApi(routes: Record<string, MockReply | MockReply[]>): MockApi {
+export function mockApi(
+  routes: Record<string, MockReply | MockReply[]>,
+): MockApi {
   const queues = new Map<string, MockReply[]>();
   for (const [key, value] of Object.entries(routes)) {
     queues.set(key, Array.isArray(value) ? [...value] : [value]);
@@ -44,10 +46,10 @@ export function mockApi(routes: Record<string, MockReply | MockReply[]>): MockAp
     const url = new URL(String(input));
     const path = url.pathname;
     const query = Object.fromEntries(url.searchParams.entries());
-    const method = (init?.method ?? 'GET').toUpperCase();
+    const method = (init?.method ?? "GET").toUpperCase();
     const headers = (init?.headers ?? {}) as Record<string, string>;
     let body: unknown;
-    if (typeof init?.body === 'string') {
+    if (typeof init?.body === "string") {
       try {
         body = JSON.parse(init.body);
       } catch {
@@ -87,19 +89,21 @@ export function mockApi(routes: Record<string, MockReply | MockReply[]>): MockAp
 // Fixtures
 
 export const sampleUser: UserProfile = {
-  id: '6a6e36a2-3a3e-4bd4-9a39-0a9e9b1a0001',
-  phone: '+963900000001',
-  name: 'Test Rider',
-  language: 'en',
+  id: "6a6e36a2-3a3e-4bd4-9a39-0a9e9b1a0001",
+  phone: "+963900000001",
+  name: "Test Rider",
+  language: "en",
   photoUrl: null,
-  state: 'active',
-  roles: [{ role: 'rider', state: 'active' }],
+  state: "active",
+  roles: [{ role: "rider", state: "active" }],
 };
 
-export function tokensResponse(overrides?: Partial<AuthTokensResponse>): AuthTokensResponse {
+export function tokensResponse(
+  overrides?: Partial<AuthTokensResponse>,
+): AuthTokensResponse {
   return {
-    accessToken: 'access-1',
-    refreshToken: 'refresh-1',
+    accessToken: "access-1",
+    refreshToken: "refresh-1",
     expiresInSeconds: 900,
     user: sampleUser,
     ...overrides,
@@ -107,7 +111,12 @@ export function tokensResponse(overrides?: Partial<AuthTokensResponse>): AuthTok
 }
 
 /** Seeds secure-store tokens + the AsyncStorage profile cache (signed in). */
-export async function seedSignedInSession(user: UserProfile = sampleUser): Promise<void> {
-  await saveTokens({ accessToken: 'seed-access', refreshToken: 'seed-refresh' });
+export async function seedSignedInSession(
+  user: UserProfile = sampleUser,
+): Promise<void> {
+  await saveTokens({
+    accessToken: "seed-access",
+    refreshToken: "seed-refresh",
+  });
   await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(user));
 }

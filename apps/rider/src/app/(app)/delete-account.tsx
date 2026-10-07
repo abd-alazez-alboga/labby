@@ -1,1 +1,1 @@
-export { default } from '../../screens/settings/delete-account-screen';
+export { default } from "../../screens/settings/delete-account-screen";

@@ -8,56 +8,71 @@ import {
   opensNotificationCenter,
   parsePushPayload,
   resolveDeepLink,
-} from '../deep-links';
+} from "../deep-links";
 
-describe('resolveDeepLink', () => {
+describe("resolveDeepLink", () => {
   it.each([
-    ['notifications', undefined],
-    ['ride', { rideId: '9b7c' }],
-    ['driver_application', undefined],
-    ['driver_documents', { documentType: 'license' }],
-    ['driver_vehicles', undefined],
-    ['some_future_screen', { x: '1' }],
-    ['toString', undefined],
-  ])('maps %s to the notification center', (screen, params) => {
+    ["notifications", undefined],
+    ["ride", { rideId: "9b7c" }],
+    ["driver_application", undefined],
+    ["driver_documents", { documentType: "license" }],
+    ["driver_vehicles", undefined],
+    ["some_future_screen", { x: "1" }],
+    ["toString", undefined],
+  ])("maps %s to the notification center", (screen, params) => {
     expect(resolveDeepLink({ screen, params })).toBe(NOTIFICATION_CENTER_HREF);
   });
 
-  it('maps a missing link to the center', () => {
-    expect(resolveDeepLink(null)).toBe('/notifications');
-    expect(resolveDeepLink(undefined)).toBe('/notifications');
+  it("maps a missing link to the center", () => {
+    expect(resolveDeepLink(null)).toBe("/notifications");
+    expect(resolveDeepLink(undefined)).toBe("/notifications");
     expect(opensNotificationCenter(null)).toBe(true);
   });
 });
 
-describe('parsePushPayload', () => {
-  it('reads a link object and the notification id', () => {
+describe("parsePushPayload", () => {
+  it("reads a link object and the notification id", () => {
     expect(
       parsePushPayload({
-        notificationId: 'n-1',
-        link: { screen: 'ride', params: { rideId: 'r-1' } },
+        notificationId: "n-1",
+        link: { screen: "ride", params: { rideId: "r-1" } },
       }),
-    ).toEqual({ notificationId: 'n-1', link: { screen: 'ride', params: { rideId: 'r-1' } } });
+    ).toEqual({
+      notificationId: "n-1",
+      link: { screen: "ride", params: { rideId: "r-1" } },
+    });
   });
 
-  it('reads a link sent as a JSON string (FCM data values are strings)', () => {
+  it("reads a link sent as a JSON string (FCM data values are strings)", () => {
     expect(
-      parsePushPayload({ link: JSON.stringify({ screen: 'notifications' }) }),
-    ).toEqual({ notificationId: null, link: { screen: 'notifications' } });
+      parsePushPayload({ link: JSON.stringify({ screen: "notifications" }) }),
+    ).toEqual({ notificationId: null, link: { screen: "notifications" } });
   });
 
-  it('reads flat screen + JSON params', () => {
+  it("reads flat screen + JSON params", () => {
     expect(
-      parsePushPayload({ screen: 'driver_documents', params: '{"documentType":"license"}' }),
+      parsePushPayload({
+        screen: "driver_documents",
+        params: '{"documentType":"license"}',
+      }),
     ).toEqual({
       notificationId: null,
-      link: { screen: 'driver_documents', params: { documentType: 'license' } },
+      link: { screen: "driver_documents", params: { documentType: "license" } },
     });
   });
 
   it('degrades malformed payloads to "no link" (the center opens)', () => {
-    expect(parsePushPayload({ link: '{oops' })).toEqual({ notificationId: null, link: null });
-    expect(parsePushPayload({ link: { params: {} } })).toEqual({ notificationId: null, link: null });
-    expect(parsePushPayload(undefined)).toEqual({ notificationId: null, link: null });
+    expect(parsePushPayload({ link: "{oops" })).toEqual({
+      notificationId: null,
+      link: null,
+    });
+    expect(parsePushPayload({ link: { params: {} } })).toEqual({
+      notificationId: null,
+      link: null,
+    });
+    expect(parsePushPayload(undefined)).toEqual({
+      notificationId: null,
+      link: null,
+    });
   });
 });

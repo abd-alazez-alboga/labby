@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 import {
   isValidPassword,
@@ -8,16 +8,22 @@ import {
   passwordResetComplete,
   passwordResetStart,
   passwordResetVerify,
-} from '../../api/auth';
-import { ApiError } from '../../api/http-client';
-import { Button, ErrorBanner, FormField, SuccessBanner } from '../../components/form';
-import { OtpStep } from '../../components/otp-step';
-import { useCooldown } from '../../hooks/use-cooldown';
-import { useLocale } from '../../i18n/locale-context';
-import { ScreenScrollView } from '../../components/screen';
-import { colors, fontSize, spacing } from '../../theme/tokens';
+} from "../../api/auth";
+import { ApiError } from "../../api/http-client";
+import { OtpStep } from "../../components/otp-step";
+import {
+  AppText,
+  Banner,
+  PrimaryButton,
+  ScreenScrollView,
+  screenStyles,
+  TextField,
+} from "../../components/ui";
+import { useCooldown } from "../../hooks/use-cooldown";
+import { useLocale } from "../../i18n/locale-context";
+import { spacing } from "../../theme/tokens";
 
-type Step = 'phone' | 'otp' | 'newPassword' | 'done';
+type Step = "phone" | "otp" | "newPassword" | "done";
 
 /**
  * UC-S-04 — Reset forgotten password, three contract steps:
@@ -25,18 +31,18 @@ type Step = 'phone' | 'otp' | 'newPassword' | 'done';
  * complete (400 invalid token/weak password; all sessions revoked).
  */
 export default function ForgotPasswordScreen() {
-  const { t, isRTL } = useLocale();
+  const { t } = useLocale();
   const router = useRouter();
   const cooldown = useCooldown();
 
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState<Step>("phone");
+  const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState<string | null>(null);
-  const [newPassword, setNewPassword] = useState('');
+  const [newPassword, setNewPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -46,7 +52,7 @@ export default function ForgotPasswordScreen() {
   const sendCode = async (resend: boolean) => {
     if (!resend) {
       if (!isValidPhone(trimmedPhone)) {
-        setPhoneError(t('auth.phoneInvalid'));
+        setPhoneError(t("auth.phoneInvalid"));
         return;
       }
       setPhoneError(null);
@@ -58,10 +64,10 @@ export default function ForgotPasswordScreen() {
       // Always 204 — neutral wording, no account enumeration (NFR-S3).
       cooldown.start();
       if (!resend) {
-        setStep('otp');
+        setStep("otp");
       }
     } catch {
-      const message = t('auth.otpSendFailed');
+      const message = t("auth.otpSendFailed");
       if (resend) {
         setOtpError(message);
       } else {
@@ -78,14 +84,14 @@ export default function ForgotPasswordScreen() {
     try {
       const result = await passwordResetVerify(trimmedPhone, code);
       setResetToken(result.resetToken);
-      setStep('newPassword');
+      setStep("newPassword");
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
-        setOtpError(t('auth.otpWrong'));
+        setOtpError(t("auth.otpWrong"));
       } else if (error instanceof ApiError && error.status === 410) {
-        setOtpError(t('auth.otpExpired'));
+        setOtpError(t("auth.otpExpired"));
       } else {
-        setOtpError(t('common.networkError'));
+        setOtpError(t("common.networkError"));
       }
     } finally {
       setBusy(false);
@@ -95,8 +101,8 @@ export default function ForgotPasswordScreen() {
   const complete = async () => {
     const passwordOk = isValidPassword(newPassword);
     const confirmOk = confirmPassword === newPassword;
-    setPasswordError(passwordOk ? null : t('auth.passwordInvalid'));
-    setConfirmError(confirmOk ? null : t('auth.passwordMismatch'));
+    setPasswordError(passwordOk ? null : t("auth.passwordInvalid"));
+    setConfirmError(confirmOk ? null : t("auth.passwordMismatch"));
     if (!passwordOk || !confirmOk || !resetToken) {
       return;
     }
@@ -104,12 +110,12 @@ export default function ForgotPasswordScreen() {
     setCompleteError(null);
     try {
       await passwordResetComplete(resetToken, newPassword);
-      setStep('done');
+      setStep("done");
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
-        setCompleteError(t('forgot.resetTokenExpired'));
+        setCompleteError(t("forgot.resetTokenExpired"));
       } else {
-        setCompleteError(t('common.networkError'));
+        setCompleteError(t("common.networkError"));
       }
     } finally {
       setBusy(false);
@@ -118,17 +124,19 @@ export default function ForgotPasswordScreen() {
 
   return (
     <ScreenScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
+      style={screenStyles.page}
+      contentContainerStyle={screenStyles.content}
       keyboardShouldPersistTaps="handled"
       testID="forgot-screen"
     >
-      {step === 'phone' ? (
+      {step === "phone" ? (
         <View style={styles.step} testID="forgot-step-phone">
-          <Text style={[styles.intro, isRTL && styles.textRtl]}>{t('forgot.intro')}</Text>
-          <FormField
-            label={t('auth.phoneLabel')}
-            placeholder={t('auth.phonePlaceholder')}
+          <AppText variant="body" tone="secondary">
+            {t("forgot.intro")}
+          </AppText>
+          <TextField
+            label={t("auth.phoneLabel")}
+            placeholder={t("auth.phonePlaceholder")}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
@@ -136,8 +144,8 @@ export default function ForgotPasswordScreen() {
             error={phoneError}
             testID="forgot-phone"
           />
-          <Button
-            label={t('forgot.sendCode')}
+          <PrimaryButton
+            label={t("forgot.sendCode")}
             onPress={() => sendCode(false)}
             loading={busy}
             testID="forgot-send-code"
@@ -145,11 +153,15 @@ export default function ForgotPasswordScreen() {
         </View>
       ) : null}
 
-      {step === 'otp' ? (
+      {step === "otp" ? (
         <View style={styles.step} testID="forgot-step-otp">
-          <SuccessBanner message={t('forgot.codeSentNeutral')} testID="forgot-neutral-note" />
+          <Banner
+            tone="success"
+            message={t("forgot.codeSentNeutral")}
+            testID="forgot-neutral-note"
+          />
           <OtpStep
-            hint={t('auth.otpHint', { phone: trimmedPhone })}
+            hint={t("auth.otpHint", { phone: trimmedPhone })}
             error={otpError}
             busy={busy}
             onVerify={verifyCode}
@@ -160,16 +172,18 @@ export default function ForgotPasswordScreen() {
         </View>
       ) : null}
 
-      {step === 'newPassword' ? (
+      {step === "newPassword" ? (
         <View style={styles.step} testID="forgot-step-password">
-          <Text style={[styles.title, isRTL && styles.textRtl]}>
-            {t('forgot.newPasswordTitle')}
-          </Text>
+          <AppText variant="heading">{t("forgot.newPasswordTitle")}</AppText>
           {completeError ? (
-            <ErrorBanner message={completeError} testID="forgot-complete-error" />
+            <Banner
+              tone="danger"
+              message={completeError}
+              testID="forgot-complete-error"
+            />
           ) : null}
-          <FormField
-            label={t('forgot.newPasswordLabel')}
+          <TextField
+            label={t("forgot.newPasswordLabel")}
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry
@@ -177,8 +191,8 @@ export default function ForgotPasswordScreen() {
             error={passwordError}
             testID="forgot-new-password"
           />
-          <FormField
-            label={t('auth.confirmPasswordLabel')}
+          <TextField
+            label={t("auth.confirmPasswordLabel")}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -186,8 +200,8 @@ export default function ForgotPasswordScreen() {
             error={confirmError}
             testID="forgot-confirm-password"
           />
-          <Button
-            label={t('forgot.submit')}
+          <PrimaryButton
+            label={t("forgot.submit")}
             onPress={complete}
             loading={busy}
             testID="forgot-complete"
@@ -195,13 +209,15 @@ export default function ForgotPasswordScreen() {
         </View>
       ) : null}
 
-      {step === 'done' ? (
+      {step === "done" ? (
         <View style={styles.step} testID="forgot-step-done">
-          <Text style={[styles.title, isRTL && styles.textRtl]}>{t('forgot.doneTitle')}</Text>
-          <Text style={[styles.intro, isRTL && styles.textRtl]}>{t('forgot.doneBody')}</Text>
-          <Button
-            label={t('forgot.goToLogin')}
-            onPress={() => router.replace('/login')}
+          <AppText variant="heading">{t("forgot.doneTitle")}</AppText>
+          <AppText variant="body" tone="secondary">
+            {t("forgot.doneBody")}
+          </AppText>
+          <PrimaryButton
+            label={t("forgot.goToLogin")}
+            onPress={() => router.replace("/login")}
             testID="forgot-go-login"
           />
         </View>
@@ -211,28 +227,7 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.bgLight,
-  },
-  container: {
-    padding: spacing.lg,
-  },
   step: {
-    gap: spacing.md,
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: '700',
-  },
-  intro: {
-    color: colors.textSecondary,
-    fontSize: fontSize.md,
-    lineHeight: 22,
-  },
-  textRtl: {
-    writingDirection: 'rtl',
-    textAlign: 'right',
+    gap: spacing.lg,
   },
 });

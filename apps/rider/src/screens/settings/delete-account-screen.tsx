@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import { deleteAccount, isValidOtp, request2faCode } from '../../api/auth';
-import { ApiError } from '../../api/http-client';
-import { useAuth } from '../../auth/auth-context';
-import { Button, ErrorBanner, FormField } from '../../components/form';
-import { useCooldown } from '../../hooks/use-cooldown';
-import { useLocale } from '../../i18n/locale-context';
-import { ScreenScrollView } from '../../components/screen';
-import { colors, fontSize, radius, spacing } from '../../theme/tokens';
+import { deleteAccount, isValidOtp, request2faCode } from "../../api/auth";
+import { ApiError } from "../../api/http-client";
+import { useAuth } from "../../auth/auth-context";
+import {
+  Banner,
+  DestructiveTextButton,
+  ScreenScrollView,
+  screenStyles,
+  SecondaryButton,
+  TextField,
+} from "../../components/ui";
+import { useCooldown } from "../../hooks/use-cooldown";
+import { useLocale } from "../../i18n/locale-context";
+import { spacing } from "../../theme/tokens";
 
 /**
  * UC-S-07 — Delete account (2FA, soft). Shows the consequences first
@@ -18,11 +24,11 @@ import { colors, fontSize, radius, spacing } from '../../theme/tokens';
  * 409 — blocked by a precondition (active ride, unsettled balance).
  */
 export default function DeleteAccountScreen() {
-  const { t, isRTL } = useLocale();
+  const { t } = useLocale();
   const { signOutAfterDeletion } = useAuth();
   const cooldown = useCooldown();
 
-  const [otpCode, setOtpCode] = useState('');
+  const [otpCode, setOtpCode] = useState("");
   const [otpFieldError, setOtpFieldError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [codeSent, setCodeSent] = useState(false);
@@ -38,9 +44,9 @@ export default function DeleteAccountScreen() {
       cooldown.start();
     } catch (error) {
       if (error instanceof ApiError && error.status === 429) {
-        setServerError(t('auth.otpHourlyCap'));
+        setServerError(t("auth.otpHourlyCap"));
       } else {
-        setServerError(t('auth.otpSendFailed'));
+        setServerError(t("auth.otpSendFailed"));
       }
     } finally {
       setCodeBusy(false);
@@ -49,7 +55,7 @@ export default function DeleteAccountScreen() {
 
   const confirm = async () => {
     if (!isValidOtp(otpCode)) {
-      setOtpFieldError(t('auth.otpInvalid'));
+      setOtpFieldError(t("auth.otpInvalid"));
       return;
     }
     setOtpFieldError(null);
@@ -61,11 +67,11 @@ export default function DeleteAccountScreen() {
       // The group guard navigates to the welcome screen (goodbye state).
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
-        setServerError(t('deleteAccount.otpRejected'));
+        setServerError(t("deleteAccount.otpRejected"));
       } else if (error instanceof ApiError && error.status === 409) {
-        setServerError(t('deleteAccount.blocked'));
+        setServerError(t("deleteAccount.blocked"));
       } else {
-        setServerError(t('common.networkError'));
+        setServerError(t("common.networkError"));
       }
     } finally {
       setBusy(false);
@@ -74,28 +80,31 @@ export default function DeleteAccountScreen() {
 
   return (
     <ScreenScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
+      style={screenStyles.page}
+      contentContainerStyle={screenStyles.content}
       keyboardShouldPersistTaps="handled"
       testID="delete-account-screen"
     >
-      <View style={styles.consequences} testID="delete-consequences">
-        <Text style={[styles.consequencesTitle, isRTL && styles.textRtl]}>
-          {t('deleteAccount.consequencesTitle')}
-        </Text>
-        <Text style={[styles.consequencesBody, isRTL && styles.textRtl]}>
-          {t('deleteAccount.consequences')}
-        </Text>
-      </View>
+      <Banner
+        tone="warning"
+        title={t("deleteAccount.consequencesTitle")}
+        message={t("deleteAccount.consequences")}
+        testID="delete-consequences"
+      />
 
-      {serverError ? <ErrorBanner message={serverError} testID="delete-server-error" /> : null}
+      {serverError ? (
+        <Banner
+          tone="danger"
+          message={serverError}
+          testID="delete-server-error"
+        />
+      ) : null}
 
-      <Button
-        variant="secondary"
+      <SecondaryButton
         label={
           cooldown.active
-            ? t('auth.otpResendIn', { seconds: cooldown.secondsLeft })
-            : t('deleteAccount.sendCode')
+            ? t("auth.otpResendIn", { seconds: cooldown.secondsLeft })
+            : t("deleteAccount.sendCode")
         }
         onPress={() => void sendCode()}
         disabled={cooldown.active}
@@ -105,8 +114,8 @@ export default function DeleteAccountScreen() {
 
       {codeSent ? (
         <View style={styles.confirmBlock}>
-          <FormField
-            label={t('auth.otpLabel')}
+          <TextField
+            label={t("auth.otpLabel")}
             value={otpCode}
             onChangeText={setOtpCode}
             keyboardType="number-pad"
@@ -114,9 +123,8 @@ export default function DeleteAccountScreen() {
             error={otpFieldError}
             testID="delete-otp"
           />
-          <Button
-            variant="danger"
-            label={t('deleteAccount.confirm')}
+          <DestructiveTextButton
+            label={t("deleteAccount.confirm")}
             onPress={confirm}
             loading={busy}
             testID="delete-confirm"
@@ -128,35 +136,7 @@ export default function DeleteAccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.bgLight,
-  },
-  container: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  consequences: {
-    backgroundColor: colors.lilac100,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  consequencesTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-  },
-  consequencesBody: {
-    color: colors.textSecondary,
-    fontSize: fontSize.md,
-    lineHeight: 22,
-  },
-  textRtl: {
-    writingDirection: 'rtl',
-    textAlign: 'right',
-  },
   confirmBlock: {
-    gap: spacing.md,
+    gap: spacing.lg,
   },
 });

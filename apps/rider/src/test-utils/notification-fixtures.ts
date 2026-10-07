@@ -3,7 +3,7 @@ import type {
   AppNotification,
   NotificationCategory,
   NotificationPreference,
-} from '../api/notifications';
+} from "../api/notifications";
 
 export function notification(
   id: string,
@@ -11,13 +11,13 @@ export function notification(
 ): AppNotification {
   return {
     id,
-    category: 'account',
-    event: 'account.updated',
+    category: "account",
+    event: "account.updated",
     title: `Title ${id}`,
     body: `Body ${id}`,
     link: null,
     read: false,
-    createdAt: '2026-10-06T08:30:00Z',
+    createdAt: "2026-10-06T08:30:00Z",
     ...overrides,
   };
 }
@@ -25,11 +25,11 @@ export function notification(
 export function preferences(
   overrides: Partial<Record<NotificationCategory, boolean>> = {},
 ): NotificationPreference[] {
-  return (['ride', 'chat', 'scheduled', 'promotions', 'account', 'safety'] as const).map(
-    (category) => ({
-      category,
-      enabled: overrides[category] ?? true,
-      locked: category === 'ride' || category === 'safety',
-    }),
-  );
+  return (
+    ["ride", "chat", "scheduled", "promotions", "account", "safety"] as const
+  ).map((category) => ({
+    category,
+    enabled: overrides[category] ?? true,
+    locked: category === "ride" || category === "safety",
+  }));
 }

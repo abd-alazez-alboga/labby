@@ -5,75 +5,149 @@
  * root — that file is the SOURCE OF TRUTH for brand colors. If it changes,
  * update this module to match; never edit colors here independently.
  *
- * Spacing / radius / typography scales below are app-level shell tokens
- * (React Native has no SCSS pipeline); they exist so screens never hardcode
- * raw values.
+ * The "Design system 2026-10-07" block (docs/design/design-system.md) is what
+ * new code uses: Labby purple `accent` is the ONLY accent, status colours
+ * appear only in chips and banners. The legacy palette below it stays only
+ * as a mirror of colors.scss — no new usages, no gradients.
  */
 
 export const colors = {
-  // Logo
-  logoPurple: '#592D87',
-  logoCharcoal: '#231F20',
+  // ---- Design system 2026-10-07 ----
+  accent: "#59128A",
+  accentPressed: "#3D0B57",
+  accentTint: "#F1EAF8",
+  onAccent: "#FFFFFF",
 
-  // Purples
-  purple900: '#3D0B57', // deep, banner gradient start
-  purple800: '#430C68', // dark
-  purple700: '#59128A', // primary: buttons, banner
-  purple600: '#631A95', // mid
-  purple500: '#7A2DAE', // button gradient end
-  purple450: '#8A2FB3', // bright gradient end
-  purple400: '#9B3FC4', // accent
+  text: "#141018",
+  textSecondary: "#463C58",
+  textMuted: "#6E6780",
 
-  // Lilacs & lavenders
-  lavender300: '#CDBDFF',
-  lavender200: '#D9CCFF',
-  lilac200: '#E8DCF0', // headline accent
-  lilac100: '#EBD8F7', // tags
-  lavender100: '#EFE9FF',
+  surface: "#FFFFFF",
+  surfacePage: "#F7F6F9",
+  surfaceFill: "#F2F0F5",
+  surfaceMap: "#ECE9F0",
 
-  // Backgrounds
-  bgTint: '#F5EEF9',
-  bgLight: '#FAF7FC',
-  white: '#FFFFFF',
+  line: "#EEEBF2",
+  lineStrong: "#DCD8E2",
+  grabHandle: "#D9D5DF",
 
-  // Text
-  text: '#141018',
-  textSecondary: '#463C58',
-  textMuted: '#6E6780',
-  textSubtle: '#B7AECB',
+  success: "#067647",
+  successBg: "#ECFDF3",
+  warning: "#93370D",
+  warningBg: "#FFF6E5",
+  danger: "#B42318",
+  dangerBg: "#FEF3F2",
+  online: "#12B76A",
+
+  // ---- Legacy palette (mirror of colors.scss; do not use in new code) ----
+  logoPurple: "#592D87",
+  logoCharcoal: "#231F20",
+  purple900: "#3D0B57",
+  purple800: "#430C68",
+  purple700: "#59128A",
+  purple600: "#631A95",
+  purple500: "#7A2DAE",
+  purple450: "#8A2FB3",
+  purple400: "#9B3FC4",
+  lavender300: "#CDBDFF",
+  lavender200: "#D9CCFF",
+  lilac200: "#E8DCF0",
+  lilac100: "#EBD8F7",
+  lavender100: "#EFE9FF",
+  bgTint: "#F5EEF9",
+  bgLight: "#FAF7FC",
+  white: "#FFFFFF",
+  textSubtle: "#B7AECB",
 } as const;
 
-/**
- * Gradient stop pairs from colors.scss (CSS linear-gradients have no direct
- * RN equivalent; consumers render them with expo-linear-gradient or a solid
- * fallback — the shell uses the solid primary color until a gradient is
- * actually needed).
- */
-export const gradients = {
-  hero: [colors.purple900, colors.purple700],
-  button: [colors.purple700, colors.purple500],
-} as const;
-
+/** Spacing scale 4 / 8 / 12 / 16 / 20 / 24 / 32. */
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
 } as const;
 
 export const radius = {
+  /** small chip */
   sm: 8,
-  md: 12,
-  lg: 20,
-  pill: 999,
+  /** status chip */
+  chip: 12,
+  /** mobile buttons and inputs, banners */
+  md: 14,
+  /** cards */
+  lg: 16,
+  /** bottom-sheet top corners */
+  sheet: 24,
+  round: 999,
 } as const;
 
-export const fontSize = {
-  sm: 13,
-  md: 16,
-  lg: 20,
-  xl: 28,
+/** Minimum touch target on mobile. */
+export const touchTarget = 48;
+
+export const shadows = {
+  /** floating buttons: 0 2 10 rgba(20,16,24,.16) */
+  floating: {
+    shadowColor: "#141018",
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  /** bottom sheets: 0 -6 24 rgba(20,16,24,.12) */
+  sheet: {
+    shadowColor: "#141018",
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: -6 },
+    elevation: 12,
+  },
 } as const;
+
+export type FontWeight = 400 | 600 | 700 | 800;
+
+/**
+ * Per-weight font families (Android ignores fontWeight on custom fonts).
+ * IBM Plex Sans Arabic tops out at 700, so 800 maps to 700.
+ */
+export const fontFamilies = {
+  latin: {
+    400: "Manrope_400Regular",
+    600: "Manrope_600SemiBold",
+    700: "Manrope_700Bold",
+    800: "Manrope_800ExtraBold",
+  },
+  arabic: {
+    400: "IBMPlexSansArabic_400Regular",
+    600: "IBMPlexSansArabic_600SemiBold",
+    700: "IBMPlexSansArabic_700Bold",
+    800: "IBMPlexSansArabic_700Bold",
+  },
+} as const satisfies Record<"latin" | "arabic", Record<FontWeight, string>>;
+
+/** Mobile type scale (size / weight / letter spacing). */
+export const typography = {
+  /** screen titles */
+  display: { fontSize: 32, weight: 800, letterSpacing: -0.6 },
+  /** sheet headline */
+  title: { fontSize: 26, weight: 800, letterSpacing: -0.4 },
+  heading: { fontSize: 20, weight: 800, letterSpacing: 0 },
+  /** list-row titles */
+  rowTitle: { fontSize: 17, weight: 700, letterSpacing: 0 },
+  bodyStrong: { fontSize: 16, weight: 700, letterSpacing: 0 },
+  body: { fontSize: 16, weight: 400, letterSpacing: 0 },
+  secondary: { fontSize: 14, weight: 400, letterSpacing: 0 },
+  label: { fontSize: 14, weight: 600, letterSpacing: 0 },
+  caption: { fontSize: 13, weight: 600, letterSpacing: 0 },
+  button: { fontSize: 18, weight: 800, letterSpacing: 0 },
+} as const satisfies Record<
+  string,
+  { fontSize: number; weight: FontWeight; letterSpacing: number }
+>;
+
+export type TypeVariant = keyof typeof typography;
 
 export type Colors = typeof colors;

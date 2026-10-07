@@ -5,19 +5,19 @@
  * same document, so this module is the single place the rider app knows
  * about auth endpoints.
  */
-import { apiFetch } from './http-client';
+import { apiFetch } from "./http-client";
 
 // ---------------------------------------------------------------------------
 // Schemas
 
-export type AppLanguage = 'en' | 'ar';
-export type AccountState = 'active' | 'suspended' | 'deleted';
-export type RoleName = 'rider' | 'driver' | 'admin';
-export type LoginClient = 'rider' | 'driver' | 'admin';
+export type AppLanguage = "en" | "ar";
+export type AccountState = "active" | "suspended" | "deleted";
+export type RoleName = "rider" | "driver" | "admin";
+export type LoginClient = "rider" | "driver" | "admin";
 
 export interface RoleAssignment {
   role: RoleName;
-  state: 'active' | 'suspended';
+  state: "active" | "suspended";
 }
 
 export interface UserProfile {
@@ -37,7 +37,7 @@ export interface AuthTokensResponse {
   user: UserProfile;
 }
 
-export type RegisterVerifyMode = 'new' | 'reactivated';
+export type RegisterVerifyMode = "new" | "reactivated";
 
 export interface RegisterVerifyResponse {
   mode: RegisterVerifyMode;
@@ -99,51 +99,59 @@ export function isValidOtp(code: string): boolean {
 }
 
 export function isValidPassword(password: string): boolean {
-  return password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH;
+  return (
+    password.length >= PASSWORD_MIN_LENGTH &&
+    password.length <= PASSWORD_MAX_LENGTH
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Auth endpoints
 
 export function registerStart(phone: string): Promise<void> {
-  return apiFetch<void>('/api/v1/auth/register/start', {
-    method: 'POST',
+  return apiFetch<void>("/api/v1/auth/register/start", {
+    method: "POST",
     body: JSON.stringify({ phone }),
   });
 }
 
-export function registerVerify(phone: string, code: string): Promise<RegisterVerifyResponse> {
-  return apiFetch<RegisterVerifyResponse>('/api/v1/auth/register/verify', {
-    method: 'POST',
+export function registerVerify(
+  phone: string,
+  code: string,
+): Promise<RegisterVerifyResponse> {
+  return apiFetch<RegisterVerifyResponse>("/api/v1/auth/register/verify", {
+    method: "POST",
     body: JSON.stringify({ phone, code }),
   });
 }
 
-export function registerComplete(request: RegisterCompleteRequest): Promise<AuthTokensResponse> {
-  return apiFetch<AuthTokensResponse>('/api/v1/auth/register/complete', {
-    method: 'POST',
+export function registerComplete(
+  request: RegisterCompleteRequest,
+): Promise<AuthTokensResponse> {
+  return apiFetch<AuthTokensResponse>("/api/v1/auth/register/complete", {
+    method: "POST",
     body: JSON.stringify(request),
   });
 }
 
 export function login(request: LoginRequest): Promise<AuthTokensResponse> {
-  return apiFetch<AuthTokensResponse>('/api/v1/auth/login', {
-    method: 'POST',
+  return apiFetch<AuthTokensResponse>("/api/v1/auth/login", {
+    method: "POST",
     body: JSON.stringify(request),
   });
 }
 
 export function logout(refreshToken: string): Promise<void> {
-  return apiFetch<void>('/api/v1/auth/logout', {
-    method: 'POST',
+  return apiFetch<void>("/api/v1/auth/logout", {
+    method: "POST",
     auth: true,
     body: JSON.stringify({ refreshToken }),
   });
 }
 
 export function passwordResetStart(phone: string): Promise<void> {
-  return apiFetch<void>('/api/v1/auth/password-reset/start', {
-    method: 'POST',
+  return apiFetch<void>("/api/v1/auth/password-reset/start", {
+    method: "POST",
     body: JSON.stringify({ phone }),
   });
 }
@@ -152,15 +160,21 @@ export function passwordResetVerify(
   phone: string,
   code: string,
 ): Promise<PasswordResetVerifyResponse> {
-  return apiFetch<PasswordResetVerifyResponse>('/api/v1/auth/password-reset/verify', {
-    method: 'POST',
-    body: JSON.stringify({ phone, code }),
-  });
+  return apiFetch<PasswordResetVerifyResponse>(
+    "/api/v1/auth/password-reset/verify",
+    {
+      method: "POST",
+      body: JSON.stringify({ phone, code }),
+    },
+  );
 }
 
-export function passwordResetComplete(resetToken: string, newPassword: string): Promise<void> {
-  return apiFetch<void>('/api/v1/auth/password-reset/complete', {
-    method: 'POST',
+export function passwordResetComplete(
+  resetToken: string,
+  newPassword: string,
+): Promise<void> {
+  return apiFetch<void>("/api/v1/auth/password-reset/complete", {
+    method: "POST",
     body: JSON.stringify({ resetToken, newPassword }),
   });
 }
@@ -169,67 +183,74 @@ export function passwordResetComplete(resetToken: string, newPassword: string): 
 // Me endpoints
 
 export function request2faCode(): Promise<void> {
-  return apiFetch<void>('/api/v1/users/me/2fa/request', { method: 'POST', auth: true });
+  return apiFetch<void>("/api/v1/users/me/2fa/request", {
+    method: "POST",
+    auth: true,
+  });
 }
 
 export function getMe(): Promise<UserProfile> {
-  return apiFetch<UserProfile>('/api/v1/users/me', { auth: true });
+  return apiFetch<UserProfile>("/api/v1/users/me", { auth: true });
 }
 
-export function updateProfile(request: UpdateProfileRequest): Promise<UserProfile> {
-  return apiFetch<UserProfile>('/api/v1/users/me', {
-    method: 'PUT',
+export function updateProfile(
+  request: UpdateProfileRequest,
+): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/api/v1/users/me", {
+    method: "PUT",
     auth: true,
     body: JSON.stringify(request),
   });
 }
 
 export function deleteAccount(otpCode: string): Promise<void> {
-  return apiFetch<void>('/api/v1/users/me', {
-    method: 'DELETE',
+  return apiFetch<void>("/api/v1/users/me", {
+    method: "DELETE",
     auth: true,
     body: JSON.stringify({ otpCode }),
   });
 }
 
 export function changePassword(request: ChangePasswordRequest): Promise<void> {
-  return apiFetch<void>('/api/v1/users/me/password', {
-    method: 'PUT',
+  return apiFetch<void>("/api/v1/users/me/password", {
+    method: "PUT",
     auth: true,
     body: JSON.stringify(request),
   });
 }
 
 export function phoneChangeStart(newPhone: string): Promise<void> {
-  return apiFetch<void>('/api/v1/users/me/phone-change/start', {
-    method: 'POST',
+  return apiFetch<void>("/api/v1/users/me/phone-change/start", {
+    method: "POST",
     auth: true,
     body: JSON.stringify({ newPhone }),
   });
 }
 
 export function phoneChangeVerifyCurrent(code: string): Promise<void> {
-  return apiFetch<void>('/api/v1/users/me/phone-change/verify-current', {
-    method: 'POST',
+  return apiFetch<void>("/api/v1/users/me/phone-change/verify-current", {
+    method: "POST",
     auth: true,
     body: JSON.stringify({ code }),
   });
 }
 
 export function phoneChangeComplete(code: string): Promise<UserProfile> {
-  return apiFetch<UserProfile>('/api/v1/users/me/phone-change/complete', {
-    method: 'POST',
+  return apiFetch<UserProfile>("/api/v1/users/me/phone-change/complete", {
+    method: "POST",
     auth: true,
     body: JSON.stringify({ code }),
   });
 }
 
-export function uploadProfilePhoto(file: ProfilePhotoFile): Promise<UserProfile> {
+export function uploadProfilePhoto(
+  file: ProfilePhotoFile,
+): Promise<UserProfile> {
   const form = new FormData();
   // React Native's FormData accepts a {uri, name, type} file descriptor.
-  form.append('file', file as unknown as Blob);
-  return apiFetch<UserProfile>('/api/v1/users/me/photo', {
-    method: 'PUT',
+  form.append("file", file as unknown as Blob);
+  return apiFetch<UserProfile>("/api/v1/users/me/photo", {
+    method: "PUT",
     auth: true,
     body: form,
   });

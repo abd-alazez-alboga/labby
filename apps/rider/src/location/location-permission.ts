@@ -5,16 +5,18 @@
  * screen at the same time. Funnelling them through one in-flight request
  * guarantees the OS shows at most one prompt and both get the same answer.
  */
-import * as Location from 'expo-location';
+import * as Location from "expo-location";
 
-import { runExclusive } from '../permissions/permission-queue';
+import { runExclusive } from "../permissions/permission-queue";
 
 let inFlight: Promise<Location.LocationPermissionResponse> | null = null;
 
 export function requestLocationPermission(): Promise<Location.LocationPermissionResponse> {
   if (!inFlight) {
     // Queued behind any other runtime prompt (Android shows one at a time).
-    inFlight = runExclusive(() => Location.requestForegroundPermissionsAsync()).finally(() => {
+    inFlight = runExclusive(() =>
+      Location.requestForegroundPermissionsAsync(),
+    ).finally(() => {
       inFlight = null;
     });
   }

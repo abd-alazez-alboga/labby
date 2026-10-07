@@ -3,11 +3,13 @@
  * `start()` arms the countdown; `secondsLeft` ticks down to 0 once per
  * second; `active` is true while the cooldown is running.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
-export function useCooldown(durationSeconds: number = OTP_RESEND_COOLDOWN_SECONDS) {
+export function useCooldown(
+  durationSeconds: number = OTP_RESEND_COOLDOWN_SECONDS,
+) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

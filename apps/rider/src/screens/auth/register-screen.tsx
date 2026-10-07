@@ -1,6 +1,7 @@
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import {
   isValidPassword,
@@ -9,17 +10,25 @@ import {
   registerComplete,
   registerStart,
   registerVerify,
-} from '../../api/auth';
-import { ApiError } from '../../api/http-client';
-import { useAuth } from '../../auth/auth-context';
-import { Button, ErrorBanner, FormField } from '../../components/form';
-import { OtpStep } from '../../components/otp-step';
-import { useCooldown } from '../../hooks/use-cooldown';
-import { useLocale } from '../../i18n/locale-context';
-import { ScreenScrollView } from '../../components/screen';
-import { colors, fontSize, radius, spacing } from '../../theme/tokens';
+} from "../../api/auth";
+import { ApiError } from "../../api/http-client";
+import { useAuth } from "../../auth/auth-context";
+import { OtpStep } from "../../components/otp-step";
+import {
+  AppText,
+  Banner,
+  PrimaryButton,
+  ScreenScrollView,
+  screenStyles,
+  TextButton,
+  TextField,
+  useDirection,
+} from "../../components/ui";
+import { useCooldown } from "../../hooks/use-cooldown";
+import { useLocale } from "../../i18n/locale-context";
+import { colors, spacing } from "../../theme/tokens";
 
-type Step = 'phone' | 'otp' | 'details' | 'reactivated';
+type Step = "phone" | "otp" | "details" | "reactivated";
 
 /**
  * UC-S-01 — Register (phone → OTP → password+name) and
@@ -33,22 +42,25 @@ type Step = 'phone' | 'otp' | 'details' | 'reactivated';
  * - expired registrationToken on complete (400) → start over
  */
 export default function RegisterScreen() {
-  const { t, isRTL, flipRows } = useLocale();
+  const { t } = useLocale();
+  const { row } = useDirection();
   const { signIn } = useAuth();
   const router = useRouter();
   const cooldown = useCooldown();
 
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState<Step>("phone");
+  const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneTaken, setPhoneTaken] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
-  const [registrationToken, setRegistrationToken] = useState<string | null>(null);
-  const [name, setName] = useState('');
+  const [registrationToken, setRegistrationToken] = useState<string | null>(
+    null,
+  );
+  const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
@@ -62,7 +74,7 @@ export default function RegisterScreen() {
     if (!resend) {
       setPhoneTaken(false);
       if (!isValidPhone(trimmedPhone)) {
-        setPhoneError(t('auth.phoneInvalid'));
+        setPhoneError(t("auth.phoneInvalid"));
         return;
       }
       setPhoneError(null);
@@ -73,15 +85,15 @@ export default function RegisterScreen() {
       await registerStart(trimmedPhone);
       cooldown.start();
       if (!resend) {
-        setStep('otp');
+        setStep("otp");
       }
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         // UC-S-01 E5 — active/suspended account owns this phone.
         setPhoneTaken(true);
-        setStep('phone');
+        setStep("phone");
       } else if (error instanceof ApiError && error.status === 429) {
-        const message = t('auth.otpHourlyCap');
+        const message = t("auth.otpHourlyCap");
         if (resend) {
           setOtpError(message);
         } else {
@@ -89,7 +101,7 @@ export default function RegisterScreen() {
         }
       } else {
         // UC-S-01 E4 — SMS gateway unreachable / network failure.
-        const message = t('auth.otpSendFailed');
+        const message = t("auth.otpSendFailed");
         if (resend) {
           setOtpError(message);
         } else {
@@ -106,20 +118,20 @@ export default function RegisterScreen() {
     setOtpError(null);
     try {
       const result = await registerVerify(trimmedPhone, code);
-      if (result.mode === 'reactivated') {
+      if (result.mode === "reactivated") {
         // UC-S-08 — the deleted account is live again; user logs in.
-        setStep('reactivated');
+        setStep("reactivated");
       } else {
         setRegistrationToken(result.registrationToken ?? null);
-        setStep('details');
+        setStep("details");
       }
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
-        setOtpError(t('auth.otpWrong'));
+        setOtpError(t("auth.otpWrong"));
       } else if (error instanceof ApiError && error.status === 410) {
-        setOtpError(t('auth.otpExpired'));
+        setOtpError(t("auth.otpExpired"));
       } else {
-        setOtpError(t('common.networkError'));
+        setOtpError(t("common.networkError"));
       }
     } finally {
       setBusy(false);
@@ -127,14 +139,21 @@ export default function RegisterScreen() {
   };
 
   const complete = async () => {
-    const nameOk = name.trim().length > 0 && name.trim().length <= NAME_MAX_LENGTH;
+    const nameOk =
+      name.trim().length > 0 && name.trim().length <= NAME_MAX_LENGTH;
     const passwordOk = isValidPassword(password);
     const confirmOk = confirmPassword === password;
-    setNameError(nameOk ? null : t('register.nameInvalid'));
-    setPasswordError(passwordOk ? null : t('auth.passwordInvalid'));
-    setConfirmError(confirmOk ? null : t('auth.passwordMismatch'));
-    setTermsError(termsAccepted ? null : t('register.termsRequired'));
-    if (!nameOk || !passwordOk || !confirmOk || !termsAccepted || !registrationToken) {
+    setNameError(nameOk ? null : t("register.nameInvalid"));
+    setPasswordError(passwordOk ? null : t("auth.passwordInvalid"));
+    setConfirmError(confirmOk ? null : t("auth.passwordMismatch"));
+    setTermsError(termsAccepted ? null : t("register.termsRequired"));
+    if (
+      !nameOk ||
+      !passwordOk ||
+      !confirmOk ||
+      !termsAccepted ||
+      !registrationToken
+    ) {
       return;
     }
     setBusy(true);
@@ -151,13 +170,13 @@ export default function RegisterScreen() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
         setTokenExpired(true);
-        setCompleteError(t('register.tokenExpired'));
+        setCompleteError(t("register.tokenExpired"));
       } else if (error instanceof ApiError && error.status === 409) {
         // Concurrent registration won the race — the phone is now taken.
         setPhoneTaken(true);
-        setStep('phone');
+        setStep("phone");
       } else {
-        setCompleteError(t('common.networkError'));
+        setCompleteError(t("common.networkError"));
       }
     } finally {
       setBusy(false);
@@ -165,7 +184,7 @@ export default function RegisterScreen() {
   };
 
   const startOver = () => {
-    setStep('phone');
+    setStep("phone");
     setRegistrationToken(null);
     setTokenExpired(false);
     setCompleteError(null);
@@ -174,28 +193,33 @@ export default function RegisterScreen() {
 
   return (
     <ScreenScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
+      style={screenStyles.page}
+      contentContainerStyle={screenStyles.content}
       keyboardShouldPersistTaps="handled"
       testID="register-screen"
     >
-      {step === 'phone' ? (
+      {step === "phone" ? (
         <View style={styles.step} testID="register-step-phone">
-          <Text style={[styles.intro, isRTL && styles.textRtl]}>{t('register.phoneIntro')}</Text>
+          <AppText variant="body" tone="secondary">
+            {t("register.phoneIntro")}
+          </AppText>
           {phoneTaken ? (
             <View style={styles.takenBox} testID="register-phone-taken">
-              <ErrorBanner message={t('register.phoneTaken')} />
-              <Button
-                variant="link"
-                label={t('register.phoneTakenAction')}
-                onPress={() => router.replace('/login')}
+              <Banner
+                tone="danger"
+                message={t("register.phoneTaken")}
+                testID="error-banner"
+              />
+              <TextButton
+                label={t("register.phoneTakenAction")}
+                onPress={() => router.replace("/login")}
                 testID="register-go-login"
               />
             </View>
           ) : null}
-          <FormField
-            label={t('auth.phoneLabel')}
-            placeholder={t('auth.phonePlaceholder')}
+          <TextField
+            label={t("auth.phoneLabel")}
+            placeholder={t("auth.phonePlaceholder")}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
@@ -203,25 +227,24 @@ export default function RegisterScreen() {
             error={phoneError}
             testID="register-phone"
           />
-          <Button
-            label={t('register.sendCode')}
+          <PrimaryButton
+            label={t("register.sendCode")}
             onPress={() => sendCode(false)}
             loading={busy}
             testID="register-send-code"
           />
-          <Button
-            variant="link"
-            label={t('register.haveAccount')}
-            onPress={() => router.replace('/login')}
+          <TextButton
+            label={t("register.haveAccount")}
+            onPress={() => router.replace("/login")}
             testID="register-have-account"
           />
         </View>
       ) : null}
 
-      {step === 'otp' ? (
+      {step === "otp" ? (
         <View style={styles.step} testID="register-step-otp">
           <OtpStep
-            hint={t('auth.otpHint', { phone: trimmedPhone })}
+            hint={t("auth.otpHint", { phone: trimmedPhone })}
             error={otpError}
             busy={busy}
             onVerify={verifyCode}
@@ -232,31 +255,36 @@ export default function RegisterScreen() {
         </View>
       ) : null}
 
-      {step === 'details' ? (
+      {step === "details" ? (
         <View style={styles.step} testID="register-step-details">
-          <Text style={[styles.title, isRTL && styles.textRtl]}>{t('register.detailsTitle')}</Text>
-          <Text style={[styles.intro, isRTL && styles.textRtl]}>{t('register.detailsIntro')}</Text>
+          <AppText variant="heading">{t("register.detailsTitle")}</AppText>
+          <AppText variant="body" tone="secondary">
+            {t("register.detailsIntro")}
+          </AppText>
           {completeError ? (
-            <ErrorBanner message={completeError} testID="register-complete-error" />
+            <Banner
+              tone="danger"
+              message={completeError}
+              testID="register-complete-error"
+            />
           ) : null}
           {tokenExpired ? (
-            <Button
-              variant="link"
-              label={t('register.startOver')}
+            <TextButton
+              label={t("register.startOver")}
               onPress={startOver}
               testID="register-start-over"
             />
           ) : null}
-          <FormField
-            label={t('register.nameLabel')}
+          <TextField
+            label={t("register.nameLabel")}
             value={name}
             onChangeText={setName}
             maxLength={NAME_MAX_LENGTH}
             error={nameError}
             testID="register-name"
           />
-          <FormField
-            label={t('auth.passwordLabel')}
+          <TextField
+            label={t("auth.passwordLabel")}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -264,8 +292,8 @@ export default function RegisterScreen() {
             error={passwordError}
             testID="register-password"
           />
-          <FormField
-            label={t('auth.confirmPasswordLabel')}
+          <TextField
+            label={t("auth.confirmPasswordLabel")}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -277,23 +305,31 @@ export default function RegisterScreen() {
             accessibilityRole="checkbox"
             accessibilityState={{ checked: termsAccepted }}
             onPress={() => setTermsAccepted((v) => !v)}
-            style={[styles.termsRow, flipRows && styles.rowRtl]}
+            style={[styles.termsRow, { flexDirection: row }]}
             testID="register-terms"
           >
-            <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
-              {termsAccepted ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            <View
+              style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}
+            >
+              {termsAccepted ? (
+                <Ionicons name="checkmark" size={18} color={colors.onAccent} />
+              ) : null}
             </View>
-            <Text style={[styles.termsLabel, isRTL && styles.textRtl]}>
-              {t('register.termsLabel')}
-            </Text>
+            <AppText variant="body" tone="secondary" style={styles.termsLabel}>
+              {t("register.termsLabel")}
+            </AppText>
           </Pressable>
           {termsError ? (
-            <Text style={[styles.termsErrorText, isRTL && styles.textRtl]} testID="register-terms-error">
+            <AppText
+              variant="secondary"
+              tone="danger"
+              testID="register-terms-error"
+            >
               {termsError}
-            </Text>
+            </AppText>
           ) : null}
-          <Button
-            label={t('register.submit')}
+          <PrimaryButton
+            label={t("register.submit")}
             onPress={complete}
             loading={busy}
             testID="register-complete"
@@ -301,17 +337,15 @@ export default function RegisterScreen() {
         </View>
       ) : null}
 
-      {step === 'reactivated' ? (
+      {step === "reactivated" ? (
         <View style={styles.step} testID="register-step-reactivated">
-          <Text style={[styles.title, isRTL && styles.textRtl]}>
-            {t('register.reactivatedTitle')}
-          </Text>
-          <Text style={[styles.intro, isRTL && styles.textRtl]}>
-            {t('register.reactivatedBody')}
-          </Text>
-          <Button
-            label={t('register.reactivatedLogin')}
-            onPress={() => router.replace('/login')}
+          <AppText variant="heading">{t("register.reactivatedTitle")}</AppText>
+          <AppText variant="body" tone="secondary">
+            {t("register.reactivatedBody")}
+          </AppText>
+          <PrimaryButton
+            label={t("register.reactivatedLogin")}
+            onPress={() => router.replace("/login")}
             testID="register-reactivated-login"
           />
         </View>
@@ -321,67 +355,32 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.bgLight,
-  },
-  container: {
-    padding: spacing.lg,
-  },
   step: {
-    gap: spacing.md,
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: '700',
-  },
-  intro: {
-    color: colors.textSecondary,
-    fontSize: fontSize.md,
-    lineHeight: 22,
-  },
-  textRtl: {
-    writingDirection: 'rtl',
-    textAlign: 'right',
-  },
-  rowRtl: {
-    flexDirection: 'row-reverse',
+    gap: spacing.lg,
   },
   takenBox: {
     gap: spacing.xs,
   },
   termsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    alignItems: "center",
+    gap: spacing.md,
+    minHeight: 48,
   },
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.lavender200,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
   checkboxChecked: {
-    backgroundColor: colors.purple700,
-    borderColor: colors.purple700,
-  },
-  checkboxMark: {
-    color: colors.white,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   termsLabel: {
-    color: colors.textSecondary,
-    fontSize: fontSize.md,
     flexShrink: 1,
-  },
-  termsErrorText: {
-    color: '#C0392B',
-    fontSize: fontSize.sm,
   },
 });

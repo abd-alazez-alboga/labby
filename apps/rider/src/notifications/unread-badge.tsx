@@ -1,31 +1,47 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { StyleSheet, View } from "react-native";
 
-import { colors, spacing } from '../theme/tokens';
+import { AppText } from "../components/ui";
+import { colors, radius } from "../theme/tokens";
 
-/** Unread counter pill; renders nothing for an unknown or zero count. */
-export function UnreadBadge({ count, testID }: { count: number | null; testID?: string }) {
+/** Unread counter pill (accent); renders nothing for an unknown or zero count. */
+export function UnreadBadge({
+  count,
+  testID,
+}: {
+  count: number | null;
+  testID?: string;
+}) {
   if (!count || count <= 0) return null;
   return (
     <View style={styles.badge} testID={testID}>
-      <Text style={styles.label}>{count > 99 ? '99+' : String(count)}</Text>
+      <AppText
+        variant="caption"
+        weight={800}
+        tone="onAccent"
+        align="center"
+        style={styles.label}
+      >
+        {count > 99 ? "99+" : String(count)}
+      </AppText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: spacing.xs + 2,
-    borderRadius: 10,
-    backgroundColor: '#C0392B',
-    alignItems: 'center',
-    justifyContent: 'center',
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: radius.round,
+    backgroundColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
   label: {
-    color: colors.white,
     fontSize: 11,
-    fontWeight: '700',
+    lineHeight: 14,
   },
 });

@@ -4,22 +4,22 @@
  * (optimistic, reverted on failure) and read-all. Every page answer carries
  * the center-wide unread count, which is mirrored into the app badge.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { type FailureKind, failureKind } from '../api/http-client';
+import { type FailureKind, failureKind } from "../api/http-client";
 import {
   type AppNotification,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationCategory,
-} from '../api/notifications';
-import { useOptionalNotifications } from './notifications-context';
+} from "../api/notifications";
+import { useOptionalNotifications } from "./notifications-context";
 
 export type CenterStatus =
-  | { kind: 'loading' }
-  | { kind: 'ready' }
-  | { kind: 'error'; failure: FailureKind };
+  | { kind: "loading" }
+  | { kind: "ready" }
+  | { kind: "error"; failure: FailureKind };
 
 export interface NotificationCenter {
   status: CenterStatus;
@@ -38,10 +38,12 @@ export interface NotificationCenter {
   markAllRead: () => void;
 }
 
-export function useNotificationCenter(category: NotificationCategory | null): NotificationCenter {
+export function useNotificationCenter(
+  category: NotificationCategory | null,
+): NotificationCenter {
   const badge = useOptionalNotifications();
   const setBadge = badge?.setUnread;
-  const [status, setStatus] = useState<CenterStatus>({ kind: 'loading' });
+  const [status, setStatus] = useState<CenterStatus>({ kind: "loading" });
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unread, setUnreadState] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -74,10 +76,10 @@ export function useNotificationCenter(category: NotificationCategory | null): No
   );
 
   const loadFirstPage = useCallback(
-    async (mode: 'initial' | 'refresh') => {
+    async (mode: "initial" | "refresh") => {
       const current = ++generation.current;
-      if (mode === 'initial') {
-        setStatus({ kind: 'loading' });
+      if (mode === "initial") {
+        setStatus({ kind: "loading" });
         setItems([]);
         setNextCursor(null);
       } else {
@@ -91,13 +93,15 @@ export function useNotificationCenter(category: NotificationCategory | null): No
         setItems(page.items);
         setNextCursor(page.nextCursor ?? null);
         setUnread(page.unread);
-        setStatus({ kind: 'ready' });
+        setStatus({ kind: "ready" });
       } catch (error) {
         if (!mounted.current || current !== generation.current) return;
         // A failed pull-to-refresh keeps the list that is already shown.
-        if (mode === 'initial') setStatus({ kind: 'error', failure: failureKind(error) });
+        if (mode === "initial")
+          setStatus({ kind: "error", failure: failureKind(error) });
       } finally {
-        if (mounted.current && current === generation.current) setRefreshing(false);
+        if (mounted.current && current === generation.current)
+          setRefreshing(false);
       }
     },
     [category, setUnread],
@@ -106,12 +110,12 @@ export function useNotificationCenter(category: NotificationCategory | null): No
   // (Re)load from the first page whenever the category filter changes.
   useEffect(() => {
     (async () => {
-      await loadFirstPage('initial');
+      await loadFirstPage("initial");
     })();
   }, [loadFirstPage]);
 
   const loadMore = useCallback(async () => {
-    if (!nextCursor || loadingMore || status.kind !== 'ready') return;
+    if (!nextCursor || loadingMore || status.kind !== "ready") return;
     const current = generation.current;
     setLoadingMore(true);
     setLoadMoreError(null);
@@ -120,7 +124,10 @@ export function useNotificationCenter(category: NotificationCategory | null): No
       if (!mounted.current || current !== generation.current) return;
       setItems((previous) => {
         const known = new Set(previous.map((item) => item.id));
-        return [...previous, ...page.items.filter((item) => !known.has(item.id))];
+        return [
+          ...previous,
+          ...page.items.filter((item) => !known.has(item.id)),
+        ];
       });
       setNextCursor(page.nextCursor ?? null);
       setUnread(page.unread);
@@ -138,7 +145,9 @@ export function useNotificationCenter(category: NotificationCategory | null): No
       if (notification.read) return;
       const setRead = (read: boolean) =>
         setItems((previous) =>
-          previous.map((item) => (item.id === notification.id ? { ...item, read } : item)),
+          previous.map((item) =>
+            item.id === notification.id ? { ...item, read } : item,
+          ),
         );
       setRead(true);
       setUnread(unreadRef.current - 1);
@@ -157,7 +166,9 @@ export function useNotificationCenter(category: NotificationCategory | null): No
     try {
       await markAllNotificationsRead();
       if (!mounted.current) return;
-      setItems((previous) => previous.map((item) => (item.read ? item : { ...item, read: true })));
+      setItems((previous) =>
+        previous.map((item) => (item.read ? item : { ...item, read: true })),
+      );
       setUnread(0);
     } catch (error) {
       if (mounted.current) setMarkAllError(failureKind(error));
@@ -176,8 +187,8 @@ export function useNotificationCenter(category: NotificationCategory | null): No
     refreshing,
     markingAll,
     markAllError,
-    reload: () => void loadFirstPage('initial'),
-    refresh: () => void loadFirstPage('refresh'),
+    reload: () => void loadFirstPage("initial"),
+    refresh: () => void loadFirstPage("refresh"),
     loadMore: () => void loadMore(),
     markRead,
     markAllRead: () => void markAllRead(),

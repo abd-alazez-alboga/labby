@@ -5,90 +5,105 @@
  * line (NFR-A3). Reachable only in __DEV__ builds (the home entry and the
  * route both check it); it is NOT the M7 booking UI.
  */
-import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import { failureKind } from '../../api/http-client';
-import { getRoute, type Route } from '../../api/routing';
-import { Button, ErrorBanner, FormField } from '../../components/form';
-import { useLocale } from '../../i18n/locale-context';
-import { isValidLatLng, type LatLng } from '../../map/geo';
-import { LabbyMap } from '../../map/labby-map';
-import type { MapMarker } from '../../map/map-bridge';
-import { ScreenScrollView } from '../../components/screen';
-import { colors, fontSize, radius, spacing } from '../../theme/tokens';
+import { failureKind } from "../../api/http-client";
+import { getRoute, type Route } from "../../api/routing";
+import {
+  AppText,
+  Banner,
+  PrimaryButton,
+  ScreenScrollView,
+  screenStyles,
+  StatusChip,
+  TextField,
+  useDirection,
+} from "../../components/ui";
+import { useLocale } from "../../i18n/locale-context";
+import { isValidLatLng, type LatLng } from "../../map/geo";
+import { LabbyMap } from "../../map/labby-map";
+import type { MapMarker } from "../../map/map-bridge";
+import { colors, radius, spacing } from "../../theme/tokens";
 
 /** Demo points in Damascus (the launch region's seed data). */
-const DEFAULT_ORIGIN = '33.5138, 36.2765';
-const DEFAULT_DESTINATION = '33.5132, 36.3159';
+const DEFAULT_ORIGIN = "33.5138, 36.2765";
+const DEFAULT_DESTINATION = "33.5132, 36.3159";
 
 /** "lat, lng" → point, or null when malformed / out of range. */
 export function parseLatLngInput(input: string): LatLng | null {
-  const parts = input.split(',').map((part) => part.trim());
-  if (parts.length !== 2 || parts.some((part) => part === '')) return null;
+  const parts = input.split(",").map((part) => part.trim());
+  if (parts.length !== 2 || parts.some((part) => part === "")) return null;
   const point = { lat: Number(parts[0]), lng: Number(parts[1]) };
   return isValidLatLng(point) ? point : null;
 }
 
 type Result =
-  | { kind: 'idle' }
-  | { kind: 'loading' }
-  | { kind: 'error'; messageKey: string }
-  | { kind: 'ready'; route: Route; origin: LatLng; destination: LatLng };
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; messageKey: string }
+  | { kind: "ready"; route: Route; origin: LatLng; destination: LatLng };
 
 export default function RoutePreviewScreen() {
-  const { t, isRTL } = useLocale();
+  const { t } = useLocale();
+  const { flipRows } = useDirection();
   const [originText, setOriginText] = useState(DEFAULT_ORIGIN);
   const [destinationText, setDestinationText] = useState(DEFAULT_DESTINATION);
   const [inputError, setInputError] = useState<string | null>(null);
-  const [result, setResult] = useState<Result>({ kind: 'idle' });
+  const [result, setResult] = useState<Result>({ kind: "idle" });
 
   const submit = async () => {
     const origin = parseLatLngInput(originText);
     const destination = parseLatLngInput(destinationText);
     if (!origin || !destination) {
-      setInputError(t('routePreview.invalidPoint'));
+      setInputError(t("routePreview.invalidPoint"));
       return;
     }
     setInputError(null);
-    setResult({ kind: 'loading' });
+    setResult({ kind: "loading" });
     try {
       const route = await getRoute([origin, destination]);
-      setResult({ kind: 'ready', route, origin, destination });
+      setResult({ kind: "ready", route, origin, destination });
     } catch (error) {
       setResult({
-        kind: 'error',
+        kind: "error",
         messageKey:
-          failureKind(error) === 'network' ? 'common.networkErrorBody' : 'routePreview.failed',
+          failureKind(error) === "network"
+            ? "common.networkErrorBody"
+            : "routePreview.failed",
       });
     }
   };
 
   const markers: MapMarker[] =
-    result.kind === 'ready'
+    result.kind === "ready"
       ? [
-          { id: 'origin', kind: 'origin', position: result.origin },
-          { id: 'destination', kind: 'destination', position: result.destination },
+          { id: "origin", kind: "origin", position: result.origin },
+          {
+            id: "destination",
+            kind: "destination",
+            position: result.destination,
+          },
         ]
       : [];
 
   return (
     <ScreenScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
+      style={screenStyles.page}
+      contentContainerStyle={screenStyles.content}
       testID="route-preview-screen"
     >
-      <Text style={[styles.devNote, isRTL && styles.textRtl]}>{t('routePreview.devNote')}</Text>
-      <FormField
-        label={t('routePreview.origin')}
+      <Banner tone="neutral" message={t("routePreview.devNote")} />
+      <TextField
+        label={t("routePreview.origin")}
         value={originText}
         onChangeText={setOriginText}
         keyboardType="numbers-and-punctuation"
         autoCapitalize="none"
         testID="route-origin"
       />
-      <FormField
-        label={t('routePreview.destination')}
+      <TextField
+        label={t("routePreview.destination")}
         value={destinationText}
         onChangeText={setDestinationText}
         keyboardType="numbers-and-punctuation"
@@ -96,34 +111,44 @@ export default function RoutePreviewScreen() {
         error={inputError}
         testID="route-destination"
       />
-      <Button
-        label={t('routePreview.submit')}
+      <PrimaryButton
+        label={t("routePreview.submit")}
         onPress={() => void submit()}
-        loading={result.kind === 'loading'}
+        loading={result.kind === "loading"}
         testID="route-submit"
       />
 
-      {result.kind === 'error' ? (
-        <ErrorBanner message={t(result.messageKey)} testID="route-error" />
+      {result.kind === "error" ? (
+        <Banner
+          tone="danger"
+          message={t(result.messageKey)}
+          testID="route-error"
+        />
       ) : null}
 
-      {result.kind === 'ready' ? (
+      {result.kind === "ready" ? (
         <View style={styles.result} testID="route-result">
           <View style={styles.stats}>
-            <Text style={[styles.stat, isRTL && styles.textRtl]} testID="route-distance">
-              {t('routePreview.distance', {
+            <AppText variant="rowTitle" testID="route-distance">
+              {t("routePreview.distance", {
                 km: (result.route.distanceMeters / 1000).toFixed(1),
               })}
-            </Text>
-            <Text style={[styles.stat, isRTL && styles.textRtl]} testID="route-duration">
-              {t('routePreview.duration', {
-                minutes: Math.max(1, Math.round(result.route.durationSeconds / 60)),
+            </AppText>
+            <AppText variant="body" tone="secondary" testID="route-duration">
+              {t("routePreview.duration", {
+                minutes: Math.max(
+                  1,
+                  Math.round(result.route.durationSeconds / 60),
+                ),
               })}
-            </Text>
+            </AppText>
             {result.route.approximate ? (
-              <Text style={[styles.approximate, isRTL && styles.textRtl]} testID="route-approximate">
-                {t('routePreview.approximate')}
-              </Text>
+              <StatusChip
+                tone="warning"
+                label={t("routePreview.approximate")}
+                testID="route-approximate"
+                style={flipRows ? styles.chipRtl : styles.chipLtr}
+              />
             ) : null}
           </View>
           <LabbyMap
@@ -141,43 +166,25 @@ export default function RoutePreviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.bgLight,
-  },
-  container: {
-    padding: spacing.lg,
+  result: {
     gap: spacing.md,
   },
-  devNote: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-  },
-  textRtl: {
-    writingDirection: 'rtl',
-    textAlign: 'right',
-  },
-  result: {
-    gap: spacing.sm,
-  },
   stats: {
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: colors.surfaceFill,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     gap: spacing.xs,
   },
-  stat: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: '600',
+  chipLtr: {
+    alignSelf: "flex-start",
+    marginTop: spacing.xs,
   },
-  approximate: {
-    color: '#B26A00',
-    fontSize: fontSize.sm,
-    fontWeight: '600',
+  chipRtl: {
+    alignSelf: "flex-end",
+    marginTop: spacing.xs,
   },
   map: {
     height: 320,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
   },
 });

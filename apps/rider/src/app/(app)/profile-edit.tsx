@@ -1,1 +1,1 @@
-export { default } from '../../screens/settings/profile-edit-screen';
+export { default } from "../../screens/settings/profile-edit-screen";

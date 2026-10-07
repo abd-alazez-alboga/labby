@@ -1,58 +1,75 @@
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from "expo-router";
+import React from "react";
+import { Image, StyleSheet, View } from "react-native";
 
-import { useAuth } from '../../auth/auth-context';
-import { Button } from '../../components/form';
-import { Screen } from '../../components/screen';
-import { useLocale } from '../../i18n/locale-context';
-import { colors, fontSize, radius, spacing } from '../../theme/tokens';
+import { useAuth } from "../../auth/auth-context";
+import {
+  AppText,
+  Banner,
+  PrimaryButton,
+  Screen,
+  SecondaryButton,
+  useDirection,
+} from "../../components/ui";
+import { useLocale } from "../../i18n/locale-context";
+import { colors, spacing } from "../../theme/tokens";
 
 // Copy of /assets/images/labby-logo.png (repo root is the source of truth).
-const logo = require('../../../assets/branding/labby-logo.png');
+const logo = require("../../../assets/branding/labby-logo.png");
 
 /**
- * Signed-out landing screen. Also hosts the post-deletion "goodbye" state
- * and the session-expired note (UC-S-07 / token refresh failure).
+ * Signed-out landing screen: clean white, bold headline, one dominant
+ * action (create account) with log-in as the secondary. Also hosts the
+ * post-deletion "goodbye" state and the session-expired note (UC-S-07 /
+ * token refresh failure).
  */
 export default function WelcomeScreen() {
-  const { t, isRTL } = useLocale();
+  const { t } = useLocale();
+  const { flipRows } = useDirection();
   const { signOutReason } = useAuth();
   const router = useRouter();
 
   return (
-    <Screen edges={['top', 'bottom']} style={styles.container} testID="welcome-screen">
-      <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityRole="image" />
-      <Text style={[styles.tagline, isRTL && styles.textRtl]}>{t('welcome.tagline')}</Text>
+    <Screen
+      edges={["top", "bottom"]}
+      style={styles.container}
+      testID="welcome-screen"
+    >
+      <View style={styles.hero}>
+        <Image
+          source={logo}
+          style={[styles.logo, flipRows ? styles.logoRtl : styles.logoLtr]}
+          resizeMode="contain"
+          accessibilityRole="image"
+          accessibilityLabel={t("common.appName")}
+        />
+        <AppText variant="display">{t("welcome.tagline")}</AppText>
+      </View>
 
-      {signOutReason === 'deleted' ? (
-        <View style={styles.notice} testID="goodbye-banner">
-          <Text style={[styles.noticeTitle, isRTL && styles.textRtl]}>
-            {t('welcome.goodbyeTitle')}
-          </Text>
-          <Text style={[styles.noticeBody, isRTL && styles.textRtl]}>
-            {t('welcome.goodbyeBody')}
-          </Text>
-        </View>
-      ) : null}
-      {signOutReason === 'expired' ? (
-        <View style={styles.notice} testID="session-expired-banner">
-          <Text style={[styles.noticeBody, isRTL && styles.textRtl]}>
-            {t('welcome.sessionExpired')}
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={styles.actions}>
-        <Button
-          label={t('welcome.createAccount')}
-          onPress={() => router.push('/register')}
+      <View style={styles.bottom}>
+        {signOutReason === "deleted" ? (
+          <Banner
+            tone="neutral"
+            title={t("welcome.goodbyeTitle")}
+            message={t("welcome.goodbyeBody")}
+            testID="goodbye-banner"
+          />
+        ) : null}
+        {signOutReason === "expired" ? (
+          <Banner
+            tone="warning"
+            message={t("welcome.sessionExpired")}
+            testID="session-expired-banner"
+          />
+        ) : null}
+        <PrimaryButton
+          label={t("welcome.createAccount")}
+          onPress={() => router.push("/register")}
           testID="welcome-register"
         />
-        <Button
-          variant="secondary"
-          label={t('welcome.logIn')}
-          onPress={() => router.push('/login')}
+        <SecondaryButton
+          label={t("welcome.logIn")}
+          onPress={() => router.push("/login")}
           testID="welcome-login"
         />
       </View>
@@ -63,44 +80,27 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    gap: spacing.md,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
+    justifyContent: "space-between",
+  },
+  hero: {
+    flex: 1,
+    justifyContent: "center",
+    gap: spacing.xxl,
   },
   logo: {
-    width: 200,
-    height: 80,
+    width: 160,
+    height: 29,
   },
-  tagline: {
-    color: colors.textSecondary,
-    fontSize: fontSize.lg,
-    textAlign: 'center',
+  logoLtr: {
+    alignSelf: "flex-start",
   },
-  textRtl: {
-    writingDirection: 'rtl',
+  logoRtl: {
+    alignSelf: "flex-end",
   },
-  notice: {
-    backgroundColor: colors.lavender100,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-    alignSelf: 'stretch',
-  },
-  noticeTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: '700',
-  },
-  noticeBody: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-  },
-  actions: {
-    alignSelf: 'stretch',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
+  bottom: {
+    gap: spacing.md,
   },
 });

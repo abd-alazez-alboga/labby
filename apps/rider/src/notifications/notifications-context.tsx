@@ -14,8 +14,8 @@
  *   opened, and the notification is marked read — including the tap that
  *   cold-started the app.
  */
-import type * as ExpoNotifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
+import type * as ExpoNotifications from "expo-notifications";
+import { useRouter } from "expo-router";
 import React, {
   createContext,
   useCallback,
@@ -24,13 +24,13 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import { AppState } from 'react-native';
+} from "react";
+import { AppState } from "react-native";
 
-import { getUnreadCount, markNotificationRead } from '../api/notifications';
-import { notifications } from './notifications-module';
-import { parsePushPayload, resolveDeepLink } from './deep-links';
-import { registerForPush, watchPushTokenRotation } from './push-registration';
+import { getUnreadCount, markNotificationRead } from "../api/notifications";
+import { notifications } from "./notifications-module";
+import { parsePushPayload, resolveDeepLink } from "./deep-links";
+import { registerForPush, watchPushTokenRotation } from "./push-registration";
 
 export interface NotificationsContextValue {
   /** Unread count of the rider center; null until first known. */
@@ -39,7 +39,9 @@ export interface NotificationsContextValue {
   refreshUnread: () => void;
 }
 
-const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
+const NotificationsContext = createContext<
+  NotificationsContextValue | undefined
+>(undefined);
 
 /** Taps already handled in this JS session (cold-start + listener overlap). */
 const handledResponses = new Set<string>();
@@ -49,14 +51,17 @@ export function resetHandledNotificationResponses(): void {
   handledResponses.clear();
 }
 
-function responseData(response: ExpoNotifications.NotificationResponse): Record<string, unknown> {
+function responseData(
+  response: ExpoNotifications.NotificationResponse,
+): Record<string, unknown> {
   const { content, trigger } = response.notification.request;
   if (content.data && Object.keys(content.data).length > 0) {
     return content.data as Record<string, unknown>;
   }
   // Raw FCM messages on Android may carry their data on the trigger only.
-  const remote = (trigger as { remoteMessage?: { data?: Record<string, unknown> } } | null)
-    ?.remoteMessage;
+  const remote = (
+    trigger as { remoteMessage?: { data?: Record<string, unknown> } } | null
+  )?.remoteMessage;
   return remote?.data ?? {};
 }
 
@@ -80,7 +85,11 @@ function configureForegroundPresentation(): void {
   }
 }
 
-export function NotificationsProvider({ children }: { children: React.ReactNode }) {
+export function NotificationsProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const [unread, setUnreadState] = useState<number | null>(null);
   const mounted = useRef(true);
@@ -108,8 +117,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     refreshUnread();
     let previous = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'active' && previous !== 'active') refreshUnread();
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && previous !== "active") refreshUnread();
       previous = next;
     });
     return () => subscription.remove();
@@ -131,7 +140,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       inFlight = true;
       void registerForPush({ prompt })
         .then((result) => {
-          if (!cancelled) registered = result === 'registered';
+          if (!cancelled) registered = result === "registered";
         })
         .finally(() => {
           inFlight = false;
@@ -139,8 +148,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     };
     attempt();
     let previous = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'active' && previous !== 'active') attempt();
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && previous !== "active") attempt();
       previous = next;
     });
     const stopRotation = watchPushTokenRotation();
@@ -173,8 +182,10 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     let cancelled = false;
     let subscription: { remove: () => void } | null = null;
     try {
-      subscription = notifications().addNotificationResponseReceivedListener(openResponse);
-      notifications().getLastNotificationResponseAsync()
+      subscription =
+        notifications().addNotificationResponseReceivedListener(openResponse);
+      notifications()
+        .getLastNotificationResponseAsync()
         .then((response) => {
           if (!cancelled) openResponse(response);
         })
@@ -192,7 +203,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     let subscription: { remove: () => void } | null = null;
     try {
-      subscription = notifications().addNotificationReceivedListener(() => refreshUnread());
+      subscription = notifications().addNotificationReceivedListener(() =>
+        refreshUnread(),
+      );
     } catch {
       // unsupported runtime
     }
@@ -204,7 +217,11 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     [unread, setUnread, refreshUnread],
   );
 
-  return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
+  return (
+    <NotificationsContext.Provider value={value}>
+      {children}
+    </NotificationsContext.Provider>
+  );
 }
 
 /** Notification state, or null outside the signed-in layout (provider-less tests). */

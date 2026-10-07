@@ -16,8 +16,8 @@
  * - location permission denied → an explanatory state with a retry and an
  *   open-system-settings action.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Location from 'expo-location';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 import React, {
   createContext,
   useCallback,
@@ -26,21 +26,25 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import { AppState, Linking } from 'react-native';
+} from "react";
+import { AppState, Linking } from "react-native";
 
-import { ApiError } from '../api/http-client';
-import { resolveRegion, type RegionConfig } from '../api/regions';
-import { readLocationPermission, requestLocationPermission } from '../location/location-permission';
+import { ApiError } from "../api/http-client";
+import { resolveRegion, type RegionConfig } from "../api/regions";
+import {
+  readLocationPermission,
+  requestLocationPermission,
+} from "../location/location-permission";
 
-export const REGION_CACHE_KEY = 'labby.rider.region';
+export const REGION_CACHE_KEY = "labby.rider.region";
 
 /** Re-resolve once the device moved this far from the last resolved point. */
 export const SIGNIFICANT_MOVE_KM = 1.5;
 /** Watch granularity: position updates at most every 500 m of movement. */
 const WATCH_DISTANCE_INTERVAL_M = 500;
 
-export type RegionStatus = 'loading' | 'resolved' | 'outside' | 'permissionDenied' | 'error';
+export type RegionStatus =
+  "loading" | "resolved" | "outside" | "permissionDenied" | "error";
 
 interface GeoPoint {
   lat: number;
@@ -98,7 +102,7 @@ function distanceKm(a: GeoPoint, b: GeoPoint): number {
 }
 
 export function RegionProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<RegionStatus>('loading');
+  const [status, setStatus] = useState<RegionStatus>("loading");
   const [config, setConfig] = useState<RegionConfig | null>(null);
   /** Point of the last answer from the server (200 or 404). */
   const lastResolved = useRef<GeoPoint | null>(null);
@@ -122,10 +126,10 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
     if (!mounted.current) return;
     if (fallback.current) {
       setConfig(fallback.current.config);
-      setStatus('resolved');
+      setStatus("resolved");
     } else {
       setConfig(null);
-      setStatus('error');
+      setStatus("error");
     }
   }, []);
 
@@ -138,7 +142,7 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
         await writeCachedRegion(fallback.current);
         if (mounted.current) {
           setConfig(fresh);
-          setStatus('resolved');
+          setStatus("resolved");
         }
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
@@ -148,7 +152,7 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
           await writeCachedRegion(null);
           if (mounted.current) {
             setConfig(null);
-            setStatus('outside');
+            setStatus("outside");
           }
           return;
         }
@@ -191,38 +195,43 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
   }, [applyResolve]);
 
   /** The full cycle: cache → permission → GPS → resolve. */
-  const locateAndResolve = useCallback(async (prompt = true) => {
-    if (!fallback.current) {
-      fallback.current = await readCachedRegion();
-    }
-    let permission: Location.LocationPermissionResponse;
-    try {
-      permission = prompt ? await requestLocationPermission() : await readLocationPermission();
-    } catch {
-      degradeToFallback();
-      return;
-    }
-    if (!permission.granted) {
-      if (mounted.current) {
-        setConfig(null);
-        setStatus('permissionDenied');
+  const locateAndResolve = useCallback(
+    async (prompt = true) => {
+      if (!fallback.current) {
+        fallback.current = await readCachedRegion();
       }
-      return;
-    }
-    void startWatch();
-    try {
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      await applyResolve({
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      });
-    } catch {
-      // GPS read failed: degrade exactly like a network failure.
-      degradeToFallback();
-    }
-  }, [applyResolve, degradeToFallback, startWatch]);
+      let permission: Location.LocationPermissionResponse;
+      try {
+        permission = prompt
+          ? await requestLocationPermission()
+          : await readLocationPermission();
+      } catch {
+        degradeToFallback();
+        return;
+      }
+      if (!permission.granted) {
+        if (mounted.current) {
+          setConfig(null);
+          setStatus("permissionDenied");
+        }
+        return;
+      }
+      void startWatch();
+      try {
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        await applyResolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      } catch {
+        // GPS read failed: degrade exactly like a network failure.
+        degradeToFallback();
+      }
+    },
+    [applyResolve, degradeToFallback, startWatch],
+  );
 
   // Resolve on boot (the provider mounts with the signed-in layout).
   useEffect(() => {
@@ -233,10 +242,10 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
 
   // Re-resolve when the app returns to the foreground.
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (next) => {
+    const subscription = AppState.addEventListener("change", (next) => {
       const previous = appState.current;
       appState.current = next;
-      if (next === 'active' && previous !== 'active') {
+      if (next === "active" && previous !== "active") {
         void locateAndResolve(false);
       }
     });
@@ -246,7 +255,7 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
   const retry = useCallback(() => {
     if (mounted.current) {
       setConfig(null);
-      setStatus('loading');
+      setStatus("loading");
     }
     void locateAndResolve();
   }, [locateAndResolve]);
@@ -260,7 +269,9 @@ export function RegionProvider({ children }: { children: React.ReactNode }) {
     [status, config, retry, openLocationSettings],
   );
 
-  return <RegionContext.Provider value={value}>{children}</RegionContext.Provider>;
+  return (
+    <RegionContext.Provider value={value}>{children}</RegionContext.Provider>
+  );
 }
 
 /**
