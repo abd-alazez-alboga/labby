@@ -14,6 +14,7 @@ import {
 } from '../api/rbac';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { DataTable, PageHeader } from '../ui';
 
 type EditorState =
   | { mode: 'closed' }
@@ -179,8 +180,21 @@ export default function RolesPage() {
   const readOnly = editor.mode === 'view';
 
   return (
-    <section>
-      <h1 className="page__title">{t('roles.title')}</h1>
+    <section className="page">
+      <PageHeader
+        title={t('roles.title')}
+        actions={
+          canManage && roles !== null && catalog !== null && !loadFailed ? (
+            <button
+              className="btn btn--primary"
+              type="button"
+              onClick={() => openEditor({ mode: 'create' })}
+            >
+              {t('roles.create')}
+            </button>
+          ) : null
+        }
+      />
 
       {pageError ? (
         <p className="banner banner--error" role="alert">
@@ -196,19 +210,7 @@ export default function RolesPage() {
         <div className="loading">{t('common.loading')}</div>
       ) : (
         <>
-          {canManage ? (
-            <p>
-              <button
-                className="btn btn--primary"
-                type="button"
-                onClick={() => openEditor({ mode: 'create' })}
-              >
-                {t('roles.create')}
-              </button>
-            </p>
-          ) : null}
-
-          <table className="table">
+          <DataTable>
             <thead>
               <tr>
                 <th>{t('roles.columns.name')}</th>
@@ -223,7 +225,7 @@ export default function RolesPage() {
                 const editable = canManage && !isImmutable(role);
                 return (
                   <tr key={role.id}>
-                    <td>{role.name}</td>
+                    <td className="person__name">{role.name}</td>
                     <td>{role.isSystem ? t('roles.system') : t('roles.custom')}</td>
                     <td>{role.permissions.length}</td>
                     <td>{role.assignedAdminCount}</td>
@@ -231,7 +233,7 @@ export default function RolesPage() {
                       <span className="table__actions">
                         {editable ? (
                           <button
-                            className="btn"
+                            className="btn btn--small"
                             type="button"
                             onClick={() => openEditor({ mode: 'edit', role })}
                           >
@@ -239,7 +241,7 @@ export default function RolesPage() {
                           </button>
                         ) : (
                           <button
-                            className="btn"
+                            className="btn btn--small"
                             type="button"
                             onClick={() => openEditor({ mode: 'view', role })}
                           >
@@ -251,14 +253,14 @@ export default function RolesPage() {
                             <span className="table__confirm">
                               {t('roles.deleteConfirm')}
                               <button
-                                className="btn btn--danger"
+                                className="btn btn--small btn--danger"
                                 type="button"
                                 onClick={() => void handleDelete(role)}
                               >
                                 {t('common.confirm')}
                               </button>
                               <button
-                                className="btn"
+                                className="btn btn--small"
                                 type="button"
                                 onClick={() => setConfirmingDeleteId(null)}
                               >
@@ -267,7 +269,7 @@ export default function RolesPage() {
                             </span>
                           ) : (
                             <button
-                              className="btn"
+                              className="btn btn--small btn--danger-text"
                               type="button"
                               onClick={() => setConfirmingDeleteId(role.id)}
                             >
@@ -281,7 +283,7 @@ export default function RolesPage() {
                 );
               })}
             </tbody>
-          </table>
+          </DataTable>
 
           {editorOpen ? (
             <form className="card panel" onSubmit={(event) => void handleSave(event)}>

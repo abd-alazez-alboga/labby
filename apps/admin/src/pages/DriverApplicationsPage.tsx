@@ -10,6 +10,7 @@ import {
   type ApplicationSummaryPage,
 } from '../api/onboarding';
 import { useAuth } from '../auth/AuthContext';
+import { DataTable, FilterChips, PageHeader, Plate, TablePager } from '../ui';
 import {
   ApplicantCell,
   ApplicationStatusChip,
@@ -89,30 +90,20 @@ export default function DriverApplicationsPage() {
   const lastPage = result ? Math.max(0, Math.ceil(result.totalItems / result.size) - 1) : 0;
 
   return (
-    <section>
-      <h1 className="page__title">{t('applications.title')}</h1>
-      <p className="page__subtitle">{t('applications.subtitle')}</p>
+    <section className="page">
+      <PageHeader title={t('applications.title')} description={t('applications.subtitle')} />
 
-      <div className="card panel">
-        <div className="filter-chips" role="group" aria-label={t('applications.filterLabel')}>
-          {APPLICATION_STATUSES.map((status) => {
-            const active = statuses.includes(status);
-            return (
-              <button
-                key={status}
-                type="button"
-                className={active ? 'filter-chip filter-chip--active' : 'filter-chip'}
-                aria-pressed={active}
-                // Never empty: the last selected status cannot be cleared.
-                disabled={active && statuses.length === 1}
-                onClick={() => toggleStatus(status)}
-              >
-                {t(`review.applicationStatus.${status}`)}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <FilterChips
+        label={t('applications.filterLabel')}
+        options={APPLICATION_STATUSES.map((status) => ({
+          value: status,
+          label: t(`review.applicationStatus.${status}`),
+        }))}
+        isSelected={(status) => statuses.includes(status)}
+        // Never empty: the last selected status cannot be cleared.
+        isDisabled={(status) => statuses.includes(status) && statuses.length === 1}
+        onSelect={toggleStatus}
+      />
 
       {loadError ? (
         <LoadFailure
@@ -127,70 +118,66 @@ export default function DriverApplicationsPage() {
           <p className="queue-count" role="status">
             {t('applications.count', { total: result.totalItems })}
           </p>
-          {result.items.length === 0 ? (
-            <p className="banner banner--info">{t('applications.empty')}</p>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{t('applications.columns.applicant')}</th>
-                  <th>{t('applications.columns.status')}</th>
-                  <th>{t('applications.columns.submitted')}</th>
-                  <th>{t('applications.columns.plate')}</th>
-                  <th>
-                    <span className="visually-hidden">{t('applications.columns.open')}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.items.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <ApplicantCell person={item.applicant} />
-                    </td>
-                    <td>
-                      <ApplicationStatusChip status={item.status} />
-                    </td>
-                    <td>{formatDateTime(item.submittedAt, i18n.language)}</td>
-                    <td>
-                      <span dir="auto">{item.plate}</span>{' '}
+          <DataTable
+            isEmpty={result.items.length === 0}
+            empty={t('applications.empty')}
+            footer={
+              result.totalItems > result.size ? (
+                <TablePager
+                  status={t('applications.pageOf', { page: page + 1, total: lastPage + 1 })}
+                  previousLabel={t('audit.previous')}
+                  nextLabel={t('audit.next')}
+                  canPrevious={page > 0}
+                  canNext={page < lastPage}
+                  onPrevious={() => navigate(statuses, page - 1)}
+                  onNext={() => navigate(statuses, page + 1)}
+                />
+              ) : null
+            }
+          >
+            <thead>
+              <tr>
+                <th>{t('applications.columns.applicant')}</th>
+                <th>{t('applications.columns.status')}</th>
+                <th>{t('applications.columns.submitted')}</th>
+                <th>{t('applications.columns.plate')}</th>
+                <th className="table__cell--action">
+                  <span className="visually-hidden">{t('applications.columns.open')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.items.map((item, index) => (
+                <tr key={item.id}>
+                  <td>
+                    <ApplicantCell person={item.applicant} />
+                  </td>
+                  <td>
+                    <ApplicationStatusChip status={item.status} />
+                  </td>
+                  <td className="table__muted">
+                    {formatDateTime(item.submittedAt, i18n.language)}
+                  </td>
+                  <td>
+                    <span className="chip-list">
+                      <Plate value={item.plate} />
                       {item.duplicatePlate ? <DuplicatePlateChip /> : null}
-                    </td>
-                    <td>
-                      <Link
-                        to={`/driver-applications/${item.id}`}
-                        aria-label={t('applications.openFor', { name: item.applicant.name })}
-                      >
-                        {t('applications.open')}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {result.totalItems > result.size ? (
-            <div className="panel__row audit__pagination">
-              <button
-                className="btn"
-                type="button"
-                disabled={page === 0}
-                onClick={() => navigate(statuses, page - 1)}
-              >
-                {t('audit.previous')}
-              </button>
-              <span>{t('applications.pageOf', { page: page + 1, total: lastPage + 1 })}</span>
-              <button
-                className="btn"
-                type="button"
-                disabled={page >= lastPage}
-                onClick={() => navigate(statuses, page + 1)}
-              >
-                {t('audit.next')}
-              </button>
-            </div>
-          ) : null}
+                    </span>
+                  </td>
+                  <td className="table__cell--action">
+                    <Link
+                      // The queue's first row carries the one primary action.
+                      className={index === 0 ? 'btn btn--primary' : 'btn'}
+                      to={`/driver-applications/${item.id}`}
+                      aria-label={t('applications.openFor', { name: item.applicant.name })}
+                    >
+                      {t('applications.open')}
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
         </>
       )}
     </section>

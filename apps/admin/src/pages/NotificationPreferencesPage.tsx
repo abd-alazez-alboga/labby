@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 
 import {
   getNotificationPreferences,
@@ -13,6 +12,7 @@ import { useAuth } from '../auth/AuthContext';
 import { NOTIFICATION_CENTER_PATH } from '../notifications/deep-links';
 import { usePush, type PushStatus } from '../push/PushProvider';
 import { useToast } from '../toast/ToastProvider';
+import { BackLink, PageHeader, StatusChip } from '../ui';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
 
 /** Server order is not guaranteed — show the six categories in the canonical order. */
@@ -87,12 +87,12 @@ export default function NotificationPreferencesPage() {
   }
 
   return (
-    <section>
-      <p>
-        <Link to={NOTIFICATION_CENTER_PATH}>{t('notificationPrefs.back')}</Link>
-      </p>
-      <h1 className="page__title">{t('notificationPrefs.title')}</h1>
-      <p className="page__subtitle">{t('notificationPrefs.subtitle')}</p>
+    <section className="page">
+      <BackLink to={NOTIFICATION_CENTER_PATH}>{t('notificationPrefs.back')}</BackLink>
+      <PageHeader
+        title={t('notificationPrefs.title')}
+        description={t('notificationPrefs.subtitle')}
+      />
 
       <BrowserPushCard />
 
@@ -139,7 +139,7 @@ export default function NotificationPreferencesPage() {
                         disabled
                         aria-describedby={`${id}-hint`}
                       />
-                      <span className="chip">{t('notificationPrefs.alwaysOn')}</span>
+                      <StatusChip tone="accent">{t('notificationPrefs.alwaysOn')}</StatusChip>
                     </span>
                   ) : (
                     <span className="pref-list__control">

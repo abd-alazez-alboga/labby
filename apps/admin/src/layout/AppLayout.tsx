@@ -6,7 +6,7 @@ import { Navbar } from './Navbar';
 import { Sidenav } from './Sidenav';
 
 /**
- * Shell chrome: sidenav + top navbar around the routed page. The signed-in
+ * Shell chrome: white sidebar + top bar around the routed page. The signed-in
  * shell also owns the notification-center facade (unread badge polling)
  * and browser-push registration, so both live exactly as long as a session.
  */

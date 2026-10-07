@@ -505,7 +505,7 @@
       "open": "Actions"
     },
     "detail": {
-      "back": "← Back to applications",
+      "back": "Back to applications",
       "notFound": "This application does not exist.",
       "submitted": "Submitted {{at}}",
       "decided": "Decided {{at}}",
@@ -555,7 +555,7 @@
       "submitted": "Submitted"
     },
     "detail": {
-      "back": "← Back to vehicle switches",
+      "back": "Back to vehicle switches",
       "notFound": "This vehicle switch does not exist or is no longer awaiting review.",
       "title": "Vehicle switch — {{name}}",
       "decisionTitle": "Decision",
@@ -598,6 +598,11 @@
       "daysOverdue": "Days overdue",
       "state": "State",
       "reminders": "Reminders"
+    },
+    "kpi": {
+      "renewals": "Renewals waiting",
+      "upcoming": "Expiring in {{days}} days",
+      "expired": "Expired · drivers suspended"
     }
   },
   "renewals": {
@@ -611,7 +616,7 @@
       "submitted": "Submitted"
     },
     "detail": {
-      "back": "← Back to document expiry",
+      "back": "Back to document expiry",
       "notFound": "This renewal does not exist or is no longer awaiting review.",
       "title": "Renewal — {{document}}",
       "decisionTitle": "Decision",
@@ -742,7 +747,7 @@
   "notificationPrefs": {
     "title": "Notification preferences",
     "subtitle": "Choose which categories may send push notifications. These settings belong to your account, so they apply in every Labby app you use.",
-    "back": "← Back to notifications",
+    "back": "Back to notifications",
     "categoriesTitle": "Push notifications by category",
     "centerHint": "Turning a category off stops its push notifications only — they still appear in your notification center.",
     "lockedHint": "Ride and safety notifications are always delivered and cannot be turned off.",

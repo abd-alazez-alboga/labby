@@ -1,6 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+// Self-hosted fonts (no CDN): Manrope for Latin, IBM Plex Sans Arabic for
+// Arabic (it tops out at 700, so 800 falls back to 700 in AR).
+import '@fontsource/manrope/400.css';
+import '@fontsource/manrope/600.css';
+import '@fontsource/manrope/700.css';
+import '@fontsource/manrope/800.css';
+import '@fontsource/ibm-plex-sans-arabic/400.css';
+import '@fontsource/ibm-plex-sans-arabic/600.css';
+import '@fontsource/ibm-plex-sans-arabic/700.css';
+
 import './theme/tokens.css';
 import './theme/global.css';
 

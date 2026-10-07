@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import {
   approveApplication,
@@ -15,6 +15,7 @@ import {
 } from '../api/onboarding';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { Avatar, BackLink, DecisionPanel, PageHeader, ReviewLayout, Section } from '../ui';
 import { ApproveForm } from './onboarding/ApproveForm';
 import { RequestChangesForm } from './onboarding/RequestChangesForm';
 import {
@@ -131,15 +132,11 @@ export default function DriverApplicationDetailPage() {
     }
   }
 
-  const backLink = (
-    <p className="page__subtitle">
-      <Link to="/driver-applications">{t('applications.detail.back')}</Link>
-    </p>
-  );
+  const backLink = <BackLink to="/driver-applications">{t('applications.detail.back')}</BackLink>;
 
   if (resource.loadError) {
     return (
-      <section>
+      <section className="page">
         {backLink}
         <LoadFailure
           kind={resource.loadError}
@@ -156,26 +153,157 @@ export default function DriverApplicationDetailPage() {
   const refresh = resource.refreshFiles;
   const expiredDocument = anyExpired(application.documents);
 
+  const decision = canDecide ? (
+    <>
+      {application.status === 'submitted' ? (
+        <div className="decision-panel__actions">
+          <button
+            className="btn btn--primary btn--lg btn--block"
+            type="button"
+            disabled={busy}
+            onClick={() => void decide('start', () => startReview(apiClient, application.id))}
+          >
+            {busy ? t('review.working') : t('applications.detail.startReview')}
+          </button>
+          <p className="panel__hint">{t('applications.detail.startReviewHint')}</p>
+        </div>
+      ) : application.status === 'under_review' ? (
+        <>
+          <div className="decision-panel__actions">
+            <button
+              className="btn btn--primary btn--lg btn--block"
+              type="button"
+              aria-pressed={mode === 'changes'}
+              onClick={() => setMode(mode === 'changes' ? 'none' : 'changes')}
+            >
+              {t('applications.detail.requestChanges')}
+            </button>
+            <button
+              className="btn btn--lg btn--block"
+              type="button"
+              aria-pressed={mode === 'approve'}
+              disabled={application.duplicatePlate}
+              onClick={() => setMode(mode === 'approve' ? 'none' : 'approve')}
+            >
+              {t('applications.detail.approve')}
+            </button>
+            <button
+              className="btn btn--danger-text btn--block"
+              type="button"
+              aria-pressed={mode === 'reject'}
+              onClick={() => setMode(mode === 'reject' ? 'none' : 'reject')}
+            >
+              {t('applications.detail.reject')}
+            </button>
+          </div>
+          {application.duplicatePlate ? (
+            <p className="panel__hint">{t('applications.detail.approveBlockedDuplicate')}</p>
+          ) : null}
+
+          {mode === 'changes' ? (
+            <RequestChangesForm
+              busy={busy}
+              onCancel={() => setMode('none')}
+              onSubmit={(body: RequestChangesRequest) =>
+                void decide('changes', () => requestChanges(apiClient, application.id, body))
+              }
+            />
+          ) : null}
+          {mode === 'approve' && !application.duplicatePlate ? (
+            <ApproveForm
+              idPrefix="application"
+              hint={t('applications.detail.approveHint')}
+              confirmText={t('applications.detail.approveConfirm', {
+                name: application.applicant.name,
+              })}
+              warning={expiredDocument ? t('applications.detail.expiredWarning') : null}
+              busy={busy}
+              onCancel={() => setMode('none')}
+              onSubmit={(serviceTypeIds) =>
+                void decide('approve', () =>
+                  approveApplication(apiClient, application.id, { serviceTypeIds }),
+                )
+              }
+            />
+          ) : null}
+          {mode === 'reject' ? (
+            <RejectForm
+              idPrefix="application"
+              hint={t('applications.detail.rejectHint')}
+              confirmText={t('applications.detail.rejectConfirm', {
+                name: application.applicant.name,
+              })}
+              busy={busy}
+              onCancel={() => setMode('none')}
+              onSubmit={(reason) =>
+                void decide('reject', () =>
+                  rejectApplication(apiClient, application.id, { reason }),
+                )
+              }
+            />
+          ) : null}
+        </>
+      ) : (
+        <p className="panel__hint">{t(`applications.detail.noDecision.${application.status}`)}</p>
+      )}
+      <div className="decision-panel__divider" />
+    </>
+  ) : null;
+
+  const history = (
+    <>
+      {canDecide ? (
+        <h3 className="decision-panel__subtitle">{t('applications.detail.history')}</h3>
+      ) : null}
+      {application.history.length === 0 ? (
+        <p className="panel__hint">{t('applications.detail.noHistory')}</p>
+      ) : (
+        <ol className="timeline">
+          {application.history.map((event, index) => (
+            <li key={`${event.at}-${index}`} className="timeline__item">
+              <span>
+                {event.fromStatus ? (
+                  <>
+                    <ApplicationStatusChip status={event.fromStatus} />{' '}
+                    <span aria-hidden="true">{i18n.dir() === 'rtl' ? '←' : '→'}</span>{' '}
+                  </>
+                ) : null}
+                <ApplicationStatusChip status={event.toStatus} />
+              </span>
+              <span className="timeline__when">{formatDateTime(event.at, i18n.language)}</span>
+              {event.note ? <span className="timeline__note">{event.note}</span> : null}
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
+  );
+
   return (
-    <section>
+    <section className="page">
       {backLink}
-      <h1 className="page__title">{application.applicant.name}</h1>
-      <div className="summary-row">
-        <ApplicationStatusChip status={application.status} />
-        <span dir="ltr">{application.applicant.phone}</span>
-        <span>
-          {t('applications.detail.submitted', {
-            at: formatDateTime(application.submittedAt, i18n.language),
-          })}
-        </span>
-        {application.decidedAt ? (
-          <span>
-            {t('applications.detail.decided', {
-              at: formatDateTime(application.decidedAt, i18n.language),
+      <PageHeader
+        leading={<Avatar name={application.applicant.name} size="lg" />}
+        title={<span dir="auto">{application.applicant.name}</span>}
+        description={
+          <>
+            <span dir="ltr">{application.applicant.phone}</span>
+            {' · '}
+            {t('applications.detail.submitted', {
+              at: formatDateTime(application.submittedAt, i18n.language),
             })}
-          </span>
-        ) : null}
-      </div>
+            {application.decidedAt ? (
+              <>
+                {' · '}
+                {t('applications.detail.decided', {
+                  at: formatDateTime(application.decidedAt, i18n.language),
+                })}
+              </>
+            ) : null}
+          </>
+        }
+        meta={<ApplicationStatusChip status={application.status} />}
+      />
 
       {application.duplicatePlate ? <DuplicatePlateBanner /> : null}
       {application.status === 'rejected' && application.rejectionReason ? (
@@ -195,166 +323,58 @@ export default function DriverApplicationDetailPage() {
       ) : null}
       {resource.filesStale ? <StaleFilesBanner onRefresh={refresh} /> : null}
 
-      {canDecide ? (
-        <div className="card panel decision-bar">
-          <h2 className="panel__title">{t('applications.detail.decisionTitle')}</h2>
-          {application.status === 'submitted' ? (
-            <div className="panel__row">
-              <button
-                className="btn btn--primary"
-                type="button"
-                disabled={busy}
-                onClick={() => void decide('start', () => startReview(apiClient, application.id))}
-              >
-                {busy ? t('review.working') : t('applications.detail.startReview')}
-              </button>
-              <span className="panel__hint">{t('applications.detail.startReviewHint')}</span>
-            </div>
-          ) : application.status === 'under_review' ? (
-            <>
-              <div className="panel__row">
-                <button
-                  className="btn"
-                  type="button"
-                  aria-pressed={mode === 'changes'}
-                  onClick={() => setMode(mode === 'changes' ? 'none' : 'changes')}
-                >
-                  {t('applications.detail.requestChanges')}
-                </button>
-                <button
-                  className="btn btn--primary"
-                  type="button"
-                  aria-pressed={mode === 'approve'}
-                  disabled={application.duplicatePlate}
-                  onClick={() => setMode(mode === 'approve' ? 'none' : 'approve')}
-                >
-                  {t('applications.detail.approve')}
-                </button>
-                <button
-                  className="btn"
-                  type="button"
-                  aria-pressed={mode === 'reject'}
-                  onClick={() => setMode(mode === 'reject' ? 'none' : 'reject')}
-                >
-                  {t('applications.detail.reject')}
-                </button>
-              </div>
-              {application.duplicatePlate ? (
-                <p className="panel__hint">{t('applications.detail.approveBlockedDuplicate')}</p>
-              ) : null}
+      <ReviewLayout
+        aside={
+          // Without driver-review:decide the panel only carries the history.
+          <DecisionPanel
+            title={
+              canDecide ? t('applications.detail.decisionTitle') : t('applications.detail.history')
+            }
+          >
+            {decision}
+            {history}
+          </DecisionPanel>
+        }
+      >
+        <Section title={t('applications.detail.documents')}>
+          <div className="review-grid">
+            {application.documents.map((document) => (
+              <DocumentCard key={document.id} document={document} onExpired={refresh} />
+            ))}
+          </div>
+        </Section>
 
-              {mode === 'changes' ? (
-                <RequestChangesForm
-                  busy={busy}
-                  onCancel={() => setMode('none')}
-                  onSubmit={(body: RequestChangesRequest) =>
-                    void decide('changes', () => requestChanges(apiClient, application.id, body))
-                  }
-                />
-              ) : null}
-              {mode === 'approve' && !application.duplicatePlate ? (
-                <ApproveForm
-                  idPrefix="application"
-                  hint={t('applications.detail.approveHint')}
-                  confirmText={t('applications.detail.approveConfirm', {
-                    name: application.applicant.name,
-                  })}
-                  warning={expiredDocument ? t('applications.detail.expiredWarning') : null}
-                  busy={busy}
-                  onCancel={() => setMode('none')}
-                  onSubmit={(serviceTypeIds) =>
-                    void decide('approve', () =>
-                      approveApplication(apiClient, application.id, { serviceTypeIds }),
-                    )
-                  }
-                />
-              ) : null}
-              {mode === 'reject' ? (
-                <RejectForm
-                  idPrefix="application"
-                  hint={t('applications.detail.rejectHint')}
-                  confirmText={t('applications.detail.rejectConfirm', {
-                    name: application.applicant.name,
-                  })}
-                  busy={busy}
-                  onCancel={() => setMode('none')}
-                  onSubmit={(reason) =>
-                    void decide('reject', () =>
-                      rejectApplication(apiClient, application.id, { reason }),
-                    )
-                  }
-                />
-              ) : null}
-            </>
-          ) : (
-            <p className="panel__hint">
-              {t(`applications.detail.noDecision.${application.status}`)}
-            </p>
-          )}
-        </div>
-      ) : null}
+        <VehicleCard
+          vehicle={application.vehicle}
+          heading={t('review.items.vehicle')}
+          onExpired={refresh}
+        />
 
-      <h2 className="section__title">{t('review.items.personal')}</h2>
-      <article className="card review-item" aria-label={t('review.items.personal')}>
-        <header className="review-item__header">
-          <h3 className="review-item__title" dir="auto">
+        <article className="card review-item" aria-label={t('review.items.personal')}>
+          <header className="review-item__header">
+            <h2 className="review-item__title">{t('review.items.personal')}</h2>
+            <ReviewStatusChip status={application.personal.reviewStatus} />
+          </header>
+          <p className="person__name" dir="auto">
             {application.personal.name}
-          </h3>
-          <ReviewStatusChip status={application.personal.reviewStatus} />
-        </header>
-        {application.personal.photo ? (
-          <FileView
-            key={application.personal.photo.fileId}
-            file={application.personal.photo}
-            label={t('applications.detail.profilePhoto')}
-            onExpired={refresh}
-          />
-        ) : (
-          <p className="panel__hint">{t('applications.detail.noProfilePhoto')}</p>
-        )}
-        {application.personal.reviewNote ? (
-          <p className="review-item__note">
-            {t('review.fields.reviewNote')}: {application.personal.reviewNote}
           </p>
-        ) : null}
-      </article>
-
-      <h2 className="section__title">{t('applications.detail.documents')}</h2>
-      <div className="review-grid">
-        {application.documents.map((document) => (
-          <DocumentCard key={document.id} document={document} onExpired={refresh} />
-        ))}
-      </div>
-
-      <h2 className="section__title">{t('review.items.vehicle')}</h2>
-      <VehicleCard
-        vehicle={application.vehicle}
-        heading={t('review.items.vehicle')}
-        onExpired={refresh}
-      />
-
-      <h2 className="section__title">{t('applications.detail.history')}</h2>
-      {application.history.length === 0 ? (
-        <p className="panel__hint">{t('applications.detail.noHistory')}</p>
-      ) : (
-        <ol className="timeline">
-          {application.history.map((event, index) => (
-            <li key={`${event.at}-${index}`} className="timeline__item">
-              <span className="timeline__when">{formatDateTime(event.at, i18n.language)}</span>
-              <span>
-                {event.fromStatus ? (
-                  <>
-                    <ApplicationStatusChip status={event.fromStatus} />{' '}
-                    <span aria-hidden="true">{i18n.dir() === 'rtl' ? '←' : '→'}</span>{' '}
-                  </>
-                ) : null}
-                <ApplicationStatusChip status={event.toStatus} />
-              </span>
-              {event.note ? <span className="timeline__note">{event.note}</span> : null}
-            </li>
-          ))}
-        </ol>
-      )}
+          {application.personal.photo ? (
+            <FileView
+              key={application.personal.photo.fileId}
+              file={application.personal.photo}
+              label={t('applications.detail.profilePhoto')}
+              onExpired={refresh}
+            />
+          ) : (
+            <p className="panel__hint">{t('applications.detail.noProfilePhoto')}</p>
+          )}
+          {application.personal.reviewNote ? (
+            <p className="review-item__note">
+              {t('review.fields.reviewNote')}: {application.personal.reviewNote}
+            </p>
+          ) : null}
+        </article>
+      </ReviewLayout>
     </section>
   );
 }

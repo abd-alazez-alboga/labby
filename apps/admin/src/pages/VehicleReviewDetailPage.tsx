@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import {
   approveVehicleReview,
@@ -11,6 +11,7 @@ import {
 } from '../api/onboarding';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { Avatar, BackLink, DecisionPanel, PageHeader, ReviewLayout } from '../ui';
 import { ApproveForm } from './onboarding/ApproveForm';
 import {
   DocumentCard,
@@ -119,15 +120,11 @@ export default function VehicleReviewDetailPage() {
     }
   }
 
-  const backLink = (
-    <p className="page__subtitle">
-      <Link to="/vehicle-reviews">{t('vehicleReviews.detail.back')}</Link>
-    </p>
-  );
+  const backLink = <BackLink to="/vehicle-reviews">{t('vehicleReviews.detail.back')}</BackLink>;
 
   if (resource.loadError) {
     return (
-      <section>
+      <section className="page">
         {backLink}
         <LoadFailure
           kind={resource.loadError}
@@ -146,16 +143,16 @@ export default function VehicleReviewDetailPage() {
   const conflictClosed =
     failure?.key === 'review.conflict.decidedSwitch' ||
     failure?.key === 'review.conflict.decidedItem';
+  const showDecision = canDecide && pending && !conflictClosed;
 
   return (
-    <section>
+    <section className="page">
       {backLink}
-      <h1 className="page__title">
-        {t('vehicleReviews.detail.title', { name: review.driver.name })}
-      </h1>
-      <p className="page__subtitle" dir="ltr">
-        {review.driver.phone}
-      </p>
+      <PageHeader
+        leading={<Avatar name={review.driver.name} size="lg" />}
+        title={t('vehicleReviews.detail.title', { name: review.driver.name })}
+        description={<span dir="ltr">{review.driver.phone}</span>}
+      />
 
       {review.duplicatePlate ? <DuplicatePlateBanner /> : null}
       {notice ? (
@@ -170,94 +167,103 @@ export default function VehicleReviewDetailPage() {
       ) : null}
       {resource.filesStale ? <StaleFilesBanner onRefresh={refresh} /> : null}
 
-      {canDecide && pending && !conflictClosed ? (
-        <div className="card panel decision-bar">
-          <h2 className="panel__title">{t('vehicleReviews.detail.decisionTitle')}</h2>
-          <div className="panel__row">
-            <button
-              className="btn btn--primary"
-              type="button"
-              aria-pressed={mode === 'approve'}
-              disabled={review.duplicatePlate}
-              onClick={() => setMode(mode === 'approve' ? 'none' : 'approve')}
-            >
-              {t('vehicleReviews.detail.approve')}
-            </button>
-            <button
-              className="btn"
-              type="button"
-              aria-pressed={mode === 'reject'}
-              onClick={() => setMode(mode === 'reject' ? 'none' : 'reject')}
-            >
-              {t('vehicleReviews.detail.reject')}
-            </button>
-          </div>
-          {review.duplicatePlate ? (
-            <p className="panel__hint">{t('vehicleReviews.detail.approveBlockedDuplicate')}</p>
-          ) : null}
-          {mode === 'approve' && !review.duplicatePlate ? (
-            <ApproveForm
-              idPrefix="vehicle"
-              hint={t('vehicleReviews.detail.approveHint')}
-              confirmText={t('vehicleReviews.detail.approveConfirm', {
-                name: review.driver.name,
-              })}
-              warning={
-                anyExpired(review.vehicle.documents)
-                  ? t('applications.detail.expiredWarning')
-                  : null
-              }
-              busy={busy}
-              onCancel={() => setMode('none')}
-              onSubmit={(serviceTypeIds) =>
-                void decide('approve', () =>
-                  approveVehicleReview(apiClient, review.vehicle.id, { serviceTypeIds }),
-                )
-              }
-            />
-          ) : null}
-          {mode === 'reject' ? (
-            <RejectForm
-              idPrefix="vehicle"
-              hint={t('vehicleReviews.detail.rejectHint')}
-              confirmText={t('vehicleReviews.detail.rejectConfirm', { name: review.driver.name })}
-              busy={busy}
-              onCancel={() => setMode('none')}
-              onSubmit={(reason) =>
-                void decide('reject', () =>
-                  rejectVehicleReview(apiClient, review.vehicle.id, { reason }),
-                )
-              }
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="compare">
-        <div className="compare__column">
-          <h2 className="section__title">{t('vehicleReviews.detail.newVehicle')}</h2>
-          <VehicleCard
-            vehicle={review.vehicle}
-            heading={t('vehicleReviews.detail.newVehicle')}
-            onExpired={refresh}
-          />
-          {review.vehicle.documents.map((document) => (
-            <DocumentCard key={document.id} document={document} onExpired={refresh} />
-          ))}
-        </div>
-        <div className="compare__column">
-          <h2 className="section__title">{t('vehicleReviews.detail.currentVehicle')}</h2>
-          {review.currentVehicle ? (
+      <ReviewLayout
+        aside={
+          showDecision ? (
+            <DecisionPanel title={t('vehicleReviews.detail.decisionTitle')}>
+              <div className="decision-panel__actions">
+                <button
+                  className="btn btn--primary btn--lg btn--block"
+                  type="button"
+                  aria-pressed={mode === 'approve'}
+                  disabled={review.duplicatePlate}
+                  onClick={() => setMode(mode === 'approve' ? 'none' : 'approve')}
+                >
+                  {t('vehicleReviews.detail.approve')}
+                </button>
+                <button
+                  className="btn btn--danger-text btn--block"
+                  type="button"
+                  aria-pressed={mode === 'reject'}
+                  onClick={() => setMode(mode === 'reject' ? 'none' : 'reject')}
+                >
+                  {t('vehicleReviews.detail.reject')}
+                </button>
+              </div>
+              {review.duplicatePlate ? (
+                <p className="panel__hint">{t('vehicleReviews.detail.approveBlockedDuplicate')}</p>
+              ) : null}
+              {mode === 'approve' && !review.duplicatePlate ? (
+                <ApproveForm
+                  idPrefix="vehicle"
+                  hint={t('vehicleReviews.detail.approveHint')}
+                  confirmText={t('vehicleReviews.detail.approveConfirm', {
+                    name: review.driver.name,
+                  })}
+                  warning={
+                    anyExpired(review.vehicle.documents)
+                      ? t('applications.detail.expiredWarning')
+                      : null
+                  }
+                  busy={busy}
+                  onCancel={() => setMode('none')}
+                  onSubmit={(serviceTypeIds) =>
+                    void decide('approve', () =>
+                      approveVehicleReview(apiClient, review.vehicle.id, { serviceTypeIds }),
+                    )
+                  }
+                />
+              ) : null}
+              {mode === 'reject' ? (
+                <RejectForm
+                  idPrefix="vehicle"
+                  hint={t('vehicleReviews.detail.rejectHint')}
+                  confirmText={t('vehicleReviews.detail.rejectConfirm', {
+                    name: review.driver.name,
+                  })}
+                  busy={busy}
+                  onCancel={() => setMode('none')}
+                  onSubmit={(reason) =>
+                    void decide('reject', () =>
+                      rejectVehicleReview(apiClient, review.vehicle.id, { reason }),
+                    )
+                  }
+                />
+              ) : null}
+            </DecisionPanel>
+          ) : null
+        }
+      >
+        <div className="compare">
+          <div className="compare__column">
+            <h2 className="compare__heading">{t('vehicleReviews.detail.newVehicle')}</h2>
             <VehicleCard
-              vehicle={review.currentVehicle}
-              heading={t('vehicleReviews.detail.currentVehicle')}
+              vehicle={review.vehicle}
+              heading={t('vehicleReviews.detail.newVehicle')}
               onExpired={refresh}
             />
-          ) : (
-            <p className="panel__hint">{t('vehicleReviews.detail.noCurrentVehicle')}</p>
-          )}
+            {review.vehicle.documents.length > 0 ? (
+              <div className="review-grid">
+                {review.vehicle.documents.map((document) => (
+                  <DocumentCard key={document.id} document={document} onExpired={refresh} />
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div className="compare__column">
+            <h2 className="compare__heading">{t('vehicleReviews.detail.currentVehicle')}</h2>
+            {review.currentVehicle ? (
+              <VehicleCard
+                vehicle={review.currentVehicle}
+                heading={t('vehicleReviews.detail.currentVehicle')}
+                onExpired={refresh}
+              />
+            ) : (
+              <p className="banner banner--info">{t('vehicleReviews.detail.noCurrentVehicle')}</p>
+            )}
+          </div>
         </div>
-      </div>
+      </ReviewLayout>
     </section>
   );
 }

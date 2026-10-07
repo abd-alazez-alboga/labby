@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import { listVehicleReviews, type VehicleReviewSummary } from '../api/onboarding';
 import { useAuth } from '../auth/AuthContext';
+import { DataTable, PageHeader, Plate } from '../ui';
 import { ApplicantCell, DuplicatePlateChip, LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, formatDateTime, type FailureKind } from './onboarding/review-utils';
 
@@ -40,9 +41,8 @@ export default function VehicleReviewsPage() {
   }, [apiClient, attempt]);
 
   return (
-    <section>
-      <h1 className="page__title">{t('vehicleReviews.title')}</h1>
-      <p className="page__subtitle">{t('vehicleReviews.subtitle')}</p>
+    <section className="page">
+      <PageHeader title={t('vehicleReviews.title')} description={t('vehicleReviews.subtitle')} />
 
       {loadError ? (
         <LoadFailure
@@ -57,48 +57,49 @@ export default function VehicleReviewsPage() {
           <p className="queue-count" role="status">
             {t('vehicleReviews.count', { total: items.length })}
           </p>
-          {items.length === 0 ? (
-            <p className="banner banner--info">{t('vehicleReviews.empty')}</p>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{t('vehicleReviews.columns.driver')}</th>
-                  <th>{t('vehicleReviews.columns.vehicle')}</th>
-                  <th>{t('vehicleReviews.columns.plate')}</th>
-                  <th>{t('vehicleReviews.columns.submitted')}</th>
-                  <th>
-                    <span className="visually-hidden">{t('applications.columns.open')}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.vehicleId}>
-                    <td>
-                      <ApplicantCell person={item.driver} />
-                    </td>
-                    <td dir="auto">
-                      {item.make} {item.model}
-                    </td>
-                    <td>
-                      <span dir="auto">{item.plate}</span>{' '}
+          <DataTable isEmpty={items.length === 0} empty={t('vehicleReviews.empty')}>
+            <thead>
+              <tr>
+                <th>{t('vehicleReviews.columns.driver')}</th>
+                <th>{t('vehicleReviews.columns.vehicle')}</th>
+                <th>{t('vehicleReviews.columns.plate')}</th>
+                <th>{t('vehicleReviews.columns.submitted')}</th>
+                <th className="table__cell--action">
+                  <span className="visually-hidden">{t('applications.columns.open')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, index) => (
+                <tr key={item.vehicleId}>
+                  <td>
+                    <ApplicantCell person={item.driver} />
+                  </td>
+                  <td dir="auto">
+                    {item.make} {item.model}
+                  </td>
+                  <td>
+                    <span className="chip-list">
+                      <Plate value={item.plate} />
                       {item.duplicatePlate ? <DuplicatePlateChip /> : null}
-                    </td>
-                    <td>{formatDateTime(item.submittedAt, i18n.language)}</td>
-                    <td>
-                      <Link
-                        to={`/vehicle-reviews/${item.vehicleId}`}
-                        aria-label={t('vehicleReviews.openFor', { name: item.driver.name })}
-                      >
-                        {t('applications.open')}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                    </span>
+                  </td>
+                  <td className="table__muted">
+                    {formatDateTime(item.submittedAt, i18n.language)}
+                  </td>
+                  <td className="table__cell--action">
+                    <Link
+                      className={index === 0 ? 'btn btn--primary' : 'btn'}
+                      to={`/vehicle-reviews/${item.vehicleId}`}
+                      aria-label={t('vehicleReviews.openFor', { name: item.driver.name })}
+                    >
+                      {t('applications.open')}
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
         </>
       )}
     </section>

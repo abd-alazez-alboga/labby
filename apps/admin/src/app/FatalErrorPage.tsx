@@ -6,12 +6,17 @@
 export function FatalErrorPage({ detail }: { detail?: string }) {
   return (
     <div className="fatal-error" role="alert">
-      <h1 className="fatal-error__title">Labby Admin failed to start</h1>
-      <p>Could not load the application configuration. Please try again later.</p>
-      <p dir="rtl" lang="ar">
-        تعذّر تحميل إعدادات التطبيق. يرجى المحاولة مرة أخرى لاحقًا.
-      </p>
-      {detail ? <p className="fatal-error__detail">{detail}</p> : null}
+      <div className="fatal-error__card">
+        <span className="brand__mark brand__mark--lg" aria-hidden="true">
+          L
+        </span>
+        <h1 className="fatal-error__title">Labby Admin failed to start</h1>
+        <p>Could not load the application configuration. Please try again later.</p>
+        <p className="fatal-error__ar" dir="rtl" lang="ar">
+          تعذّر تحميل إعدادات التطبيق. يرجى المحاولة مرة أخرى لاحقًا.
+        </p>
+        {detail ? <p className="fatal-error__detail">{detail}</p> : null}
+      </div>
     </div>
   );
 }

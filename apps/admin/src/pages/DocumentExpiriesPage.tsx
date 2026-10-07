@@ -10,6 +10,7 @@ import {
   type ExpiryRow,
 } from '../api/onboarding';
 import { useAuth } from '../auth/AuthContext';
+import { DataTable, KpiRow, KpiTile, PageHeader, StatusChip } from '../ui';
 import { ApplicantCell, LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, formatDateTime, type FailureKind } from './onboarding/review-utils';
 
@@ -46,10 +47,10 @@ function useLoad<T>(load: () => Promise<T>) {
   return { data, error, retry: () => setAttempt((n) => n + 1) };
 }
 
-function ExpiryTable({ rows, expired }: { rows: ExpiryRow[]; expired: boolean }) {
+function ExpiryRows({ rows, expired }: { rows: ExpiryRow[]; expired: boolean }) {
   const { t, i18n } = useTranslation();
   return (
-    <table className="table">
+    <>
       <thead>
         <tr>
           <th>{t('expiries.columns.driver')}</th>
@@ -67,25 +68,28 @@ function ExpiryTable({ rows, expired }: { rows: ExpiryRow[]; expired: boolean })
               <ApplicantCell person={row.driver} />
             </td>
             <td>
-              <span>{t(`review.documentType.${row.document.type}`)}</span>
-              <br />
-              <span className="person__phone" dir="auto">
-                {row.document.number}
+              <span className="person">
+                <span>{t(`review.documentType.${row.document.type}`)}</span>
+                <span className="person__phone" dir="auto">
+                  {row.document.number}
+                </span>
               </span>
             </td>
             <td>
               <span dir="ltr">{row.document.expiresOn}</span>
             </td>
-            <td>{row.daysLeft === 0 ? t('expiries.lastDay') : String(Math.abs(row.daysLeft))}</td>
+            <td>
+              <StatusChip tone={expired ? 'danger' : 'warning'}>
+                {row.daysLeft === 0 ? t('expiries.lastDay') : String(Math.abs(row.daysLeft))}
+              </StatusChip>
+            </td>
             <td>
               <span className="chip-list">
                 {row.driverSuspended ? (
-                  <span className="chip chip--flag">{t('expiries.suspendedChip')}</span>
+                  <StatusChip tone="danger">{t('expiries.suspendedChip')}</StatusChip>
                 ) : null}
                 {row.renewalPending ? (
-                  <span className="chip chip--under_review">
-                    {t('expiries.renewalPendingChip')}
-                  </span>
+                  <StatusChip tone="accent">{t('expiries.renewalPendingChip')}</StatusChip>
                 ) : null}
                 {!row.driverSuspended && !row.renewalPending ? '—' : null}
               </span>
@@ -111,7 +115,7 @@ function ExpiryTable({ rows, expired }: { rows: ExpiryRow[]; expired: boolean })
           </tr>
         ))}
       </tbody>
-    </table>
+    </>
   );
 }
 
@@ -134,14 +138,25 @@ export default function DocumentExpiriesPage() {
   );
 
   return (
-    <section>
-      <h1 className="page__title">{t('expiries.title')}</h1>
-      <p className="page__subtitle">{t('expiries.subtitle')}</p>
+    <section className="page">
+      <PageHeader title={t('expiries.title')} description={t('expiries.subtitle')} />
 
-      <h2 className="section__title">
-        {t('renewals.title')}
-        {renewals.data ? <span className="count-badge">{renewals.data.length}</span> : null}
-      </h2>
+      <KpiRow>
+        <KpiTile
+          label={t('expiries.kpi.renewals')}
+          value={renewals.data ? renewals.data.length : '—'}
+        />
+        <KpiTile
+          label={t('expiries.kpi.upcoming', { days: horizon })}
+          value={dashboard.data ? dashboard.data.upcoming.length : '—'}
+        />
+        <KpiTile
+          label={t('expiries.kpi.expired')}
+          value={dashboard.data ? dashboard.data.expired.length : '—'}
+          tone={dashboard.data && dashboard.data.expired.length > 0 ? 'danger' : 'default'}
+        />
+      </KpiRow>
+
       {renewals.error ? (
         <LoadFailure
           kind={renewals.error}
@@ -150,10 +165,12 @@ export default function DocumentExpiriesPage() {
         />
       ) : renewals.data === null ? (
         <div className="loading">{t('common.loading')}</div>
-      ) : renewals.data.length === 0 ? (
-        <p className="banner banner--info">{t('renewals.empty')}</p>
       ) : (
-        <table className="table">
+        <DataTable
+          title={t('renewals.title')}
+          isEmpty={renewals.data.length === 0}
+          empty={t('renewals.empty')}
+        >
           <thead>
             <tr>
               <th>{t('expiries.columns.driver')}</th>
@@ -162,13 +179,13 @@ export default function DocumentExpiriesPage() {
               <th>{t('renewals.columns.newExpiry')}</th>
               <th>{t('renewals.columns.submitted')}</th>
               <th>{t('expiries.columns.state')}</th>
-              <th>
+              <th className="table__cell--action">
                 <span className="visually-hidden">{t('applications.columns.open')}</span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {renewals.data.map((item) => (
+            {renewals.data.map((item, index) => (
               <tr key={item.renewal.id}>
                 <td>
                   <ApplicantCell person={item.driver} />
@@ -180,16 +197,19 @@ export default function DocumentExpiriesPage() {
                 <td>
                   <span dir="ltr">{item.renewal.expiresOn}</span>
                 </td>
-                <td>{formatDateTime(item.renewal.submittedAt, i18n.language)}</td>
+                <td className="table__muted">
+                  {formatDateTime(item.renewal.submittedAt, i18n.language)}
+                </td>
                 <td>
                   {item.driverSuspended ? (
-                    <span className="chip chip--flag">{t('expiries.suspendedChip')}</span>
+                    <StatusChip tone="danger">{t('expiries.suspendedChip')}</StatusChip>
                   ) : (
                     '—'
                   )}
                 </td>
-                <td>
+                <td className="table__cell--action">
                   <Link
+                    className={index === 0 ? 'btn btn--primary' : 'btn'}
                     to={`/document-renewals/${item.renewal.id}`}
                     aria-label={t('renewals.reviewFor', { name: item.driver.name })}
                   >
@@ -199,52 +219,53 @@ export default function DocumentExpiriesPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
 
-      <div className="section__header">
-        <h2 className="section__title">{t('expiries.upcomingTitle', { days: horizon })}</h2>
-        <div className="filter-chips" role="group" aria-label={t('expiries.horizonLabel')}>
-          {HORIZONS.map((days) => (
-            <button
-              key={days}
-              type="button"
-              className={days === horizon ? 'filter-chip filter-chip--active' : 'filter-chip'}
-              aria-pressed={days === horizon}
-              onClick={() => setHorizon(days)}
-            >
-              {t('expiries.horizon', { days })}
-            </button>
-          ))}
-        </div>
-      </div>
-      {dashboard.error ? (
-        <LoadFailure
-          kind={dashboard.error}
-          notFoundKey="review.errors.server"
-          onRetry={dashboard.retry}
-        />
-      ) : dashboard.data === null ? (
-        <div className="loading">{t('common.loading')}</div>
-      ) : (
-        <>
-          {dashboard.data.upcoming.length === 0 ? (
-            <p className="banner banner--info">{t('expiries.upcomingEmpty', { days: horizon })}</p>
+      <DataTable
+        title={t('expiries.upcomingTitle', { days: horizon })}
+        actions={
+          <div className="segmented" role="group" aria-label={t('expiries.horizonLabel')}>
+            {HORIZONS.map((days) => (
+              <button
+                key={days}
+                type="button"
+                className="segmented__option"
+                aria-pressed={days === horizon}
+                onClick={() => setHorizon(days)}
+              >
+                {t('expiries.horizon', { days })}
+              </button>
+            ))}
+          </div>
+        }
+        isEmpty={dashboard.data === null || dashboard.data.upcoming.length === 0}
+        empty={
+          dashboard.error ? (
+            <LoadFailure
+              kind={dashboard.error}
+              notFoundKey="review.errors.server"
+              onRetry={dashboard.retry}
+            />
+          ) : dashboard.data === null ? (
+            t('common.loading')
           ) : (
-            <ExpiryTable rows={dashboard.data.upcoming} expired={false} />
-          )}
+            t('expiries.upcomingEmpty', { days: horizon })
+          )
+        }
+      >
+        {dashboard.data ? <ExpiryRows rows={dashboard.data.upcoming} expired={false} /> : null}
+      </DataTable>
 
-          <h2 className="section__title">
-            {t('expiries.expiredTitle')}
-            <span className="count-badge">{dashboard.data.expired.length}</span>
-          </h2>
-          {dashboard.data.expired.length === 0 ? (
-            <p className="banner banner--info">{t('expiries.expiredEmpty')}</p>
-          ) : (
-            <ExpiryTable rows={dashboard.data.expired} expired />
-          )}
-        </>
-      )}
+      {dashboard.data ? (
+        <DataTable
+          title={t('expiries.expiredTitle')}
+          isEmpty={dashboard.data.expired.length === 0}
+          empty={t('expiries.expiredEmpty')}
+        >
+          <ExpiryRows rows={dashboard.data.expired} expired />
+        </DataTable>
+      ) : null}
     </section>
   );
 }

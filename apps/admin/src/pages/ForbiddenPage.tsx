@@ -6,10 +6,13 @@ export default function ForbiddenPage() {
   const { t } = useTranslation();
 
   return (
-    <section>
-      <h1 className="page__title">{t('forbidden.title')}</h1>
-      <p className="page__subtitle">{t('forbidden.body')}</p>
-      <Link to="/">{t('forbidden.backToDashboard')}</Link>
+    <section className="status-page">
+      <span className="status-page__code">403</span>
+      <h1 className="status-page__title">{t('forbidden.title')}</h1>
+      <p className="status-page__body">{t('forbidden.body')}</p>
+      <Link className="btn btn--primary" to="/">
+        {t('forbidden.backToDashboard')}
+      </Link>
     </section>
   );
 }

@@ -35,7 +35,63 @@
   --labby-text-muted: #6e6780;
   --labby-text-subtle: #b7aecb;
 
-  /* Gradients */
+  /* Gradients (legacy - no new usages, see design system 2026-10-07) */
   --labby-gradient-hero: linear-gradient(135deg, #3d0b57 0%, #59128a 100%);
   --labby-gradient-button: linear-gradient(135deg, #59128a 0%, #7a2dae 100%);
+
+  /* ---- Design system 2026-10-07 (owner-approved; docs/design/design-system.md) ----
+     Labby purple 700 is the ONLY accent. The gradients and the other purples
+     above are legacy: no new usages. */
+
+  /* Accent */
+  --labby-accent: #59128a;
+  --labby-accent-pressed: #3d0b57;
+  --labby-accent-tint: #f1eaf8;
+  --labby-on-accent: #ffffff;
+
+  /* Surfaces */
+  --labby-surface: #ffffff;
+  --labby-surface-page: #f7f6f9; /* admin page ground */
+  --labby-surface-fill: #f2f0f5; /* inputs, icon wells, secondary buttons */
+  --labby-surface-map: #ece9f0; /* map placeholder ground */
+
+  /* Lines */
+  --labby-line: #eeebf2; /* row dividers, card borders */
+  --labby-line-strong: #dcd8e2; /* outlined buttons, chip outlines */
+  --labby-line-row: #f0eef3; /* table row separators */
+  --labby-grab-handle: #d9d5df;
+
+  /* Status (chips, banners only - never as accents) */
+  --labby-success: #067647;
+  --labby-success-bg: #ecfdf3;
+  --labby-warning: #93370d;
+  --labby-warning-bg: #fff6e5;
+  --labby-danger: #b42318;
+  --labby-danger-bg: #fef3f2;
+  --labby-online: #12b76a; /* online dot only */
+
+  /* Spacing */
+  --labby-space-1: 4px;
+  --labby-space-2: 8px;
+  --labby-space-3: 12px;
+  --labby-space-4: 16px;
+  --labby-space-5: 20px;
+  --labby-space-6: 24px;
+  --labby-space-8: 32px;
+
+  /* Radii */
+  --labby-radius-chip: 8px;
+  --labby-radius-control: 10px; /* admin buttons, nav pill, inputs */
+  --labby-radius-button-lg: 12px;
+  --labby-radius-card: 16px;
+  --labby-radius-round: 999px;
+
+  /* Shadows */
+  --labby-shadow-float: 0 2px 10px rgba(20, 16, 24, 0.16);
+  --labby-shadow-sheet: 0 -6px 24px rgba(20, 16, 24, 0.12);
+
+  /* Typography */
+  --labby-font-latin:
+    'Manrope', 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --labby-font-arabic: 'IBM Plex Sans Arabic', 'Manrope', system-ui, Tahoma, sans-serif;
 }

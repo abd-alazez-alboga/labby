@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { queryAuditLog, type AuditLogPage as AuditPage, type AuditLogQuery } from '../api/rbac';
 import { useAuth } from '../auth/AuthContext';
+import { DataTable, PageHeader, TablePager } from '../ui';
 
 const PAGE_SIZE = 25;
 
@@ -68,9 +69,8 @@ export default function AuditLogPage() {
   const lastPage = result ? Math.max(0, Math.ceil(result.totalItems / result.size) - 1) : 0;
 
   return (
-    <section>
-      <h1 className="page__title">{t('audit.title')}</h1>
-      <p className="page__subtitle">{t('audit.subtitle')}</p>
+    <section className="page">
+      <PageHeader title={t('audit.title')} description={t('audit.subtitle')} />
 
       <form className="card panel" onSubmit={handleFilter}>
         <div className="panel__row">
@@ -142,69 +142,61 @@ export default function AuditLogPage() {
       ) : result === null ? (
         <div className="loading">{t('common.loading')}</div>
       ) : result.items.length === 0 ? (
-        <p className="page__subtitle">{t('audit.empty')}</p>
+        <p className="banner banner--info">{t('audit.empty')}</p>
       ) : (
-        <>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t('audit.columns.when')}</th>
-                <th>{t('audit.columns.actor')}</th>
-                <th>{t('audit.columns.action')}</th>
-                <th>{t('audit.columns.target')}</th>
-                <th>{t('audit.columns.details')}</th>
+        <DataTable
+          footer={
+            <TablePager
+              status={t('audit.pageOf', {
+                page: page + 1,
+                total: lastPage + 1,
+                items: result.totalItems,
+              })}
+              previousLabel={t('audit.previous')}
+              nextLabel={t('audit.next')}
+              canPrevious={page > 0}
+              canNext={page < lastPage}
+              onPrevious={() => setQuery((q) => ({ ...q, page: page - 1 }))}
+              onNext={() => setQuery((q) => ({ ...q, page: page + 1 }))}
+            />
+          }
+        >
+          <thead>
+            <tr>
+              <th>{t('audit.columns.when')}</th>
+              <th>{t('audit.columns.actor')}</th>
+              <th>{t('audit.columns.action')}</th>
+              <th>{t('audit.columns.target')}</th>
+              <th>{t('audit.columns.details')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {result.items.map((entry) => (
+              <tr key={entry.id}>
+                <td>{new Date(entry.createdAt).toLocaleString(i18n.language)}</td>
+                <td>{entry.actorName}</td>
+                <td>
+                  <code dir="ltr">{entry.action}</code>
+                </td>
+                <td dir="ltr">
+                  {entry.targetType ? `${entry.targetType} ${entry.targetId ?? ''}`.trim() : '—'}
+                </td>
+                <td>
+                  {entry.before || entry.after ? (
+                    <details>
+                      <summary>{t('audit.beforeAfter')}</summary>
+                      <pre dir="ltr" className="audit__diff">
+                        {JSON.stringify({ before: entry.before, after: entry.after }, null, 2)}
+                      </pre>
+                    </details>
+                  ) : (
+                    '—'
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {result.items.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{new Date(entry.createdAt).toLocaleString(i18n.language)}</td>
-                  <td>{entry.actorName}</td>
-                  <td>
-                    <code dir="ltr">{entry.action}</code>
-                  </td>
-                  <td dir="ltr">
-                    {entry.targetType ? `${entry.targetType} ${entry.targetId ?? ''}`.trim() : '—'}
-                  </td>
-                  <td>
-                    {entry.before || entry.after ? (
-                      <details>
-                        <summary>{t('audit.beforeAfter')}</summary>
-                        <pre dir="ltr" className="audit__diff">
-                          {JSON.stringify({ before: entry.before, after: entry.after }, null, 2)}
-                        </pre>
-                      </details>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="panel__row audit__pagination">
-            <button
-              className="btn"
-              type="button"
-              disabled={page === 0}
-              onClick={() => setQuery((q) => ({ ...q, page: page - 1 }))}
-            >
-              {t('audit.previous')}
-            </button>
-            <span>
-              {t('audit.pageOf', { page: page + 1, total: lastPage + 1, items: result.totalItems })}
-            </span>
-            <button
-              className="btn"
-              type="button"
-              disabled={page >= lastPage}
-              onClick={() => setQuery((q) => ({ ...q, page: page + 1 }))}
-            >
-              {t('audit.next')}
-            </button>
-          </div>
-        </>
+            ))}
+          </tbody>
+        </DataTable>
       )}
     </section>
   );

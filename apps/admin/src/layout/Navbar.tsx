@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../auth/AuthContext';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { Avatar } from '../ui';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 /**
- * Top navbar: app title, notification bell (unread badge), the signed-in
- * admin's name, language switch, logout.
+ * Top bar (68 px, white): notification bell (unread badge), language
+ * switch, the signed-in admin (avatar + name) and sign out. The canvas'
+ * search field is intentionally not rendered: there is no search endpoint
+ * yet, and a dead input would mislead.
  */
 export function Navbar() {
   const { t } = useTranslation();
@@ -24,23 +27,26 @@ export function Navbar() {
   }
 
   return (
-    <header className="navbar">
-      <h1 className="navbar__title">{t('app.title')}</h1>
-      <div className="navbar__actions">
-        {user ? <NotificationBell /> : null}
-        {user ? <span className="navbar__user">{user.name}</span> : null}
-        <LanguageSwitcher />
-        {user ? (
-          <button
-            type="button"
-            className="btn"
-            onClick={() => void handleLogout()}
-            disabled={loggingOut}
-          >
-            {t('auth.logout')}
-          </button>
-        ) : null}
-      </div>
+    <header className="topbar">
+      <span className="topbar__spacer" />
+      {user ? <NotificationBell /> : null}
+      <LanguageSwitcher />
+      {user ? (
+        <span className="topbar__user">
+          <Avatar name={user.name} />
+          <span dir="auto">{user.name}</span>
+        </span>
+      ) : null}
+      {user ? (
+        <button
+          type="button"
+          className="btn btn--small"
+          onClick={() => void handleLogout()}
+          disabled={loggingOut}
+        >
+          {t('auth.logout')}
+        </button>
+      ) : null}
     </header>
   );
 }

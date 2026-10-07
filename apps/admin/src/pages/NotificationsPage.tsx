@@ -18,6 +18,7 @@ import {
 } from '../notifications/deep-links';
 import { useNotifications } from '../notifications/NotificationsProvider';
 import { useToast } from '../toast/ToastProvider';
+import { PageHeader, StatusChip } from '../ui';
 import { classifyError, formatDateTime, type FailureKind } from './onboarding/review-utils';
 
 const PAGE_SIZE = 20;
@@ -142,29 +143,35 @@ export default function NotificationsPage() {
   const hasUnread = (unread ?? 0) > 0 || (items ?? []).some((item) => !item.read);
 
   return (
-    <section>
-      <div className="section__header">
-        <h1 className="page__title">{t('notifications.title')}</h1>
-        <div className="table__actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => void markAll()}
-            disabled={markingAll || !hasUnread}
-          >
-            {markingAll ? t('notifications.markingAll') : t('notifications.markAllRead')}
-          </button>
-          <Link className="btn" to={NOTIFICATION_PREFERENCES_PATH}>
-            {t('notifications.preferencesLink')}
-          </Link>
-        </div>
-      </div>
-      <p className="page__subtitle">
-        {t('notifications.subtitle')}{' '}
-        {unread !== null ? (
-          <span className="queue-count">{t('notifications.unreadCount', { count: unread })}</span>
-        ) : null}
-      </p>
+    <section className="page">
+      <PageHeader
+        title={t('notifications.title')}
+        description={
+          <>
+            {t('notifications.subtitle')}{' '}
+            {unread !== null ? (
+              <span className="queue-count">
+                {t('notifications.unreadCount', { count: unread })}
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void markAll()}
+              disabled={markingAll || !hasUnread}
+            >
+              {markingAll ? t('notifications.markingAll') : t('notifications.markAllRead')}
+            </button>
+            <Link className="btn" to={NOTIFICATION_PREFERENCES_PATH}>
+              {t('notifications.preferencesLink')}
+            </Link>
+          </>
+        }
+      />
 
       <div className="filter-chips" role="group" aria-label={t('notifications.filterLabel')}>
         <button
@@ -242,7 +249,7 @@ export default function NotificationsPage() {
                       {item.body}
                     </span>
                     <span className="notification__meta">
-                      <span className="chip">{t(`notifications.category.${item.category}`)}</span>
+                      <StatusChip>{t(`notifications.category.${item.category}`)}</StatusChip>
                       <time dateTime={item.createdAt}>
                         {formatDateTime(item.createdAt, i18n.language)}
                       </time>

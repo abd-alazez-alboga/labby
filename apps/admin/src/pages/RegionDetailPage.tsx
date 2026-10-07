@@ -15,6 +15,7 @@ import {
 } from '../api/regions';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { BackLink, PageHeader, ReviewLayout } from '../ui';
 import { ActivationCard } from './regions/ActivationCard';
 import { BundleForm } from './regions/BundleForm';
 import { ServiceTypesSection } from './regions/ServiceTypesSection';
@@ -104,18 +105,18 @@ export default function RegionDetailPage() {
 
   if (notFound) {
     return (
-      <section>
-        <h1 className="page__title">{t('regionDetail.notFoundTitle')}</h1>
-        <p>
-          <Link to="/regions">{t('regionDetail.backToList')}</Link>
-        </p>
+      <section className="status-page">
+        <h1 className="status-page__title">{t('regionDetail.notFoundTitle')}</h1>
+        <Link className="btn btn--primary" to="/regions">
+          {t('regionDetail.backToList')}
+        </Link>
       </section>
     );
   }
 
   if (loadFailed) {
     return (
-      <section>
+      <section className="page">
         <p className="banner banner--error" role="alert">
           {t('regionDetail.errors.loadFailed')}
         </p>
@@ -128,52 +129,56 @@ export default function RegionDetailPage() {
   }
 
   return (
-    <section>
-      <h1 className="page__title">{region.name}</h1>
-      <p className="page__subtitle">
-        <Link to="/regions">{t('regionDetail.backToList')}</Link>
-      </p>
+    <section className="page">
+      <BackLink to="/regions">{t('regionDetail.backToList')}</BackLink>
+      <PageHeader title={region.name} />
 
-      <ActivationCard
-        region={region}
-        serviceTypes={serviceTypes}
-        canEdit={canEditRegion}
-        onActivated={setRegion}
-      />
+      <ReviewLayout
+        aside={
+          <div className="review-layout__aside">
+            <ActivationCard
+              region={region}
+              serviceTypes={serviceTypes}
+              canEdit={canEditRegion}
+              onActivated={setRegion}
+            />
+          </div>
+        }
+      >
+        <BundleForm key={region.id} region={region} canEdit={canEditRegion} onSaved={setRegion} />
 
-      <BundleForm key={region.id} region={region} canEdit={canEditRegion} onSaved={setRegion} />
-
-      {canViewPricing ? (
-        pricingLoadFailed ? (
-          <p className="banner banner--error" role="alert">
-            {t('regionDetail.errors.pricingLoadFailed')}
-          </p>
-        ) : serviceTypes === null || surchargeWindows === null || surgeZones === null ? (
-          <div className="loading">{t('common.loading')}</div>
-        ) : (
-          <>
-            <ServiceTypesSection
-              regionId={region.id}
-              items={serviceTypes}
-              canEdit={canEditPricing}
-              onChange={setServiceTypes}
-            />
-            <SurchargeWindowsSection
-              regionId={region.id}
-              items={surchargeWindows}
-              canEdit={canEditPricing}
-              onChange={setSurchargeWindows}
-            />
-            <SurgeZonesSection
-              regionId={region.id}
-              boundary={region.boundary ?? null}
-              items={surgeZones}
-              canEdit={canEditPricing}
-              onChange={setSurgeZones}
-            />
-          </>
-        )
-      ) : null}
+        {canViewPricing ? (
+          pricingLoadFailed ? (
+            <p className="banner banner--error" role="alert">
+              {t('regionDetail.errors.pricingLoadFailed')}
+            </p>
+          ) : serviceTypes === null || surchargeWindows === null || surgeZones === null ? (
+            <div className="loading">{t('common.loading')}</div>
+          ) : (
+            <>
+              <ServiceTypesSection
+                regionId={region.id}
+                items={serviceTypes}
+                canEdit={canEditPricing}
+                onChange={setServiceTypes}
+              />
+              <SurchargeWindowsSection
+                regionId={region.id}
+                items={surchargeWindows}
+                canEdit={canEditPricing}
+                onChange={setSurchargeWindows}
+              />
+              <SurgeZonesSection
+                regionId={region.id}
+                boundary={region.boundary ?? null}
+                items={surgeZones}
+                canEdit={canEditPricing}
+                onChange={setSurgeZones}
+              />
+            </>
+          )
+        ) : null}
+      </ReviewLayout>
     </section>
   );
 }

@@ -12,7 +12,7 @@ export function LanguageSwitcher() {
   return (
     <button
       type="button"
-      className="btn"
+      className="btn btn--small btn--ghost"
       aria-label={t('language.switchLabel')}
       onClick={() => void i18n.changeLanguage(nextLanguage)}
     >

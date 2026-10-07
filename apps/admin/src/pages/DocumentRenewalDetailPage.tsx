@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import {
   approveRenewal,
@@ -11,6 +11,7 @@ import {
 } from '../api/onboarding';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { BackLink, DecisionPanel, PageHeader, ReviewLayout, StatusChip } from '../ui';
 import {
   ApplicantCell,
   ConfirmRow,
@@ -117,15 +118,11 @@ export default function DocumentRenewalDetailPage() {
     }
   }
 
-  const backLink = (
-    <p className="page__subtitle">
-      <Link to="/document-expiries">{t('renewals.detail.back')}</Link>
-    </p>
-  );
+  const backLink = <BackLink to="/document-expiries">{t('renewals.detail.back')}</BackLink>;
 
   if (resource.loadError) {
     return (
-      <section>
+      <section className="page">
         {backLink}
         <LoadFailure
           kind={resource.loadError}
@@ -145,17 +142,20 @@ export default function DocumentRenewalDetailPage() {
   const conflictClosed =
     failure?.key === 'review.conflict.decidedRenewal' ||
     failure?.key === 'review.conflict.decidedItem';
+  const showDecision = canDecide && pending && !conflictClosed;
 
   return (
-    <section>
+    <section className="page">
       {backLink}
-      <h1 className="page__title">{t('renewals.detail.title', { document: typeLabel })}</h1>
-      <div className="summary-row">
-        <ApplicantCell person={item.driver} />
-        {item.driverSuspended ? (
-          <span className="chip chip--flag">{t('expiries.suspendedChip')}</span>
-        ) : null}
-      </div>
+      <PageHeader
+        title={t('renewals.detail.title', { document: typeLabel })}
+        description={<ApplicantCell person={item.driver} />}
+        meta={
+          item.driverSuspended ? (
+            <StatusChip tone="danger">{t('expiries.suspendedChip')}</StatusChip>
+          ) : null
+        }
+      />
 
       {notices.map((key) => (
         <p key={key} className="banner banner--success" role="status">
@@ -169,78 +169,83 @@ export default function DocumentRenewalDetailPage() {
       ) : null}
       {resource.filesStale ? <StaleFilesBanner onRefresh={refresh} /> : null}
 
-      {canDecide && pending && !conflictClosed ? (
-        <div className="card panel decision-bar">
-          <h2 className="panel__title">{t('renewals.detail.decisionTitle')}</h2>
-          <p className="panel__hint">{t('renewals.detail.approveHint')}</p>
-          <div className="panel__row">
-            <button
-              className="btn btn--primary"
-              type="button"
-              aria-pressed={mode === 'approve'}
-              onClick={() => setMode(mode === 'approve' ? 'none' : 'approve')}
-            >
-              {t('renewals.detail.approve')}
-            </button>
-            <button
-              className="btn"
-              type="button"
-              aria-pressed={mode === 'reject'}
-              onClick={() => setMode(mode === 'reject' ? 'none' : 'reject')}
-            >
-              {t('renewals.detail.reject')}
-            </button>
+      <ReviewLayout
+        aside={
+          showDecision ? (
+            <DecisionPanel title={t('renewals.detail.decisionTitle')}>
+              <p className="panel__hint">{t('renewals.detail.approveHint')}</p>
+              <div className="decision-panel__actions">
+                <button
+                  className="btn btn--primary btn--lg btn--block"
+                  type="button"
+                  aria-pressed={mode === 'approve'}
+                  onClick={() => setMode(mode === 'approve' ? 'none' : 'approve')}
+                >
+                  {t('renewals.detail.approve')}
+                </button>
+                <button
+                  className="btn btn--danger-text btn--block"
+                  type="button"
+                  aria-pressed={mode === 'reject'}
+                  onClick={() => setMode(mode === 'reject' ? 'none' : 'reject')}
+                >
+                  {t('renewals.detail.reject')}
+                </button>
+              </div>
+              {mode === 'approve' ? (
+                <ConfirmRow
+                  text={t('renewals.detail.approveConfirm', {
+                    document: typeLabel,
+                    name: item.driver.name,
+                  })}
+                  confirmLabel={t('review.approve.confirm')}
+                  busy={busy}
+                  onConfirm={() =>
+                    void decide('approve', () => approveRenewal(apiClient, item.renewal.id))
+                  }
+                  onCancel={() => setMode('none')}
+                />
+              ) : null}
+              {mode === 'reject' ? (
+                <RejectForm
+                  idPrefix="renewal"
+                  hint={t('renewals.detail.rejectHint')}
+                  confirmText={t('renewals.detail.rejectConfirm', {
+                    document: typeLabel,
+                    name: item.driver.name,
+                  })}
+                  busy={busy}
+                  onCancel={() => setMode('none')}
+                  onSubmit={(reason) =>
+                    void decide('reject', () =>
+                      rejectRenewal(apiClient, item.renewal.id, { reason }),
+                    )
+                  }
+                />
+              ) : null}
+            </DecisionPanel>
+          ) : null
+        }
+      >
+        <div className="compare">
+          <div className="compare__column">
+            <h2 className="compare__heading">{t('renewals.detail.renewal')}</h2>
+            <DocumentCard
+              document={item.renewal}
+              heading={t('renewals.detail.renewal')}
+              onExpired={refresh}
+            />
           </div>
-          {mode === 'approve' ? (
-            <ConfirmRow
-              text={t('renewals.detail.approveConfirm', {
-                document: typeLabel,
-                name: item.driver.name,
-              })}
-              confirmLabel={t('review.approve.confirm')}
-              busy={busy}
-              onConfirm={() =>
-                void decide('approve', () => approveRenewal(apiClient, item.renewal.id))
-              }
-              onCancel={() => setMode('none')}
+          <div className="compare__column">
+            <h2 className="compare__heading">{t('renewals.detail.current')}</h2>
+            <DocumentCard
+              document={item.current}
+              heading={t('renewals.detail.current')}
+              onExpired={refresh}
             />
-          ) : null}
-          {mode === 'reject' ? (
-            <RejectForm
-              idPrefix="renewal"
-              hint={t('renewals.detail.rejectHint')}
-              confirmText={t('renewals.detail.rejectConfirm', {
-                document: typeLabel,
-                name: item.driver.name,
-              })}
-              busy={busy}
-              onCancel={() => setMode('none')}
-              onSubmit={(reason) =>
-                void decide('reject', () => rejectRenewal(apiClient, item.renewal.id, { reason }))
-              }
-            />
-          ) : null}
+          </div>
         </div>
-      ) : null}
-
-      <div className="compare">
-        <div className="compare__column">
-          <h2 className="section__title">{t('renewals.detail.renewal')}</h2>
-          <DocumentCard
-            document={item.renewal}
-            heading={t('renewals.detail.renewal')}
-            onExpired={refresh}
-          />
-        </div>
-        <div className="compare__column">
-          <h2 className="section__title">{t('renewals.detail.current')}</h2>
-          <DocumentCard
-            document={item.current}
-            heading={t('renewals.detail.current')}
-            onExpired={refresh}
-          />
-        </div>
-      </div>
+      </ReviewLayout>
     </section>
   );
 }

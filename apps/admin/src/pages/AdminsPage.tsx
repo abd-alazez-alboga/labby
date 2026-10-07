@@ -14,6 +14,7 @@ import {
 } from '../api/rbac';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { DataTable, PageHeader } from '../ui';
 
 type Notice =
   { kind: 'created' } | { kind: 'grantedExisting' } | { kind: 'error'; messageKey: string };
@@ -160,8 +161,8 @@ export default function AdminsPage() {
   }
 
   return (
-    <section>
-      <h1 className="page__title">{t('admins.title')}</h1>
+    <section className="page">
+      <PageHeader title={t('admins.title')} />
 
       {notice?.kind === 'created' ? (
         <p className="banner banner--info" role="status">
@@ -245,7 +246,7 @@ export default function AdminsPage() {
       ) : admins === null ? (
         <div className="loading">{t('common.loading')}</div>
       ) : (
-        <table className="table">
+        <DataTable>
           <thead>
             <tr>
               <th>{t('admins.columns.name')}</th>
@@ -259,7 +260,9 @@ export default function AdminsPage() {
           <tbody>
             {admins.map((admin) => (
               <tr key={admin.id}>
-                <td>{admin.name}</td>
+                <td className="person__name" dir="auto">
+                  {admin.name}
+                </td>
                 <td dir="ltr">{admin.phone}</td>
                 <td>
                   {canManage && roles ? (
@@ -292,7 +295,7 @@ export default function AdminsPage() {
                         <span className="table__confirm">
                           {t('admins.deactivateConfirm')}
                           <button
-                            className="btn btn--danger"
+                            className="btn btn--small btn--danger"
                             type="button"
                             onClick={() => handleDeactivate(admin)}
                             disabled={busyId === admin.id}
@@ -300,7 +303,7 @@ export default function AdminsPage() {
                             {t('common.confirm')}
                           </button>
                           <button
-                            className="btn"
+                            className="btn btn--small"
                             type="button"
                             onClick={() => setConfirmingId(null)}
                           >
@@ -309,7 +312,7 @@ export default function AdminsPage() {
                         </span>
                       ) : (
                         <button
-                          className="btn"
+                          className="btn btn--small btn--danger-text"
                           type="button"
                           onClick={() => setConfirmingId(admin.id)}
                           disabled={busyId === admin.id}
@@ -319,7 +322,7 @@ export default function AdminsPage() {
                       )
                     ) : (
                       <button
-                        className="btn"
+                        className="btn btn--small"
                         type="button"
                         onClick={() => handleReactivate(admin)}
                         disabled={busyId === admin.id}
@@ -332,7 +335,7 @@ export default function AdminsPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
     </section>
   );

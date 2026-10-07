@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { BrandMark } from '../layout/BrandMark';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 
 type LoginErrorKey =
@@ -63,9 +64,14 @@ export default function LoginPage() {
   return (
     <div className="login">
       <form className="login__card" onSubmit={(event) => void handleSubmit(event)}>
-        <img className="login__logo" src="/images/labby-icon.png" alt="Labby" />
-        <h1 className="login__title">{t('auth.loginTitle')}</h1>
-        <p className="login__subtitle">{t('auth.loginSubtitle')}</p>
+        <div className="login__brand">
+          <BrandMark size="lg" />
+          <span className="brand__name">{t('app.title')}</span>
+        </div>
+        <div>
+          <h1 className="login__title">{t('auth.loginTitle')}</h1>
+          <p className="login__subtitle">{t('auth.loginSubtitle')}</p>
+        </div>
 
         {sessionExpired && errorKey === null ? (
           <p className="login__notice" role="status">
@@ -140,7 +146,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <button className="btn btn--primary login__submit" type="submit" disabled={submitting}>
+        <button className="btn btn--primary btn--lg btn--block" type="submit" disabled={submitting}>
           {submitting ? t('auth.submitting') : t('auth.submit')}
         </button>
 
