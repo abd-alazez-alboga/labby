@@ -391,7 +391,8 @@
       "under_review": "Under review",
       "needs_changes": "Needs changes",
       "approved": "Approved",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "withdrawn": "Withdrawn"
     },
     "itemStatus": {
       "pending": "Pending",
@@ -527,7 +528,8 @@
         "under_review": "Choose a decision.",
         "needs_changes": "Waiting for the applicant to resubmit the flagged items.",
         "approved": "This application is approved — no further decisions.",
-        "rejected": "This application is rejected — no further decisions."
+        "rejected": "This application is rejected — no further decisions.",
+        "withdrawn": "The account was deleted and the application withdrawn — no further decisions. If the account is reactivated, the applicant applies again."
       },
       "success": {
         "start": "Review started.",

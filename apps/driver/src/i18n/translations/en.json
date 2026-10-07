@@ -339,6 +339,11 @@
         "label": "Rejected",
         "body": "Your application was not approved this time.",
         "next": "See the reason below. You can apply again with a full new application."
+      },
+      "withdrawn": {
+        "label": "Withdrawn",
+        "body": "Your previous application was withdrawn when your account was deleted.",
+        "next": "Welcome back. You can apply again with a full new application."
       }
     },
     "tracker": {

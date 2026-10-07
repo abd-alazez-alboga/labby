@@ -13,7 +13,7 @@ import type { ApiClient } from './client';
  */
 
 export type ApplicationStatus =
-  'submitted' | 'under_review' | 'needs_changes' | 'approved' | 'rejected';
+  'submitted' | 'under_review' | 'needs_changes' | 'approved' | 'rejected' | 'withdrawn';
 
 export const APPLICATION_STATUSES: readonly ApplicationStatus[] = [
   'submitted',
@@ -21,6 +21,7 @@ export const APPLICATION_STATUSES: readonly ApplicationStatus[] = [
   'needs_changes',
   'approved',
   'rejected',
+  'withdrawn',
 ];
 
 /** The queue's contract default (UC-A-10 step 1). */

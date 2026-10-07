@@ -182,6 +182,21 @@ describe("stage tracker (UC-D-03)", () => {
     );
   });
 
+  it("explains a withdrawn application (deleted account) and lets the applicant reapply", async () => {
+    await openGate({ status: 200, body: applicationFixture("withdrawn") });
+    await screen.findByTestId("tracker-withdrawn");
+    expect(
+      screen.getByText(
+        "Welcome back. You can apply again with a full new application.",
+      ),
+    ).toBeTruthy();
+    fireEvent.press(screen.getByTestId("tracker-reapply"));
+    expect(await screen.findByTestId("wizard-step-count")).toHaveTextContent(
+      "Step 1 of 8",
+      { exact: false },
+    );
+  });
+
   it("on approval refreshes /users/me and unlocks driver home", async () => {
     const approvedProfile = driverUser({ id: user.id, name: user.name });
     await seedSession(user);

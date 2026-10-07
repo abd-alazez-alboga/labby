@@ -190,7 +190,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | ID | Requirement | Ver |
 |---|---|---|
 | DRV-01 | Application (Driver app, existing account): personal details + 4 documents — government ID, driver's license, vehicle registration, insurance — each photo + number + **expiry date**; vehicle details (make, model, year, color, plate, seats, photos). | V1 |
-| DRV-02 | Staged review: `submitted → under_review → needs_changes → approved / rejected`; admin queue; per-item correction requests (driver resubmits only those); every stage change notifies the applicant. Approval activates the driver role. | V1 |
+| DRV-02 | Staged review: `submitted → under_review → needs_changes → approved / rejected`; admin queue; per-item correction requests (driver resubmits only those); every stage change notifies the applicant. Approval activates the driver role. Deleting the account withdraws an open application (`withdrawn`: out of the queue, not decidable; the reactivated account reapplies). | V1 |
 | DRV-03 | One active vehicle per driver. At approval the **admin assigns the service types** the vehicle may serve. Vehicle switch = new registration + insurance reviewed; old vehicle active until new approved. Riders see make/model/color/plate/photo. | V1 |
 | DRV-04 | Document expiry: reminders 30 and 7 days before; on expiry the driver role **auto-suspends** until a renewed document is approved. Admin dashboard lists upcoming expirations. | V1 |
 | DRV-05 | Availability: online/offline toggle (gates live offers) + weekly availability schedule (gates the scheduled-ride board). | V1 |

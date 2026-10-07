@@ -4,7 +4,12 @@
  */
 
 export type ApplicationStatus =
-  "submitted" | "under_review" | "needs_changes" | "approved" | "rejected";
+  | "submitted"
+  | "under_review"
+  | "needs_changes"
+  | "approved"
+  | "rejected"
+  | "withdrawn";
 
 export type ReviewStatus =
   "pending" | "changes_requested" | "approved" | "rejected" | "superseded";

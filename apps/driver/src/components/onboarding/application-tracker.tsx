@@ -29,6 +29,7 @@ export const STATUS_TONES: Record<ApplicationStatus, Tone> = {
   needs_changes: "warning",
   approved: "success",
   rejected: "danger",
+  withdrawn: "neutral",
 };
 
 /**
@@ -208,6 +209,7 @@ export function TrackerPrimaryAction({
         />
       );
     case "rejected":
+    case "withdrawn":
       return (
         <PrimaryButton
           title={t("onboarding.tracker.reapply")}

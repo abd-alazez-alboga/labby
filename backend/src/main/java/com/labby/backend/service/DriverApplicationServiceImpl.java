@@ -75,6 +75,7 @@ public class DriverApplicationServiceImpl implements DriverApplicationService {
   private static final Set<ReviewStatus> OPEN =
       EnumSet.of(ReviewStatus.PENDING, ReviewStatus.CHANGES_REQUESTED);
   private static final String CONCURRENT_SUBMISSION = "An application is already open or approved";
+  static final String WITHDRAWN_NOTE = "Withdrawn: the account was deleted";
 
   private final DriverProfileRepository driverProfileRepository;
   private final DriverApplicationEventRepository driverApplicationEventRepository;
@@ -422,24 +423,7 @@ public class DriverApplicationServiceImpl implements DriverApplicationService {
     profile.setDecidedBy(actorUserId);
     profile = driverProfileRepository.saveAndFlush(profile);
 
-    // Close the application's open items so a reapplication can open new ones (V6 indexes).
-    Vehicle vehicle = applicationVehicle(profile);
-    if (OPEN.contains(vehicle.getReviewStatus())) {
-      vehicle.setReviewStatus(ReviewStatus.REJECTED);
-      vehicle.setReviewNote(reason);
-      vehicle.setReviewedBy(actorUserId);
-      vehicle.setReviewedAt(now);
-      vehicleRepository.saveAndFlush(vehicle);
-    }
-    for (DriverDocument document : applicationDocuments(profile, vehicle).values()) {
-      if (OPEN.contains(document.getReviewStatus())) {
-        document.setReviewStatus(ReviewStatus.REJECTED);
-        document.setReviewNote(reason);
-        document.setReviewedBy(actorUserId);
-        document.setReviewedAt(now);
-        driverDocumentRepository.saveAndFlush(document);
-      }
-    }
+    closeOpenItems(profile, reason, actorUserId, now);
 
     recordEvent(profile, from, ApplicationStatus.REJECTED, reason, actorUserId);
     notificationService.queue(profile.getUserId(), NotificationEvent.DRIVER_APPLICATION_REJECTED);
@@ -451,6 +435,45 @@ public class DriverApplicationServiceImpl implements DriverApplicationService {
         Map.of("status", from.getValue()),
         Map.of("status", ApplicationStatus.REJECTED.getValue(), "reason", reason));
     return toAdminDto(profile);
+  }
+
+  @Override
+  public void withdrawForDeletedAccount(UUID userId) {
+    DriverProfile profile = driverProfileRepository.findByUserId(userId).orElse(null);
+    if (profile == null
+        || !ApplicationStateMachine.canTransition(
+            profile.getApplicationStatus(), ApplicationStatus.WITHDRAWN)) {
+      return;
+    }
+    ApplicationStatus from = profile.getApplicationStatus();
+    Instant now = calendar.now();
+    profile.setApplicationStatus(ApplicationStatus.WITHDRAWN);
+    profile.setDecidedAt(now);
+    profile.setDecidedBy(userId);
+    profile = driverProfileRepository.saveAndFlush(profile);
+    closeOpenItems(profile, WITHDRAWN_NOTE, userId, now);
+    recordEvent(profile, from, ApplicationStatus.WITHDRAWN, WITHDRAWN_NOTE, userId);
+  }
+
+  /** Closes the application's open items so a reapplication can open new ones (V6 indexes). */
+  private void closeOpenItems(DriverProfile profile, String note, UUID actorUserId, Instant now) {
+    Vehicle vehicle = applicationVehicle(profile);
+    if (OPEN.contains(vehicle.getReviewStatus())) {
+      vehicle.setReviewStatus(ReviewStatus.REJECTED);
+      vehicle.setReviewNote(note);
+      vehicle.setReviewedBy(actorUserId);
+      vehicle.setReviewedAt(now);
+      vehicleRepository.saveAndFlush(vehicle);
+    }
+    for (DriverDocument document : applicationDocuments(profile, vehicle).values()) {
+      if (OPEN.contains(document.getReviewStatus())) {
+        document.setReviewStatus(ReviewStatus.REJECTED);
+        document.setReviewNote(note);
+        document.setReviewedBy(actorUserId);
+        document.setReviewedAt(now);
+        driverDocumentRepository.saveAndFlush(document);
+      }
+    }
   }
 
   @Override

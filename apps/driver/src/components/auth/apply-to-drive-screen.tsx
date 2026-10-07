@@ -210,6 +210,7 @@ function ApplicationGate() {
         footer={
           application.status === "needs_changes" ||
           application.status === "rejected" ||
+          application.status === "withdrawn" ||
           application.status === "approved" ? (
             <TrackerPrimaryAction
               application={application}

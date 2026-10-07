@@ -11,21 +11,27 @@ import java.util.Set;
  * under_review → needs_changes → under_review → … → approved | rejected}. A first application or a
  * reapplication after rejection enters {@code submitted}; the three decisions are legal only from
  * {@code under_review}; a resubmission returns {@code needs_changes} to {@code under_review};
- * {@code approved} is terminal. Illegal transitions are 409.
+ * {@code approved} is terminal. Deleting the account withdraws an open application ({@code
+ * submitted}, {@code under_review}, {@code needs_changes} → {@code withdrawn}); a withdrawn
+ * application, like a rejected one, may reapply. Illegal transitions are 409.
  */
 public final class ApplicationStateMachine {
 
   private static final Map<ApplicationStatus, Set<ApplicationStatus>> TRANSITIONS =
       Map.of(
-          ApplicationStatus.SUBMITTED, EnumSet.of(ApplicationStatus.UNDER_REVIEW),
+          ApplicationStatus.SUBMITTED,
+              EnumSet.of(ApplicationStatus.UNDER_REVIEW, ApplicationStatus.WITHDRAWN),
           ApplicationStatus.UNDER_REVIEW,
               EnumSet.of(
                   ApplicationStatus.NEEDS_CHANGES,
                   ApplicationStatus.APPROVED,
-                  ApplicationStatus.REJECTED),
-          ApplicationStatus.NEEDS_CHANGES, EnumSet.of(ApplicationStatus.UNDER_REVIEW),
+                  ApplicationStatus.REJECTED,
+                  ApplicationStatus.WITHDRAWN),
+          ApplicationStatus.NEEDS_CHANGES,
+              EnumSet.of(ApplicationStatus.UNDER_REVIEW, ApplicationStatus.WITHDRAWN),
           ApplicationStatus.APPROVED, EnumSet.noneOf(ApplicationStatus.class),
-          ApplicationStatus.REJECTED, EnumSet.of(ApplicationStatus.SUBMITTED));
+          ApplicationStatus.REJECTED, EnumSet.of(ApplicationStatus.SUBMITTED),
+          ApplicationStatus.WITHDRAWN, EnumSet.of(ApplicationStatus.SUBMITTED));
 
   private ApplicationStateMachine() {}
 

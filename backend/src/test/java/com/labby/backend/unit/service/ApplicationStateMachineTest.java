@@ -15,21 +15,26 @@ import org.junit.jupiter.api.Test;
 
 /**
  * DRV-02 state machine: submitted → under_review → needs_changes → under_review → … → approved |
- * rejected; reapply after rejection; approved is terminal. Every other transition is a 409.
+ * rejected; an open application is withdrawn when its account is deleted; reapply after rejection
+ * or withdrawal; approved is terminal. Every other transition is a 409.
  */
 class ApplicationStateMachineTest {
 
   private static final Map<ApplicationStatus, Set<ApplicationStatus>> LEGAL =
       Map.of(
-          ApplicationStatus.SUBMITTED, EnumSet.of(ApplicationStatus.UNDER_REVIEW),
+          ApplicationStatus.SUBMITTED,
+              EnumSet.of(ApplicationStatus.UNDER_REVIEW, ApplicationStatus.WITHDRAWN),
           ApplicationStatus.UNDER_REVIEW,
               EnumSet.of(
                   ApplicationStatus.NEEDS_CHANGES,
                   ApplicationStatus.APPROVED,
-                  ApplicationStatus.REJECTED),
-          ApplicationStatus.NEEDS_CHANGES, EnumSet.of(ApplicationStatus.UNDER_REVIEW),
+                  ApplicationStatus.REJECTED,
+                  ApplicationStatus.WITHDRAWN),
+          ApplicationStatus.NEEDS_CHANGES,
+              EnumSet.of(ApplicationStatus.UNDER_REVIEW, ApplicationStatus.WITHDRAWN),
           ApplicationStatus.APPROVED, EnumSet.noneOf(ApplicationStatus.class),
-          ApplicationStatus.REJECTED, EnumSet.of(ApplicationStatus.SUBMITTED));
+          ApplicationStatus.REJECTED, EnumSet.of(ApplicationStatus.SUBMITTED),
+          ApplicationStatus.WITHDRAWN, EnumSet.of(ApplicationStatus.SUBMITTED));
 
   @Test
   @DisplayName("exactly the contract's transitions are legal, every other pair is not")

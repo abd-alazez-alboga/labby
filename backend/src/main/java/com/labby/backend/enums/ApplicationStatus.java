@@ -5,14 +5,16 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
  * Driver application stages (DRV-02): {@code submitted → under_review → needs_changes → approved /
- * rejected}.
+ * rejected}; an open application of a deleted account is {@code withdrawn} (owner decision
+ * 2026-10-07).
  */
 public enum ApplicationStatus {
   SUBMITTED("submitted"),
   UNDER_REVIEW("under_review"),
   NEEDS_CHANGES("needs_changes"),
   APPROVED("approved"),
-  REJECTED("rejected");
+  REJECTED("rejected"),
+  WITHDRAWN("withdrawn");
 
   private final String value;
 

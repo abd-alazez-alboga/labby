@@ -65,6 +65,7 @@ public class MeServiceImpl implements MeService {
   private final StorageProperties storageProperties;
   private final ProfileService profileService;
   private final DeviceTokenService deviceTokenService;
+  private final DriverApplicationService driverApplicationService;
 
   @Override
   @Transactional(readOnly = true)
@@ -175,6 +176,8 @@ public class MeServiceImpl implements MeService {
 
     // No precondition checks in M2 — active-ride / driver-debt gates arrive with their
     // milestones (contract 409 reserved for them).
+    // An open driver application leaves the review queue (owner decision 2026-10-07).
+    driverApplicationService.withdrawForDeletedAccount(userId);
     user.setState(AccountState.DELETED);
     user.setDeletedAt(Instant.now());
     userRepository.save(user);

@@ -28,6 +28,7 @@ import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.DeviceTokenService;
+import com.labby.backend.service.DriverApplicationService;
 import com.labby.backend.service.MeServiceImpl;
 import com.labby.backend.service.OtpService;
 import com.labby.backend.service.ProfileServiceImpl;
@@ -60,6 +61,7 @@ class MeServiceImplTest {
   @Mock private OtpService otpService;
   @Mock private StorageProvider storageProvider;
   @Mock private DeviceTokenService deviceTokenService;
+  @Mock private DriverApplicationService driverApplicationService;
 
   private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
   @Mock private RbacRoleRepository rbacRoleRepository;
@@ -82,7 +84,8 @@ class MeServiceImplTest {
             storageProvider,
             new StorageProperties("/tmp/labby-test", 5_242_880, 10_485_760, 300, 50, 7),
             new ProfileServiceImpl(userMapper, rbacRoleRepository),
-            deviceTokenService);
+            deviceTokenService,
+            driverApplicationService);
     userId = UUID.randomUUID();
     user =
         User.builder()
@@ -262,5 +265,7 @@ class MeServiceImplTest {
     assertThat(user.getDeletedAt()).isNotNull();
     verify(refreshTokenRepository).revokeAllByUserId(eq(userId), any());
     verify(deviceTokenService).removeAllForUser(userId);
+    // An open driver application is withdrawn with the account (owner decision 2026-10-07).
+    verify(driverApplicationService).withdrawForDeletedAccount(userId);
   }
 }

@@ -612,7 +612,12 @@ components:
   schemas:
     ApplicationStatus:
       type: string
-      enum: [submitted, under_review, needs_changes, approved, rejected]
+      description: >
+        `withdrawn`: the account was deleted while the application was open (submitted,
+        under_review or needs_changes). It leaves the default queue, no decision is legal on it
+        (409), and the reactivated account reapplies like after a rejection (owner decision
+        2026-10-07).
+      enum: [submitted, under_review, needs_changes, approved, rejected, withdrawn]
     ReviewStatus:
       type: string
       description: >

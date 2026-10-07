@@ -3,6 +3,7 @@ package com.labby.backend.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.labby.backend.enums.ClientType;
 import com.labby.backend.util.RbacIds;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -20,6 +22,70 @@ import org.springframework.http.HttpStatus;
  * rejection), the double-review race, permissions (RBAC-03) and the audit trail (RBAC-05).
  */
 class DriverApplicationIntegrationTest extends AbstractOnboardingIntegrationTest {
+
+  @Test
+  @DisplayName("deleting the account withdraws its open application; reactivated, it reapplies")
+  void shouldWithdrawTheOpenApplicationOfADeletedAccount() {
+    String admin = registerSuperAdmin("+963935000901");
+    Account applicant = registerApplicant("+963935000902", "Leaver");
+    UUID applicationId = submitApplication(applicant, "WD1");
+    startReview(applicationId, admin);
+
+    ageOtpCodes(applicant.phone());
+    String otp = requestTwoFactorCode(applicant.token(), applicant.phone());
+    assertThat(
+            restTemplate
+                .exchange(
+                    "/api/v1/users/me",
+                    HttpMethod.DELETE,
+                    authorized(Map.of("otpCode", otp), applicant.token()),
+                    Void.class)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.NO_CONTENT);
+
+    // Withdrawn, with a history event; out of the default queue; no decision is legal.
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT application_status FROM driver_profiles WHERE driver_profile_id = ?",
+                String.class,
+                applicationId))
+        .isEqualTo("withdrawn");
+    assertThat(
+            jdbcTemplate.queryForList(
+                "SELECT to_status FROM driver_application_events WHERE driver_profile_id = ?"
+                    + " ORDER BY created_at",
+                String.class,
+                applicationId))
+        .containsExactly("submitted", "under_review", "withdrawn");
+    assertThat(
+            ok(get("/api/v1/admin/driver-applications", admin), HttpStatus.OK)
+                .get("totalItems")
+                .asInt())
+        .isZero();
+    assertThat(
+            ok(get("/api/v1/admin/driver-applications?status=withdrawn", admin), HttpStatus.OK)
+                .get("totalItems")
+                .asInt())
+        .isEqualTo(1);
+    assertThat(
+            post(APPLICATIONS + applicationId + "/reject", Map.of("reason", "late"), admin)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.CONFLICT);
+
+    // Re-registering reactivates the account; it may apply again.
+    ageOtpCodes(applicant.phone());
+    restTemplate.postForEntity(
+        "/api/v1/auth/register/start", Map.of("phone", applicant.phone()), Void.class);
+    restTemplate.postForEntity(
+        "/api/v1/auth/register/verify",
+        Map.of("phone", applicant.phone(), "code", lastCodeFor(applicant.phone())),
+        JsonNode.class);
+    String token = login(applicant.phone(), PASSWORD, ClientType.DRIVER).accessToken();
+    Account back = new Account(applicant.userId(), token, applicant.phone());
+    assertThat(submitApplication(back, "WD2")).isEqualTo(applicationId);
+    assertThat(ok(get("/api/v1/driver/application", token), HttpStatus.OK).get("status").asText())
+        .isEqualTo("submitted");
+  }
 
   private static final String APPLICATIONS = "/api/v1/admin/driver-applications/";
 

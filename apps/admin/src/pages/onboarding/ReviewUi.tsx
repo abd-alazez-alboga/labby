@@ -20,6 +20,7 @@ const APPLICATION_TONES: Record<ApplicationStatus, ChipTone> = {
   needs_changes: 'warning',
   approved: 'success',
   rejected: 'danger',
+  withdrawn: 'neutral',
 };
 
 const REVIEW_TONES: Record<ReviewStatus, ChipTone> = {

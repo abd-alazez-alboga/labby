@@ -82,7 +82,7 @@ ID convention: `UC-S-xx` (shared), referenced from `rider.md` (`UC-R-xx`), `driv
 **Main flow:**
 1. User requests deletion; system shows consequences (access ends; data retained; phone re-registration reactivates).
 2. OTP (purpose `2fa`) verified.
-3. Account state → `deleted`; sessions invalidated; user invisible to matching/search.
+3. Account state → `deleted`; sessions invalidated; user invisible to matching/search; an open driver application is `withdrawn` (leaves the review queue; reapply after reactivation).
 **Exceptions:** E1 Active ride → blocked until finished. E2 Driver with debt below floor → blocked pending settlement (COM-03). E3 OTP failure → aborted.
 **Postconditions:** soft-deleted; all data retained (USR-07).
 **SRS:** USR-07, AUTH-05

@@ -389,6 +389,23 @@ describe('driver application detail (UC-A-10)', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
   });
 
+  it('shows a withdrawn application (deleted account) as closed, with no decisions', async () => {
+    stubOnboardingRoutes(REVIEWER, (method, path) =>
+      method === 'GET' && path === APP_PATH
+        ? jsonResponse(200, underReview({ status: 'withdrawn' }))
+        : null,
+    );
+    renderShell();
+
+    expect(
+      await screen.findByText(
+        'The account was deleted and the application withdrawn — no further decisions. If the account is reactivated, the applicant applies again.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('Withdrawn').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+  });
+
   it('explains a 409 caused by a duplicate plate flagged meanwhile', async () => {
     let reads = 0;
     stubOnboardingRoutes(REVIEWER, (method, path) => {

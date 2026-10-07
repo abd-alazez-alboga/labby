@@ -106,6 +106,15 @@ public interface DriverApplicationService {
   AdminDriverApplicationDto reject(UUID actorUserId, UUID applicationId, ReasonRequestDto request);
 
   /**
+   * Withdraws the account's open application (submitted / under_review / needs_changes → withdrawn)
+   * when the account is deleted: it leaves the review queue, cannot be decided, and the reactivated
+   * account reapplies. No-op when there is no open application.
+   *
+   * @param userId the account being deleted
+   */
+  void withdrawForDeletedAccount(UUID userId);
+
+  /**
    * Service types an approval may assign: enabled types of ACTIVE regions.
    *
    * @return region-then-name sorted references
