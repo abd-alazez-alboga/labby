@@ -476,7 +476,7 @@ components:
     Region:
       type: object
       description: The full ADM-01 config bundle. Nullable fields are simply not set yet (draft).
-      required: [id, name, state, serviceTypeCount, surgeZoneCount]
+      required: [id, name, state, timeZone, serviceTypeCount, surgeZoneCount]
       properties:
         id: { type: string, format: uuid }
         name: { type: string, maxLength: 100 }
@@ -487,6 +487,11 @@ components:
             - { type: 'null' }
         currency: { type: [string, 'null'], description: ISO 4217 }
         emergencyNumber: { type: [string, 'null'], maxLength: 20 }
+        timeZone:
+          type: string
+          description: >
+            IANA time zone of the region (M7, owner decision 2026-10-07), e.g. `Asia/Damascus`
+            (the default). Surcharge windows are evaluated in this zone.
         cancellationGraceMin: { type: [integer, 'null'], minimum: 0 }
         cancellationFee: { type: [number, 'null'], minimum: 0 }
         waitGraceMin: { type: [integer, 'null'], minimum: 0, description: 'Default: 5' }
@@ -521,6 +526,11 @@ components:
             - { type: 'null' }
         currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
         emergencyNumber: { type: [string, 'null'], maxLength: 20 }
+        timeZone:
+          type: string
+          maxLength: 64
+          description: >
+            IANA time zone id (M7). Omitted → `Asia/Damascus`. An unknown id is rejected (400).
         cancellationGraceMin: { type: [integer, 'null'], minimum: 0 }
         cancellationFee: { type: [number, 'null'], minimum: 0 }
         waitGraceMin: { type: [integer, 'null'], minimum: 0 }
@@ -572,7 +582,15 @@ components:
         id: { type: string, format: uuid }
         regionId: { type: string, format: uuid }
         label: { type: string, maxLength: 50 }
-        startsAt: { type: string, format: time, description: 'Region-local, e.g. 07:30:00' }
+        startsAt:
+          type: string
+          format: time
+          description: >
+            Region-local (the region's `timeZone`), e.g. 07:30:00. M7 rules (owner decision
+            2026-10-07): a window whose `endsAt` is earlier than its `startsAt` runs overnight
+            across midnight (its `daysOfWeek` name the day it STARTS on); the start is inclusive
+            and the end exclusive; when several windows cover the same moment the HIGHEST
+            `percent` applies (never summed).
         endsAt: { type: string, format: time }
         daysOfWeek:
           type: array

@@ -1,0 +1,1147 @@
+openapi: 3.1.0
+info:
+  title: Labby Rides API (M7 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M7, the on-demand ride loop. The clients (M7-T3 rider,
+    M7-T4 driver, the admin ride pages) build against this document; the backend (M7-T2) must
+    implement it exactly — on conflict after T2 lands, the implementation is the truth and this
+    file is amended. Schema: migration V10. SRS: RIDE-01..08, TRK-02/03/04, PRC-01 core
+    (base/km/min/minimum, surcharge windows), PRC-04, RIDE-07 grace logic, USR-03 rider extras;
+    UC-R-01..07/09, UC-D-06..10, UC-A-18. Out of M7: wallet and mixed payment, wait-time and
+    pickup-distance CHARGES (computed as 0 until M8), cancellation-fee COLLECTION (M8), surge
+    values (multiplier fixed 1.0 until M9), promos (M8+), chat/dial/SOS (M10), ratings (M11).
+
+
+    **State machine (RIDE-02).** `requested → offering → accepted → driver_arrived →
+    in_progress → completed`; terminal exits `cancelled_by_rider`, `cancelled_by_driver`,
+    `no_driver_found`. Every transition stores its own timestamp on the ride and is announced to
+    BOTH parties on the realtime socket (`ride.state`, below). The complete transition table —
+    nothing else is legal; any other request is answered 409 with the ride's current state:
+
+
+    | # | From | To | Caused by | Rule |
+
+    |---|---|---|---|---|
+
+    | 1 | (none) | `requested` | rider `POST /rides` | booking validated (below); surge multiplier and surcharge % LOCKED; estimate stored |
+
+    | 2 | `requested` | `offering` | dispatch | the first eligible candidate exists → first offer opened |
+
+    | 3 | `requested` | `no_driver_found` | dispatch | no eligible candidate at all (candidate exhaustion, RIDE-03) |
+
+    | 4 | `offering` | `offering` | dispatch | an offer was declined or timed out and another candidate exists → next offer (NOT a state change; recorded in the offers trail only) |
+
+    | 5 | `offering` | `accepted` | driver `POST /driver/offers/{id}/accept` | only the open offer's driver, before it expires; driver + vehicle bound; cancellation grace clock starts |
+
+    | 6 | `offering` | `no_driver_found` | dispatch | candidates exhausted, or 10 min (`DISPATCH_GIVE_UP_MINUTES`) since `requestedAt` |
+
+    | 7 | `accepted` | `driver_arrived` | driver `POST /driver/rides/{id}/arrive` | driver's latest position within 100 m (`ARRIVE_GEOFENCE_METERS`) of the pickup, else 422 with the distance (UC-D-07 E1); wait grace clock starts |
+
+    | 8 | `driver_arrived` | `in_progress` | driver `POST /driver/rides/{id}/start` | metering starts |
+
+    | 9 | `in_progress` | `completed` | driver `POST /driver/rides/{id}/complete` | metered fare computed and STORED (fares); `paymentStatus = pending` |
+
+    | 10 | `requested`, `offering`, `accepted`, `driver_arrived` | `cancelled_by_rider` | rider `POST /rides/{id}/cancel` | fee rule below; an open offer is withdrawn; an assigned driver is released |
+
+    | 11 | `accepted`, `driver_arrived` | `cancelled_by_driver` | driver `POST /driver/rides/{id}/cancel` | reason mandatory; never charges the rider (except `rider_no_show`, below); a NEW linked ride is dispatched (below) |
+
+
+    `in_progress` cannot be cancelled by either side (UC-R-09 E1). After `completed` only the
+    PAYMENT moves (`paymentStatus`: `pending → paid_cash` via cash-confirm, or `pending →
+    unpaid` via mark-unpaid, UC-D-09 E1) — not the ride state. Concurrency: the ride row carries an
+    optimistic lock and the offer row its response; of two racing requests (rider cancel vs
+    driver accept, two accepts, accept vs timeout) exactly one wins and the loser gets 409. The
+    database also guarantees at most ONE open offer per ride and per driver, and one active ride
+    per rider.
+
+
+    **Booking (RIDE-01, UC-R-04).** Validation, in order: rider role `active` (E3 → 403 with
+    `suspensionReason`); pickup inside an ACTIVE region (E1 → 422 `outside_region`); destination
+    and stops inside the same region (422 `outside_region`); service type enabled in that region
+    (422); at most 3 stops (422 `too_many_stops`); payment method `cash` (`wallet` → 422
+    `payment_method_unavailable` until M8); no other active ride (E4 → 409
+    `active_ride_exists`). The estimate is recomputed server-side at booking — the client's
+    figure is never trusted — and stored with the ride; an `approximate` route (OSRM down,
+    NFR-A3) is allowed and flagged.
+
+
+    **Estimate (PRC-01).** `RoutingProvider` route pickup → stops → destination; per service
+    type: `base + perKm × km + perMin × min`, + surcharge (`percent` of that subtotal, from the
+    window covering the request moment in the region's `timeZone`; overnight windows span
+    midnight; overlapping windows → HIGHEST percent, never summed), × surge multiplier (1.0
+    until M9; `surgeAmount` = the uplift), floored at the service type's `minimumFare` (the
+    top-up is its own component). Money is rounded half-up to 2 decimals per component.
+    Wait/pickup-fee components are 0 in M7. For `accept_distant_fee` riders the response
+    carries the pickup-fee rule (threshold + per-km) so the app can show the potential range
+    (UC-R-04 A3).
+
+
+    **Dispatch (RIDE-03).** Eligible candidates: driver role active, application approved,
+    online, stream FRESH (last sample ≤ 30 s, TRK-04), an active vehicle assigned the ride's
+    service type, no open offer, no active ride, not already offered this ride, and — for
+    `nearby_only` riders — straight-line pickup distance ≤ the region's
+    `pickupFeeThresholdKm`. Gates are re-checked for every candidate when its offer is opened
+    (a driver suspended while online is never offered; suspension also forces the driver
+    offline). Ranking: pickup ETA from the `RoutingProvider` (straight-line fallback allowed),
+    nearest first. One offer at a time, 15 s window (`DISPATCH_OFFER_SECONDS`); declined or
+    timed out → next candidate. The offer shows pickup + distance/ETA, destination, stops,
+    estimated fare, surge flag, rider rating (null until M11) and the rider's comfort
+    preferences. Offer outcomes (`accepted / declined / timeout / withdrawn`) are the
+    acceptance-metric trail; `withdrawn` (the ride ended while the offer was open) does not
+    count against the driver.
+
+
+    **Driver cancellation → re-dispatch (owner decision 2026-10-07, UC-D-10, UC-R-05 E2).**
+    The cancelled ride ends `cancelled_by_driver` (terminal, feeds the driver's cancellation
+    metric) and, in the same transaction, a NEW ride is created for the rider with the same
+    pickup/destination/stops/service type/payment method, the SAME locked surge multiplier,
+    surcharge % and estimate, and `redispatchOfRideId` set; it starts at `requested` and
+    dispatch excludes the driver who cancelled. Both rides appear in history. Exception: a
+    `rider_no_show` cancellation (allowed only from `driver_arrived` after the region's wait
+    grace, UC-D-07 E2) does NOT re-dispatch and records the region's cancellation fee on the
+    rider.
+
+
+    **Rider cancellation fee (RIDE-07, UC-R-09).** Free before acceptance and until
+    `cancellationGraceEndsAt` (= `acceptedAt` + the region's `cancellationGraceMin`, default
+    2); after that the region's `cancellationFee` (default 2) is RECORDED on the ride
+    (`cancellationFee`) — collection is M8. `GET /rides/{id}/cancellation-quote` tells the app
+    which case applies before the rider confirms. Rider reasons: `changed_mind`,
+    `driver_too_far`, `wrong_pickup`, `other`. Driver reasons: `rider_no_show`,
+    `vehicle_issue`, `unsafe_pickup`, `other`; `other` needs a `note`.
+
+
+    **Retry (RIDE-08).** `POST /rides/{id}/retry` on a `no_driver_found` ride creates a NEW ride
+    with the same inputs (`retryOfRideId` set); the estimate and surcharge are re-priced at the
+    moment of retry (it is a new request).
+
+
+    **In-ride route changes (RIDE-05, UC-R-06).** In `accepted`, `driver_arrived` and
+    `in_progress` the rider may replace destination and stops (≤ 3 stops total, else 422
+    `too_many_stops`; points must stay inside the region). The estimate is recomputed and
+    stored (the locked surge/surcharge are kept); the metered fare is unaffected. Both parties
+    receive `ride.updated` (reason `route_changed`).
+
+
+    **Tracing and metering (TRK-03, RIDE-06).** From acceptance until completion every location
+    sample of the assigned driver (socket or REST fallback, realtime-v1) is ALSO appended to the
+    ride's trace — phase `to_pickup` until start, `in_ride` after; `recordedAt` later than server
+    time is clamped to server time (M6 owner item b). Final fare: distance = sum of great-circle
+    segment lengths between consecutive `in_ride` points in `recordedAt` order; duration = `completedAt − startedAt`; pricing as in the
+    estimate with the LOCKED surcharge % and surge multiplier; floored at the minimum fare. A gap
+    in the trace (connection lost, UC-D-08 E1) contributes the straight segment across it. The
+    stored `fares` row is what both parties and the receipt show — never recomputed (PRC-04).
+
+
+    **Realtime events (TRK-02, RIDE-02).** Server → client frames on the existing
+    `/api/v1/realtime` socket (realtime-v1 protocol; clients ignore unknown types). On
+    (re)connect, clients refetch `GET /rides/active` or `GET /driver/rides/active` — events are
+    not replayed.
+
+
+    - `{"type":"ride.state","ride":Ride}` — to the rider and the assigned driver on EVERY
+    transition (the rider-view or driver-view of the ride respectively). A driver whose open
+    offer is withdrawn receives `offer.withdrawn` instead.
+
+    - `{"type":"ride.updated","reason","ride":Ride}` — non-state changes: `route_changed`,
+    `payment_confirmed`, `payment_unpaid`.
+
+    - `{"type":"offer.new","offer":RideOffer}` — to the offered driver.
+
+    - `{"type":"offer.withdrawn","offerId","rideId","reason"}` — to that driver; reason
+    `timeout` or `ride_ended`.
+
+    - `{"type":"ride.driver_position","rideId","lat","lng","headingDeg"?,"recordedAt","etaSeconds"?}`
+    — to the rider for every accepted sample from `accepted` until `completed`; `etaSeconds` is
+    to the pickup before start and to the destination after, refreshed from the
+    `RoutingProvider` at most every 30 s (`RIDE_ETA_REFRESH_SECONDS`) and repeated in between.
+
+    - `{"type":"ride.connection","rideId","driverStream":"ok"|"lost"}` — to both parties when
+    the assigned driver's stream goes stale (> 30 s) during `accepted..in_progress` and when it
+    resumes (TRK-04, UC-R-05 A1, UC-D-08 E1).
+
+
+    **Push (NTF, category `ride` — never muted).** The socket carries every transition to both
+    parties; an FCM push is ALSO sent to the party that did NOT cause the transition, so a
+    backgrounded app learns of it: `ride.offer` → driver (deep link `ride_offer`
+    {offerId}); `ride.accepted`, `ride.driver_arrived`, `ride.started`, `ride.completed`,
+    `ride.cancelled_by_driver` (+ new ride id), `ride.no_driver_found` → rider (deep link `ride`
+    {rideId}); `ride.cancelled_by_rider` → the assigned driver if any (no link). Deep-link
+    catalog additions: `ride` (params `rideId`), `ride_offer` (params `offerId`).
+
+
+    **Rider info exposure.** Before acceptance the rider sees no driver. From acceptance:
+    driver first name, photo, per-role rating (null until M11), vehicle make/model/color/plate +
+    first photo, live position (TRK-02). The driver sees the rider's first name, rating (null
+    until M11) and comfort preferences from the offer on; never phone numbers (dial is M10).
+
+
+    Errors use the global ErrorResponse shape from M1 (status, message, fieldErrors?); ride
+    errors add a machine `code` where listed. Rider endpoints need the rider role, driver
+    endpoints the driver role (approved), admin endpoints the `rides:view` permission.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: RiderPreferences
+  - name: SavedLocations
+  - name: RiderRides
+  - name: DriverOffers
+  - name: DriverRides
+  - name: AdminRides
+
+paths:
+  /api/v1/rider/preferences:
+    get:
+      tags: [RiderPreferences]
+      summary: Comfort preferences + matching toggle (UC-R-02, UC-R-03); defaults when never set
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RiderPreferences' }
+    put:
+      tags: [RiderPreferences]
+      summary: Replace preferences (applies to every later booking)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RiderPreferences' }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RiderPreferences' }
+        '400': { description: Unknown value }
+
+  /api/v1/rider/saved-locations:
+    get:
+      tags: [SavedLocations]
+      summary: The rider's saved places, by name (UC-R-01)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: All saved places
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SavedLocation' }
+    post:
+      tags: [SavedLocations]
+      summary: Add a saved place
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedLocationUpsertRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedLocation' }
+        '400': { description: Validation }
+        '409': { description: 'Name already used by this rider, case-insensitive (E1) — code `duplicate_name`' }
+
+  /api/v1/rider/saved-locations/{savedLocationId}:
+    parameters:
+      - { name: savedLocationId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [SavedLocations]
+      summary: Rename / move a saved place
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedLocationUpsertRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedLocation' }
+        '404': { description: Not this rider's place }
+        '409': { description: Duplicate name — code `duplicate_name` }
+    delete:
+      tags: [SavedLocations]
+      summary: Delete a saved place
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Not this rider's place }
+
+  /api/v1/rides/estimate:
+    post:
+      tags: [RiderRides]
+      summary: Fare estimate for every enabled service type of the pickup's region (RIDE-01)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RouteInput' }
+      responses:
+        '200':
+          description: The route once, and an estimate per service type
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstimateResponse' }
+        '400': { description: Validation }
+        '422': { description: 'code `outside_region` | `too_many_stops`' }
+
+  /api/v1/rides:
+    post:
+      tags: [RiderRides]
+      summary: Book a ride (UC-R-04) — ride starts `requested`, dispatch begins
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookRideRequest' }
+      responses:
+        '201':
+          description: Booked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '400': { description: Validation }
+        '403': { description: Rider role suspended (E3) — body carries `suspensionReason` }
+        '409': { description: 'code `active_ride_exists` (E4)' }
+        '422':
+          description: >
+            code `outside_region` | `service_type_unavailable` | `too_many_stops` |
+            `payment_method_unavailable`
+    get:
+      tags: [RiderRides]
+      summary: The rider's ride history, newest first (all states)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideSummaryPage' }
+
+  /api/v1/rides/active:
+    get:
+      tags: [RiderRides]
+      summary: The rider's active ride, or 204 when none (resync after reconnect)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Active ride (rider view)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '204': { description: No active ride }
+
+  /api/v1/rides/{rideId}:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [RiderRides]
+      summary: One of the rider's rides (rider view)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The ride
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this rider's ride }
+
+  /api/v1/rides/{rideId}/cancellation-quote:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [RiderRides]
+      summary: Would cancelling now be free? (RIDE-07 grace indication)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The fee that a cancellation right now would record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CancellationQuote' }
+        '404': { description: Not this rider's ride }
+        '409': { description: Ride not cancellable in its state }
+
+  /api/v1/rides/{rideId}/cancel:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [RiderRides]
+      summary: Rider cancels (transition 10)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RiderCancelRequest' }
+      responses:
+        '200':
+          description: Cancelled; `cancellationFee` set when outside grace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '400': { description: Unknown reason / `other` without note }
+        '404': { description: Not this rider's ride }
+        '409': { description: Not cancellable in its current state (e.g. `in_progress`) }
+
+  /api/v1/rides/{rideId}/route:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    put:
+      tags: [RiderRides]
+      summary: Change destination / stops during the ride (RIDE-05, UC-R-06)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RouteChangeRequest' }
+      responses:
+        '200':
+          description: Route + estimate updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this rider's ride }
+        '409': { description: Ride not in accepted / driver_arrived / in_progress }
+        '422': { description: 'code `too_many_stops` | `outside_region`' }
+
+  /api/v1/rides/{rideId}/retry:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [RiderRides]
+      summary: One-tap retry of a `no_driver_found` ride (RIDE-08) — creates a NEW ride
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: The new ride (`retryOfRideId` = the old one), re-priced now
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this rider's ride }
+        '409': { description: 'Not `no_driver_found`, or code `active_ride_exists`' }
+        '422': { description: Same booking validation as POST /rides }
+
+  /api/v1/rides/{rideId}/receipt:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [RiderRides]
+      summary: Receipt of a completed ride — rendered from stored components (PRC-04)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Receipt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Receipt' }
+        '404': { description: Not this rider's ride, or not completed }
+
+  /api/v1/driver/offers/{offerId}/accept:
+    parameters:
+      - { $ref: '#/components/parameters/OfferId' }
+    post:
+      tags: [DriverOffers]
+      summary: Accept the open offer (transition 5)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Accepted — the ride in driver view (`accepted`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this driver's offer }
+        '409': { description: 'code `offer_closed` — expired, already answered, or the ride ended (UC-D-06 E1)' }
+
+  /api/v1/driver/offers/{offerId}/decline:
+    parameters:
+      - { $ref: '#/components/parameters/OfferId' }
+    post:
+      tags: [DriverOffers]
+      summary: Decline the open offer (counts in the acceptance metric)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Declined; dispatch moves to the next candidate }
+        '404': { description: Not this driver's offer }
+        '409': { description: 'code `offer_closed`' }
+
+  /api/v1/driver/offers/open:
+    get:
+      tags: [DriverOffers]
+      summary: The driver's open offer, or 204 (resync after reconnect / push tap)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Open offer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideOffer' }
+        '204': { description: No open offer }
+
+  /api/v1/driver/rides/active:
+    get:
+      tags: [DriverRides]
+      summary: The driver's active ride (accepted..in_progress, or completed with payment pending), or 204
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Active ride (driver view)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '204': { description: None }
+
+  /api/v1/driver/rides:
+    get:
+      tags: [DriverRides]
+      summary: The driver's ride history, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideSummaryPage' }
+
+  /api/v1/driver/rides/{rideId}:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [DriverRides]
+      summary: One of the driver's rides (driver view)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The ride
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this driver's ride }
+
+  /api/v1/driver/rides/{rideId}/arrive:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [DriverRides]
+      summary: Arrived at pickup (transition 7) — 100 m geofence on the latest server-side position
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: '`driver_arrived`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this driver's ride }
+        '409': { description: Not `accepted` }
+        '422':
+          description: code `outside_geofence` (UC-D-07 E1) or `no_position` (no fresh sample)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeofenceError' }
+
+  /api/v1/driver/rides/{rideId}/start:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [DriverRides]
+      summary: Start the ride (transition 8)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: '`in_progress`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this driver's ride }
+        '409': { description: Not `driver_arrived` }
+
+  /api/v1/driver/rides/{rideId}/complete:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [DriverRides]
+      summary: End the ride (transition 9) — metered fare computed and stored
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: '`completed`, `fare` set, `paymentStatus` = pending'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this driver's ride }
+        '409': { description: Not `in_progress` }
+
+  /api/v1/driver/rides/{rideId}/cash-confirm:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [DriverRides]
+      summary: Cash collected (UC-D-09) — paymentStatus pending → paid_cash
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Confirmed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this driver's ride }
+        '409': { description: Not completed, or payment already settled }
+
+  /api/v1/driver/rides/{rideId}/mark-unpaid:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [DriverRides]
+      summary: Rider did not pay (UC-D-09 E1) — paymentStatus pending → unpaid; the ride stays completed
+      description: The support-ticket path arrives with support (M10+); M7 records the status only.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '404': { description: Not this driver's ride }
+        '409': { description: Not completed, or payment already settled }
+
+  /api/v1/driver/rides/{rideId}/cancel:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [DriverRides]
+      summary: Driver cancels (transition 11) — reason mandatory; rider re-dispatched unless no-show
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DriverCancelRequest' }
+      responses:
+        '200':
+          description: '`cancelled_by_driver` (driver view)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ride' }
+        '400': { description: Unknown reason / `other` without note }
+        '404': { description: Not this driver's ride }
+        '409': { description: Not accepted / driver_arrived }
+        '422': { description: 'code `no_show_too_early` — `rider_no_show` before `driver_arrived` + wait grace' }
+
+  /api/v1/admin/rides:
+    get:
+      tags: [AdminRides]
+      summary: Search rides (UC-A-18), newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, schema: { type: string, format: uuid } }
+        - { name: state, in: query, schema: { $ref: '#/components/schemas/RideState' } }
+        - { name: kind, in: query, schema: { type: string, enum: [on_demand, scheduled, shared] } }
+        - { name: userId, in: query, description: Rider OR driver, schema: { type: string, format: uuid } }
+        - { name: phone, in: query, description: Rider or driver phone (exact, E.164), schema: { type: string } }
+        - { name: from, in: query, description: 'requestedAt ≥', schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: 'requestedAt <', schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRideSummaryPage' }
+        '403': { description: Missing `rides:view` }
+
+  /api/v1/admin/rides/{rideId}:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [AdminRides]
+      summary: Full truth of one ride — timeline, trace, offers trail, fare (UC-A-18)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRideDetail' }
+        '403': { description: Missing `rides:view` }
+        '404': { description: Unknown ride }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    RideId:
+      name: rideId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OfferId:
+      name: offerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    RideState:
+      type: string
+      enum: [requested, offering, accepted, driver_arrived, in_progress, completed,
+             cancelled_by_rider, cancelled_by_driver, no_driver_found]
+    PaymentMethod:
+      type: string
+      enum: [cash, wallet]
+      description: '`wallet` is refused (422) until M8'
+    PaymentStatus:
+      type: [string, 'null']
+      enum: [pending, paid_cash, unpaid, null]
+      description: null until `completed`
+    PickupDistanceMode:
+      type: string
+      enum: [nearby_only, accept_distant_fee]
+      description: UC-R-03 — one exclusive setting, default `nearby_only`
+    LatLng:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+    Place:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+        label: { type: [string, 'null'], maxLength: 200, description: Display text (search result / saved name) }
+    RouteInput:
+      type: object
+      required: [pickup, destination]
+      properties:
+        pickup: { $ref: '#/components/schemas/Place' }
+        destination: { $ref: '#/components/schemas/Place' }
+        stops:
+          type: array
+          maxItems: 3
+          description: Intermediate stops in visiting order (more than 3 → 422 `too_many_stops`)
+          items: { $ref: '#/components/schemas/Place' }
+    BookRideRequest:
+      allOf:
+        - { $ref: '#/components/schemas/RouteInput' }
+        - type: object
+          required: [serviceTypeId, paymentMethod]
+          properties:
+            serviceTypeId: { type: string, format: uuid }
+            paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+    RouteChangeRequest:
+      type: object
+      required: [destination]
+      properties:
+        destination: { $ref: '#/components/schemas/Place' }
+        stops:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/Place' }
+    FareComponents:
+      type: object
+      description: >
+        Money components (region currency, 2 decimals). total = baseFare + distanceFare +
+        timeFare + surchargeAmount + surgeAmount + waitFare + pickupFee + minimumFareAdjustment −
+        discount. waitFare / pickupFee / discount are 0 in M7; surgeMultiplier 1.0 until M9.
+      required: [currency, baseFare, distanceFare, timeFare, surchargePercent, surchargeAmount,
+                 surgeMultiplier, surgeAmount, waitFare, pickupFee, minimumFareAdjustment,
+                 discount, total]
+      properties:
+        currency: { type: string }
+        baseFare: { type: number }
+        distanceFare: { type: number }
+        timeFare: { type: number }
+        surchargePercent: { type: number }
+        surchargeAmount: { type: number }
+        surgeMultiplier: { type: number }
+        surgeAmount: { type: number }
+        waitFare: { type: number }
+        pickupFee: { type: number }
+        minimumFareAdjustment: { type: number }
+        discount: { type: number }
+        total: { type: number }
+    Estimate:
+      type: object
+      description: Labeled as an ESTIMATE in every UI (RIDE-01)
+      required: [distanceMeters, durationSeconds, approximate, components]
+      properties:
+        distanceMeters: { type: integer }
+        durationSeconds: { type: integer }
+        approximate: { type: boolean, description: Straight-line fallback (NFR-A3, UC-R-04 E2) }
+        components: { $ref: '#/components/schemas/FareComponents' }
+    ServiceTypeEstimate:
+      type: object
+      required: [serviceTypeId, nameEn, nameAr, estimate]
+      properties:
+        serviceTypeId: { type: string, format: uuid }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        estimate: { $ref: '#/components/schemas/Estimate' }
+    EstimateResponse:
+      type: object
+      required: [regionId, currency, surgeMultiplier, surchargePercent, route, options, pickupDistanceMode]
+      properties:
+        regionId: { type: string, format: uuid }
+        currency: { type: string }
+        surgeMultiplier: { type: number, description: 'Shown + explained when > 1.0 (UC-R-04 A2); 1.0 until M9' }
+        surchargePercent: { type: number, description: Active time-window surcharge (0 = none) }
+        route:
+          type: object
+          required: [distanceMeters, durationSeconds, geometry, approximate]
+          properties:
+            distanceMeters: { type: integer }
+            durationSeconds: { type: integer }
+            approximate: { type: boolean }
+            geometry: { type: object, description: 'GeoJSON LineString, [lng, lat]' }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/ServiceTypeEstimate' }
+        pickupDistanceMode: { $ref: '#/components/schemas/PickupDistanceMode' }
+        pickupFeeRule:
+          type: [object, 'null']
+          description: Only for `accept_distant_fee` riders (UC-R-04 A3) — the fee a far driver would add
+          properties:
+            thresholdKm: { type: number }
+            perKm: { type: number }
+    ComfortPreferences:
+      type: object
+      required: [temperature, conversation, music]
+      properties:
+        temperature: { type: string, enum: [no_preference, cool, normal, warm] }
+        conversation: { type: string, enum: [no_preference, quiet, chatty] }
+        music: { type: string, enum: [no_preference, none, soft, any] }
+    RiderPreferences:
+      allOf:
+        - { $ref: '#/components/schemas/ComfortPreferences' }
+        - type: object
+          required: [pickupDistanceMode]
+          properties:
+            pickupDistanceMode: { $ref: '#/components/schemas/PickupDistanceMode' }
+    SavedLocation:
+      type: object
+      required: [id, name, lat, lng]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 50, description: '"Home", "Work" or custom' }
+        lat: { type: number }
+        lng: { type: number }
+        address: { type: [string, 'null'], maxLength: 200 }
+    SavedLocationUpsertRequest:
+      type: object
+      required: [name, lat, lng]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+        address: { type: [string, 'null'], maxLength: 200 }
+    DriverSummary:
+      type: object
+      description: What the rider sees from acceptance on
+      required: [firstName, vehicle]
+      properties:
+        firstName: { type: string }
+        photoUrl: { type: [string, 'null'], description: Signed file URL (onboarding-v1 rules) }
+        rating: { type: [number, 'null'], description: Driver-role average; null until M11 }
+        vehicle:
+          type: object
+          required: [make, model, color, plate]
+          properties:
+            make: { type: string }
+            model: { type: string }
+            color: { type: string }
+            plate: { type: string }
+            photoUrl: { type: [string, 'null'] }
+    RiderSummary:
+      type: object
+      description: What the driver sees from the offer on
+      required: [firstName, comfort]
+      properties:
+        firstName: { type: string }
+        rating: { type: [number, 'null'], description: Rider-role average; null until M11 }
+        comfort: { $ref: '#/components/schemas/ComfortPreferences' }
+    Timeline:
+      type: object
+      description: One timestamp per reached state (RIDE-02)
+      required: [requestedAt]
+      properties:
+        requestedAt: { type: string, format: date-time }
+        offeringAt: { type: [string, 'null'], format: date-time }
+        acceptedAt: { type: [string, 'null'], format: date-time }
+        driverArrivedAt: { type: [string, 'null'], format: date-time }
+        startedAt: { type: [string, 'null'], format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        noDriverFoundAt: { type: [string, 'null'], format: date-time }
+    Ride:
+      type: object
+      description: >
+        One ride as its rider OR its driver sees it — `driver` is set only for the rider view
+        (from acceptance), `rider` only for the driver view.
+      required: [id, state, kind, regionId, serviceTypeId, serviceTypeNameEn, serviceTypeNameAr,
+                 pickup, destination, stops, paymentMethod, surgeMultiplier, surchargePercent,
+                 estimate, timeline]
+      properties:
+        id: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/RideState' }
+        kind: { type: string, enum: [on_demand, scheduled, shared] }
+        regionId: { type: string, format: uuid }
+        serviceTypeId: { type: string, format: uuid }
+        serviceTypeNameEn: { type: string }
+        serviceTypeNameAr: { type: string }
+        pickup: { $ref: '#/components/schemas/Place' }
+        destination: { $ref: '#/components/schemas/Place' }
+        stops:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/Place' }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        pickupDistanceMode: { $ref: '#/components/schemas/PickupDistanceMode' }
+        surgeMultiplier: { type: number, description: Locked at request }
+        surchargePercent: { type: number, description: Locked at request }
+        estimate: { $ref: '#/components/schemas/Estimate' }
+        timeline: { $ref: '#/components/schemas/Timeline' }
+        cancellationGraceEndsAt: { type: [string, 'null'], format: date-time }
+        waitGraceEndsAt:
+          type: [string, 'null']
+          format: date-time
+          description: driverArrivedAt + region wait grace (UC-R-05 step 4; charges from M8)
+        cancellationReason:
+          type: [string, 'null']
+          enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
+                 unsafe_pickup, other, null]
+        cancellationFee: { type: [number, 'null'], description: Recorded fee (collected in M8) }
+        fare:
+          oneOf:
+            - { $ref: '#/components/schemas/FinalFare' }
+            - { type: 'null' }
+        paymentStatus: { $ref: '#/components/schemas/PaymentStatus' }
+        driverStream: { type: [string, 'null'], enum: [ok, lost, null], description: 'TRK-04, accepted..in_progress' }
+        driverPosition:
+          description: Latest known driver position (rider view, accepted..in_progress)
+          oneOf:
+            - { $ref: '#/components/schemas/LatLng' }
+            - { type: 'null' }
+        etaSeconds: { type: [integer, 'null'] }
+        retryOfRideId: { type: [string, 'null'], format: uuid }
+        redispatchOfRideId: { type: [string, 'null'], format: uuid }
+        redispatchedAsRideId:
+          type: [string, 'null']
+          format: uuid
+          description: Rider view of a `cancelled_by_driver` ride — the new ride dispatched for them
+        driver:
+          oneOf:
+            - { $ref: '#/components/schemas/DriverSummary' }
+            - { type: 'null' }
+        rider:
+          oneOf:
+            - { $ref: '#/components/schemas/RiderSummary' }
+            - { type: 'null' }
+    FinalFare:
+      type: object
+      description: The stored fare (fares row) — never recomputed (PRC-04)
+      required: [distanceMeters, durationSeconds, components]
+      properties:
+        distanceMeters: { type: integer, description: Measured from the in_ride trace }
+        durationSeconds: { type: integer }
+        components: { $ref: '#/components/schemas/FareComponents' }
+    RideOffer:
+      type: object
+      description: UC-D-06 offer card
+      required: [id, rideId, expiresAt, pickup, pickupDistanceMeters, pickupEtaSeconds,
+                 destination, stops, serviceTypeNameEn, serviceTypeNameAr, estimatedFare,
+                 currency, surge, paymentMethod, rider]
+      properties:
+        id: { type: string, format: uuid }
+        rideId: { type: string, format: uuid }
+        offeredAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: offeredAt + 15 s }
+        pickup: { $ref: '#/components/schemas/Place' }
+        pickupDistanceMeters: { type: integer }
+        pickupEtaSeconds: { type: integer }
+        destination: { $ref: '#/components/schemas/Place' }
+        stops:
+          type: array
+          items: { $ref: '#/components/schemas/Place' }
+        serviceTypeNameEn: { type: string }
+        serviceTypeNameAr: { type: string }
+        estimatedFare: { type: number }
+        currency: { type: string }
+        surge: { type: boolean, description: Surge flag (multiplier > 1.0) }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        rider: { $ref: '#/components/schemas/RiderSummary' }
+    CancellationQuote:
+      type: object
+      required: [free]
+      properties:
+        free: { type: boolean }
+        fee: { type: [number, 'null'] }
+        currency: { type: [string, 'null'] }
+        graceEndsAt: { type: [string, 'null'], format: date-time, description: When free cancellation ends (if it has not yet) }
+    RiderCancelRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, enum: [changed_mind, driver_too_far, wrong_pickup, other] }
+        note: { type: string, maxLength: 500, description: Required for `other` }
+    DriverCancelRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, enum: [rider_no_show, vehicle_issue, unsafe_pickup, other] }
+        note: { type: string, maxLength: 500, description: Required for `other` }
+    GeofenceError:
+      type: object
+      required: [status, message, code]
+      properties:
+        status: { type: integer }
+        message: { type: string }
+        code: { type: string, enum: [outside_geofence, no_position] }
+        distanceMeters: { type: [integer, 'null'], description: Distance to pickup (UC-D-07 E1 hint) }
+        geofenceMeters: { type: integer }
+    TracePoint:
+      type: object
+      required: [lat, lng, recordedAt, phase]
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        recordedAt: { type: string, format: date-time }
+        phase: { type: string, enum: [to_pickup, in_ride] }
+    Receipt:
+      type: object
+      description: UC-R-07 step 4 — route map from the trace, timestamps, stored breakdown
+      required: [rideId, regionId, serviceTypeNameEn, serviceTypeNameAr, pickup, destination,
+                 stops, timeline, fare, paymentMethod, paymentStatus, route]
+      properties:
+        rideId: { type: string, format: uuid }
+        regionId: { type: string, format: uuid }
+        serviceTypeNameEn: { type: string }
+        serviceTypeNameAr: { type: string }
+        pickup: { $ref: '#/components/schemas/Place' }
+        destination: { $ref: '#/components/schemas/Place' }
+        stops:
+          type: array
+          items: { $ref: '#/components/schemas/Place' }
+        timeline: { $ref: '#/components/schemas/Timeline' }
+        fare: { $ref: '#/components/schemas/FinalFare' }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        paymentStatus: { $ref: '#/components/schemas/PaymentStatus' }
+        driver: { $ref: '#/components/schemas/DriverSummary' }
+        route:
+          type: object
+          description: 'GeoJSON LineString of the in_ride trace, [lng, lat]'
+    RideSummary:
+      type: object
+      required: [id, state, requestedAt, pickup, destination, serviceTypeNameEn, serviceTypeNameAr]
+      properties:
+        id: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/RideState' }
+        requestedAt: { type: string, format: date-time }
+        pickup: { $ref: '#/components/schemas/Place' }
+        destination: { $ref: '#/components/schemas/Place' }
+        serviceTypeNameEn: { type: string }
+        serviceTypeNameAr: { type: string }
+        total: { type: [number, 'null'], description: Fare total when completed }
+        cancellationFee: { type: [number, 'null'] }
+        currency: { type: string }
+    RideSummaryPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RideSummary' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    AdminRideSummary:
+      allOf:
+        - { $ref: '#/components/schemas/RideSummary' }
+        - type: object
+          required: [kind, regionId, regionName, riderUserId, riderName]
+          properties:
+            kind: { type: string, enum: [on_demand, scheduled, shared] }
+            regionId: { type: string, format: uuid }
+            regionName: { type: string }
+            riderUserId: { type: string, format: uuid }
+            riderName: { type: string }
+            driverUserId: { type: [string, 'null'], format: uuid }
+            driverName: { type: [string, 'null'] }
+    AdminRideSummaryPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminRideSummary' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    OfferTrailEntry:
+      type: object
+      required: [offerId, sequence, driverUserId, driverName, offeredAt, expiresAt,
+                 pickupDistanceMeters, pickupEtaSeconds]
+      properties:
+        offerId: { type: string, format: uuid }
+        sequence: { type: integer }
+        driverUserId: { type: string, format: uuid }
+        driverName: { type: string }
+        vehicleId: { type: string, format: uuid }
+        offeredAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        response: { type: [string, 'null'], enum: [accepted, declined, timeout, withdrawn, null] }
+        respondedAt: { type: [string, 'null'], format: date-time }
+        pickupDistanceMeters: { type: integer }
+        pickupEtaSeconds: { type: integer }
+    AdminRideDetail:
+      type: object
+      description: >
+        UC-A-18 full truth. Chat log, payments ledger, reports/tickets/SOS join the detail when
+        their milestones land (M8/M10).
+      required: [ride, riderUserId, riderName, riderPhone, offers, trace]
+      properties:
+        ride: { $ref: '#/components/schemas/Ride' }
+        riderUserId: { type: string, format: uuid }
+        riderName: { type: string }
+        riderPhone: { type: string }
+        driverUserId: { type: [string, 'null'], format: uuid }
+        driverName: { type: [string, 'null'] }
+        driverPhone: { type: [string, 'null'] }
+        vehicleId: { type: [string, 'null'], format: uuid }
+        cancellationNote: { type: [string, 'null'] }
+        offers:
+          type: array
+          description: The dispatch trail in candidate order
+          items: { $ref: '#/components/schemas/OfferTrailEntry' }
+        trace:
+          type: array
+          description: Every stored GPS point, both phases, in recordedAt order (TRK-03)
+          items: { $ref: '#/components/schemas/TracePoint' }
