@@ -5,9 +5,11 @@ import com.labby.backend.enums.ReviewStatus;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
 import com.labby.backend.enums.SuspensionReason;
+import com.labby.backend.model.DriverProfile;
 import com.labby.backend.model.RoleAssignment;
 import com.labby.backend.model.Vehicle;
 import com.labby.backend.repository.DriverDocumentRepository;
+import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.VehicleRepository;
 import java.time.LocalDate;
@@ -30,6 +32,8 @@ public class DriverRoleServiceImpl implements DriverRoleService {
   private final DriverDocumentRepository driverDocumentRepository;
   private final NotificationService notificationService;
   private final OperatingCalendar calendar;
+  private final DriverProfileRepository driverProfileRepository;
+  private final DriverDutyGates driverDutyGates;
 
   @Override
   public void grantDriverRole(UUID userId) {
@@ -59,11 +63,31 @@ public class DriverRoleServiceImpl implements DriverRoleService {
     role.get().setState(RoleState.SUSPENDED);
     role.get().setSuspensionReason(SuspensionReason.DOCUMENT_EXPIRED);
     roleAssignmentRepository.save(role.get());
+    forceOfflineUnlessOnRide(userId);
     notificationService.queue(
         userId,
         NotificationEvent.DRIVER_SUSPENDED,
         Map.of("reason", SuspensionReason.DOCUMENT_EXPIRED.getValue()));
     return true;
+  }
+
+  /**
+   * Suspension forces the driver offline (M6 owner item a, M7); a driver on an assigned ride
+   * finishes it first and goes offline when it ends ({@link RideLifecycle#releaseDriver}).
+   */
+  private void forceOfflineUnlessOnRide(UUID userId) {
+    if (driverDutyGates.hasActiveRide(userId)) {
+      return;
+    }
+    driverProfileRepository
+        .findByUserId(userId)
+        .filter(DriverProfile::isOnline)
+        .ifPresent(
+            profile -> {
+              profile.setOnline(false);
+              profile.setOnlineChangedAt(calendar.now());
+              driverProfileRepository.save(profile);
+            });
   }
 
   @Override

@@ -36,6 +36,20 @@ public interface RegionRepository extends JpaRepository<Region, UUID> {
   List<Region> findActiveRegionsCovering(@Param("lat") double lat, @Param("lng") double lng);
 
   /**
+   * Whether the region's boundary covers the point (ST_Covers: the boundary counts as inside) — the
+   * ride booking check that destination and stops stay inside the pickup's region (rides-v1).
+   */
+  @Query(
+      value =
+          """
+          SELECT COALESCE(ST_Covers(boundary, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)), false)
+          FROM regions WHERE region_id = :regionId
+          """,
+      nativeQuery = true)
+  boolean coversPoint(
+      @Param("regionId") UUID regionId, @Param("lat") double lat, @Param("lng") double lng);
+
+  /**
    * True when another region's boundary overlaps the candidate boundary (M4-T2 rule: region
    * boundaries may not overlap). Interiors must be disjoint — ST_Intersects AND NOT ST_Touches — so
    * true overlap AND full containment are both caught, while regions sharing only a border line

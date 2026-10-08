@@ -16,6 +16,7 @@ public record RegionDto(
     GeoJsonPolygonDto boundary,
     String currency,
     String emergencyNumber,
+    String timeZone,
     Integer cancellationGraceMin,
     BigDecimal cancellationFee,
     Integer waitGraceMin,

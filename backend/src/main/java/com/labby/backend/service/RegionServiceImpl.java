@@ -22,6 +22,8 @@ import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.SurgeZoneRepository;
 import com.labby.backend.util.GeoJson;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -203,12 +205,25 @@ public class RegionServiceImpl implements RegionService {
     }
   }
 
+  /** The requested IANA zone, or the default when omitted; an unknown id is a 400. */
+  private static String timeZone(String requested) {
+    if (requested == null) {
+      return Region.DEFAULT_TIME_ZONE;
+    }
+    try {
+      return ZoneId.of(requested).getId();
+    } catch (DateTimeException ex) {
+      throw new InvalidRequestException("timeZone must be a known IANA time zone id");
+    }
+  }
+
   private void applyBundle(
       Region region, RegionUpsertRequestDto request, Polygon boundary, UUID actorUserId) {
     region.setName(request.name());
     region.setBoundary(boundary);
     region.setCurrency(request.currency());
     region.setEmergencyNumber(request.emergencyNumber());
+    region.setTimeZone(timeZone(request.timeZone()));
     region.setCancellationGraceMin(request.cancellationGraceMin());
     region.setCancellationFee(request.cancellationFee());
     region.setWaitGraceMin(request.waitGraceMin());
@@ -309,6 +324,7 @@ public class RegionServiceImpl implements RegionService {
         GeoJson.toDto(region.getBoundary()),
         region.getCurrency(),
         region.getEmergencyNumber(),
+        region.getTimeZone(),
         region.getCancellationGraceMin(),
         region.getCancellationFee(),
         region.getWaitGraceMin(),
@@ -365,6 +381,7 @@ public class RegionServiceImpl implements RegionService {
     snapshot.put("boundary", GeoJson.compact(region.getBoundary()));
     snapshot.put("currency", region.getCurrency());
     snapshot.put("emergencyNumber", region.getEmergencyNumber());
+    snapshot.put("timeZone", region.getTimeZone());
     snapshot.put("cancellationGraceMin", region.getCancellationGraceMin());
     snapshot.put("cancellationFee", region.getCancellationFee());
     snapshot.put("waitGraceMin", region.getWaitGraceMin());

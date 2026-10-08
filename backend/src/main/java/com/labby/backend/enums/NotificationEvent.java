@@ -3,8 +3,9 @@ package com.labby.backend.enums;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Template keys queued behind the notification seam (onboarding-v1.yaml "Notifications"). M6
- * delivers them to the notification center + push; the keys are shared with that renderer.
+ * Template keys queued behind the notification seam (onboarding-v1.yaml "Notifications", and the M7
+ * ride events of rides-v1.yaml). M6 delivers them to the notification center + push; the keys are
+ * shared with that renderer.
  */
 public enum NotificationEvent {
   DRIVER_APPLICATION_SUBMITTED("driver_application.submitted"),
@@ -22,7 +23,27 @@ public enum NotificationEvent {
   DOCUMENT_EXPIRY_REMINDER("document.expiry_reminder"),
   /** Params: reason. */
   DRIVER_SUSPENDED("driver.suspended"),
-  DRIVER_REINSTATED("driver.reinstated");
+  DRIVER_REINSTATED("driver.reinstated"),
+  // M7 ride events (rides-v1.yaml push catalog; category ride — never muted).
+  /** To the offered driver. Params: offerId. */
+  RIDE_OFFER("ride.offer"),
+  /** To the rider. Params: rideId, driverName. */
+  RIDE_ACCEPTED("ride.accepted"),
+  /** To the rider. Params: rideId, driverName. */
+  RIDE_DRIVER_ARRIVED("ride.driver_arrived"),
+  /** To the rider. Params: rideId. */
+  RIDE_STARTED("ride.started"),
+  /** To the rider. Params: rideId, total, currency. */
+  RIDE_COMPLETED("ride.completed"),
+  /**
+   * To the rider. Params: rideId (the re-dispatched ride, or the cancelled one on a no-show),
+   * noShow, fee, currency.
+   */
+  RIDE_CANCELLED_BY_DRIVER("ride.cancelled_by_driver"),
+  /** To the released driver. Params: rideId. */
+  RIDE_CANCELLED_BY_RIDER("ride.cancelled_by_rider"),
+  /** To the rider. Params: rideId. */
+  RIDE_NO_DRIVER_FOUND("ride.no_driver_found");
 
   private final String value;
 

@@ -392,6 +392,37 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
   }
 
   @Test
+  @DisplayName("M7: timeZone defaults to Asia/Damascus, round-trips, unknown ids are a 400")
+  void shouldManageRegionTimeZone() {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963934000031", RbacIds.SUPER_ADMIN_ROLE_ID);
+    String token = superAdmin.accessToken();
+
+    ResponseEntity<Map<String, Object>> created =
+        sendForMap("/api/v1/admin/regions", HttpMethod.POST, Map.of("name", "Tartus"), token);
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody().get("timeZone")).isEqualTo("Asia/Damascus");
+    String regionId = String.valueOf(created.getBody().get("id"));
+
+    ResponseEntity<Map<String, Object>> updated =
+        sendForMap(
+            "/api/v1/admin/regions/" + regionId,
+            HttpMethod.PUT,
+            Map.of("name", "Tartus", "timeZone", "Asia/Beirut"),
+            token);
+    assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(updated.getBody().get("timeZone")).isEqualTo("Asia/Beirut");
+
+    assertThat(
+            send(
+                    "/api/v1/admin/regions/" + regionId,
+                    HttpMethod.PUT,
+                    Map.of("name", "Tartus", "timeZone", "Mars/Olympus"),
+                    token)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
   @DisplayName("SD-01 edges: ON-boundary resolves, outside 404, shared border first by name")
   void shouldResolveCorrectlyAtBoundaries() {
     AuthTokensResponseDto superAdmin = registerAdmin("+963934000021", RbacIds.SUPER_ADMIN_ROLE_ID);

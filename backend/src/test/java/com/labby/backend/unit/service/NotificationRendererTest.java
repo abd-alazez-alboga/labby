@@ -33,6 +33,9 @@ class NotificationRendererTest {
   @DisplayName("every M5 event renders bilingual, account/driver, with a catalog deep link")
   void shouldRenderEveryEventInBothLanguages() {
     for (NotificationEvent event : NotificationEvent.values()) {
+      if (event.getValue().startsWith("ride.")) {
+        continue; // M7 ride events: see shouldRenderRideEvents.
+      }
       Map<String, Object> params =
           switch (event) {
             case DOCUMENT_EXPIRY_REMINDER -> REMINDER_PARAMS;
@@ -59,6 +62,72 @@ class NotificationRendererTest {
       assertThat(rendered.bodyAr().length()).isLessThanOrEqualTo(1000);
     }
     assertThat(renderer.supportedEvents()).hasSize(NotificationEvent.values().length);
+  }
+
+  @Test
+  @DisplayName("M7 ride events: bilingual, category ride, the right audience and deep link")
+  void shouldRenderRideEvents() {
+    Map<String, Object> rideParams =
+        Map.of(
+            "rideId", "11111111-1111-1111-1111-111111111111",
+            "driverName", "Sami",
+            "total", "4.25",
+            "currency", "SYP");
+    Map<NotificationEvent, NotificationAudience> audiences =
+        Map.of(
+            NotificationEvent.RIDE_OFFER, NotificationAudience.DRIVER,
+            NotificationEvent.RIDE_ACCEPTED, NotificationAudience.RIDER,
+            NotificationEvent.RIDE_DRIVER_ARRIVED, NotificationAudience.RIDER,
+            NotificationEvent.RIDE_STARTED, NotificationAudience.RIDER,
+            NotificationEvent.RIDE_COMPLETED, NotificationAudience.RIDER,
+            NotificationEvent.RIDE_CANCELLED_BY_DRIVER, NotificationAudience.RIDER,
+            NotificationEvent.RIDE_CANCELLED_BY_RIDER, NotificationAudience.DRIVER,
+            NotificationEvent.RIDE_NO_DRIVER_FOUND, NotificationAudience.RIDER);
+    for (Map.Entry<NotificationEvent, NotificationAudience> entry : audiences.entrySet()) {
+      NotificationEvent event = entry.getKey();
+      Map<String, Object> params =
+          event == NotificationEvent.RIDE_OFFER ? Map.of("offerId", "o-1") : rideParams;
+      Rendered rendered = renderer.render(event.getValue(), params).orElseThrow();
+      assertThat(rendered.category()).isEqualTo(NotificationCategory.RIDE);
+      assertThat(rendered.audience()).isEqualTo(entry.getValue());
+      for (String text :
+          new String[] {
+            rendered.titleEn(), rendered.bodyEn(), rendered.titleAr(), rendered.bodyAr()
+          }) {
+        assertThat(text).isNotBlank().doesNotContain("%s", "{", "}", "null");
+      }
+      assertThat(rendered.titleAr()).containsPattern("[\\u0600-\\u06FF]");
+      assertThat(rendered.bodyAr()).containsPattern("[\\u0600-\\u06FF]");
+      switch (event) {
+        case RIDE_OFFER -> {
+          assertThat(rendered.linkScreen()).isEqualTo("ride_offer");
+          assertThat(rendered.linkParams()).containsEntry("offerId", "o-1");
+        }
+        case RIDE_CANCELLED_BY_RIDER -> assertThat(rendered.linkScreen()).isNull();
+        default -> {
+          assertThat(rendered.linkScreen()).isEqualTo("ride");
+          assertThat(rendered.linkParams())
+              .containsEntry("rideId", "11111111-1111-1111-1111-111111111111");
+        }
+      }
+    }
+    assertThat(renderer.render("ride.accepted", rideParams).orElseThrow().bodyEn())
+        .contains("Sami");
+    assertThat(renderer.render("ride.completed", rideParams).orElseThrow().bodyAr())
+        .contains("4.25 SYP");
+    Rendered noShow =
+        renderer
+            .render(
+                "ride.cancelled_by_driver",
+                Map.of("rideId", "r", "noShow", "true", "fee", "2.00", "currency", "SYP"))
+            .orElseThrow();
+    assertThat(noShow.bodyEn()).contains("2.00 SYP");
+    assertThat(
+            renderer
+                .render("ride.cancelled_by_driver", Map.of("rideId", "r", "noShow", "false"))
+                .orElseThrow()
+                .bodyEn())
+        .contains("another driver");
   }
 
   @Test

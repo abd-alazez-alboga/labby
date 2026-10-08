@@ -95,7 +95,7 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <scope>runtime</scope>
+      <!-- compile scope: RealtimeNotificationListener uses PGConnection (LISTEN/NOTIFY, M7). -->
     </dependency>
 
     <!-- API docs -->

@@ -28,7 +28,13 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
     HttpStatus status = ex.getStatus();
     return ResponseEntity.status(status)
-        .body(ErrorResponse.of(status.value(), status.getReasonPhrase(), ex.getMessage()));
+        .body(
+            ErrorResponse.ofCoded(
+                status.value(),
+                status.getReasonPhrase(),
+                ex.getMessage(),
+                ex.getCode(),
+                ex.getDetails()));
   }
 
   /** Domain validation failures carry their own contract-keyed field errors (400). */

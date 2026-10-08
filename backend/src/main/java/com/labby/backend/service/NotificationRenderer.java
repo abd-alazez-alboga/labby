@@ -15,8 +15,9 @@ import org.springframework.stereotype.Component;
 /**
  * The localized notification templates (NTF-01, NFR-I1): renders an outbox event into English AND
  * Arabic text (brand Labby / لبي), its category, audience and deep link (realtime-v1.yaml catalog).
- * Every M5 onboarding event is category {@code account}, audience {@code driver}. Events without a
- * template are not rendered and stay queued until one ships.
+ * Every M5 onboarding event is category {@code account}, audience {@code driver}; every M7 ride
+ * event is category {@code ride} (never muted), audience rider or driver (rides-v1.yaml). Events
+ * without a template are not rendered and stay queued until one ships.
  */
 @Component
 public class NotificationRenderer {
@@ -29,6 +30,12 @@ public class NotificationRenderer {
 
   /** Deep-link screen: the driver's vehicles. */
   public static final String SCREEN_DRIVER_VEHICLES = "driver_vehicles";
+
+  /** Deep-link screen: one ride (param {@code rideId}, M7). */
+  public static final String SCREEN_RIDE = "ride";
+
+  /** Deep-link screen: the driver's open offer (param {@code offerId}, M7). */
+  public static final String SCREEN_RIDE_OFFER = "ride_offer";
 
   private static final Set<String> EVENTS =
       Arrays.stream(NotificationEvent.values())
@@ -184,7 +191,139 @@ public class NotificationRenderer {
               "Your driver account is active again. You can go online.",
               "أُعيد تفعيل حسابك",
               "أصبح حساب السائق الخاص بك فعّالاً من جديد. يمكنك بدء العمل.");
+      case RIDE_OFFER ->
+          ride(
+              event,
+              NotificationAudience.DRIVER,
+              SCREEN_RIDE_OFFER,
+              Map.of("offerId", text(params.get("offerId"))),
+              "New ride request",
+              "You have a new ride request. Open the app to respond before it expires.",
+              "طلب رحلة جديد",
+              "لديك طلب رحلة جديد. افتح التطبيق للرد عليه قبل انتهاء المهلة.");
+      case RIDE_ACCEPTED ->
+          toRider(
+              event,
+              params,
+              "Your driver is on the way",
+              "%s accepted your ride and is heading to your pickup point."
+                  .formatted(text(params.get("driverName"))),
+              "السائق في الطريق إليك",
+              "قبل %s رحلتك وهو في طريقه إلى نقطة الانطلاق."
+                  .formatted(text(params.get("driverName"))));
+      case RIDE_DRIVER_ARRIVED ->
+          toRider(
+              event,
+              params,
+              "Your driver has arrived",
+              "%s is waiting for you at the pickup point."
+                  .formatted(text(params.get("driverName"))),
+              "وصل السائق",
+              "%s بانتظارك عند نقطة الانطلاق.".formatted(text(params.get("driverName"))));
+      case RIDE_STARTED ->
+          toRider(
+              event,
+              params,
+              "Your ride has started",
+              "Enjoy your ride with Labby.",
+              "بدأت رحلتك",
+              "رحلة سعيدة مع لبي.");
+      case RIDE_COMPLETED ->
+          toRider(
+              event,
+              params,
+              "You've arrived",
+              "Your fare is %s %s. Please pay your driver in cash."
+                  .formatted(text(params.get("total")), text(params.get("currency"))),
+              "وصلت إلى وجهتك",
+              "أجرة رحلتك %s %s. يرجى الدفع للسائق نقداً."
+                  .formatted(text(params.get("total")), text(params.get("currency"))));
+      case RIDE_CANCELLED_BY_DRIVER -> cancelledByDriver(event, params);
+      case RIDE_CANCELLED_BY_RIDER ->
+          ride(
+              event,
+              NotificationAudience.DRIVER,
+              null,
+              Map.of(),
+              "Ride cancelled",
+              "The rider cancelled this ride.",
+              "أُلغيت الرحلة",
+              "ألغى الراكب هذه الرحلة.");
+      case RIDE_NO_DRIVER_FOUND ->
+          toRider(
+              event,
+              params,
+              "No driver available",
+              "We couldn't find a driver right now. Tap to try again.",
+              "لا يوجد سائق متاح",
+              "لم نجد سائقاً متاحاً حالياً. اضغط لإعادة المحاولة.");
     };
+  }
+
+  private static Rendered cancelledByDriver(NotificationEvent event, Map<String, Object> params) {
+    if (Boolean.parseBoolean(text(params.get("noShow")))) {
+      boolean charged = !text(params.get("fee")).isEmpty();
+      return toRider(
+          event,
+          params,
+          "Ride cancelled",
+          charged
+              ? ("Your driver waited but couldn't find you, so the ride was cancelled. A"
+                      + " cancellation fee of %s %s applies.")
+                  .formatted(text(params.get("fee")), text(params.get("currency")))
+              : "Your driver waited but couldn't find you, so the ride was cancelled.",
+          "أُلغيت الرحلة",
+          charged
+              ? "انتظرك السائق ولم يجدك، فأُلغيت الرحلة. تُطبَّق رسوم إلغاء قدرها %s %s."
+                  .formatted(text(params.get("fee")), text(params.get("currency")))
+              : "انتظرك السائق ولم يجدك، فأُلغيت الرحلة.");
+    }
+    return toRider(
+        event,
+        params,
+        "Finding you another driver",
+        "Your driver cancelled. We're looking for another driver — you won't be charged.",
+        "نبحث لك عن سائق آخر",
+        "ألغى السائق الرحلة. نبحث لك عن سائق آخر، ولن تُحتسب عليك أي رسوم.");
+  }
+
+  private static Rendered toRider(
+      NotificationEvent event,
+      Map<String, Object> params,
+      String titleEn,
+      String bodyEn,
+      String titleAr,
+      String bodyAr) {
+    return ride(
+        event,
+        NotificationAudience.RIDER,
+        SCREEN_RIDE,
+        Map.of("rideId", text(params.get("rideId"))),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr);
+  }
+
+  private static Rendered ride(
+      NotificationEvent event,
+      NotificationAudience audience,
+      String screen,
+      Map<String, String> linkParams,
+      String titleEn,
+      String bodyEn,
+      String titleAr,
+      String bodyAr) {
+    return new Rendered(
+        NotificationCategory.RIDE,
+        audience,
+        event.getValue(),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr,
+        screen,
+        linkParams);
   }
 
   private static Rendered expiryReminder(NotificationEvent event, Map<String, Object> params) {

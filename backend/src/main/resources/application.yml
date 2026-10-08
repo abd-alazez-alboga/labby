@@ -111,6 +111,20 @@ labby:
     auth-timeout-seconds: ${REALTIME_AUTH_TIMEOUT_SECONDS:10}
     idle-timeout-seconds: ${REALTIME_IDLE_TIMEOUT_SECONDS:60}
     check-interval-seconds: ${REALTIME_CHECK_INTERVAL_SECONDS:5}
+  rides:
+    # On-demand ride loop (rides-v1.yaml, SRS §9 defaults). Offer window and dispatch give-up
+    # (RIDE-03), the "Arrived" geofence (RIDE-04), and how many nearest eligible drivers are
+    # ranked by routed pickup ETA for each offer.
+    offer-seconds: ${DISPATCH_OFFER_SECONDS:15}
+    give-up-minutes: ${DISPATCH_GIVE_UP_MINUTES:10}
+    arrive-geofence-meters: ${ARRIVE_GEOFENCE_METERS:100}
+    candidate-pool-size: ${DISPATCH_CANDIDATE_POOL_SIZE:5}
+    # Rider-facing ETA refresh (TRK-02): at most this often per ride.
+    eta-refresh-seconds: ${RIDE_ETA_REFRESH_SECONDS:30}
+    # Dispatcher tick (expired offers -> next candidate, give-up) and ride monitor tick (driver
+    # stream lost/back, ETA refresh). Spring cron; "-" disables.
+    dispatch-cron: ${DISPATCH_CRON:* * * * * *}
+    monitor-cron: ${RIDE_MONITOR_CRON:*/5 * * * * *}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

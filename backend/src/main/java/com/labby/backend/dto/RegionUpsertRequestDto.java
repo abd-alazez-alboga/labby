@@ -18,6 +18,7 @@ public record RegionUpsertRequestDto(
     @Valid GeoJsonPolygonDto boundary,
     @Pattern(regexp = "^[A-Z]{3}$") String currency,
     @Size(max = 20) String emergencyNumber,
+    @Size(max = 64) String timeZone,
     @Min(0) Integer cancellationGraceMin,
     @DecimalMin("0") BigDecimal cancellationFee,
     @Min(0) Integer waitGraceMin,

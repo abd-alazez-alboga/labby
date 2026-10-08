@@ -6,7 +6,7 @@ info:
     Contract-first spec for milestone M7, the on-demand ride loop. The clients (M7-T3 rider,
     M7-T4 driver, the admin ride pages) build against this document; the backend (M7-T2) must
     implement it exactly — on conflict after T2 lands, the implementation is the truth and this
-    file is amended. Schema: migration V10. SRS: RIDE-01..08, TRK-02/03/04, PRC-01 core
+    file is amended (amended at M7-T2 to the implementation). Schema: migrations V10 + V11. SRS: RIDE-01..08, TRK-02/03/04, PRC-01 core
     (base/km/min/minimum, surcharge windows), PRC-04, RIDE-07 grace logic, USR-03 rider extras;
     UC-R-01..07/09, UC-D-06..10, UC-A-18. Out of M7: wallet and mixed payment, wait-time and
     pickup-distance CHARGES (computed as 0 until M8), cancellation-fee COLLECTION (M8), surge
@@ -51,15 +51,18 @@ info:
     PAYMENT moves (`paymentStatus`: `pending → paid_cash` via cash-confirm, or `pending →
     unpaid` via mark-unpaid, UC-D-09 E1) — not the ride state. Concurrency: the ride row carries an
     optimistic lock and the offer row its response; of two racing requests (rider cancel vs
-    driver accept, two accepts, accept vs timeout) exactly one wins and the loser gets 409. The
+    driver accept, two accepts, accept vs timeout) exactly one wins and the loser gets 409 —
+    every writer locks the ride row first. (A rider may still cancel a ride that was accepted a
+    moment earlier: that is transition 10 from `accepted`, not a lost race.) The
     database also guarantees at most ONE open offer per ride and per driver, and one active ride
     per rider.
 
 
-    **Booking (RIDE-01, UC-R-04).** Validation, in order: rider role `active` (E3 → 403 with
-    `suspensionReason`); pickup inside an ACTIVE region (E1 → 422 `outside_region`); destination
-    and stops inside the same region (422 `outside_region`); service type enabled in that region
-    (422); at most 3 stops (422 `too_many_stops`); payment method `cash` (`wallet` → 422
+    **Booking (RIDE-01, UC-R-04).** Validation, in order: rider role `active` (E3 → 403 code
+    `rider_suspended`, `details.suspensionReason`); pickup inside an ACTIVE region (E1 → 422
+    `outside_region`); at most 3 stops (422 `too_many_stops`); destination and stops inside the
+    same region (422 `outside_region`); service type enabled in that region (422
+    `service_type_unavailable`); payment method `cash` (`wallet` → 422
     `payment_method_unavailable` until M8); no other active ride (E4 → 409
     `active_ride_exists`). The estimate is recomputed server-side at booking — the client's
     figure is never trusted — and stored with the ride; an `approximate` route (OSRM down,
@@ -68,10 +71,11 @@ info:
 
     **Estimate (PRC-01).** `RoutingProvider` route pickup → stops → destination; per service
     type: `base + perKm × km + perMin × min`, + surcharge (`percent` of that subtotal, from the
-    window covering the request moment in the region's `timeZone`; overnight windows span
-    midnight; overlapping windows → HIGHEST percent, never summed), × surge multiplier (1.0
-    until M9; `surgeAmount` = the uplift), floored at the service type's `minimumFare` (the
-    top-up is its own component). Money is rounded half-up to 2 decimals per component.
+    window covering the request moment in the region's `timeZone`; start inclusive, end
+    exclusive; overnight windows span midnight and belong to the day they start on; start = end
+    covers that whole day; overlapping windows → HIGHEST percent, never summed), + surge uplift
+    = (subtotal + surcharge) × (multiplier − 1) (1.0 until M9, so 0), floored at the service
+    type's `minimumFare` (the top-up is its own component). Money is rounded half-up to 2 decimals per component.
     Wait/pickup-fee components are 0 in M7. For `accept_distant_fee` riders the response
     carries the pickup-fee rule (threshold + per-km) so the app can show the potential range
     (UC-R-04 A3).
@@ -83,8 +87,11 @@ info:
     `nearby_only` riders — straight-line pickup distance ≤ the region's
     `pickupFeeThresholdKm`. Gates are re-checked for every candidate when its offer is opened
     (a driver suspended while online is never offered; suspension also forces the driver
-    offline). Ranking: pickup ETA from the `RoutingProvider` (straight-line fallback allowed),
-    nearest first. One offer at a time, 15 s window (`DISPATCH_OFFER_SECONDS`); declined or
+    offline — immediately, or when their current ride ends). Ranking: the
+    `DISPATCH_CANDIDATE_POOL_SIZE` (default 5) nearest eligible drivers by straight line, ranked
+    by routed pickup ETA from the `RoutingProvider` (straight-line fallback allowed). The
+    dispatcher ticks every second (`DISPATCH_CRON`), so the first offer opens ≤ ~1 s after
+    booking (NFR-P2). One offer at a time, 15 s window (`DISPATCH_OFFER_SECONDS`); declined or
     timed out → next candidate. The offer shows pickup + distance/ETA, destination, stops,
     estimated fare, surge flag, rider rating (null until M11) and the rider's comfort
     preferences. Offer outcomes (`accepted / declined / timeout / withdrawn`) are the
@@ -135,9 +142,13 @@ info:
 
 
     **Realtime events (TRK-02, RIDE-02).** Server → client frames on the existing
-    `/api/v1/realtime` socket (realtime-v1 protocol; clients ignore unknown types). On
-    (re)connect, clients refetch `GET /rides/active` or `GET /driver/rides/active` — events are
-    not replayed.
+    `/api/v1/realtime` socket (realtime-v1 protocol; clients ignore unknown types). Frames are
+    published through Postgres NOTIFY after the transaction commits and every backend instance
+    delivers them to its own sockets (owner decision 2026-10-07, NFR-P4). Every ride / offer frame
+    carries `"as": "rider" | "driver"` — the party it is for (one account can hold both roles
+    with both apps connected); an app ignores frames not addressed to it. On (re)connect,
+    clients refetch `GET /rides/active`, `GET /driver/rides/active` or `GET
+    /driver/offers/open` — events are not replayed.
 
 
     - `{"type":"ride.state","ride":Ride}` — to the rider and the assigned driver on EVERY
@@ -154,8 +165,9 @@ info:
 
     - `{"type":"ride.driver_position","rideId","lat","lng","headingDeg"?,"recordedAt","etaSeconds"?}`
     — to the rider for every accepted sample from `accepted` until `completed`; `etaSeconds` is
-    to the pickup before start and to the destination after, refreshed from the
-    `RoutingProvider` at most every 30 s (`RIDE_ETA_REFRESH_SECONDS`) and repeated in between.
+    to the pickup before start and straight to the destination after (V1 does not track which
+    stops are done), refreshed by the ride monitor (every 5 s, `RIDE_MONITOR_CRON`) at most
+    every 30 s (`RIDE_ETA_REFRESH_SECONDS`) and repeated in between.
 
     - `{"type":"ride.connection","rideId","driverStream":"ok"|"lost"}` — to both parties when
     the assigned driver's stream goes stale (> 30 s) during `accepted..in_progress` and when it
@@ -178,8 +190,10 @@ info:
 
 
     Errors use the global ErrorResponse shape from M1 (status, message, fieldErrors?); ride
-    errors add a machine `code` where listed. Rider endpoints need the rider role, driver
-    endpoints the driver role (approved), admin endpoints the `rides:view` permission.
+    errors add a machine `code` and, where listed, a `details` object (both omitted when not
+    set). A request the ride's state does not allow is 409 code `illegal_state` with
+    `details.state`. Rider endpoints need the rider role (403 otherwise), driver endpoints an
+    approved driver (403 otherwise), admin endpoints the `rides:view` permission.
 servers:
   - url: http://localhost:8080
 tags:
@@ -314,7 +328,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Ride' }
         '400': { description: Validation }
-        '403': { description: Rider role suspended (E3) — body carries `suspensionReason` }
+        '403': { description: 'Rider role suspended (E3) — code `rider_suspended`, `details.suspensionReason`' }
         '409': { description: 'code `active_ride_exists` (E4)' }
         '422':
           description: >
@@ -605,7 +619,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Ride' }
         '404': { description: Not this driver's ride }
-        '409': { description: Not completed, or payment already settled }
+        '409': { description: 'code `payment_not_pending` — not completed, or payment already settled' }
 
   /api/v1/driver/rides/{rideId}/mark-unpaid:
     parameters:
@@ -630,7 +644,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Ride' }
         '404': { description: Not this driver's ride }
-        '409': { description: Not completed, or payment already settled }
+        '409': { description: 'code `payment_not_pending` — not completed, or payment already settled' }
 
   /api/v1/driver/rides/{rideId}/cancel:
     parameters:
@@ -653,7 +667,7 @@ paths:
         '400': { description: Unknown reason / `other` without note }
         '404': { description: Not this driver's ride }
         '409': { description: Not accepted / driver_arrived }
-        '422': { description: 'code `no_show_too_early` — `rider_no_show` before `driver_arrived` + wait grace' }
+        '422': { description: 'code `no_show_too_early` (`details.availableAt`) — `rider_no_show` before `driver_arrived` + wait grace' }
 
   /api/v1/admin/rides:
     get:
@@ -1020,13 +1034,17 @@ components:
         note: { type: string, maxLength: 500, description: Required for `other` }
     GeofenceError:
       type: object
-      required: [status, message, code]
+      required: [status, message, code, details]
       properties:
         status: { type: integer }
         message: { type: string }
         code: { type: string, enum: [outside_geofence, no_position] }
-        distanceMeters: { type: [integer, 'null'], description: Distance to pickup (UC-D-07 E1 hint) }
-        geofenceMeters: { type: integer }
+        details:
+          type: object
+          required: [geofenceMeters]
+          properties:
+            distanceMeters: { type: [integer, 'null'], description: Distance to pickup (UC-D-07 E1 hint); null for no_position }
+            geofenceMeters: { type: integer }
     TracePoint:
       type: object
       required: [lat, lng, recordedAt, phase]

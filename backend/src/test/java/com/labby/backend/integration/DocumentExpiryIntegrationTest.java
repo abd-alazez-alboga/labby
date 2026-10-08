@@ -19,7 +19,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.convention.TestBean;
 
 /**
@@ -219,6 +223,34 @@ class DocumentExpiryIntegrationTest extends AbstractOnboardingIntegrationTest {
     // The next pass leaves the reinstated driver alone.
     documentExpiryService.runExpiryCheck();
     assertThat(driverRole(driver).get("state").asText()).isEqualTo("active");
+  }
+
+  @Test
+  @DisplayName("M7 (M6 owner item a): an expiry suspension forces an online driver offline")
+  void shouldForceSuspendedDriverOffline() {
+    Account driver = approvedDriver("+963938000071", "EXP7", economy, admin);
+    HttpHeaders headers = bearer(driver.token());
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    assertThat(
+            restTemplate
+                .exchange(
+                    "/api/v1/driver/availability",
+                    HttpMethod.PUT,
+                    new HttpEntity<>(Map.of("online", true), headers),
+                    JsonNode.class)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+    setInsuranceExpiry(driver.userId(), today().minusDays(1));
+
+    documentExpiryService.runExpiryCheck();
+
+    assertThat(driverRole(driver).get("state").asText()).isEqualTo("suspended");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT is_online FROM driver_profiles WHERE user_id = ?",
+                Boolean.class,
+                driver.userId()))
+        .isFalse();
   }
 
   @Test

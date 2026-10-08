@@ -40,6 +40,9 @@ import org.locationtech.jts.geom.Polygon;
 @Builder
 public class Region {
 
+  /** The launch market's zone, used when an admin sets none (V10 default). */
+  public static final String DEFAULT_TIME_ZONE = "Asia/Damascus";
+
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "region_id")
@@ -56,6 +59,11 @@ public class Region {
 
   @Column(name = "emergency_number", length = 20)
   private String emergencyNumber;
+
+  /** IANA zone the region's surcharge windows are evaluated in (M7; default Asia/Damascus). */
+  @Builder.Default
+  @Column(name = "time_zone", nullable = false, length = 64)
+  private String timeZone = DEFAULT_TIME_ZONE;
 
   @Builder.Default
   @Column(name = "state", nullable = false, length = 10)

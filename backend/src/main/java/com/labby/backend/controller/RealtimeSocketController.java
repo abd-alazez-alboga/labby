@@ -8,6 +8,7 @@ import com.labby.backend.config.TrackingProperties;
 import com.labby.backend.dto.LocationSampleDto;
 import com.labby.backend.security.JwtService;
 import com.labby.backend.service.DriverLocationService;
+import com.labby.backend.service.RealtimeSessionRegistry;
 import com.labby.backend.service.SessionService;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -44,7 +45,9 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
  * refresh it. Drivers stream {@code location} samples (fire-and-forget; rejected samples get an
  * {@code error} frame without closing); {@code ping} → {@code pong}. Closes: 4401 when the auth
  * deadline passes, a token is invalid/expired/for another user, or the session is revoked; 4400 on
- * a malformed frame; normal close after the idle limit. Unknown frame types are ignored. Stateless
+ * a malformed frame; normal close after the idle limit. Unknown frame types are ignored. Once
+ * authenticated, the socket is registered for server events (rides-v1.yaml) on this instance's
+ * {@link RealtimeSessionRegistry}, which every instance feeds from Postgres NOTIFY. Stateless
  * beyond the socket itself (NFR-P4): per-socket state lives in the session attributes, positions go
  * straight to the database.
  */
@@ -67,6 +70,7 @@ public class RealtimeSocketController extends TextWebSocketHandler
   private final JwtService jwtService;
   private final SessionService sessionService;
   private final DriverLocationService driverLocationService;
+  private final RealtimeSessionRegistry realtimeSessionRegistry;
   private final ObjectMapper objectMapper;
   private final Validator validator;
   private final TrackingProperties trackingProperties;
@@ -78,6 +82,7 @@ public class RealtimeSocketController extends TextWebSocketHandler
       JwtService jwtService,
       SessionService sessionService,
       DriverLocationService driverLocationService,
+      RealtimeSessionRegistry realtimeSessionRegistry,
       ObjectMapper objectMapper,
       Validator validator,
       TrackingProperties trackingProperties,
@@ -86,6 +91,7 @@ public class RealtimeSocketController extends TextWebSocketHandler
     this.jwtService = jwtService;
     this.sessionService = sessionService;
     this.driverLocationService = driverLocationService;
+    this.realtimeSessionRegistry = realtimeSessionRegistry;
     this.objectMapper = objectMapper;
     this.validator = validator;
     this.trackingProperties = trackingProperties;
@@ -179,6 +185,9 @@ public class RealtimeSocketController extends TextWebSocketHandler
     SocketState state = (SocketState) session.getAttributes().get(STATE_ATTRIBUTE);
     if (state != null) {
       state.cancelTimers();
+      if (state.userId != null) {
+        realtimeSessionRegistry.unregister(state.userId, state.session);
+      }
     }
   }
 
@@ -201,6 +210,10 @@ public class RealtimeSocketController extends TextWebSocketHandler
     }
     state.sessionId = claims.get().sessionId();
     state.expiresAt = claims.get().expiresAt();
+    if (state.userId == null) {
+      // First auth: from now on the socket receives the account's server events (rides-v1.yaml).
+      realtimeSessionRegistry.register(claims.get().userId(), state.session);
+    }
     state.userId = claims.get().userId();
     if (state.authDeadline != null) {
       state.authDeadline.cancel(false);
