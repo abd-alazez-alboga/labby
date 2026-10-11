@@ -125,6 +125,19 @@ labby:
     # stream lost/back, ETA refresh). Spring cron; "-" disables.
     dispatch-cron: ${DISPATCH_CRON:* * * * * *}
     monitor-cron: ${RIDE_MONITOR_CRON:*/5 * * * * *}
+  ridesim:
+    # Dev driver-simulation harness (M7-T5, dev profile only): the listed seeded drivers go
+    # online, stream, accept offers and drive their rides along real routes so the loop runs
+    # without physical devices. Off unless RIDE_SIM_ENABLED=true.
+    enabled: ${RIDE_SIM_ENABLED:false}
+    tick-ms: ${RIDE_SIM_TICK_MS:1000}
+    speed-kmh: ${RIDE_SIM_SPEED_KMH:40}
+    accept-delay-ticks: ${RIDE_SIM_ACCEPT_DELAY_TICKS:2}
+    dwell-ticks: ${RIDE_SIM_DWELL_TICKS:3}
+    phones: ${RIDE_SIM_DRIVERS:+963900000006,+963900000007}
+    # Where idle sim drivers wait (inside the demo Damascus region).
+    center-lat: ${RIDE_SIM_CENTER_LAT:33.515}
+    center-lng: ${RIDE_SIM_CENTER_LNG:36.28}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

@@ -61,3 +61,18 @@ placeholders written through the `StorageProvider` (dev `STORAGE_DIR`, gitignore
 All use password `Password1!`; the new ones default to Arabic. Documents are valid 365 days
 from the seed date (except the insurance noted above). `+963900000003` stays a plain rider: it
 is the applicant for onboarding walkthroughs.
+
+## Dev ride simulator (M7-T5)
+
+`runner/DevRideSimulator.java` — dev profile only, **off unless `RIDE_SIM_ENABLED=true`**. Every
+`RIDE_SIM_TICK_MS` it steps the seeded drivers in `RIDE_SIM_DRIVERS` (default
+`+963900000006,+963900000007`) through the REAL ride loop, only via the same services the REST
+controllers call: go online, stream a GPS sample every tick (so dispatch's online+fresh gates
+hold honestly), accept an open offer after `RIDE_SIM_ACCEPT_DELAY_TICKS`, drive the
+`RoutingProvider` route to the pickup at `RIDE_SIM_SPEED_KMH`, geofenced **arrive** on the
+streamed position, **start** after `RIDE_SIM_DWELL_TICKS`, drive pickup → stops → destination,
+**complete**, then **cash-confirm**. Idle sim drivers wait near
+`RIDE_SIM_CENTER_LAT/LNG` (defaults inside demo Damascus). It never touches ride state directly
+and never drives an account outside its list — `+963900000005` stays free for the real driver
+app on the emulator. Typical demo: start the backend with `RIDE_SIM_ENABLED=true`, book from the
+rider app inside Damascus, and watch a sim driver accept, approach, ride and collect cash.
