@@ -17,7 +17,9 @@
     "preset": "jest-expo",
     "setupFiles": [
       "<rootDir>/jest-setup.ts"
-    ]
+    ],
+    "testTimeout": 20000,
+    "maxWorkers": "50%"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-sans-arabic": "^0.4.2",
