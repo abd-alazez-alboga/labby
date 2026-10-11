@@ -1,0 +1,516 @@
+openapi: 3.1.0
+info:
+  title: Labby Money API (M8 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M8, the money rails. The clients (M8-T3 rider, M8-T4
+    driver, M8-T5 admin) build against this document; the backend (M8-T2) must implement it
+    exactly — on conflict after T2 lands, the implementation is the truth and this file is
+    amended. Schema: migration V12. SRS: PAY-01..04, COM-01..04, PRC-03 (charging), NFR-I2;
+    UC-R-07/08/09/17, UC-D-15/16, UC-A-15/27. Out of M8: promo/referral/loyalty credit SOURCES
+    (M13 — the wallet accepts their typed credits now), incentives engine (M15), support-ticket
+    links on refunds (M14).
+
+
+    **Money representation.** Every amount is an exact decimal (NUMERIC in the database, never
+    floating point) tagged with its ISO 4217 currency. Derived amounts (commission, wait
+    per-minute, pickup per-km) round HALF_UP to 2 decimals at computation (owner ruling
+    2026-10-11); display formatting (e.g. SYP without decimal places) is a client concern
+    (NFR-I2). Wallet credits are spendable only in matching-currency regions — no conversion
+    (PAY-01).
+
+
+    **Ledgers are append-only.** `wallet_transactions`, `driver_ledger` and `settlements` accept
+    inserts only (database triggers block UPDATE/DELETE). Balances (`wallet_balances`,
+    `driver_balances`) are per-currency caches updated in the same transaction as their ledger
+    entry and always equal the ledger sum. Corrections are new entries (refund, grant,
+    counter-settlement), never edits.
+
+
+    **Payment application at completion (PAY-02, UC-R-07).** Method `cash`: unchanged from M7
+    (`pending → paid_cash` via cash-confirm or `pending → unpaid` via mark-unpaid). Method
+    `wallet`: at completion the rider's wallet balance in the ride currency is applied — covers
+    the total → one `fare_payment` debit, `paymentStatus = paid_wallet`, confirmed immediately;
+    short → the wallet is drained and the remainder is due in CASH, shown to both parties
+    (`walletApplied` / `cashDue` on the ride detail and receipt, rides-v1.yaml); the driver then
+    cash-confirms the remainder (`pending → paid_mixed`) or marks unpaid. Any pending rider dues
+    (below) are collected on top of the fare at the same completion.
+
+
+    **Cancellation fees (RIDE-07, PRC-03; owner rulings 2026-10-11).** The fee recorded on a
+    cancelled ride goes 100% to that ride's driver, commission-free. Collection: on a
+    wallet-method ride the wallet is debited at cancellation (`cancellation_fee`, linked to the
+    cancelled ride); whatever the wallet cannot cover — and the whole fee on a cash-method
+    ride — becomes a pending RIDER DUE, added to the rider's next completed ride (any method,
+    all pending dues at once). A due collected in cash passes through the collecting ride's
+    driver: that driver gets a `due_collection` debit (they pocketed the extra cash) and the
+    cancelled ride's driver the `cancellation_fee` credit. The driver is credited ONCE, when the
+    fee is fully collected. Fees recorded during M7 were backfilled as pending dues (V12) and
+    collect the same way.
+
+
+    **Tips (PAY-04, UC-R-08).** Wallet-only, during the ride (`in_progress`) or ≤ 24 h after
+    `completedAt`; one tip per ride (owner ruling); 100% to the driver, commission-free, outside
+    the fare total (receipts show it as its own line). Insufficient wallet balance → 409 (cash
+    tips happen outside the app). Suggested amounts are a client concern.
+
+
+    **Driver ledger (COM-01/02).** Wallet-paid ride → `ride_earning` credit of fare −
+    commission; cash-paid ride → `commission_due` debit (driver keeps the cash). The commission
+    rate is the driver's weekly rate for the ride's region: tiers from the region config
+    (COM-02), recalculated weekly (Monday-start week in the region's time zone) from the
+    PREVIOUS week's completed trips in that region; no rate row → the region's base tier.
+
+
+    **Floor (COM-03, UC-D-16).** Per region (`driverBalanceFloor`, regions-v1.yaml; NULL = the
+    SRS default −50), checked against the driver's balance in that region's currency. Dispatch
+    excludes drivers at or below the floor; status `warning` within `MONEY_FLOOR_WARNING_MARGIN`
+    (default 10) above it, `blocked` at/below. A settlement that lifts the balance above the
+    floor unblocks automatically and notifies the driver (UC-A-27).
+
+
+    **Admin money actions** are permission-gated (`x-required-permission`, enforced server-side
+    per RBAC-03) and audit-logged (`wallet.grant`, `wallet.refund`, `settlement.record`).
+    New catalog entries: `wallets:view`, `wallets:manage` (RbacCatalogSeeder syncs them;
+    `settlements:view/record` exist since M3). Errors use the global ErrorResponse shape
+    (status, message, fieldErrors?).
+
+servers:
+  - url: /api/v1
+
+paths:
+  /wallet:
+    get:
+      summary: My wallet — per-currency balances and pending dues (UC-R-17)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Balances (possibly empty) and pending dues
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletView' }
+
+  /wallet/transactions:
+    get:
+      summary: My wallet history — typed, newest first (UC-R-17)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: currency, in: query, schema: { type: string }, description: Filter one currency }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Page of transactions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletTransactionPage' }
+
+  /rides/{rideId}/tip:
+    post:
+      summary: Tip the driver from the wallet (PAY-04, UC-R-08)
+      description: >
+        Rider of the ride only. Allowed from `in_progress` until 24 h after `completedAt`; one
+        tip per ride. The tip is debited in the ride's currency and credited 100% to the driver,
+        commission-free. 409 (distinct plain messages) — window expired, already tipped,
+        insufficient wallet balance, ride not tippable (wrong state / cancelled).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: rideId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TipRequest' }
+      responses:
+        '201':
+          description: Tip applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TipResponse' }
+        '400': { description: Invalid amount }
+        '404': { description: Not the rider's ride / unknown ride }
+        '409': { description: Window expired / already tipped / insufficient balance / not tippable }
+
+  /driver/earnings:
+    get:
+      summary: Per-trip earnings, newest first (COM-01, UC-D-15)
+      description: Driver role. One entry per completed ride with money posted, fully itemized.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Page of trip earnings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripEarningPage' }
+
+  /driver/earnings/summary:
+    get:
+      summary: Weekly / monthly earnings summary (UC-D-15)
+      description: >
+        `period=weekly` → the Monday-start week (driver's operating region time zone) containing
+        `anchor` (default today); `period=monthly` → the calendar month containing `anchor`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: period, in: query, required: true, schema: { type: string, enum: [weekly, monthly] } }
+        - { name: anchor, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Summary for the period
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EarningsSummary' }
+
+  /driver/balance:
+    get:
+      summary: Balance, floor status and commission tier (COM-02/03, UC-D-16)
+      description: >
+        Floor and status are evaluated per currency against the driver's operating region (the
+        region of their most recent online presence, falling back to their last ride's region).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Balance view
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverBalanceView' }
+
+  /admin/users/{userId}/wallet:
+    get:
+      summary: Inspect a user's wallet (extends UC-A-13)
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'wallets:view'
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Balances and pending dues
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletView' }
+        '404': { description: Unknown user }
+
+  /admin/users/{userId}/wallet/transactions:
+    get:
+      summary: A user's wallet history (extends UC-A-13)
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'wallets:view'
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: currency, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Page of transactions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletTransactionPage' }
+        '404': { description: Unknown user }
+
+  /admin/users/{userId}/wallet/credits:
+    post:
+      summary: Grant wallet credit / issue a refund (PAY-03, UC-A-15)
+      description: >
+        `type=grant` — reason mandatory, ride link optional. `type=refund` — reason AND `rideId`
+        mandatory (PAY-03 link; ticket links arrive with M14). Credited instantly in the given
+        currency; the user is notified; the action is audit-logged. 400 for a refund `rideId`
+        that is not a ride of this user.
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'wallets:manage'
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WalletCreditRequest' }
+      responses:
+        '201':
+          description: Credit applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletTransaction' }
+        '400': { description: Invalid amount / currency / ride link }
+        '404': { description: Unknown user }
+
+  /admin/drivers/{driverUserId}/ledger:
+    get:
+      summary: A driver's ledger — balances + typed entries, newest first (UC-A-27 step 1)
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'settlements:view'
+      parameters:
+        - { name: driverUserId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: currency, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Ledger view
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverLedgerView' }
+        '404': { description: Not a driver }
+
+  /admin/drivers/{driverUserId}/settlements:
+    post:
+      summary: Record a settlement (COM-04, UC-A-27)
+      description: >
+        Records off-app money movement — `pay_in` (driver handed cash, credits the balance) or
+        `pay_out` (positive balance paid out, debits it). Any positive amount is legal (it
+        records the truth, including overshoot); settlements are immutable — a mistake is
+        corrected by a counter-settlement. The response carries the new balance and floor
+        status; crossing back above the floor unblocks offers automatically and notifies the
+        driver. Audit-logged.
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'settlements:record'
+      parameters:
+        - { name: driverUserId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettlementRequest' }
+      responses:
+        '201':
+          description: Settlement recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SettlementResponse' }
+        '400': { description: Invalid amount / direction / currency }
+        '404': { description: Not a driver }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    WalletBalance:
+      type: object
+      required: [currency, balance]
+      properties:
+        currency: { type: string, description: ISO 4217 }
+        balance: { type: number, minimum: 0 }
+    RiderDue:
+      type: object
+      description: >
+        A carried charge (owner ruling (a)) collected on the rider's next completed ride.
+        `pending` dues are shown wherever the fee is displayed (M8-T3).
+      required: [id, currency, amount, type, sourceRideId, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        currency: { type: string }
+        amount: { type: number }
+        type: { type: string, enum: [cancellation_fee] }
+        sourceRideId: { type: string, format: uuid, description: The cancelled ride }
+        status: { type: string, enum: [pending, collected] }
+        collectedRideId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+        collectedAt: { type: [string, 'null'], format: date-time }
+    WalletView:
+      type: object
+      required: [balances, dues]
+      properties:
+        balances:
+          type: array
+          items: { $ref: '#/components/schemas/WalletBalance' }
+        dues:
+          type: array
+          description: Pending dues only
+          items: { $ref: '#/components/schemas/RiderDue' }
+    WalletTransactionType:
+      type: string
+      enum: [fare_payment, tip, cancellation_fee, refund, admin_grant, referral, promo,
+             loyalty_redemption]
+      description: Credits positive, debits negative (PAY-01 sources; M13 fills the last three)
+    WalletTransaction:
+      type: object
+      required: [id, currency, amount, type, balanceAfter, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        currency: { type: string }
+        amount: { type: number, description: Signed }
+        type: { $ref: '#/components/schemas/WalletTransactionType' }
+        rideId: { type: [string, 'null'], format: uuid }
+        reason: { type: [string, 'null'], description: Grants/refunds — shown in history }
+        balanceAfter: { type: number, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+    WalletTransactionPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WalletTransaction' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    TipRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount: { type: number, exclusiveMinimum: 0, description: In the ride's currency }
+    TipResponse:
+      type: object
+      required: [rideId, amount, currency, walletBalance, createdAt]
+      properties:
+        rideId: { type: string, format: uuid }
+        amount: { type: number }
+        currency: { type: string }
+        walletBalance: { type: number, description: Remaining balance in that currency }
+        createdAt: { type: string, format: date-time }
+    TripEarning:
+      type: object
+      description: COM-01 itemization for one completed ride
+      required: [rideId, completedAt, currency, fareTotal, paymentMethod, commissionRate,
+                 commissionAmount, net]
+      properties:
+        rideId: { type: string, format: uuid }
+        completedAt: { type: string, format: date-time }
+        currency: { type: string }
+        fareTotal: { type: number }
+        paymentMethod: { type: string, enum: [cash, wallet] }
+        commissionRate: { type: number, description: Percent applied (weekly tier) }
+        commissionAmount: { type: number }
+        tip: { type: [number, 'null'] }
+        cancellationFee: { type: [number, 'null'], description: Collected fee credited for this ride }
+        net:
+          type: number
+          description: >
+            Signed effect on the balance: wallet ride fare − commission (+ tip); cash ride
+            −commission (+ tip) — the driver kept the cash fare.
+    TripEarningPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TripEarning' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    EarningsSummary:
+      type: object
+      required: [period, from, to, currency, trips, fares, commission, tips, net]
+      properties:
+        period: { type: string, enum: [weekly, monthly] }
+        from: { type: string, format: date }
+        to: { type: string, format: date, description: Inclusive }
+        currency: { type: string }
+        trips: { type: integer, description: Completed rides in the period }
+        fares: { type: number, description: Sum of fare totals }
+        commission: { type: number }
+        tips: { type: number }
+        net: { type: number, description: Signed balance effect of the period's entries }
+    CommissionStatus:
+      type: object
+      description: COM-02 — the driver's current weekly rate and next-tier progress (UC-D-15)
+      required: [percent, weekStart, weeklyTrips]
+      properties:
+        percent: { type: number, description: Rate applied this week }
+        weekStart: { type: string, format: date, description: Monday, region time zone }
+        weeklyTrips: { type: integer, description: Previous week's completed trips (set this rate) }
+        currentWeekTrips: { type: integer, description: Completed trips so far THIS week }
+        nextTier:
+          oneOf:
+            - type: object
+              required: [percent, weeklyTripsAbove]
+              properties:
+                percent: { type: number }
+                weeklyTripsAbove: { type: integer, description: Trips needed this week to earn it next week }
+            - { type: 'null' }
+    FloorStatus:
+      type: string
+      enum: [ok, warning, blocked]
+      description: >
+        COM-03 — `warning` within MONEY_FLOOR_WARNING_MARGIN (default 10) above the floor,
+        `blocked` at/below (no new offers until settlement)
+    DriverBalanceEntry:
+      type: object
+      required: [currency, balance, floor, status]
+      properties:
+        currency: { type: string }
+        balance: { type: number, description: Signed — negative = debt }
+        floor: { type: number, description: The operating region's floor (default -50) }
+        status: { $ref: '#/components/schemas/FloorStatus' }
+    DriverBalanceView:
+      type: object
+      required: [balances, commission]
+      properties:
+        balances:
+          type: array
+          items: { $ref: '#/components/schemas/DriverBalanceEntry' }
+        commission:
+          oneOf:
+            - { $ref: '#/components/schemas/CommissionStatus' }
+            - { type: 'null' }
+    DriverLedgerType:
+      type: string
+      enum: [ride_earning, commission_due, tip, cancellation_fee, settlement_pay_in,
+             settlement_pay_out, bonus, due_collection]
+    DriverLedgerEntry:
+      type: object
+      required: [id, currency, amount, type, balanceAfter, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        currency: { type: string }
+        amount: { type: number, description: Signed }
+        type: { $ref: '#/components/schemas/DriverLedgerType' }
+        rideId: { type: [string, 'null'], format: uuid }
+        settlementId: { type: [string, 'null'], format: uuid }
+        riderDueId: { type: [string, 'null'], format: uuid }
+        fareAmount: { type: [number, 'null'] }
+        commissionRate: { type: [number, 'null'] }
+        commissionAmount: { type: [number, 'null'] }
+        balanceAfter: { type: number }
+        createdAt: { type: string, format: date-time }
+    DriverLedgerView:
+      type: object
+      required: [balances, entries, page, size, totalItems, totalPages]
+      properties:
+        balances:
+          type: array
+          items: { $ref: '#/components/schemas/DriverBalanceEntry' }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/DriverLedgerEntry' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    WalletCreditRequest:
+      type: object
+      required: [type, amount, currency, reason]
+      properties:
+        type: { type: string, enum: [grant, refund] }
+        amount: { type: number, exclusiveMinimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        rideId:
+          type: [string, 'null']
+          format: uuid
+          description: Mandatory for `refund`, optional for `grant` (PAY-03)
+    SettlementRequest:
+      type: object
+      required: [amount, direction, currency]
+      properties:
+        amount: { type: number, exclusiveMinimum: 0 }
+        direction: { type: string, enum: [pay_in, pay_out] }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        note: { type: [string, 'null'], maxLength: 500 }
+    SettlementResponse:
+      type: object
+      required: [id, driverUserId, currency, amount, direction, createdAt, balance, floorStatus]
+      properties:
+        id: { type: string, format: uuid }
+        driverUserId: { type: string, format: uuid }
+        currency: { type: string }
+        amount: { type: number }
+        direction: { type: string, enum: [pay_in, pay_out] }
+        note: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        balance: { type: number, description: New balance in that currency }
+        floorStatus: { $ref: '#/components/schemas/FloorStatus' }

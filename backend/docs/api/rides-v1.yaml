@@ -730,11 +730,15 @@ components:
     PaymentMethod:
       type: string
       enum: [cash, wallet]
-      description: '`wallet` is refused (422) until M8'
+      description: '`wallet` accepted from M8 (payment application rules: money-v1.yaml)'
     PaymentStatus:
       type: [string, 'null']
-      enum: [pending, paid_cash, unpaid, null]
-      description: null until `completed`
+      enum: [pending, paid_cash, paid_wallet, paid_mixed, unpaid, null]
+      description: >
+        null until `completed`. M8 (money-v1.yaml): `paid_wallet` = fare fully covered by the
+        wallet at completion (auto-confirmed); `paid_mixed` = wallet drained + cash remainder
+        confirmed by the driver (the cash-confirm endpoint resolves `pending` on both cash and
+        mixed rides).
     PickupDistanceMode:
       type: string
       enum: [nearby_only, accept_distant_fee]
@@ -952,12 +956,15 @@ components:
           type: [string, 'null']
           enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
                  unsafe_pickup, other, null]
-        cancellationFee: { type: [number, 'null'], description: Recorded fee (collected in M8) }
+        cancellationFee: { type: [number, 'null'], description: Recorded fee — collected by the M8 money rails (money-v1.yaml rider dues) }
         fare:
           oneOf:
             - { $ref: '#/components/schemas/FinalFare' }
             - { type: 'null' }
         paymentStatus: { $ref: '#/components/schemas/PaymentStatus' }
+        walletApplied: { type: [number, 'null'], description: 'M8 (PAY-02): wallet part of the payment' }
+        cashDue: { type: [number, 'null'], description: 'M8 (PAY-02): cash remainder (+ collected dues), shown to both' }
+        tip: { type: [number, 'null'], description: 'M8 (PAY-04): outside the fare total' }
         driverStream: { type: [string, 'null'], enum: [ok, lost, null], description: 'TRK-04, accepted..in_progress' }
         driverPosition:
           description: Latest known driver position (rider view, accepted..in_progress)
@@ -1072,6 +1079,9 @@ components:
         fare: { $ref: '#/components/schemas/FinalFare' }
         paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         paymentStatus: { $ref: '#/components/schemas/PaymentStatus' }
+        walletApplied: { type: [number, 'null'], description: 'M8 (PAY-02)' }
+        cashDue: { type: [number, 'null'], description: 'M8 (PAY-02): cash remainder + collected dues' }
+        tip: { type: [number, 'null'], description: 'M8 (PAY-04): its own receipt line, outside the fare total' }
         driver: { $ref: '#/components/schemas/DriverSummary' }
         route:
           type: object

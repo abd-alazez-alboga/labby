@@ -498,6 +498,7 @@ components:
         waitPerMinRate: { type: [number, 'null'], minimum: 0, description: 'Default: 0.25' }
         pickupFeeThresholdKm: { type: [number, 'null'], minimum: 0, description: 'Default: 10' }
         pickupFeePerKm: { type: [number, 'null'], minimum: 0, description: 'Default: 0.50' }
+        driverBalanceFloor: { type: [number, 'null'], maximum: 0, description: 'COM-03 (M8); default: -50' }
         surgeCap: { type: [number, 'null'], minimum: 1, description: Region-wide surge cap (PRC-02) }
         commissionTiers:
           oneOf:
@@ -539,6 +540,7 @@ components:
         waitPerMinRate: { type: [number, 'null'], minimum: 0 }
         pickupFeeThresholdKm: { type: [number, 'null'], minimum: 0 }
         pickupFeePerKm: { type: [number, 'null'], minimum: 0 }
+        driverBalanceFloor: { type: [number, 'null'], maximum: 0, description: 'COM-03 (M8); null = default -50; never positive' }
         surgeCap: { type: [number, 'null'], minimum: 1 }
         commissionTiers:
           oneOf:
