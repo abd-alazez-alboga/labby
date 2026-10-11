@@ -28,7 +28,8 @@ Rider + driver apps: chat screen (free text + localized quick replies, unread ba
 
 ### M10-T4 — Admin: live ops map & SOS alerts
 Live ops map per region: online driver dots (idle/on-ride), active ride routes, surge overlay (from M9), red SOS pins; click-through to ride/driver detail; SOS alert handling: real-time banner + alert list, ride focus, contact info access (permission-gated), resolution notes (linked note/ticket stub until M14).
-**AC:** UC-A-19/20 end-to-end on the simulation harness; map stays live at demo scale; permission-gated; tests green.
+Also the **admin Rides screen** (UC-A-18, owner ruling 2026-10-11 from the M7 audit W2): rides search page + ride detail (timeline, trace on a map, offers trail, fare components) over the M7 `/admin/rides` API, which has been complete and tested since M7 — the live-ops click-through lands on this detail. Design-first: canvas artboards + owner approval before code.
+**AC:** UC-A-19/20 end-to-end on the simulation harness; map stays live at demo scale; UC-A-18 rides search/detail usable standalone and as the click-through target; permission-gated; tests green.
 
 ### M10-T5 — Comms integration
 E2e: ride with chat both ways + quick replies + push; call button opens dialer with the right number; share link opened in a plain browser tracks live then dies at completion; SOS fires: dialer + admin alert + red pin + permanent event.

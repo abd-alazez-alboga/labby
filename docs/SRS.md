@@ -116,13 +116,13 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 
 | ID | Requirement | Ver |
 |---|---|---|
-| RIDE-01 | Booking: pickup (map pin / search / saved), destination, ≤ 3 intermediate stops, service type, payment method (cash/wallet), matching toggles → **fare estimate** (OSRM route × region pricing × locked surge), clearly labeled as an estimate, before confirmation. | V1 |
+| RIDE-01 | Booking: pickup and destination via map pin / saved places (free-text geocoding search is deferred past V1 — owner ruling 2026-10-11, M7 audit H1; it returns as its own ticket once a geocoding service is chosen), ≤ 3 intermediate stops, service type, payment method (cash/wallet), matching toggles → **fare estimate** (OSRM route × region pricing × locked surge), clearly labeled as an estimate, before confirmation. | V1 |
 | RIDE-02 | State machine: `requested → offering → accepted → driver_arrived → in_progress → completed`; exits `cancelled_by_rider`, `cancelled_by_driver`, `no_driver_found`. Every transition timestamped and pushed to both parties. | V1 |
 | RIDE-03 | **Sequential dispatch**: candidates ranked by pickup ETA (respecting rider toggles, service type, region, driver online state & vehicle class); offers show pickup, **destination**, estimated fare, surge flag; decline/timeout → next candidate. Offer window 15 s; dispatch gives up after 10 min / candidate exhaustion. Offers feed acceptance metrics. | V1 |
 | RIDE-04 | Driver taps **Arrived** (allowed within 100 m geofence of pickup); rider notified; wait-time grace clock starts. Rider boards; driver taps **Start ride**. | V1 |
 | RIDE-05 | In-ride: live tracking both sides, chat/dial available, rider may change destination or add stops (≤ 3 total); estimate updates, metering unaffected. | V1 |
 | RIDE-06 | Completion: final fare = region pricing × **actual GPS distance + actual duration** × surge (locked at request) + extras (wait, pickup-distance fee) − discounts/credits, floored at the region/service **minimum fare**. Itemized breakdown to both; cash confirmed by driver or wallet auto-deducted; receipt generated; both prompted to rate. | V1 |
-| RIDE-07 | Cancellation: free within grace (default 2 min post-acceptance); afterwards a fee applies (default 2, per region + service type). Driver cancellations: never charge the rider, require a reason, feed the driver's cancellation metric. | V1 |
+| RIDE-07 | Cancellation: free within grace (default 2 min post-acceptance); afterwards a fee applies (default 2, **per region** — aligned with PRC-03, owner ruling 2026-10-11; per-service-type fees are out). Driver cancellations: never charge the rider, require a reason, feed the driver's cancellation metric. | V1 |
 | RIDE-08 | `no_driver_found` after exhaustion/timeout: rider notified with one-tap retry. | V1 |
 
 **Scheduled rides (RIDE-S)**
