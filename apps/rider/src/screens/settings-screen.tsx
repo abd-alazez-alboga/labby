@@ -85,6 +85,32 @@ export default function SettingsScreen() {
     },
   ];
 
+  const rideRows: {
+    key: string;
+    label: string;
+    icon: IconName;
+    href: "/rides" | "/saved-places" | "/ride-preferences";
+  }[] = [
+    {
+      key: "rides",
+      label: t("settings.rideHistory"),
+      icon: "car-outline",
+      href: "/rides",
+    },
+    {
+      key: "saved-places",
+      label: t("settings.savedPlaces"),
+      icon: "location-outline",
+      href: "/saved-places",
+    },
+    {
+      key: "ride-preferences",
+      label: t("settings.ridePreferences"),
+      icon: "options-outline",
+      href: "/ride-preferences",
+    },
+  ];
+
   const accountRows: {
     key: string;
     label: string;
@@ -184,6 +210,23 @@ export default function SettingsScreen() {
           >
             {direction}
           </AppText>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <AppText variant="heading">{t("settings.rides")}</AppText>
+        <View>
+          {rideRows.map((item, index) => (
+            <ListRow
+              key={item.key}
+              testID={`settings-${item.key}`}
+              title={item.label}
+              icon={item.icon}
+              chevron
+              last={index === rideRows.length - 1}
+              onPress={() => router.push(item.href as never)}
+            />
+          ))}
         </View>
       </View>
 

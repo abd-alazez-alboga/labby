@@ -35,6 +35,7 @@ export async function getStoredTokens(): Promise<StoredTokens | null> {
 export async function saveTokens(tokens: StoredTokens): Promise<void> {
   await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokens.accessToken);
   await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken);
+  emitTokensChanged();
 }
 
 export async function clearTokens(): Promise<void> {
@@ -43,6 +44,29 @@ export async function clearTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
   } catch {
     // best-effort: nothing sensible to do if the keychain is unavailable
+  }
+  emitTokensChanged();
+}
+
+type TokensChangedListener = () => void;
+const tokensChangedListeners = new Set<TokensChangedListener>();
+
+/**
+ * Fired after the stored token pair was saved (sign-in, refresh rotation)
+ * or cleared — the realtime socket re-authenticates on it (realtime-v1).
+ */
+export function addTokensChangedListener(
+  listener: TokensChangedListener,
+): () => void {
+  tokensChangedListeners.add(listener);
+  return () => {
+    tokensChangedListeners.delete(listener);
+  };
+}
+
+function emitTokensChanged(): void {
+  for (const listener of tokensChangedListeners) {
+    listener();
   }
 }
 

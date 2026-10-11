@@ -1,7 +1,7 @@
 /**
  * Deep-link mapper (UC-S-11): catalog screens → rider routes; unknown → the
- * notification center (contract rule). The rider has no M5 screens and its
- * ride screen arrives in M7, so every link currently lands on the center.
+ * notification center (contract rule). The rider has no M5 screens (they
+ * land on the center); M7's `ride` {rideId} opens the ride screen.
  */
 import {
   NOTIFICATION_CENTER_HREF,
@@ -13,7 +13,7 @@ import {
 describe("resolveDeepLink", () => {
   it.each([
     ["notifications", undefined],
-    ["ride", { rideId: "9b7c" }],
+    ["ride", undefined],
     ["driver_application", undefined],
     ["driver_documents", { documentType: "license" }],
     ["driver_vehicles", undefined],
@@ -21,6 +21,15 @@ describe("resolveDeepLink", () => {
     ["toString", undefined],
   ])("maps %s to the notification center", (screen, params) => {
     expect(resolveDeepLink({ screen, params })).toBe(NOTIFICATION_CENTER_HREF);
+  });
+
+  it("maps ride {rideId} to the ride screen (rides-v1.yaml push catalog)", () => {
+    expect(resolveDeepLink({ screen: "ride", params: { rideId: "9b7c" } })).toBe(
+      "/ride/9b7c",
+    );
+    expect(
+      opensNotificationCenter({ screen: "ride", params: { rideId: "9b7c" } }),
+    ).toBe(false);
   });
 
   it("maps a missing link to the center", () => {

@@ -6,14 +6,17 @@ import { useLocale } from "../../i18n/locale-context";
 import { ScreenHeader } from "../../components/ui";
 import { NotificationsProvider } from "../../notifications/notifications-context";
 import { RegionProvider } from "../../region/region-context";
+import { RideProvider } from "../../ride/ride-context";
 import { colors } from "../../theme/tokens";
 
 /**
  * Signed-in stack: home, settings, the account-management screens and the
- * notification center + preferences. Every screen but the map-first home
- * gets the design-system ScreenHeader (back chevron + large title). Region
- * resolution and notification state (badge, push registration, push taps)
- * live only while signed in.
+ * notification center + preferences, and the M7 ride screens. Every screen
+ * but the map-first ones (home, booking, route change, the ride opened from
+ * a push, the receipt) gets the design-system ScreenHeader (back chevron +
+ * large title). Region resolution, notification state (badge, push
+ * registration, push taps) and the ride facade (realtime socket + the
+ * current ride) live only while signed in.
  */
 export default function AppLayout() {
   const { status } = useAuth();
@@ -25,6 +28,7 @@ export default function AppLayout() {
 
   return (
     <RegionProvider>
+      <RideProvider>
       <NotificationsProvider>
         <Stack
           screenOptions={{
@@ -74,8 +78,26 @@ export default function AppLayout() {
             name="dev-route-preview"
             options={{ title: t("routePreview.title") }}
           />
+          {/* M7 ride flow: map-first screens draw their own floating back. */}
+          <Stack.Screen name="booking" options={{ headerShown: false }} />
+          <Stack.Screen name="change-route" options={{ headerShown: false }} />
+          <Stack.Screen name="ride/[rideId]" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="receipt/[rideId]"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="rides" options={{ title: t("history.title") }} />
+          <Stack.Screen
+            name="saved-places"
+            options={{ title: t("savedPlaces.title") }}
+          />
+          <Stack.Screen
+            name="ride-preferences"
+            options={{ title: t("ridePrefs.title") }}
+          />
         </Stack>
       </NotificationsProvider>
+      </RideProvider>
     </RegionProvider>
   );
 }

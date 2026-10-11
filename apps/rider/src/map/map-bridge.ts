@@ -15,7 +15,8 @@
  * - page → RN: JSON messages through `window.ReactNativeWebView.postMessage`:
  *   `{type:'ready'}`, `{type:'tiles', ok}` (tile server reachable or not —
  *   NFR-A3 degrade notice) and `{type:'error', reason}` (Leaflet failed to
- *   load or the page crashed).
+ *   load or the page crashed), and — only while `reportCenter` is set (the
+ *   pin picker) — `{type:'center', lat, lng}` after every pan/zoom.
  */
 import { colors } from "../theme/tokens";
 import { type LatLng, toLeafletLatLng } from "./geo";
@@ -31,7 +32,8 @@ const LEAFLET_JS = {
 };
 
 /** What a marker stands for; decides its look. */
-export type MapMarkerKind = "self" | "origin" | "destination";
+export type MapMarkerKind =
+  "self" | "origin" | "destination" | "stop" | "driver";
 
 export interface MapMarker {
   id: string;
@@ -47,12 +49,15 @@ export interface MapViewState {
   markers: { id: string; latlng: [number, number]; kind: MapMarkerKind }[];
   route: [number, number][] | null;
   routeApproximate: boolean;
+  /** Pin picking: the page reports the map centre after every move. */
+  reportCenter?: true;
 }
 
 export type MapEvent =
   | { type: "ready" }
   | { type: "tiles"; ok: boolean }
-  | { type: "error"; reason: string };
+  | { type: "error"; reason: string }
+  | { type: "center"; lat: number; lng: number };
 
 export function toMapViewState(input: {
   center: LatLng;
@@ -61,8 +66,10 @@ export function toMapViewState(input: {
   markers: MapMarker[];
   route: LatLng[];
   routeApproximate: boolean;
+  reportCenter?: boolean;
 }): MapViewState {
   return {
+    ...(input.reportCenter ? { reportCenter: true as const } : {}),
     center: toLeafletLatLng(input.center),
     zoom: input.zoom,
     followMe: input.followMe,
@@ -101,6 +108,20 @@ const MARKER_STYLES: Record<MapMarkerKind, Record<string, unknown>> = {
   },
   destination: {
     radius: 7,
+    color: colors.surface,
+    weight: 3,
+    fillColor: colors.text,
+    fillOpacity: 1,
+  },
+  stop: {
+    radius: 6,
+    color: colors.textSecondary,
+    weight: 3,
+    fillColor: colors.surface,
+    fillOpacity: 1,
+  },
+  driver: {
+    radius: 9,
     color: colors.surface,
     weight: 3,
     fillColor: colors.text,
@@ -152,8 +173,15 @@ export function buildMapHtml(options: {
   var routeLine = null;
   var lastRouteKey = null;
   var first = true;
+  var reportCenter = false;
+  map.on('moveend', function () {
+    if (!reportCenter) return;
+    var c = map.getCenter();
+    post({ type: 'center', lat: c.lat, lng: c.lng });
+  });
   window.labbyMap = {
     apply: function (s) {
+      reportCenter = !!s.reportCenter;
       markers.clearLayers();
       s.markers.forEach(function (m) {
         L.circleMarker(m.latlng, cfg.markerStyles[m.kind] || cfg.markerStyles.origin).addTo(markers);
@@ -201,6 +229,18 @@ export function parseMapEvent(data: string): MapEvent | null {
   if (type === "ready") return { type: "ready" };
   if (type === "tiles")
     return { type: "tiles", ok: (message as { ok?: unknown }).ok === true };
+  if (type === "center") {
+    const { lat, lng } = message as { lat?: unknown; lng?: unknown };
+    if (
+      typeof lat === "number" &&
+      typeof lng === "number" &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng)
+    ) {
+      return { type: "center", lat, lng };
+    }
+    return null;
+  }
   if (type === "error") {
     const reason = (message as { reason?: unknown }).reason;
     return {

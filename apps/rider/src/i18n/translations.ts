@@ -1,9 +1,13 @@
 /**
  * Translations for the Labby rider app (EN + AR).
  * Keys are nested per screen, mirroring the admin app's i18n layout.
+ * The M7 ride slice lives in ride-translations.ts and is merged in here.
  */
+import { rideAr, rideEn } from "./ride-translations";
+
 export const translations = {
   en: {
+    ...rideEn,
     common: {
       appName: "Labby",
       back: "Back",
@@ -23,9 +27,9 @@ export const translations = {
     },
     home: {
       title: "Home",
-      welcome: "Welcome to Labby",
-      subtitle: "Your ride, your way.",
       openSettings: "Settings",
+      whereTo: "Where to?",
+      searchDestination: "Search destination",
     },
     region: {
       finding: "Finding your area…",
@@ -139,6 +143,10 @@ export const translations = {
       notifications: "Notifications",
       notificationCenter: "Notification center",
       notificationPreferences: "Notification preferences",
+      rides: "Rides",
+      rideHistory: "Your rides",
+      savedPlaces: "Saved places",
+      ridePreferences: "Ride preferences",
     },
     profile: {
       title: "Edit profile",
@@ -261,6 +269,7 @@ export const translations = {
     },
   },
   ar: {
+    ...rideAr,
     common: {
       appName: "لبي",
       back: "رجوع",
@@ -278,9 +287,9 @@ export const translations = {
     },
     home: {
       title: "الرئيسية",
-      welcome: "أهلاً بك في لبي",
-      subtitle: "رحلتك، على طريقتك.",
       openSettings: "الإعدادات",
+      whereTo: "إلى أين؟",
+      searchDestination: "ابحث عن وجهة",
     },
     region: {
       finding: "جارٍ تحديد منطقتك…",
@@ -391,6 +400,10 @@ export const translations = {
       notifications: "الإشعارات",
       notificationCenter: "مركز الإشعارات",
       notificationPreferences: "تفضيلات الإشعارات",
+      rides: "الرحلات",
+      rideHistory: "رحلاتك",
+      savedPlaces: "الأماكن المحفوظة",
+      ridePreferences: "تفضيلات الرحلة",
     },
     profile: {
       title: "تعديل الملف الشخصي",

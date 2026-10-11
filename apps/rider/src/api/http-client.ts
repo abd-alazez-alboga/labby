@@ -26,6 +26,10 @@ export interface ApiErrorBody {
   status?: number;
   message?: string;
   fieldErrors?: Record<string, string>;
+  /** Machine error code (ride errors, rides-v1.yaml), omitted when not set. */
+  code?: string;
+  /** Structured details of a coded error (e.g. `suspensionReason`). */
+  details?: Record<string, unknown>;
 }
 
 export class ApiError extends Error {
@@ -142,6 +146,16 @@ async function doRefresh(): Promise<string | null> {
     // be valid next time the device is online) but fail this request.
     return null;
   }
+}
+
+/**
+ * Rotates the session outside a request (the realtime socket's re-auth,
+ * realtime-v1.yaml). Resolves to the new access token, or null — the tokens
+ * are then either cleared (dead session, already signed out) or kept
+ * (transient trouble); callers tell the two apart via the token store.
+ */
+export function refreshAccessToken(): Promise<string | null> {
+  return refreshSession();
 }
 
 export async function apiFetch<T>(

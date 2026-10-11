@@ -204,7 +204,7 @@ describe("region resolution (M4-T4, SD-01)", () => {
 
     expect(await screen.findByTestId("region-outside")).toBeOnTheScreen();
     expect(screen.getByText("Outside our service area")).toBeOnTheScreen();
-    expect(screen.queryByText("Welcome to Labby")).toBeNull();
+    expect(screen.queryByText("Where to?")).toBeNull();
 
     await fireEvent.press(screen.getByTestId("region-retry"));
     expect(await screen.findByTestId("region-badge")).toHaveTextContent(

@@ -19,8 +19,9 @@ describe("HomeScreen (shell)", () => {
 
     // LocaleProvider resolves the persisted language asynchronously.
     expect(await screen.findByTestId("home-screen")).toBeOnTheScreen();
-    expect(screen.getByText("Welcome to Labby")).toBeOnTheScreen();
-    expect(screen.getByText("Your ride, your way.")).toBeOnTheScreen();
+    // Approved artboard "Main" (M7): the "Where to?" entry into booking.
+    expect(screen.getByText("Where to?")).toBeOnTheScreen();
+    expect(screen.getByText("Search destination")).toBeOnTheScreen();
     expect(screen.getByTestId("open-settings")).toBeOnTheScreen();
   });
 });

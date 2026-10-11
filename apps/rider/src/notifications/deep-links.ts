@@ -4,9 +4,9 @@
  * The backend sends `{screen, params}` from a fixed catalog; this module is
  * the only place that turns one into a rider-app route. Unknown screens open
  * the notification center (contract rule). The rider app has no screen for
- * the M5 driver-onboarding entries, and its ride screen arrives with M7, so
- * today every link lands on the center — where the notification itself is
- * readable — and M7 replaces the `ride` entry with the ride screen.
+ * the M5 driver-onboarding entries (they land on the center, where the
+ * notification itself is readable); `ride` {rideId} (rides-v1.yaml "Push")
+ * opens the ride screen for that ride.
  */
 import type { Href } from "expo-router";
 
@@ -19,9 +19,12 @@ type RouteBuilder = (params: Record<string, string>) => Href;
 /** Catalog screen → rider route. Anything not listed falls back to the center. */
 const CATALOG: Record<string, RouteBuilder> = {
   notifications: () => NOTIFICATION_CENTER_HREF,
-  // M7: `ride` (params.rideId) → the ride screen. Until it exists the
-  // center is the safe landing (the notification text is readable there).
-  ride: () => NOTIFICATION_CENTER_HREF,
+  // M7: the ride flow for that ride; without a ride id the center is the
+  // safe landing (the notification text is readable there).
+  ride: (params) =>
+    params.rideId
+      ? (`/ride/${encodeURIComponent(params.rideId)}` as Href)
+      : NOTIFICATION_CENTER_HREF,
 };
 
 export function resolveDeepLink(link: DeepLink | null | undefined): Href {

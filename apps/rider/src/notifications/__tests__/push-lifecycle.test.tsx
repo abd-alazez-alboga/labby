@@ -434,8 +434,8 @@ describe("push taps → deep links", () => {
       );
     });
 
-    // `ride` has no rider screen before M7 → the center (placeholder-safe).
-    expect(mockPush).toHaveBeenCalledWith("/notifications");
+    // M7: `ride` {rideId} opens the ride flow for that ride.
+    expect(mockPush).toHaveBeenCalledWith("/ride/r-1");
     await waitFor(() =>
       expect(
         api.callsTo("POST", "/api/v1/notifications/n-7/read"),

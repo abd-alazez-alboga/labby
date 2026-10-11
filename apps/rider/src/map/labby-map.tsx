@@ -12,6 +12,8 @@
  * - `route`     optional GeoJSON LineString straight from the routing API —
  *               converted to map points in geo.ts only.
  * - `routeApproximate` draws the route dashed (straight-line estimate).
+ * - `onCenterChange` pin picking: called with the map centre after every
+ *               pan/zoom (the page reports it only while this is set).
  */
 import React, {
   useCallback,
@@ -55,6 +57,7 @@ export interface LabbyMapProps {
   route?: GeoJsonLineString | null;
   routeApproximate?: boolean;
   followMe?: boolean;
+  onCenterChange?: (center: LatLng) => void;
   /** Distance of the tiles-unavailable notice from the top (clears floating buttons). */
   noticeTop?: number;
   style?: StyleProp<ViewStyle>;
@@ -72,6 +75,7 @@ export function LabbyMap({
   route = null,
   routeApproximate = false,
   followMe = false,
+  onCenterChange,
   noticeTop = spacing.sm,
   style,
   testID = "labby-map",
@@ -84,6 +88,11 @@ export function LabbyMap({
   const [reloadKey, setReloadKey] = useState(0);
 
   const routePoints = useMemo(() => lineStringToLatLngs(route), [route]);
+  const reportCenter = !!onCenterChange;
+  const centerListener = useRef(onCenterChange);
+  useEffect(() => {
+    centerListener.current = onCenterChange;
+  }, [onCenterChange]);
   const state = useMemo(
     () =>
       toMapViewState({
@@ -93,6 +102,7 @@ export function LabbyMap({
         markers,
         route: routePoints,
         routeApproximate,
+        reportCenter,
       }),
     // center is compared by value so a re-created object with the same
     // coordinates does not re-apply the page state.
@@ -105,6 +115,7 @@ export function LabbyMap({
       markers,
       routePoints,
       routeApproximate,
+      reportCenter,
     ],
   );
   // The page is built from the first state only; every later state (and the
@@ -132,6 +143,8 @@ export function LabbyMap({
     if (!message) return;
     if (message.type === "ready") setPageState("ready");
     else if (message.type === "tiles") setTilesOk(message.ok);
+    else if (message.type === "center")
+      centerListener.current?.({ lat: message.lat, lng: message.lng });
     else setPageState("failed");
   }, []);
 
