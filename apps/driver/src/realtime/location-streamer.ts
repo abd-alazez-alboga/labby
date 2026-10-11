@@ -23,7 +23,11 @@ import type { ClientFrame, GpsFix } from "./protocol";
  * 2. Every `streamIntervalSeconds` send the latest GPS fix as a `location`
  *    frame (fire-and-forget). A fix older than `staleAfterSeconds` is NOT
  *    resent — the server should see a silent stream rather than a fake-fresh
- *    one (TRK-04).
+ *    one (TRK-04). Sending is ALSO fix-driven: Android pauses JS timers in
+ *    the background while the OS location task (M6-X2) keeps delivering
+ *    fixes every interval, so each fix sends itself once at least the
+ *    interval has passed since the last send. The timer stays for the
+ *    foreground (a stationary driver with flaky GPS must not go silent).
  * 3. Whenever the session's access token rotates (refresh by any caller) a
  *    new `auth` frame is sent on the open socket; ~60 s before the token's
  *    `exp` the streamer refreshes it proactively so the socket never lapses.
@@ -31,13 +35,19 @@ import type { ClientFrame, GpsFix } from "./protocol";
  *    dead (half-open mobile connections) and replaced.
  * 5. Close 4401 ⇒ refresh the session, then reconnect (a dead refresh token
  *    signs the user out). Any other close (1001 shutdown, 4400, network) ⇒
- *    reconnect with exponential backoff (1 s … 30 s, jittered).
+ *    reconnect with exponential backoff (1 s … 30 s, jittered). In the
+ *    background the backoff timer is paused with the rest of the JS timers,
+ *    so a fix also reconnects once the backoff delay has already elapsed.
  * 6. While disconnected, samples are buffered (newest 20, the REST batch
  *    max); after the next `ready` they are flushed in one
  *    `POST /driver/locations` batch.
  * 7. `error` frames: `not_online` / `not_driver` are reported so availability
- *    can be re-read; `invalid_sample` is dropped. Unknown frame types (M7's
- *    ride events) are ignored.
+ *    can be re-read; `invalid_sample` is dropped. Every other frame type (M7's
+ *    `ride.*` / `offer.*` events) is handed on raw through `onEvent` — the
+ *    ride slice parses and filters it; this class stays protocol-only.
+ * 8. `onConnected` fires on the FIRST `ready` of every socket (connect and
+ *    each reconnect — not on re-auth), so the ride slice can resync: events
+ *    are not replayed (rides-v1.yaml).
  *
  * Battery choices: one socket, one tiny frame per interval, pings only every
  * 25 s, GPS at the stream cadence, and everything stops when offline — the
@@ -85,6 +95,10 @@ export interface StreamerDeps {
   onRejected?: (code: StreamRejection) => void;
   /** GPS could not start. */
   onSourceError?: (error: unknown) => void;
+  /** First `ready` of each socket (connect / reconnect) — resync point. */
+  onConnected?: () => void;
+  /** Server frames of any type this class does not handle itself. */
+  onEvent?: (frame: Record<string, unknown>) => void;
   random?: () => number;
   now?: () => number;
 }
@@ -103,6 +117,10 @@ export class LocationStreamer {
   private intervalSeconds: number;
   private staleAfterSeconds: number;
   private latest: LocationSample | null = null;
+  /** When the last sample was sent/buffered — gates the fix-driven path. */
+  private lastSentAt = 0;
+  /** When the pending backoff reconnect is due — a fix past it reconnects. */
+  private reconnectAt = 0;
   private buffer: LocationSample[] = [];
   private flushing = false;
   private status: StreamStatus = "idle";
@@ -132,6 +150,7 @@ export class LocationStreamer {
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
+    this.lastSentAt = this.deps.now?.() ?? Date.now();
     this.unsubscribeSession = this.deps.subscribeSession(() =>
       this.onSessionChange(),
     );
@@ -259,6 +278,7 @@ export class LocationStreamer {
           this.startPing();
           if (this.buffer.length > 0) void this.flush();
           else this.tick();
+          this.deps.onConnected?.();
         }
         break;
       }
@@ -269,8 +289,10 @@ export class LocationStreamer {
         // invalid_sample: the sample is dropped server-side; nothing to retry.
         break;
       case "pong":
+        // Liveness handled above.
+        break;
       case "unknown":
-        // pong: liveness handled above. Unknown types (M7 ride events) are ignored.
+        this.deps.onEvent?.(frame.raw);
         break;
     }
   }
@@ -314,6 +336,7 @@ export class LocationStreamer {
     this.setStatus("reconnecting");
     this.clearTimer("reconnect");
     const delay = backoffDelayMs(this.attempts, this.deps.random);
+    this.reconnectAt = (this.deps.now?.() ?? Date.now()) + delay;
     this.reconnectTimer = setTimeout(() => this.connect(), delay);
   }
 
@@ -347,6 +370,14 @@ export class LocationStreamer {
     const sample = sampleFromFix(fix);
     this.latest = sample;
     this.deps.onFix?.(sample);
+    // Android pauses JS timers in the background while the OS location task
+    // keeps delivering fixes, so the fix itself drives sending (once the
+    // interval has passed) and the overdue backoff reconnect (M6-X2).
+    const now = this.deps.now?.() ?? Date.now();
+    if (now - this.lastSentAt >= this.intervalSeconds * 1000) this.tick();
+    if (!this.socket && this.reconnectTimer && now >= this.reconnectAt) {
+      this.connect();
+    }
   }
 
   private restartTicker(): void {
@@ -363,6 +394,7 @@ export class LocationStreamer {
     const now = this.deps.now?.() ?? Date.now();
     if (now - Date.parse(sample.recordedAt) > this.staleAfterSeconds * 1000)
       return;
+    this.lastSentAt = now;
     if (this.authenticated && this.send({ type: "location", ...sample }))
       return;
     this.bufferSample(sample);

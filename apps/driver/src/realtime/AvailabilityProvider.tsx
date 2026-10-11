@@ -14,6 +14,9 @@
  *   being taken offline server-side, signing out).
  * - A user-initiated sign-out takes an online driver offline first
  *   (best-effort sign-out task).
+ * - The same socket carries M7's ride / offer events: `subscribeRealtime`
+ *   hands every (re)connect and every non-protocol frame to the ride slice
+ *   (rides/DriverRideProvider), which filters and resyncs — one socket only.
  */
 import * as Location from "expo-location";
 import React, {
@@ -41,7 +44,7 @@ import { getConfig } from "../config";
 import { failureKindOf } from "../onboarding/server-errors";
 import { runExclusive } from "../permissions/permission-queue";
 import type { FailureKind } from "../onboarding/server-errors";
-import { foregroundLocationSource } from "./location-source";
+import { driverLocationSource } from "./location-source";
 import { LocationStreamer } from "./location-streamer";
 import type { SocketLike, StreamStatus } from "./location-streamer";
 import { realtimeUrl } from "./protocol";
@@ -61,6 +64,15 @@ export type AvailabilityActionError =
   | "onlineRefused"
   /** PUT offline refused (M7: an active ride must finish first). */
   | "offlineConflict";
+
+/** What the socket hands to realtime consumers (the ride slice). */
+export type RealtimeEvent =
+  /** A socket reached `ready` (connect or reconnect) — refetch, events are not replayed. */
+  | { kind: "connected" }
+  /** A raw server frame the streamer does not handle itself (`ride.*`, `offer.*`…). */
+  | { kind: "frame"; frame: Record<string, unknown> };
+
+export type RealtimeListener = (event: RealtimeEvent) => void;
 
 export interface AvailabilityContextValue {
   load: AvailabilityLoad;
@@ -85,6 +97,8 @@ export interface AvailabilityContextValue {
   goOffline: () => Promise<void>;
   reload: () => Promise<void>;
   openSettings: () => void;
+  /** Ride / offer events and (re)connects of the realtime socket; returns the unsubscribe. */
+  subscribeRealtime: (listener: RealtimeListener) => () => void;
 }
 
 const AvailabilityContext = createContext<AvailabilityContextValue | null>(
@@ -120,6 +134,22 @@ export function AvailabilityProvider({
   const [position, setPosition] = useState<LocationSample | null>(null);
 
   const mounted = useRef(true);
+  const realtimeListeners = useRef(new Set<RealtimeListener>());
+  const emitRealtime = useCallback((event: RealtimeEvent) => {
+    for (const listener of [...realtimeListeners.current]) {
+      try {
+        listener(event);
+      } catch {
+        // One consumer's failure never breaks the socket or the others.
+      }
+    }
+  }, []);
+  const subscribeRealtime = useCallback((listener: RealtimeListener) => {
+    realtimeListeners.current.add(listener);
+    return () => {
+      realtimeListeners.current.delete(listener);
+    };
+  }, []);
   const activeRef = useRef(active);
   activeRef.current = active;
   const dataRef = useRef<DriverAvailability | null>(null);
@@ -260,7 +290,8 @@ export function AvailabilityProvider({
     const streamer = new LocationStreamer({
       url: realtimeUrl(getConfig().apiBaseUrl),
       createSocket: createWebSocket,
-      source: foregroundLocationSource(intervalSeconds),
+      // Background when the build + "Allow all the time" permit (M6-X2), else foreground.
+      source: driverLocationSource(intervalSeconds),
       intervalSeconds,
       staleAfterSeconds: data?.staleAfterSeconds ?? 30,
       getAccessToken: () => getSession()?.accessToken ?? null,
@@ -295,6 +326,12 @@ export function AvailabilityProvider({
       onSourceError: () => {
         if (mounted.current) setGpsUnavailable(true);
       },
+      onConnected: () => {
+        if (mounted.current) emitRealtime({ kind: "connected" });
+      },
+      onEvent: (frame) => {
+        if (mounted.current) emitRealtime({ kind: "frame", frame });
+      },
     });
     void streamer.start();
     return () => {
@@ -306,7 +343,7 @@ export function AvailabilityProvider({
         setPosition(null);
       }
     };
-  }, [shouldStream, fetchAvailability]);
+  }, [shouldStream, fetchAvailability, emitRealtime]);
 
   // While online and in the foreground, re-read the server's view.
   const pollMs =
@@ -356,6 +393,7 @@ export function AvailabilityProvider({
       goOffline,
       reload,
       openSettings,
+      subscribeRealtime,
     }),
     [
       load,
@@ -371,6 +409,7 @@ export function AvailabilityProvider({
       goOffline,
       reload,
       openSettings,
+      subscribeRealtime,
     ],
   );
 

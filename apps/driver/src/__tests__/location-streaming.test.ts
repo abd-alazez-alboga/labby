@@ -138,12 +138,18 @@ describe("realtime protocol helpers", () => {
       type: "ready",
       streamIntervalSeconds: 5,
     });
+    // Unknown types carry the raw frame on (M7: the ride frame dispatcher).
     expect(parseServerFrame('{"type":"ride.offered","rideId":"r"}')).toEqual({
       type: "unknown",
       rawType: "ride.offered",
+      raw: { type: "ride.offered", rideId: "r" },
     });
     expect(parseServerFrame("not json")).toBeNull();
-    expect(parseServerFrame("[1]")).toEqual({ type: "unknown", rawType: null });
+    expect(parseServerFrame("[1]")).toEqual({
+      type: "unknown",
+      rawType: null,
+      raw: [1],
+    });
   });
 
   it("backs off exponentially up to 30 s with bounded jitter", () => {
@@ -435,5 +441,70 @@ describe("LocationStreamer", () => {
     h.setToken(null);
     expect(socket.closedWith).toBe(1000);
     expect(h.streamer.getStatus()).toBe("idle");
+  });
+});
+
+/**
+ * M6-X2 — Android pauses JS timers in the background while the OS location
+ * task keeps delivering fixes every interval. Sending and the overdue backoff
+ * reconnect must therefore be fix-driven. Paused timers are simulated by
+ * moving the clock with jest.setSystemTime WITHOUT advancing fake timers.
+ */
+describe("LocationStreamer in the background (fix-driven, M6-X2)", () => {
+  it("sends on a fix once the interval has passed, without any timer tick", async () => {
+    const h = setup();
+    const socket = await startLive(h);
+    h.emitFix(33.5, 36.3);
+    await jest.advanceTimersByTimeAsync(5000);
+    const sent = socket.framesOfType("location").length;
+    expect(sent).toBeGreaterThan(0);
+
+    // Backgrounded: the clock moves, timers do not.
+    jest.setSystemTime(Date.now() + 5000);
+    h.emitFix(33.52, 36.32);
+    expect(socket.framesOfType("location")).toHaveLength(sent + 1);
+    expect(socket.framesOfType("location").at(-1)).toMatchObject({
+      lat: 33.52,
+      lng: 36.32,
+    });
+
+    // A fix inside the interval does NOT send again (one frame per interval).
+    jest.setSystemTime(Date.now() + 1000);
+    h.emitFix(33.53, 36.33);
+    expect(socket.framesOfType("location")).toHaveLength(sent + 1);
+  });
+
+  it("reconnects on a fix when the socket dropped and the backoff already elapsed", async () => {
+    const h = setup();
+    const first = await startLive(h);
+    first.serverClose(1001); // backoff 1 s scheduled, but its timer is paused
+    expect(MockSocket.instances).toHaveLength(1);
+
+    jest.setSystemTime(Date.now() + 5000);
+    h.emitFix(33.6, 36.4);
+    expect(MockSocket.instances).toHaveLength(2);
+    // The triggering fix is buffered and flushed over REST after ready.
+    expect(h.streamer.pendingSamples()).toHaveLength(1);
+
+    const second = MockSocket.latest();
+    second.open();
+    second.ready();
+    await jest.advanceTimersByTimeAsync(0);
+    expect(h.postSamples).toHaveBeenCalledTimes(1);
+    expect(h.statuses.at(-1)).toBe("live");
+  });
+
+  it("a fix before the backoff is due leaves the reconnect timer alone", async () => {
+    const h = setup();
+    const first = await startLive(h);
+    first.serverClose(1006); // backoff 1 s
+    jest.setSystemTime(Date.now() + 500);
+    h.emitFix();
+    expect(MockSocket.instances).toHaveLength(1);
+
+    // Foregrounded again: the timer resumes and reconnects on schedule
+    // (setSystemTime moves only the clock — the timer still needs its 1 s).
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(MockSocket.instances).toHaveLength(2);
   });
 });

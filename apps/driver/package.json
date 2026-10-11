@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "jest --ci",
@@ -34,6 +34,7 @@
     "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
+    "expo-task-manager": "~57.0.21",
     "i18next": "^25.5.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",

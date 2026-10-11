@@ -71,6 +71,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         locationWhenInUsePermission:
           'Labby Driver uses your location to find your operating region and ride requests, and shares it with Labby while you are online.',
+        // M6-X2 (TRK-01 "whenever online"): keep streaming in the background while online,
+        // under a location foreground service on Android (dev builds; Expo Go stays foreground).
+        locationAlwaysAndWhenInUsePermission:
+          'Labby Driver shares your location with Labby while you are online, also when the app is in the background, so you keep receiving ride requests.',
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
+        isIosBackgroundLocationEnabled: true,
       },
     ],
     // Push (M6-T4). FCM credentials (google-services.json) arrive with M6-T5.
