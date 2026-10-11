@@ -412,6 +412,13 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
     assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(updated.getBody().get("timeZone")).isEqualTo("Asia/Beirut");
 
+    // M7 audit W1: a save that omits the field (the admin dashboard has none) keeps the zone.
+    ResponseEntity<Map<String, Object>> savedWithoutZone =
+        sendForMap(
+            "/api/v1/admin/regions/" + regionId, HttpMethod.PUT, Map.of("name", "Tartus"), token);
+    assertThat(savedWithoutZone.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(savedWithoutZone.getBody().get("timeZone")).isEqualTo("Asia/Beirut");
+
     assertThat(
             send(
                     "/api/v1/admin/regions/" + regionId,

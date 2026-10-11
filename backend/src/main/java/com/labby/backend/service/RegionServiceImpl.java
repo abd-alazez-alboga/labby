@@ -205,10 +205,14 @@ public class RegionServiceImpl implements RegionService {
     }
   }
 
-  /** The requested IANA zone, or the default when omitted; an unknown id is a 400. */
-  private static String timeZone(String requested) {
+  /**
+   * The requested IANA zone, or the region's current one when omitted (the admin dashboard has no
+   * time-zone field yet, so a bundle save must not reset a zone set via the API — M7 audit W1); an
+   * unknown id is a 400. New regions start at {@link Region#DEFAULT_TIME_ZONE}.
+   */
+  private static String timeZone(String requested, String current) {
     if (requested == null) {
-      return Region.DEFAULT_TIME_ZONE;
+      return current;
     }
     try {
       return ZoneId.of(requested).getId();
@@ -223,7 +227,7 @@ public class RegionServiceImpl implements RegionService {
     region.setBoundary(boundary);
     region.setCurrency(request.currency());
     region.setEmergencyNumber(request.emergencyNumber());
-    region.setTimeZone(timeZone(request.timeZone()));
+    region.setTimeZone(timeZone(request.timeZone(), region.getTimeZone()));
     region.setCancellationGraceMin(request.cancellationGraceMin());
     region.setCancellationFee(request.cancellationFee());
     region.setWaitGraceMin(request.waitGraceMin());

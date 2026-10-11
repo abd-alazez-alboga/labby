@@ -530,7 +530,9 @@ components:
           type: string
           maxLength: 64
           description: >
-            IANA time zone id (M7). Omitted → `Asia/Damascus`. An unknown id is rejected (400).
+            IANA time zone id (M7). Omitted → the region keeps its current zone (a new region
+            starts at `Asia/Damascus`), so a client without the field never resets it.
+            An unknown id is rejected (400).
         cancellationGraceMin: { type: [integer, 'null'], minimum: 0 }
         cancellationFee: { type: [number, 'null'], minimum: 0 }
         waitGraceMin: { type: [integer, 'null'], minimum: 0 }
