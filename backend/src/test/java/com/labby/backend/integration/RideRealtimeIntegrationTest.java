@@ -144,6 +144,30 @@ class RideRealtimeIntegrationTest extends AbstractRideIntegrationTest {
   }
 
   @Test
+  @DisplayName("driver cancel: the rider's cancelled frame already names the re-dispatched ride")
+  void shouldNameRedispatchedRideInCancelFrame() throws Exception {
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    BlockingQueue<JsonNode> riderFrames = connect(rider);
+    UUID rideId = book(rider);
+    dispatchAndAccept(rideId, driver);
+
+    ok(
+        post(
+            "/api/v1/driver/rides/" + rideId + "/cancel",
+            Map.of("reason", "vehicle_issue"),
+            driver.token()),
+        HttpStatus.OK);
+    JsonNode cancelled = nextState(riderFrames, "cancelled_by_driver");
+    String newRideId = cancelled.get("ride").get("redispatchedAsRideId").asText();
+    assertThat(newRideId).isNotBlank();
+    JsonNode requested = nextState(riderFrames, "requested");
+    assertThat(requested.get("ride").get("id").asText()).isEqualTo(newRideId);
+    assertThat(requested.get("ride").get("redispatchOfRideId").asText())
+        .isEqualTo(rideId.toString());
+  }
+
+  @Test
   @DisplayName("an open offer withdrawn by a rider cancel is announced to its driver")
   void shouldAnnounceWithdrawnOffer() throws Exception {
     Account rider = rider();

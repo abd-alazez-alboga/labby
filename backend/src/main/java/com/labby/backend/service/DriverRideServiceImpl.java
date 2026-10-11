@@ -318,17 +318,19 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setCancellationReason(request.reason());
     ride.setCancellationNote(RiderRideServiceImpl.blankToNull(request.note()));
     ride = rideRepository.saveAndFlush(ride);
+    // The new linked ride is saved BEFORE the cancelled ride is announced, so the rider's
+    // ride.state frame already carries redispatchedAsRideId (rides-v1 rider view).
+    Ride redispatched = noShow ? null : redispatch(ride, now);
     rideEvents.stateChanged(ride);
     Map<String, Object> pushParams = new HashMap<>();
     pushParams.put("noShow", String.valueOf(noShow));
-    if (noShow) {
+    if (redispatched == null) {
       pushParams.put("rideId", ride.getId().toString());
       if (ride.getCancellationFee() != null) {
         pushParams.put("fee", ride.getCancellationFee().toPlainString());
         pushParams.put("currency", ride.getCurrency());
       }
     } else {
-      Ride redispatched = redispatch(ride, now);
       rideEvents.stateChanged(redispatched);
       pushParams.put("rideId", redispatched.getId().toString());
     }
