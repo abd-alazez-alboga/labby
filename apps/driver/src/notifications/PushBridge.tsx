@@ -5,7 +5,8 @@ import { AppState } from "react-native";
 import { markNotificationRead } from "../api/notifications";
 import { useAuth } from "../auth/AuthProvider";
 import { addSignOutTask } from "../auth/sign-out-tasks";
-import { hrefForLink, parsePushPayload } from "./deep-links";
+import { useOptionalDriverRide } from "../rides/DriverRideProvider";
+import { hrefForLink, isRideLink, parsePushPayload } from "./deep-links";
 import {
   configureForegroundPresentation,
   onNotificationReceived,
@@ -26,15 +27,18 @@ import { refreshUnread } from "./unread-store";
  *   permission granted later in Settings) retries on the next foreground;
  * - unregisters it on sign-out (a sign-out task, while the session lives);
  * - routes notification taps (warm and cold start) through the shared
- *   deep-link mapper and marks the tapped notification read;
+ *   deep-link mapper and marks the tapped notification read; a `ride_offer`
+ *   / `ride` tap also makes the ride facade resync (the offer may be gone);
  * - refreshes the unread badge when a push arrives in the foreground.
  */
 export function PushBridge() {
   const router = useRouter();
   const { status, isDriver } = useAuth();
   const signedIn = status === "signedIn";
-  const context = useRef({ signedIn, isDriver });
-  context.current = { signedIn, isDriver };
+  const rides = useOptionalDriverRide();
+  const openRideLink = rides?.openLink;
+  const context = useRef({ signedIn, isDriver, openRideLink });
+  context.current = { signedIn, isDriver, openRideLink };
 
   useEffect(() => {
     configureForegroundPresentation();
@@ -87,6 +91,8 @@ export function PushBridge() {
           .catch(() => {})
           .finally(() => void refreshUnread());
       }
+      if (context.current.isDriver && isRideLink(link))
+        context.current.openRideLink?.(link);
       router.navigate(
         hrefForLink(link, { isDriver: context.current.isDriver }),
       );

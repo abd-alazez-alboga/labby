@@ -1,5 +1,6 @@
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
 
 import { colors, radius, spacing } from "../../theme/tokens";
 import { Icon } from "./icons";
@@ -32,8 +33,8 @@ function BaseButton({
   pressedStyle,
   children,
 }: Omit<ButtonProps, "title" | "icon"> & {
-  style: object;
-  pressedStyle?: object;
+  style: StyleProp<ViewStyle>;
+  pressedStyle?: StyleProp<ViewStyle>;
   children: React.ReactNode;
 }) {
   const blocked = !!disabled || !!busy;
@@ -62,31 +63,71 @@ function Label({
   icon,
   color,
   variant,
+  fontSize,
 }: {
   title: string;
   icon?: IconName;
   color: string;
   variant: "button" | "bodyStrong";
+  fontSize?: number;
 }) {
   const { flipRows } = useDirection();
   return (
     <View style={[styles.labelRow, flipRows && styles.rowReverse]}>
       {icon ? <Icon name={icon} color={color} /> : null}
-      <AppText variant={variant} color={color} align="center">
+      <AppText
+        variant={variant}
+        color={color}
+        align="center"
+        style={
+          fontSize ? { fontSize, lineHeight: Math.round(fontSize * 1.3) } : null
+        }
+      >
         {title}
       </AppText>
     </View>
   );
 }
 
-/** Full-width 56 px accent button — the one dominant action of a screen. */
-export function PrimaryButton({ title, icon, busy, ...props }: ButtonProps) {
+/**
+ * Glanceable sizes for in-ride screens (NFR-U2): `large` 64 px (offer
+ * accept, arrived), `hero` 72 px (start / end ride, cash received).
+ */
+export type PrimarySize = "regular" | "large" | "hero";
+
+const PRIMARY_SIZES: Record<
+  PrimarySize,
+  { minHeight: number; borderRadius: number; fontSize?: number }
+> = {
+  regular: { minHeight: 56, borderRadius: radius.md },
+  large: { minHeight: 64, borderRadius: radius.lg, fontSize: 21 },
+  hero: { minHeight: 72, borderRadius: 18, fontSize: 24 },
+};
+
+/**
+ * Full-width accent button — the one dominant action of a screen. `size`
+ * grows it for glanceable driver screens; `tone="dark"` is the near-black
+ * fill of the in-ride "End ride" action (never a second accent colour).
+ */
+export function PrimaryButton({
+  title,
+  icon,
+  busy,
+  size = "regular",
+  tone = "accent",
+  ...props
+}: ButtonProps & { size?: PrimarySize; tone?: "accent" | "dark" }) {
+  const dims = PRIMARY_SIZES[size];
   return (
     <BaseButton
       {...props}
       busy={busy}
-      style={styles.primary}
-      pressedStyle={styles.primaryPressed}
+      style={[
+        styles.primary,
+        { minHeight: dims.minHeight, borderRadius: dims.borderRadius },
+        tone === "dark" && styles.primaryDark,
+      ]}
+      pressedStyle={tone === "dark" ? styles.darkPressed : styles.primaryPressed}
     >
       {busy ? (
         <ActivityIndicator color={colors.onAccent} />
@@ -96,7 +137,72 @@ export function PrimaryButton({ title, icon, busy, ...props }: ButtonProps) {
           icon={icon}
           color={colors.onAccent}
           variant="button"
+          fontSize={dims.fontSize}
         />
+      )}
+    </BaseButton>
+  );
+}
+
+/**
+ * 56 px white button with a 1.5 px outline — secondary choices next to a
+ * dominant action (no-show, cancel ride, rider didn't pay). `danger` is the
+ * destructive confirm.
+ */
+export function OutlineButton({
+  title,
+  icon,
+  busy,
+  tone = "neutral",
+  ...props
+}: ButtonProps & { tone?: "neutral" | "danger" }) {
+  const color = tone === "danger" ? colors.danger : colors.text;
+  return (
+    <BaseButton
+      {...props}
+      busy={busy}
+      style={[styles.outline, tone === "danger" && styles.outlineDanger]}
+      pressedStyle={styles.secondaryPressed}
+    >
+      {busy ? (
+        <ActivityIndicator color={color} />
+      ) : (
+        <Label title={title} icon={icon} color={color} variant="bodyStrong" />
+      )}
+    </BaseButton>
+  );
+}
+
+/** 64 × 64 icon-only `surface-fill` button beside a large primary (decline, cancel). */
+export function SquareIconButton({
+  icon,
+  accessibilityLabel,
+  onPress,
+  disabled,
+  busy,
+  testID,
+}: {
+  icon: IconName;
+  accessibilityLabel: string;
+  onPress: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  testID?: string;
+}) {
+  return (
+    <BaseButton
+      onPress={onPress}
+      disabled={disabled}
+      busy={busy}
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
+      style={styles.square}
+      pressedStyle={styles.secondaryPressed}
+    >
+      {busy ? (
+        <ActivityIndicator color={colors.text} />
+      ) : (
+        <Icon name={icon} size={24} />
       )}
     </BaseButton>
   );
@@ -194,6 +300,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   primaryPressed: { backgroundColor: colors.accentPressed },
+  primaryDark: { backgroundColor: colors.text },
+  darkPressed: { opacity: 0.85 },
+  outline: {
+    alignSelf: "stretch",
+    minHeight: 56,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+  },
+  outlineDanger: { borderColor: colors.danger },
+  square: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceFill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   secondary: {
     alignSelf: "stretch",
     minHeight: 52,

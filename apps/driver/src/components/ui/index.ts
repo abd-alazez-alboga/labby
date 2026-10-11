@@ -6,10 +6,13 @@ export { Banner } from "./banner";
 export { Card, FailureState, KeyValue, LoadingState } from "./blocks";
 export {
   DestructiveTextButton,
+  OutlineButton,
   PrimaryButton,
   SecondaryButton,
+  SquareIconButton,
   TextButton,
 } from "./buttons";
+export type { PrimarySize } from "./buttons";
 export { Chevron, Icon } from "./icons";
 export type { IconName } from "./icons";
 export { ListRow } from "./list-row";

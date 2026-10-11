@@ -17,11 +17,15 @@ import {
 } from "./availability/availability-sheet";
 import { OsmMap } from "./map/osm-map";
 import { NotificationsBell } from "./notifications/notifications-bell";
+import { BackgroundLocationBanner } from "./availability/background-location-banner";
+import { RideNoticeBanner } from "./ride/ride-parts";
+import { RideScreen } from "./ride/ride-screen";
 import { takeReturnRoute } from "../i18n/direction-reload";
 import { useLocale } from "../i18n/LocaleProvider";
 import { useOptionalAvailability } from "../realtime/AvailabilityProvider";
 import type { AvailabilityContextValue } from "../realtime/AvailabilityProvider";
 import { useOptionalRegion } from "../region/RegionProvider";
+import { useOptionalDriverRide } from "../rides/DriverRideProvider";
 import type { RegionContextValue } from "../region/RegionProvider";
 import { colors, radius, spacing } from "../theme/tokens";
 import {
@@ -162,7 +166,9 @@ function RegionBlocked({ region }: { region: RegionContextValue }) {
 
 /**
  * Driver home (design canvas "Driver offline"): full-bleed map, the Menu
- * and notification FABs, the GO button and the status bottom sheet.
+ * and notification FABs, the GO button and the status bottom sheet. While
+ * an offer is open or a ride is active, the home route IS the ride flow
+ * (map-first, design canvas "Driver offer" … "Driver complete").
  */
 export function HomeScreen() {
   const { t } = useTranslation();
@@ -184,6 +190,11 @@ export function HomeScreen() {
     region && region.status !== "resolved" && region.status !== "loading"
       ? region
       : null;
+  const rides = useOptionalDriverRide();
+
+  if (rides && (rides.offer || rides.ride)) {
+    return <RideScreen ctx={rides} />;
+  }
 
   return (
     <MapScreen
@@ -220,6 +231,13 @@ export function HomeScreen() {
               }
               testID="home-sheet"
             >
+              {rides?.notice ? (
+                <RideNoticeBanner
+                  notice={rides.notice}
+                  onDismiss={rides.dismissNotice}
+                />
+              ) : null}
+              <BackgroundLocationBanner />
               <AvailabilitySheet
                 ctx={availability}
                 regionLine={<RegionLine region={region} />}

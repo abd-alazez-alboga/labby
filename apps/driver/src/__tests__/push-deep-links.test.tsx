@@ -150,7 +150,9 @@ describe("deep-link mapper (UC-S-11)", () => {
 
   it("falls back to the center for unknown screens, missing links and gated targets", () => {
     expect(
-      hrefForLink({ screen: "ride", params: { rideId: "r1" } }, driver),
+      // `ride` / `ride_offer` joined the catalog in M7 (rides-v1.yaml); a
+      // screen still outside it falls back to the center.
+      hrefForLink({ screen: "chat", params: { threadId: "t1" } }, driver),
     ).toBe("/notifications");
     expect(hrefForLink(null, driver)).toBe("/notifications");
     expect(hrefForLink(undefined, driver)).toBe("/notifications");
@@ -443,7 +445,7 @@ describe("push registration + taps (UC-S-25)", () => {
     expect(await screen.findByTestId("vehicles-route")).toBeTruthy();
 
     await act(async () => {
-      tapListener?.(tapResponse({ screen: "ride", params: { rideId: "r-1" } }));
+      tapListener?.(tapResponse({ screen: "chat", params: { threadId: "t-1" } }));
     });
     expect(await screen.findByTestId("notifications-route")).toBeTruthy();
   });

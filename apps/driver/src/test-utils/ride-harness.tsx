@@ -1,0 +1,156 @@
+import * as Location from "expo-location";
+import { renderRouter, screen } from "expo-router/testing-library";
+import { act, waitFor } from "@testing-library/react-native";
+import React from "react";
+import { View } from "react-native";
+
+import { AuthProvider } from "../auth/AuthProvider";
+import { HomeScreen } from "../components/home-screen";
+import { NotificationCenterScreen } from "../components/notifications/notification-center-screen";
+import { LocaleProvider } from "../i18n/LocaleProvider";
+import { PushBridge } from "../notifications/PushBridge";
+import { AvailabilityProvider } from "../realtime/AvailabilityProvider";
+import { DriverRideProvider } from "../rides/DriverRideProvider";
+import { driverUser, installContractFetch, seedSession } from "./contract";
+import type { ContractFetch, MockResponse } from "./contract";
+import { availabilityFixture, MockSocket } from "./realtime";
+
+/**
+ * The driver app's ride loop under test: the real providers (auth,
+ * availability + its socket, the ride facade, push bridge) around the real
+ * home route, the API mocked at the fetch boundary (contract-shaped) and the
+ * socket scripted frame by frame (MockSocket).
+ */
+
+export const OPEN_OFFER = "GET /api/v1/driver/offers/open";
+export const ACTIVE_RIDE = "GET /api/v1/driver/rides/active";
+export const AVAILABILITY = "GET /api/v1/driver/availability";
+export const SET_AVAILABILITY = "PUT /api/v1/driver/availability";
+
+export const NONE: MockResponse = { status: 204 };
+
+type WatchCallback = (position: Location.LocationObject) => void;
+const locationMock = Location as jest.Mocked<typeof Location>;
+let watchCallback: WatchCallback | null = null;
+
+export function mockLocationGranted() {
+  watchCallback = null;
+  locationMock.requestForegroundPermissionsAsync.mockResolvedValue({
+    granted: true,
+    status: "granted" as Location.PermissionStatus,
+    canAskAgain: true,
+    expires: "never",
+  });
+  locationMock.watchPositionAsync.mockImplementation(
+    async (_options, callback) => {
+      watchCallback = callback as WatchCallback;
+      return { remove: jest.fn() } as unknown as Location.LocationSubscription;
+    },
+  );
+}
+
+export function emitPosition(lat: number, lng: number) {
+  act(() => {
+    watchCallback?.({
+      coords: {
+        latitude: lat,
+        longitude: lng,
+        altitude: null,
+        accuracy: 5,
+        altitudeAccuracy: null,
+        heading: 0,
+        speed: 0,
+      },
+      timestamp: Date.now(),
+    });
+  });
+}
+
+export function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
+  return {
+    "GET /api/v1/meta": {
+      status: 200,
+      body: { name: "labby-backend", version: "0.1.0" },
+    },
+    "GET /api/v1/notifications/unread-count?app=driver": {
+      status: 200,
+      body: { unread: 0 },
+    },
+    [AVAILABILITY]: {
+      status: 200,
+      body: availabilityFixture({
+        online: true,
+        onlineSince: "2026-10-08T08:00:00Z",
+      }),
+    },
+    [OPEN_OFFER]: NONE,
+    [ACTIVE_RIDE]: NONE,
+  };
+}
+
+function Layout({ language }: { language: "en" | "ar" }) {
+  const { Slot } = jest.requireActual("expo-router");
+  return (
+    <LocaleProvider initialLanguage={language}>
+      <AuthProvider>
+        <AvailabilityProvider>
+          <DriverRideProvider>
+            <Slot />
+            <PushBridge />
+          </DriverRideProvider>
+        </AvailabilityProvider>
+      </AuthProvider>
+    </LocaleProvider>
+  );
+}
+
+/** Signs a driver in, mocks the contract and renders the app on the home route. */
+export async function renderDriverApp(
+  routes: Record<string, MockResponse | MockResponse[]> = {},
+  options: { language?: "en" | "ar"; initialUrl?: string } = {},
+): Promise<ContractFetch> {
+  await seedSession(driverUser());
+  const contract = installContractFetch({ ...baseRoutes(), ...routes });
+  const language = options.language ?? "en";
+  renderRouter(
+    {
+      _layout: () => <Layout language={language} />,
+      index: () => <HomeScreen />,
+      notifications: () => <NotificationCenterScreen />,
+      settings: () => <View testID="settings-route" />,
+    },
+    { initialUrl: options.initialUrl ?? "/" },
+  );
+  return contract;
+}
+
+/** Online driver: the socket opens, GPS reports, `ready` arrives → resync. */
+export async function goLive(position = { lat: 33.49, lng: 36.27 }) {
+  await waitFor(() => expect(MockSocket.instances.length).toBeGreaterThan(0));
+  const socket = MockSocket.latest();
+  act(() => socket.open());
+  await waitFor(() => expect(watchCallback).not.toBeNull());
+  emitPosition(position.lat, position.lng);
+  act(() => socket.ready());
+  return socket;
+}
+
+/** Delivers a server frame on the socket. */
+export function receive(socket: MockSocket, frame: unknown) {
+  act(() => socket.receive(frame));
+}
+
+/** Waits until the facade's resync after `ready` has hit both endpoints. */
+export async function waitForResync(contract: ContractFetch, times = 1) {
+  await waitFor(() => {
+    expect(contract.requestsTo(OPEN_OFFER).length).toBeGreaterThanOrEqual(
+      times,
+    );
+    expect(contract.requestsTo(ACTIVE_RIDE).length).toBeGreaterThanOrEqual(
+      times,
+    );
+  });
+  await act(async () => {});
+}
+
+export { screen };

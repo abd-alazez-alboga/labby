@@ -8,8 +8,11 @@ import type { DeepLink } from "../api/realtime-types";
  * expo-router href, shared by the notification center and push taps.
  *
  * Catalog (realtime-v1.yaml): `driver_application`, `driver_documents`
- * (params: `documentType?`), `driver_vehicles`, `notifications`; M7+ add
- * `ride` and later screens. Unknown screens open the notification center.
+ * (params: `documentType?`), `driver_vehicles`, `notifications`; M7 adds
+ * `ride` (params `rideId`) and `ride_offer` (params `offerId`) — both open
+ * the home route, which IS the ride flow, after the ride facade resynced
+ * (`DriverRideContextValue.openLink`). Unknown screens open the
+ * notification center.
  *
  * The target respects the driver gate (the stacks are guarded): an
  * applicant/suspended account has no home or vehicles screen, an active
@@ -40,6 +43,9 @@ export function hrefForLink(
     }
     case "driver_vehicles":
       return context.isDriver ? "/vehicles" : NOTIFICATIONS_HREF;
+    case "ride":
+    case "ride_offer":
+      return context.isDriver ? "/" : NOTIFICATIONS_HREF;
     case "notifications":
     default:
       return NOTIFICATIONS_HREF;
@@ -93,4 +99,9 @@ export function parsePushPayload(data: unknown): PushPayload {
     link: screen ? { screen, params: stringParams(source.params) } : null,
     notificationId,
   };
+}
+
+/** Links the ride facade must resync for before the home route shows them. */
+export function isRideLink(link: DeepLink | null | undefined): boolean {
+  return link?.screen === "ride" || link?.screen === "ride_offer";
 }

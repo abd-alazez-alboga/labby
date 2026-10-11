@@ -63,7 +63,7 @@
       "confirm": "كلمتا المرور غير متطابقتين."
     },
     "otp": {
-      "sentTo": "أرسلنا رمزاً من 6 أرقام إلى \u2066{{phone}}\u2069.",
+      "sentTo": "أرسلنا رمزاً من 6 أرقام إلى ⁦{{phone}}⁩.",
       "resend": "إعادة إرسال الرمز",
       "resendIn": "إعادة إرسال الرمز ({{seconds}} ث)",
       "wrongCode": "الرمز غير صحيح. حاول مرة أخرى.",
@@ -497,5 +497,141 @@
         "safety": "تنبيهات السلامة ومعلومات الطوارئ."
       }
     }
+  },
+  "ride": {
+    "money": "{{amount}} {{currency}}",
+    "meters": "{{value}} م",
+    "kilometers": "{{value}} كم",
+    "minutes": "{{value}} د",
+    "pinnedLocation": "موقع محدد على الخريطة",
+    "theRider": "الراكب",
+    "online": "متصل",
+    "dropOff": "الوجهة",
+    "stopN": "المحطة {{n}}",
+    "dismiss": "حسناً",
+    "comfort": {
+      "temperature": {
+        "no_preference": "بلا تفضيل للحرارة",
+        "cool": "بارد",
+        "normal": "حرارة معتدلة",
+        "warm": "دافئ"
+      },
+      "conversation": {
+        "no_preference": "بلا تفضيل للحديث",
+        "quiet": "هادئ",
+        "chatty": "يحب الحديث"
+      },
+      "music": {
+        "no_preference": "بلا تفضيل للموسيقى",
+        "none": "بلا موسيقى",
+        "soft": "موسيقى هادئة",
+        "any": "أي موسيقى"
+      }
+    },
+    "payment": {
+      "cash": "نقداً",
+      "wallet": "المحفظة"
+    },
+    "offer": {
+      "serviceAndPayment": "{{service}} · {{payment}}",
+      "secondsLeft": "متبقٍ {{count}} ث للرد",
+      "estimatedFare": "الأجرة التقديرية",
+      "estimatedFareSurge": "الأجرة التقديرية · تسعير الذروة",
+      "pickupAway": "على بعد {{eta}} · {{distance}}",
+      "accept": "قبول",
+      "decline": "رفض"
+    },
+    "toPickup": {
+      "title": "اصطحب {{name}}",
+      "summary": "{{service}} · {{payment}} · {{fare}} تقديرياً",
+      "subtitle": "إلى نقطة الالتقاء · {{place}}",
+      "headTo": "توجّه إلى نقطة الالتقاء",
+      "arrived": "وصلت",
+      "outsideGeofence": "أنت على بعد {{distance}}. اقترب لمسافة {{geofence}} لتسجيل الوصول.",
+      "outsideGeofenceNoDistance": "لم تصل إلى نقطة الالتقاء بعد. اقترب لمسافة {{geofence}} لتسجيل الوصول.",
+      "noPosition": "لا يتوفر موقعك الحالي بعد. أبقِ لبي مفتوحاً مع تشغيل الموقع، ثم حاول مجدداً."
+    },
+    "atPickup": {
+      "waitingFor": "بانتظار {{name}}",
+      "freeWaitEndsIn": "ينتهي الانتظار المجاني خلال {{time}}. بعدها يمكنك الإلغاء لعدم حضور الراكب.",
+      "freeWaitOver": "انتهى الانتظار المجاني. يمكنك الإلغاء لعدم حضور الراكب.",
+      "start": "ابدأ الرحلة",
+      "noShow": "الراكب لم يحضر",
+      "noShowIn": "عدم الحضور بعد {{time}}"
+    },
+    "inRide": {
+      "title": "رحلة {{name}}",
+      "dropOffIn": "الوجهة · {{eta}}",
+      "dropOffUpdated": "الوجهة · عدّل الراكب المسار",
+      "routeChanged": "غيّر الراكب المسار.",
+      "metered": "{{payment}} · تُحسب الأجرة من الرحلة الفعلية",
+      "end": "أنهِ الرحلة"
+    },
+    "complete": {
+      "title": "اكتملت الرحلة · {{name}}",
+      "collectCash": "حصّل نقداً",
+      "cashReceived": "استلمت النقود",
+      "riderDidNotPay": "الراكب لم يدفع",
+      "fareMissing": "الأجرة غير متاحة بعد. حدّث بعد لحظات."
+    },
+    "fare": {
+      "base": "الأجرة الأساسية",
+      "distance": "المسافة",
+      "distanceWith": "المسافة · {{distance}}",
+      "time": "الوقت",
+      "timeWith": "الوقت · {{time}}",
+      "surcharge": "رسوم إضافية حسب الوقت +{{percent}}٪",
+      "surge": "تسعير الذروة ×{{multiplier}}",
+      "wait": "وقت الانتظار",
+      "pickupFee": "رسوم مسافة الالتقاء",
+      "minimumAdjustment": "إكمال الحد الأدنى للأجرة",
+      "discount": "خصم"
+    },
+    "cancel": {
+      "open": "إلغاء الرحلة",
+      "title": "إلغاء رحلة {{name}}؟",
+      "copy": "لن يدفع {{name}} أي رسوم، وسنبحث عن سائق آخر للرحلة. تُحتسب الإلغاءات ضمن معدل الإلغاء لديك.",
+      "noShowCopy": "سيدفع {{name}} رسوم الإلغاء ولن يُرسل سائق جديد. تُحتسب الإلغاءات ضمن معدل الإلغاء لديك.",
+      "reasonLabel": "السبب (إلزامي)",
+      "reasons": {
+        "rider_no_show": "الراكب لم يحضر",
+        "vehicle_issue": "مشكلة في المركبة",
+        "unsafe_pickup": "نقطة الالتقاء غير آمنة",
+        "other": "سبب آخر"
+      },
+      "noShowAvailable": "انتهى الانتظار المجاني · يدفع الراكب الرسوم",
+      "noShowIn": "متاح بعد {{time}} · يدفع الراكب الرسوم",
+      "noShowAfterArrival": "متاح بعد انتهاء الانتظار المجاني في نقطة الالتقاء · يدفع الراكب الرسوم",
+      "noteLabel": "ماذا حدث؟ (إلزامي)",
+      "noteRequired": "أخبرنا باختصار بما حدث.",
+      "noShowTooEarly": "من المبكر الإلغاء لعدم الحضور — لم ينتهِ الانتظار المجاني بعد.",
+      "noShowTooEarlyAt": "من المبكر الإلغاء لعدم الحضور. يمكنك ذلك من {{time}}.",
+      "keep": "متابعة الرحلة",
+      "confirm": "إلغاء الرحلة"
+    },
+    "connectionLostTitle": "انقطع الاتصال",
+    "connectionLostBody": "موقعك لا يصل إلى لبي. أبقِ التطبيق مفتوحاً وتحقّق من الإشارة.",
+    "errors": {
+      "network": "لا يوجد اتصال. تحقّق من الإنترنت وحاول مجدداً.",
+      "server": "حدث خطأ ما. يرجى المحاولة مجدداً."
+    },
+    "notice": {
+      "offerExpired": "انتهت مهلة العرض.",
+      "offerCancelled": "ألغى الراكب الرحلة.",
+      "offerClosed": "هذا العرض لم يعد متاحاً.",
+      "offerGone": "هذا العرض لم يعد متاحاً.",
+      "riderCancelled": "ألغى الراكب الرحلة.",
+      "rideCancelled": "تم إلغاء الرحلة.",
+      "cashConfirmed": "تم استلام النقود — أُغلقت الرحلة.",
+      "markedUnpaid": "سُجّلت الرحلة كغير مدفوعة — أُغلقت الرحلة.",
+      "paymentSettled": "سبق تسجيل الدفع لهذه الرحلة."
+    }
+  },
+  "backgroundLocation": {
+    "noticeTitle": "أنت متصل",
+    "noticeBody": "يشارك لبي موقعك ليجد لك رحلات.",
+    "deniedTitle": "تتوقف طلبات الرحلات في الخلفية",
+    "deniedBody": "اسمح بالوصول إلى الموقع «طوال الوقت» لتستمر في تلقي طلبات الرحلات عندما يكون لبي مغلقاً.",
+    "openSettings": "فتح الإعدادات"
   }
 }

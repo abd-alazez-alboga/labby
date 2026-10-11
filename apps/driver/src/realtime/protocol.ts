@@ -39,8 +39,11 @@ export type ServerFrame =
     }
   | { type: "pong" }
   | { type: "error"; code: string; message?: string }
-  /** Anything else (M7 adds `ride.*`, `offer.*`, …) — clients ignore it. */
-  | { type: "unknown"; rawType: string | null };
+  /**
+   * Anything else — M7's `ride.*` / `offer.*` events are handed on raw to
+   * the ride frame dispatcher (realtime/ride-frames); the rest is ignored.
+   */
+  | { type: "unknown"; rawType: string | null; raw: Record<string, unknown> };
 
 /** Parses a server text frame; never throws. */
 export function parseServerFrame(data: unknown): ServerFrame | null {
@@ -73,6 +76,7 @@ export function parseServerFrame(data: unknown): ServerFrame | null {
       return {
         type: "unknown",
         rawType: typeof frame.type === "string" ? frame.type : null,
+        raw: frame,
       };
   }
 }

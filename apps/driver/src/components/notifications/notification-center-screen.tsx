@@ -22,8 +22,10 @@ import type {
 } from "../../api/realtime-types";
 import { useAuth } from "../../auth/AuthProvider";
 import { useLocale } from "../../i18n/LocaleProvider";
+import { useOptionalDriverRide } from "../../rides/DriverRideProvider";
 import {
   hrefForLink,
+  isRideLink,
   NOTIFICATIONS_HREF,
 } from "../../notifications/deep-links";
 import {
@@ -131,6 +133,7 @@ export function NotificationCenterScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { isDriver } = useAuth();
+  const openRideLink = useOptionalDriverRide()?.openLink;
   const { flipRows } = useDirection();
   const unread = useUnreadCount();
   const [filter, setFilter] = useState<Filter>("all");
@@ -237,10 +240,11 @@ export function NotificationCenterScreen() {
           setActionError("notifications.markReadFailed");
         });
       }
+      if (isDriver && isRideLink(item.link)) openRideLink?.(item.link ?? null);
       const href = hrefForLink(item.link, { isDriver });
       if (href !== NOTIFICATIONS_HREF) router.navigate(href);
     },
-    [isDriver, router, setRead],
+    [isDriver, openRideLink, router, setRead],
   );
 
   const markAll = useCallback(async () => {

@@ -497,5 +497,141 @@
         "safety": "Safety alerts and emergency information."
       }
     }
+  },
+  "ride": {
+    "money": "{{currency}} {{amount}}",
+    "meters": "{{value}} m",
+    "kilometers": "{{value}} km",
+    "minutes": "{{value}} min",
+    "pinnedLocation": "Pinned location",
+    "theRider": "the rider",
+    "online": "Online",
+    "dropOff": "Drop-off",
+    "stopN": "Stop {{n}}",
+    "dismiss": "OK",
+    "comfort": {
+      "temperature": {
+        "no_preference": "No temp. pref.",
+        "cool": "Cool",
+        "normal": "Normal temp.",
+        "warm": "Warm"
+      },
+      "conversation": {
+        "no_preference": "No chat pref.",
+        "quiet": "Quiet",
+        "chatty": "Chatty"
+      },
+      "music": {
+        "no_preference": "No music pref.",
+        "none": "No music",
+        "soft": "Soft music",
+        "any": "Any music"
+      }
+    },
+    "payment": {
+      "cash": "Cash",
+      "wallet": "Wallet"
+    },
+    "offer": {
+      "serviceAndPayment": "{{service}} · {{payment}}",
+      "secondsLeft": "{{count}} s left to answer",
+      "estimatedFare": "Estimated fare",
+      "estimatedFareSurge": "Estimated fare · surge pricing",
+      "pickupAway": "{{eta}} · {{distance}} away",
+      "accept": "Accept",
+      "decline": "Decline"
+    },
+    "toPickup": {
+      "title": "Pick up {{name}}",
+      "summary": "{{service}} · {{payment}} · {{fare}} est.",
+      "subtitle": "to pickup · {{place}}",
+      "headTo": "Head to pickup",
+      "arrived": "Arrived",
+      "outsideGeofence": "You're {{distance}} away. Get within {{geofence}} to mark arrived.",
+      "outsideGeofenceNoDistance": "You're not at the pickup yet. Get within {{geofence}} to mark arrived.",
+      "noPosition": "We don't have your current location yet. Keep Labby open with location on, then try again."
+    },
+    "atPickup": {
+      "waitingFor": "Waiting for {{name}}",
+      "freeWaitEndsIn": "Free wait ends in {{time}}. After that you can cancel as a no-show.",
+      "freeWaitOver": "Free wait is over. You can cancel as a no-show.",
+      "start": "Start ride",
+      "noShow": "Rider no-show",
+      "noShowIn": "No-show in {{time}}"
+    },
+    "inRide": {
+      "title": "{{name}}'s ride",
+      "dropOffIn": "Drop-off · {{eta}}",
+      "dropOffUpdated": "Drop-off · route updated by rider",
+      "routeChanged": "The rider changed the route.",
+      "metered": "{{payment}} · fare is metered from the trip",
+      "end": "End ride"
+    },
+    "complete": {
+      "title": "Ride complete · {{name}}",
+      "collectCash": "Collect in cash",
+      "cashReceived": "Cash received",
+      "riderDidNotPay": "Rider didn't pay",
+      "fareMissing": "The fare isn't available yet. Pull to refresh in a moment."
+    },
+    "fare": {
+      "base": "Base fare",
+      "distance": "Distance",
+      "distanceWith": "Distance · {{distance}}",
+      "time": "Time",
+      "timeWith": "Time · {{time}}",
+      "surcharge": "Time surcharge +{{percent}}%",
+      "surge": "Surge ×{{multiplier}}",
+      "wait": "Waiting time",
+      "pickupFee": "Pickup distance fee",
+      "minimumAdjustment": "Minimum fare top-up",
+      "discount": "Discount"
+    },
+    "cancel": {
+      "open": "Cancel ride",
+      "title": "Cancel {{name}}'s ride?",
+      "copy": "{{name}} won't be charged, and we'll find another driver for the trip. Cancellations count toward your cancellation rate.",
+      "noShowCopy": "{{name}} will be charged the cancellation fee and no new driver is sent. Cancellations count toward your cancellation rate.",
+      "reasonLabel": "Reason (required)",
+      "reasons": {
+        "rider_no_show": "Rider didn't show up",
+        "vehicle_issue": "Vehicle problem",
+        "unsafe_pickup": "Pickup point feels unsafe",
+        "other": "Something else"
+      },
+      "noShowAvailable": "The free wait is over · rider pays the fee",
+      "noShowIn": "Available in {{time}} · rider pays the fee",
+      "noShowAfterArrival": "Available after the free wait at the pickup · rider pays the fee",
+      "noteLabel": "What happened? (required)",
+      "noteRequired": "Tell us briefly what happened.",
+      "noShowTooEarly": "It's too early to cancel as a no-show — the free wait isn't over yet.",
+      "noShowTooEarlyAt": "It's too early to cancel as a no-show. You can from {{time}}.",
+      "keep": "Keep the ride",
+      "confirm": "Cancel ride"
+    },
+    "connectionLostTitle": "Connection lost",
+    "connectionLostBody": "Your location isn't reaching Labby. Keep the app open and check your signal.",
+    "errors": {
+      "network": "No connection. Check your internet and try again.",
+      "server": "Something went wrong. Please try again."
+    },
+    "notice": {
+      "offerExpired": "Offer expired.",
+      "offerCancelled": "Ride was cancelled by the rider.",
+      "offerClosed": "This offer is no longer available.",
+      "offerGone": "This offer is no longer available.",
+      "riderCancelled": "The rider cancelled the ride.",
+      "rideCancelled": "Ride cancelled.",
+      "cashConfirmed": "Cash received — the ride is closed.",
+      "markedUnpaid": "Marked as unpaid — the ride is closed.",
+      "paymentSettled": "The payment for this ride was already recorded."
+    }
+  },
+  "backgroundLocation": {
+    "noticeTitle": "You're online",
+    "noticeBody": "Labby is sharing your location to find you rides.",
+    "deniedTitle": "Ride requests stop in the background",
+    "deniedBody": "Allow location 'All the time' so you keep getting ride requests when Labby is closed.",
+    "openSettings": "Open settings"
   }
 }

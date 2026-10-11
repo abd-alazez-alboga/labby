@@ -11,8 +11,11 @@ import { initI18n } from "../i18n";
 import type { Language } from "../i18n";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { PushBridge } from "../notifications/PushBridge";
+// M6-X2: the background GPS task must be defined at load, before anything mounts.
+import "../realtime/background-location-task";
 import { AvailabilityProvider } from "../realtime/AvailabilityProvider";
 import { RegionProvider } from "../region/RegionProvider";
+import { DriverRideProvider } from "../rides/DriverRideProvider";
 import { loadAppFonts } from "../theme/fonts";
 import { colors } from "../theme/tokens";
 
@@ -161,10 +164,13 @@ export default function RootLayout() {
         <RegionProvider>
           {/* Online/offline + location streaming (M6-T4) — active drivers only. */}
           <AvailabilityProvider>
-            <StatusBar style="dark" />
-            <AppStack />
-            {/* Push registration + notification-tap deep links (M6-T4). */}
-            <PushBridge />
+            {/* Open offer + active ride facade on the same socket (M7-T4). */}
+            <DriverRideProvider>
+              <StatusBar style="dark" />
+              <AppStack />
+              {/* Push registration + notification-tap deep links (M6-T4). */}
+              <PushBridge />
+            </DriverRideProvider>
           </AvailabilityProvider>
         </RegionProvider>
       </AuthProvider>
