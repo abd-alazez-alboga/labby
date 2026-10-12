@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -250,5 +250,65 @@ describe('driver ledger page', () => {
     await user.click(screen.getByRole('button', { name: 'USD' }));
     expect(await screen.findByText('Bonus')).toBeInTheDocument();
     expect(screen.getByText('Balance · USD')).toBeInTheDocument();
+  });
+  it('always requests the selected currency once the balances are known', async () => {
+    const fetchMock = stubMoneyRoutes(SETTLER);
+    renderShell();
+
+    expect(await screen.findByText('Balance · SYP')).toBeInTheDocument();
+    await waitFor(() => {
+      const ledgerUrls = fetchMock.mock.calls
+        .map(([input]) => new URL(String(input)))
+        .filter((url) => url.pathname === `/api/v1/admin/drivers/${DRIVER_ID}/ledger`);
+      // The first load cannot know the currencies; every later one names one.
+      expect(ledgerUrls.length).toBeGreaterThan(1);
+      expect(ledgerUrls[0].searchParams.get('currency')).toBeNull();
+      expect(ledgerUrls.at(-1)?.searchParams.get('currency')).toBe('SYP');
+    });
+  });
+
+  it('starts fresh when the route switches to another driver', async () => {
+    const OTHER = '00000000-0000-4000-8000-00000000bb09';
+    const fetchMock = stubMoneyRoutes(SETTLER, (method, path) => {
+      if (method === 'GET' && path === `/api/v1/admin/drivers/${DRIVER_ID}/ledger`) {
+        return jsonResponse(
+          200,
+          ledgerView({
+            balances: [
+              { currency: 'SYP', balance: -430000, floor: -500000, status: 'warning' },
+              { currency: 'USD', balance: 25, floor: -50, status: 'ok' },
+            ],
+          }),
+        );
+      }
+      if (method === 'GET' && path === `/api/v1/admin/drivers/${OTHER}/ledger`) {
+        return jsonResponse(
+          200,
+          ledgerView({
+            balances: [{ currency: 'SYP', balance: 1000, floor: -500000, status: 'ok' }],
+            entries: [],
+            totalItems: 0,
+          }),
+        );
+      }
+      return null;
+    });
+    renderShell();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'USD' }));
+    expect(await screen.findByText('Balance · USD')).toBeInTheDocument();
+
+    act(() => {
+      window.history.pushState({}, '', `/driver-ledgers/${OTHER}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    // The previous driver's USD filter does not leak into the new driver.
+    expect(await screen.findByText('Balance · SYP')).toBeInTheDocument();
+    const otherUrls = fetchMock.mock.calls
+      .map(([input]) => new URL(String(input)))
+      .filter((url) => url.pathname === `/api/v1/admin/drivers/${OTHER}/ledger`);
+    expect(otherUrls.some((url) => url.searchParams.get('currency') === 'USD')).toBe(false);
   });
 });

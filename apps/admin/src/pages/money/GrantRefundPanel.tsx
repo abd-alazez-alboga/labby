@@ -6,14 +6,19 @@ import type { AdminRideSummary } from '../../api/rides';
 import { useAuth } from '../../auth/AuthContext';
 import { DecisionPanel } from '../../ui';
 import { classifyError } from '../onboarding/review-utils';
-import { formatMoment, formatMoney, isUuid, parseAmount } from './money-format';
+import { formatMoment, formatMoney, isUuid, parseAmount, rejectionDetail } from './money-format';
 import { useCurrencyLabel } from './use-currency-label';
+
+/** The ride select's "type the ID instead" option (rides beyond the newest page). */
+const ENTER_RIDE_ID = '__enter-ride-id__';
 
 /**
  * UC-A-15 side panel: grant wallet credit or issue a refund. A refund MUST
  * link one of the user's rides (PAY-03) and both need a reason the user will
  * see. Rendered only with `wallets:manage` (the server enforces the same
- * code); the backend notifies the user and audit-logs the action.
+ * code); the backend notifies the user and audit-logs the action. A refund
+ * linked to a listed ride is locked to that ride's currency (the server
+ * rejects a mismatch).
  */
 export function GrantRefundPanel({
   userId,
@@ -24,7 +29,10 @@ export function GrantRefundPanel({
   userId: string;
   /** Currencies offered in the form; the wallet's, defaulting to SYP. */
   currencies: readonly string[];
-  /** The user's rides for the link select; null = not loadable (no rides:view). */
+  /**
+   * The rides the user TOOK (as rider) for the link select — the only ones
+   * the server accepts; null = not loadable (no rides:view).
+   */
   rides: readonly AdminRideSummary[] | null;
   /** Called with the created transaction so the page refreshes instantly. */
   onCredited: (transaction: WalletTransaction) => void;
@@ -36,17 +44,32 @@ export function GrantRefundPanel({
   const [type, setType] = useState<WalletCreditType>('grant');
   const [amountRaw, setAmountRaw] = useState('');
   const [currency, setCurrency] = useState(currencies[0] ?? 'SYP');
-  const [rideId, setRideId] = useState('');
+  // The select's value: '' (none), a listed ride id, or ENTER_RIDE_ID.
+  const [rideChoice, setRideChoice] = useState('');
+  // The typed ride ID — the only input without rides:view.
+  const [typedRideId, setTypedRideId] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const typingRideId = rides === null || rideChoice === ENTER_RIDE_ID;
+  const linkedRide = (typingRideId ? typedRideId : rideChoice).trim();
+  const linkedSummary = rides?.find((ride) => ride.id === linkedRide);
+  // Spec D: a refund's currency must equal its linked ride's currency.
+  const lockedCurrency = type === 'refund' ? (linkedSummary?.currency ?? null) : null;
+  const effectiveCurrency = lockedCurrency ?? currency;
+  const currencyOptions =
+    lockedCurrency !== null && !currencies.includes(lockedCurrency)
+      ? [...currencies, lockedCurrency]
+      : currencies;
 
   const amount = parseAmount(amountRaw);
   const submitLabel =
     amount !== null
       ? t('money.panel.submit', {
-          amount: formatMoney(amount, currencyLabel(currency), i18n.language),
+          amount: formatMoney(amount, currencyLabel(effectiveCurrency), i18n.language),
         })
       : t('money.panel.submitBare');
 
@@ -59,6 +82,7 @@ export function GrantRefundPanel({
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSuccess(null);
+    setErrorDetail(null);
     if (amount === null) {
       setErrorKey('money.panel.amountInvalid');
       return;
@@ -67,9 +91,12 @@ export function GrantRefundPanel({
       setErrorKey('money.panel.reasonRequired');
       return;
     }
-    const linkedRide = rideId.trim();
-    if (type === 'refund' && (linkedRide === '' || (rides === null && !isUuid(linkedRide)))) {
+    if (type === 'refund' && linkedRide === '') {
       setErrorKey('money.panel.rideRequired');
+      return;
+    }
+    if (typingRideId && linkedRide !== '' && !isUuid(linkedRide)) {
+      setErrorKey('money.panel.rideIdInvalid');
       return;
     }
     setErrorKey(null);
@@ -78,7 +105,7 @@ export function GrantRefundPanel({
       const transaction = await postWalletCredit(apiClient, userId, {
         type,
         amount,
-        currency,
+        currency: effectiveCurrency,
         reason: reason.trim(),
         rideId: linkedRide === '' ? null : linkedRide,
       });
@@ -93,10 +120,12 @@ export function GrantRefundPanel({
       );
       setAmountRaw('');
       setReason('');
-      setRideId('');
+      setRideChoice('');
+      setTypedRideId('');
       onCredited(transaction);
     } catch (error) {
       const kind = classifyError(error);
+      setErrorDetail(rejectionDetail(error));
       setErrorKey(
         kind === 'validation'
           ? 'money.panel.rejected'
@@ -130,7 +159,7 @@ export function GrantRefundPanel({
 
         <div className="form-field">
           <label htmlFor="credit-amount">
-            {t('money.panel.amountLabel', { currency: currencyLabel(currency) })}
+            {t('money.panel.amountLabel', { currency: currencyLabel(effectiveCurrency) })}
           </label>
           <input
             id="credit-amount"
@@ -141,20 +170,24 @@ export function GrantRefundPanel({
           />
         </div>
 
-        {currencies.length > 1 ? (
+        {currencyOptions.length > 1 ? (
           <div className="form-field">
             <label htmlFor="credit-currency">{t('money.panel.currencyLabel')}</label>
             <select
               id="credit-currency"
-              value={currency}
+              value={effectiveCurrency}
+              disabled={lockedCurrency !== null}
               onChange={(event) => setCurrency(event.target.value)}
             >
-              {currencies.map((code) => (
+              {currencyOptions.map((code) => (
                 <option key={code} value={code}>
                   {currencyLabel(code)}
                 </option>
               ))}
             </select>
+            {lockedCurrency !== null ? (
+              <p className="panel__hint">{t('money.panel.currencyFromRide')}</p>
+            ) : null}
           </div>
         ) : null}
 
@@ -165,8 +198,8 @@ export function GrantRefundPanel({
           {rides !== null ? (
             <select
               id="credit-ride"
-              value={rideId}
-              onChange={(event) => setRideId(event.target.value)}
+              value={rideChoice}
+              onChange={(event) => setRideChoice(event.target.value)}
             >
               <option value="">{t('money.panel.noRide')}</option>
               {rides.map((ride) => (
@@ -174,16 +207,19 @@ export function GrantRefundPanel({
                   {rideOptionLabel(ride)}
                 </option>
               ))}
+              <option value={ENTER_RIDE_ID}>{t('money.panel.enterRideId')}</option>
             </select>
-          ) : (
+          ) : null}
+          {typingRideId ? (
             <input
-              id="credit-ride"
+              id={rides === null ? 'credit-ride' : 'credit-ride-id'}
+              aria-label={rides === null ? undefined : t('money.panel.rideIdPlaceholder')}
               dir="ltr"
-              value={rideId}
+              value={typedRideId}
               placeholder={t('money.panel.rideIdPlaceholder')}
-              onChange={(event) => setRideId(event.target.value)}
+              onChange={(event) => setTypedRideId(event.target.value)}
             />
-          )}
+          ) : null}
         </div>
 
         <div className="form-field">
@@ -191,6 +227,7 @@ export function GrantRefundPanel({
           <textarea
             id="credit-reason"
             rows={3}
+            maxLength={500}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
           />
@@ -199,6 +236,11 @@ export function GrantRefundPanel({
         {errorKey ? (
           <p className="banner banner--error" role="alert">
             {t(errorKey)}
+            {errorDetail ? (
+              <span className="banner__detail" dir="auto">
+                {errorDetail}
+              </span>
+            ) : null}
           </p>
         ) : null}
         {success ? (

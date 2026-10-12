@@ -5,7 +5,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { WalletCreditRequest } from '../api/money';
 import i18n from '../i18n/i18n';
 import {
+  adminRide,
+  DRIVER_ID,
   RIDE_1,
+  RIDE_2,
+  ridePage,
   stubMoneyRoutes,
   transaction,
   transactionPage,
@@ -16,6 +20,9 @@ import {
 } from './money-fixtures';
 import { bodyOf } from './onboarding-fixtures';
 import { jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
+
+const CREDITS = `/api/v1/admin/users/${USER_ID}/wallet/credits`;
+const OLD_RIDE = '00000000-0000-4000-8000-00000000cc99';
 
 /**
  * UC-A-15 against contract mocks (money-v1.yaml): wallet inspection with
@@ -159,6 +166,177 @@ describe('user wallet page', () => {
       await screen.findByText(
         'The server rejected the entry — check the amount, currency and ride link.',
       ),
+    ).toBeInTheDocument();
+  });
+
+  it('lists only rides the user took — not rides they drove (mixed roles)', async () => {
+    stubMoneyRoutes(WALLET_MANAGER, (method, path) =>
+      method === 'GET' && path === '/api/v1/admin/rides'
+        ? jsonResponse(
+            200,
+            ridePage([
+              adminRide(),
+              // The same user DROVE this one: the server rejects it as a link.
+              adminRide({
+                id: RIDE_2,
+                destination: { lat: 33.51, lng: 36.32, label: 'Bab Touma' },
+                riderUserId: DRIVER_ID,
+                riderName: 'Someone Else',
+                driverUserId: USER_ID,
+                driverName: 'Rana Khoury',
+              }),
+            ]),
+          )
+        : null,
+    );
+    renderShell();
+
+    await screen.findByRole('heading', { name: 'Grant credit / refund' });
+    expect(await screen.findByRole('option', { name: /Umayyad Square/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Bab Touma/ })).not.toBeInTheDocument();
+  });
+
+  it('links a ride older than the list by typing its ID', async () => {
+    const fetchMock = stubMoneyRoutes(WALLET_MANAGER, (method, path) =>
+      method === 'POST' && path === CREDITS
+        ? jsonResponse(201, transaction({ id: 'tx-old', rideId: OLD_RIDE }))
+        : null,
+    );
+    renderShell();
+    const user = userEvent.setup();
+
+    await screen.findByRole('heading', { name: 'Grant credit / refund' });
+    await user.click(screen.getByRole('button', { name: 'Refund' }));
+    await user.type(screen.getByLabelText('Amount · SYP'), '20000');
+    await user.type(screen.getByLabelText(/Reason/), 'old ride');
+    await user.selectOptions(
+      screen.getByLabelText(/Linked ride/),
+      await screen.findByRole('option', { name: 'Enter ride ID…' }),
+    );
+
+    // A malformed ID is refused locally — nothing is sent.
+    await user.type(screen.getByRole('textbox', { name: 'Ride ID' }), 'not-an-id');
+    await user.click(screen.getByRole('button', { name: 'Credit SYP 20,000' }));
+    expect(await screen.findByText('That is not a valid ride ID.')).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => (init?.method ?? 'GET') === 'POST'),
+    ).toHaveLength(0);
+
+    await user.clear(screen.getByRole('textbox', { name: 'Ride ID' }));
+    await user.type(screen.getByRole('textbox', { name: 'Ride ID' }), OLD_RIDE);
+    await user.click(screen.getByRole('button', { name: 'Credit SYP 20,000' }));
+
+    await waitFor(() => {
+      const body = bodyOf(fetchMock, 'POST', CREDITS) as WalletCreditRequest;
+      expect(body.type).toBe('refund');
+      expect(body.rideId).toBe(OLD_RIDE);
+      expect(body.currency).toBe('SYP');
+    });
+  });
+
+  it("locks a refund to the linked ride's currency", async () => {
+    const fetchMock = stubMoneyRoutes(WALLET_MANAGER, (method, path) => {
+      if (method === 'GET' && path === `/api/v1/admin/users/${USER_ID}/wallet`) {
+        return jsonResponse(
+          200,
+          walletView({
+            balances: [
+              { currency: 'SYP', balance: 15000 },
+              { currency: 'USD', balance: 4 },
+            ],
+          }),
+        );
+      }
+      if (method === 'GET' && path === '/api/v1/admin/rides') {
+        return jsonResponse(200, ridePage([adminRide({ currency: 'USD', total: 12 })]));
+      }
+      if (method === 'POST' && path === CREDITS) {
+        return jsonResponse(201, transaction({ currency: 'USD', amount: 12 }));
+      }
+      return null;
+    });
+    renderShell();
+    const user = userEvent.setup();
+
+    await screen.findByRole('heading', { name: 'Grant credit / refund' });
+    expect(screen.getByLabelText('Currency')).toHaveValue('SYP');
+    await user.click(screen.getByRole('button', { name: 'Refund' }));
+    await user.selectOptions(
+      screen.getByLabelText(/Linked ride/),
+      await screen.findByRole('option', { name: /Umayyad Square/ }),
+    );
+
+    expect(screen.getByLabelText('Currency')).toHaveValue('USD');
+    expect(screen.getByLabelText('Currency')).toBeDisabled();
+    expect(screen.getByText("Set by the linked ride's currency.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Amount · USD'), '12');
+    await user.type(screen.getByLabelText(/Reason/), 'overcharge');
+    await user.click(screen.getByRole('button', { name: 'Credit USD 12' }));
+
+    await waitFor(() => {
+      const body = bodyOf(fetchMock, 'POST', CREDITS) as WalletCreditRequest;
+      expect(body.currency).toBe('USD');
+      expect(body.rideId).toBe(RIDE_1);
+    });
+  });
+
+  it("shows the server's reason under the banner for a currency mismatch", async () => {
+    stubMoneyRoutes(WALLET_MANAGER, (method, path) =>
+      method === 'POST' && path === CREDITS
+        ? jsonResponse(400, {
+            status: 400,
+            message: 'currency must match the linked ride (USD)',
+          })
+        : null,
+    );
+    renderShell();
+    const user = userEvent.setup();
+
+    await screen.findByRole('heading', { name: 'Grant credit / refund' });
+    await user.type(screen.getByLabelText('Amount · SYP'), '1000');
+    await user.type(screen.getByLabelText(/Reason/), 'test');
+    await user.click(screen.getByRole('button', { name: 'Credit SYP 1,000' }));
+
+    expect(
+      await screen.findByText(
+        'The server rejected the entry — check the amount, currency and ride link.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('currency must match the linked ride (USD)')).toBeInTheDocument();
+  });
+
+  it('hints each pending-due tile with its own currency only', async () => {
+    const due = walletView().dues[0];
+    stubMoneyRoutes(WALLET_MANAGER, (method, path) =>
+      method === 'GET' && path === `/api/v1/admin/users/${USER_ID}/wallet`
+        ? jsonResponse(
+            200,
+            walletView({
+              dues: [
+                {
+                  ...due,
+                  id: 'due-usd',
+                  currency: 'USD',
+                  amount: 1,
+                  createdAt: '2026-09-01T09:00:00Z',
+                },
+                { ...due, id: 'due-a', createdAt: '2026-10-02T09:00:00Z' },
+                { ...due, id: 'due-b', createdAt: '2026-10-06T09:00:00Z' },
+              ],
+            }),
+          )
+        : null,
+    );
+    renderShell();
+
+    expect(await screen.findByText('Pending due · SYP')).toBeInTheDocument();
+    expect(screen.getByText('Pending due · USD')).toBeInTheDocument();
+    expect(
+      screen.getByText('2 cancellation fees · latest Oct 6, 2026 · collect on next ride'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Cancellation fee · Sep 1, 2026 · collects on next ride'),
     ).toBeInTheDocument();
   });
 

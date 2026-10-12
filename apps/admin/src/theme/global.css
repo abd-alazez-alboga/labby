@@ -596,6 +596,12 @@ h3.panel__title {
   color: var(--labby-danger);
 }
 
+.banner__detail {
+  display: block;
+  margin-block-start: var(--labby-space-1);
+  font-size: 13px;
+}
+
 /* ---------- Form fields ---------- */
 
 .form-field {

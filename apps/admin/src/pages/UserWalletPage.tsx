@@ -5,6 +5,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import {
   getUserWallet,
   getUserWalletTransactions,
+  type RiderDue,
   type WalletTransaction,
   type WalletTransactionPage,
   type WalletView,
@@ -22,11 +23,28 @@ import { classifyError, type FailureKind } from './onboarding/review-utils';
 
 const PAGE_SIZE = 20;
 
+interface PendingDueSummary {
+  amount: number;
+  count: number;
+  /** The most recent due of the currency (createdAt), for the tile hint. */
+  latest: RiderDue;
+}
+
 /** Pending dues summed per currency, for the "Pending due" tiles. */
-function pendingDueByCurrency(wallet: WalletView): Map<string, number> {
-  const sums = new Map<string, number>();
+function pendingDueByCurrency(wallet: WalletView): Map<string, PendingDueSummary> {
+  const sums = new Map<string, PendingDueSummary>();
   for (const due of wallet.dues) {
-    sums.set(due.currency, (sums.get(due.currency) ?? 0) + due.amount);
+    const current = sums.get(due.currency);
+    sums.set(
+      due.currency,
+      current
+        ? {
+            amount: current.amount + due.amount,
+            count: current.count + 1,
+            latest: due.createdAt > current.latest.createdAt ? due : current.latest,
+          }
+        : { amount: due.amount, count: 1, latest: due },
+    );
   }
   return sums;
 }
@@ -121,6 +139,12 @@ export default function UserWalletPage() {
   }, [apiClient, userId, canRides]);
 
   const ridesById = useMemo(() => new Map((rides ?? []).map((ride) => [ride.id, ride])), [rides]);
+  // The search matches rider OR driver; only rides the user TOOK can be
+  // linked to a grant/refund (the server rejects the rest).
+  const riddenRides = useMemo(
+    () => (rides ?? []).filter((ride) => ride.riderUserId === userId),
+    [rides, userId],
+  );
 
   function onCredited() {
     // UC-A-15: balances and history update instantly — refetch both.
@@ -148,7 +172,6 @@ export default function UserWalletPage() {
 
   const balances = wallet.balances.length > 0 ? wallet.balances : [{ currency: 'SYP', balance: 0 }];
   const dues = pendingDueByCurrency(wallet);
-  const newestDue = wallet.dues[0];
   const currencies = [...new Set([...wallet.balances.map((b) => b.currency), 'SYP'])];
   const lastPage = transactions ? Math.max(0, transactions.totalPages - 1) : 0;
 
@@ -170,7 +193,7 @@ export default function UserWalletPage() {
             <GrantRefundPanel
               userId={userId}
               currencies={currencies}
-              rides={canRides ? (rides ?? []) : null}
+              rides={canRides ? riddenRides : null}
               onCredited={onCredited}
             />
           ) : null
@@ -186,19 +209,16 @@ export default function UserWalletPage() {
               value={<Money amount={balance.balance} />}
             />
           ))}
-          {[...dues.entries()].map(([currency, amount]) => (
+          {[...dues.entries()].map(([currency, due]) => (
             <KpiTile
               key={`due-${currency}`}
               tone="warning"
               label={t('money.wallet.pendingDueTile', { currency: currencyLabel(currency) })}
-              value={<Money amount={amount} />}
-              hint={
-                newestDue
-                  ? t('money.wallet.dueLine', {
-                      date: formatDay(newestDue.createdAt, i18n.language),
-                    })
-                  : null
-              }
+              value={<Money amount={due.amount} />}
+              hint={t(due.count > 1 ? 'money.wallet.dueLineMany' : 'money.wallet.dueLine', {
+                count: due.count,
+                date: formatDay(due.latest.createdAt, i18n.language),
+              })}
             />
           ))}
         </KpiRow>

@@ -50,11 +50,29 @@ export default function DriverLedgerPage() {
   // balance of its currency until the next refetch completes.
   const [settled, setSettled] = useState<SettlementResponse | null>(null);
 
+  // A different driver (same route, new param) starts from scratch: no stale
+  // view, currency filter, page or settlement. Reset during render so no
+  // request goes out with the previous driver's filter.
+  const [shownDriver, setShownDriver] = useState(driverUserId);
+  if (shownDriver !== driverUserId) {
+    setShownDriver(driverUserId);
+    setView(null);
+    setLoadError(null);
+    setCurrency(null);
+    setPage(0);
+    setSettled(null);
+  }
+
+  // Once the balances are known, pin the shown currency explicitly so the
+  // entries always match the selected tab (never the server's mixed list).
+  const knownCurrencies = view?.balances.map((entry) => entry.currency) ?? [];
+  const requestCurrency = currency ?? knownCurrencies[0];
+
   useEffect(() => {
     let cancelled = false;
     setLoadError(null);
     getDriverLedger(apiClient, driverUserId, {
-      currency: currency ?? undefined,
+      currency: requestCurrency,
       page,
       size: PAGE_SIZE,
     })
@@ -72,7 +90,7 @@ export default function DriverLedgerPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiClient, driverUserId, currency, page, refresh]);
+  }, [apiClient, driverUserId, requestCurrency, page, refresh]);
 
   useEffect(() => {
     if (!canRides) {

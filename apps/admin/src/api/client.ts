@@ -11,9 +11,23 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly url: string,
     message?: string,
+    /** The `message` of the backend's error body (ErrorResponse), when it sent one. */
+    public readonly serverMessage?: string,
   ) {
     super(message ?? `API request to ${url} failed with HTTP ${status}`);
     this.name = 'ApiError';
+  }
+}
+
+/** Best-effort read of the backend ErrorResponse `message`; never throws. */
+async function readServerMessage(response: Response): Promise<string | undefined> {
+  try {
+    const body = (await response.json()) as { message?: unknown } | null;
+    return typeof body?.message === 'string' && body.message.trim() !== ''
+      ? body.message
+      : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -39,7 +53,7 @@ export function createApiClient(config: RuntimeConfig): ApiClient {
     });
 
     if (!response.ok) {
-      throw new ApiError(response.status, url);
+      throw new ApiError(response.status, url, undefined, await readServerMessage(response));
     }
     if (response.status === 204) {
       return undefined as T;

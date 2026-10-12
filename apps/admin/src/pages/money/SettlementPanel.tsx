@@ -10,7 +10,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { DecisionPanel } from '../../ui';
 import { classifyError } from '../onboarding/review-utils';
-import { formatMoney, parseAmount } from './money-format';
+import { formatMoney, parseAmount, rejectionDetail } from './money-format';
 import { useCurrencyLabel } from './use-currency-label';
 
 /**
@@ -44,6 +44,7 @@ export function SettlementPanel({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const amount = parseAmount(amountRaw);
@@ -72,6 +73,7 @@ export function SettlementPanel({
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSuccess(null);
+    setErrorDetail(null);
     if (amount === null) {
       setErrorKey('money.settle.amountInvalid');
       return;
@@ -99,6 +101,7 @@ export function SettlementPanel({
       onRecorded(response);
     } catch (error) {
       const kind = classifyError(error);
+      setErrorDetail(rejectionDetail(error));
       setErrorKey(
         kind === 'validation'
           ? 'money.settle.rejected'
@@ -148,6 +151,7 @@ export function SettlementPanel({
           <label htmlFor="settlement-note">{t('money.settle.noteLabel')}</label>
           <input
             id="settlement-note"
+            maxLength={500}
             value={note}
             onChange={(event) => setNote(event.target.value)}
           />
@@ -170,6 +174,11 @@ export function SettlementPanel({
         {errorKey ? (
           <p className="banner banner--error" role="alert">
             {t(errorKey)}
+            {errorDetail ? (
+              <span className="banner__detail" dir="auto">
+                {errorDetail}
+              </span>
+            ) : null}
           </p>
         ) : null}
         {success ? (

@@ -5,18 +5,24 @@
  * text — the `Money` component in MoneyUi.tsx applies that.
  */
 
+import { ApiError } from '../../api/client';
+
 /** The UI locale, pinned to Latin (Western) digits in Arabic. */
 export function latinLocale(language: string): string {
   return language.startsWith('ar') ? 'ar-u-nu-latn' : language;
 }
 
-/** Grouped plain number, exact decimals kept up to 2 places, true minus sign. */
+/**
+ * Grouped plain number, exact decimals kept up to 2 places, true minus sign.
+ * Arabic output prefixes negatives with a bidi mark (LRM, e.g. "\u200E-430,000"),
+ * so the hyphen is matched after an optional leading mark.
+ */
 export function formatNumber(value: number, language: string): string {
   return new Intl.NumberFormat(latinLocale(language), {
     maximumFractionDigits: 2,
   })
     .format(value)
-    .replace(/^-/, '−');
+    .replace(/^([\u200e\u200f\u061c]?)-/, '$1−');
 }
 
 /**
@@ -60,8 +66,23 @@ export function isUuid(value: string): boolean {
   return UUID.test(value.trim());
 }
 
-/** Parses an amount field; null when not a positive finite number. */
+const AMOUNT = /^\d+(\.\d{1,2})?$/;
+
+/**
+ * Parses an amount field once grouping (spaces, commas) is stripped: plain
+ * digits with at most 2 decimals (the server's scale). Null for anything
+ * else — signs, exponents, hex — or a zero amount.
+ */
 export function parseAmount(raw: string): number | null {
-  const value = Number(raw.replace(/[\s,]/g, ''));
-  return Number.isFinite(value) && value > 0 ? value : null;
+  const stripped = raw.replace(/[\s,]/g, '');
+  if (!AMOUNT.test(stripped)) {
+    return null;
+  }
+  const value = Number(stripped);
+  return value > 0 ? value : null;
+}
+
+/** The backend's message for a 400 rejection, shown under the generic banner. */
+export function rejectionDetail(error: unknown): string | null {
+  return error instanceof ApiError && error.status === 400 ? (error.serverMessage ?? null) : null;
 }
