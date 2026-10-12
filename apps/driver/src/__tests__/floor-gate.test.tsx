@@ -1,11 +1,14 @@
 /**
  * M8-T4 — COM-03 / UC-D-16 floor states wired into availability: `blocked`
- * makes the home unmistakable (red offers-paused card, settle steps, GO
- * disabled, "See my balance") and suppresses the generic offers-blocked
- * banner; `warning` shows the amber near-floor banner; `ok` shows neither.
- * The balance refreshes with the availability reads the app already makes.
+ * makes the home unmistakable (red offers-paused card, settle steps, "See
+ * my balance") and suppresses the generic offers-blocked banner, while GO
+ * stays enabled (UC-D-04 E2: online allowed, no offers — W16); `warning`
+ * shows the amber near-floor banner; `ok` shows neither. The balance
+ * refreshes with the availability reads the app already makes, and a
+ * `driver.balance_*` push re-reads balance AND availability.
  */
 import { act, fireEvent, waitFor } from "@testing-library/react-native";
+import * as Notifications from "expo-notifications";
 
 import { clearSession } from "../auth/session";
 import { initI18n, setAppLanguage } from "../i18n";
@@ -23,6 +26,13 @@ import {
   okBalanceView,
 } from "../test-utils/money";
 import type { MockResponse } from "../test-utils/contract";
+
+// A dev/production build (not Expo Go) so foreground pushes are delivered;
+// permission reads stay pending (jest.setup), so registration is inert.
+jest.mock("expo", () => ({
+  ...jest.requireActual("expo"),
+  isRunningInExpoGo: jest.fn(() => false),
+}));
 
 const originalWebSocket = globalThis.WebSocket;
 const ok = (body: unknown): MockResponse => ({ status: 200, body });
@@ -42,7 +52,7 @@ describe("balance floor gate (COM-03, UC-D-16)", () => {
     globalThis.WebSocket = originalWebSocket;
   });
 
-  it("blocked while OFFLINE: the red card, the settle steps, GO disabled, See my balance", async () => {
+  it("blocked while OFFLINE: the red card, the settle steps, GO ENABLED, See my balance", async () => {
     await renderDriverApp(
       {
         [AVAILABILITY]: ok(availabilityFixture()),
@@ -65,8 +75,8 @@ describe("balance floor gate (COM-03, UC-D-16)", () => {
       "Offers resume automatically",
       { exact: false },
     );
-    // The GO button is dead until settlement (COM-03).
-    expect(screen.getByTestId("availability-toggle")).toBeDisabled();
+    // UC-D-04 E2 (W16): going online stays allowed — only offers stop.
+    expect(screen.getByTestId("availability-toggle")).not.toBeDisabled();
 
     fireEvent.press(screen.getByTestId("floor-blocked-see-balance"));
     expect(await screen.findByTestId("balance-route")).toBeTruthy();
@@ -167,6 +177,79 @@ describe("balance floor gate (COM-03, UC-D-16)", () => {
         balanceReadsBefore,
       ),
     );
+  });
+
+  it("an unblock push in the foreground re-reads balance AND availability (W16)", async () => {
+    let received: ((notification: Notifications.Notification) => void) | null =
+      null;
+    jest
+      .mocked(Notifications.addNotificationReceivedListener)
+      .mockImplementation((listener) => {
+        received = listener;
+        return { remove: jest.fn() } as unknown as Notifications.EventSubscription;
+      });
+    const balanceRoute = ok(blockedBalanceView());
+    const contract = await renderDriverApp(
+      {
+        [AVAILABILITY]: ok(availabilityFixture()),
+        [BALANCE]: balanceRoute,
+      },
+      { money: true },
+    );
+    expect(await screen.findByTestId("floor-blocked")).toBeTruthy();
+    await waitFor(() => expect(received).not.toBeNull());
+    const balanceReads = contract.requestsTo(BALANCE).length;
+    const availabilityReads = contract.requestsTo(AVAILABILITY).length;
+    // An admin recorded the settlement: the server now reports `ok`.
+    balanceRoute.body = okBalanceView();
+
+    await act(async () => {
+      received?.({
+        request: {
+          content: {
+            data: { event: "driver.balance_unblocked", category: "payments" },
+          },
+        },
+      } as unknown as Notifications.Notification);
+    });
+
+    await waitFor(() =>
+      expect(contract.requestsTo(AVAILABILITY).length).toBeGreaterThan(
+        availabilityReads,
+      ),
+    );
+    expect(contract.requestsTo(BALANCE).length).toBeGreaterThan(balanceReads);
+    await waitFor(() => expect(screen.queryByTestId("floor-blocked")).toBeNull());
+  });
+
+  it("ignores other foreground pushes for the floor", async () => {
+    let received: ((notification: Notifications.Notification) => void) | null =
+      null;
+    jest
+      .mocked(Notifications.addNotificationReceivedListener)
+      .mockImplementation((listener) => {
+        received = listener;
+        return { remove: jest.fn() } as unknown as Notifications.EventSubscription;
+      });
+    const contract = await renderDriverApp(
+      {
+        [AVAILABILITY]: ok(availabilityFixture()),
+        [BALANCE]: ok(okBalanceView()),
+      },
+      { money: true },
+    );
+    await screen.findByTestId("availability-offline");
+    await waitFor(() => expect(received).not.toBeNull());
+    await waitFor(() =>
+      expect(contract.requestsTo(BALANCE).length).toBeGreaterThanOrEqual(1),
+    );
+    const availabilityReads = contract.requestsTo(AVAILABILITY).length;
+    await act(async () => {
+      received?.({
+        request: { content: { data: { event: "ride.completed" } } },
+      } as unknown as Notifications.Notification);
+    });
+    expect(contract.requestsTo(AVAILABILITY)).toHaveLength(availabilityReads);
   });
 
   it("renders the blocked state in Arabic", async () => {

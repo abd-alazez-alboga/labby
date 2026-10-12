@@ -574,6 +574,7 @@
       "riderDidNotPay": "Rider didn't pay",
       "fareMissing": "The fare isn't available yet. Pull to refresh in a moment.",
       "walletApplied": "Paid from wallet",
+      "carriedFee": "Carried fee from an earlier ride",
       "cashToCollect": "Cash to collect"
     },
     "fare": {
@@ -644,21 +645,30 @@
     "nextPeriod": "Next period",
     "totalWeekly": "Your earnings this week",
     "totalMonthly": "Your earnings this month",
-    "trips": "{{count}} trips",
+    "tripCount": {
+      "zero": "{{value}} trips",
+      "one": "{{value}} trip",
+      "two": "{{value}} trips",
+      "few": "{{value}} trips",
+      "many": "{{value}} trips",
+      "other": "{{value}} trips"
+    },
     "fares": "fares {{amount}}",
     "tips": "tips {{amount}}",
     "commission": "commission {{amount}}",
     "tierHeading": "Commission this week: {{percent}}",
-    "tierNext": "{{count}} trips so far this week. Finish {{needed}} and next week's commission drops to {{percent}}.",
-    "tierBest": "{{count}} trips so far this week. You're on your best commission rate.",
+    "tierNext": "{{trips}} so far this week. Finish {{needed}} and next week's commission drops to {{percent}}.",
+    "tierBest": "{{trips}} so far this week. You're on your best commission rate.",
     "tripsHeading": "Trips",
     "rowCash": "cash",
     "rowWallet": "wallet",
     "rowFare": "fare {{amount}}",
     "rowCommission": "commission {{amount}}",
     "rowTip": "tip {{amount}}",
+    "rowFee": "Cancellation fee · all yours",
     "loadMore": "Show more",
-    "empty": "No earnings yet — your completed rides will show up here."
+    "empty": "No earnings yet — your completed rides will show up here.",
+    "summaryEmpty": "No earnings to show yet — your completed rides will add up here."
   },
   "balance": {
     "title": "Balance",

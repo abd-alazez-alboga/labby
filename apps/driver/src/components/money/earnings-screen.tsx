@@ -3,11 +3,14 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { ApiError } from "../../api/client";
 import { getEarningsSummary, getTripEarnings } from "../../api/money";
+import { isFeeOnlyEarning } from "../../api/money-types";
 import type {
   CommissionStatus,
   EarningsPeriod,
   EarningsSummary,
+  NextTier,
   TripEarning,
 } from "../../api/money-types";
 import {
@@ -15,6 +18,7 @@ import {
   formatSignedMoney,
   isolateDigits,
   MINUS,
+  pluralCategory,
 } from "../../money/format";
 import { useOptionalDriverMoney } from "../../money/DriverMoneyProvider";
 import { localRange, periodLabel, samePeriod, stepAnchor } from "../../money/periods";
@@ -45,6 +49,23 @@ const PERIOD_KEYS: Record<EarningsPeriod, string> = {
   weekly: "earnings.week",
   monthly: "earnings.month",
 };
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** "1 trip" / "38 trips" — "رحلة واحدة" / "⁦38⁩ رحلة" (plural-correct). */
+function tripCount(t: Translate, count: number, language: string): string {
+  return t(`earnings.tripCount.${pluralCategory(count, language)}`, {
+    value: isolateDigits(formatAmountValue(count), language),
+  });
+}
+
+/**
+ * Trips this week that earn the next tier: the backend's condition is
+ * strictly `weeklyTrips > weeklyTripsAbove` (CommissionPolicy), so one more.
+ */
+export function tripsForNextTier(next: NextTier): number {
+  return next.weeklyTripsAbove + 1;
+}
 
 /** Week / Month segmented toggle (48 px touch targets). */
 function PeriodToggle({
@@ -151,7 +172,7 @@ function TotalCard({
       language,
     );
   const meta = [
-    t("earnings.trips", { count: amount(summary.trips) }),
+    tripCount(t, summary.trips, language),
     t("earnings.fares", { amount: amount(summary.fares) }),
     t("earnings.tips", { amount: amount(summary.tips) }),
     t("earnings.commission", { amount: amount(summary.commission, true) }),
@@ -171,13 +192,18 @@ function TotalCard({
   );
 }
 
-/** COM-02 — this week's rate and the next-tier progress (weekly view). */
+/**
+ * COM-02 — this week's rate and the next-tier progress (weekly view). The
+ * backend's tier condition is strictly greater-than `weeklyTripsAbove`, so
+ * the driver needs `weeklyTripsAbove + 1` trips (W14).
+ */
 function TierCard({ commission }: { commission: CommissionStatus }) {
   const { t } = useTranslation();
   const { language } = useDirection();
   const trips = commission.currentWeekTrips ?? 0;
   const next = commission.nextTier ?? null;
-  const fraction = next ? Math.min(1, trips / next.weeklyTripsAbove) : 1;
+  const needed = next ? tripsForNextTier(next) : 0;
+  const fraction = next ? Math.min(1, trips / needed) : 1;
   return (
     <View style={styles.tierCard} testID="earnings-tier-card">
       <AppText variant="body" weight="800" testID="earnings-tier-heading">
@@ -192,34 +218,27 @@ function TierCard({ commission }: { commission: CommissionStatus }) {
       <AppText variant="caption" weight="400" color={colors.textSecondary} testID="earnings-tier-body">
         {next
           ? t("earnings.tierNext", {
-              count: isolateDigits(formatAmountValue(trips), language),
-              needed: isolateDigits(
-                `${formatAmountValue(next.weeklyTripsAbove)}+`,
-                language,
-              ),
+              trips: tripCount(t, trips, language),
+              needed: tripCount(t, needed, language),
               percent: isolateDigits(
                 `${formatAmountValue(next.percent)}%`,
                 language,
               ),
             })
           : t("earnings.tierBest", {
-              count: isolateDigits(formatAmountValue(trips), language),
+              trips: tripCount(t, trips, language),
             })}
       </AppText>
     </View>
   );
 }
 
-/** One per-trip row: time + date, itemized subtitle, signed net. */
-function TripRow({
-  earning,
-  last,
-}: {
-  earning: TripEarning;
-  last: boolean;
-}) {
-  const { t } = useTranslation();
-  const { language } = useDirection();
+/** A fare row's itemized subtitle: method · fare · commission (· tip). */
+function tripParts(
+  t: Translate,
+  earning: TripEarning,
+  language: string,
+): string[] {
   const parts = [
     t(earning.paymentMethod === "cash" ? "earnings.rowCash" : "earnings.rowWallet"),
     t("earnings.rowFare", {
@@ -239,6 +258,23 @@ function TripRow({
       }),
     );
   }
+  return parts;
+}
+
+/** One per-trip row: time + date, itemized subtitle, signed net. */
+function TripRow({
+  earning,
+  last,
+}: {
+  earning: TripEarning;
+  last: boolean;
+}) {
+  const { t } = useTranslation();
+  const { language } = useDirection();
+  // W17: a credited cancellation fee is one item — no fare/commission lines.
+  const parts = isFeeOnlyEarning(earning)
+    ? [t("earnings.rowFee")]
+    : tripParts(t, earning, language);
   return (
     <ListRow
       title={`${formatTime(earning.completedAt, language)} · ${formatDate(earning.completedAt, language)}`}
@@ -264,6 +300,8 @@ function TripRow({
 type SummaryLoad =
   | { status: "loading" }
   | { status: "loaded"; summary: EarningsSummary }
+  /** 404: no operating region yet (never drove) — nothing to sum (W15). */
+  | { status: "none" }
   | { status: "error"; kind: FailureKind };
 
 type TripsLoad =
@@ -301,8 +339,12 @@ export function EarningsScreen() {
         const summary = await getEarningsSummary(nextPeriod, nextAnchor);
         if (mounted.current) setSummaryLoad({ status: "loaded", summary });
       } catch (caught) {
-        if (mounted.current)
-          setSummaryLoad({ status: "error", kind: failureKindOf(caught) });
+        if (!mounted.current) return;
+        setSummaryLoad(
+          caught instanceof ApiError && caught.status === 404
+            ? { status: "none" }
+            : { status: "error", kind: failureKindOf(caught) },
+        );
       }
     },
     [],
@@ -343,7 +385,7 @@ export function EarningsScreen() {
   const nextDisabled = samePeriod(period, anchor, todayIso());
   const commission = money?.balance?.commission ?? null;
   const balanceEntry =
-    money?.alert ?? money?.balance?.balances[0] ?? null;
+    money?.alert ?? money?.entry ?? money?.balance?.balances[0] ?? null;
 
   return (
     <Screen testID="earnings-screen">
@@ -377,6 +419,11 @@ export function EarningsScreen() {
           onRetry={() => void loadSummary(period, anchor)}
           testID="earnings-summary-error"
         />
+      ) : null}
+      {summaryLoad.status === "none" ? (
+        <Muted testID="earnings-summary-empty">
+          {t("earnings.summaryEmpty")}
+        </Muted>
       ) : null}
       {summaryLoad.status === "loaded" ? (
         <TotalCard period={period} summary={summaryLoad.summary} />

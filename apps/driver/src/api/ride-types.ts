@@ -19,8 +19,10 @@ export type RideState =
 export type PaymentMethod = "cash" | "wallet";
 /**
  * null until `completed`. M8 (money-v1.yaml): `paid_wallet` = fare fully
- * covered by the wallet at completion (auto-confirmed); `paid_mixed` =
- * wallet drained + cash remainder confirmed by the driver.
+ * covered by the wallet at completion AND no cash carried due
+ * (auto-confirmed); otherwise `pending` until the driver confirms cash
+ * (`paid_mixed` when the wallet paid part of the fare, else `paid_cash`)
+ * or marks it unpaid.
  */
 export type PaymentStatus =
   | "pending"
@@ -112,6 +114,24 @@ export const DRIVER_CANCEL_REASONS: readonly DriverCancelReason[] = [
 /** Contract `note.maxLength`. */
 export const CANCEL_NOTE_MAX = 500;
 
+/**
+ * M8 (rides-v1 CarriedDue): a rider's cancellation fee from an earlier
+ * ride, collected with this one — `wallet` dues are taken from the rider's
+ * wallet at completion (always `collected`); `cash` dues are collected by
+ * the driver (`earmarked` while payment is pending, `collected` after the
+ * cash-confirm; released — gone from the list — after mark-unpaid).
+ */
+export interface CarriedDue {
+  dueId: string;
+  /** The cancelled ride the fee came from. */
+  sourceRideId: string;
+  /** Always in the ride's currency. */
+  amount: number;
+  currency: string;
+  method: "wallet" | "cash";
+  status: "earmarked" | "collected";
+}
+
 /** One ride as its DRIVER sees it (`rider` set, `driver` null). */
 export interface Ride {
   id: string;
@@ -136,10 +156,15 @@ export interface Ride {
   cancellationFee?: number | null;
   fare?: FinalFare | null;
   paymentStatus?: PaymentStatus | null;
-  /** M8 (PAY-02): wallet part of the payment. */
+  /** M8 (PAY-02): wallet part of the FARE (null on cash-method rides). */
   walletApplied?: number | null;
-  /** M8 (PAY-02): cash remainder (+ collected dues), shown to both. */
+  /**
+   * M8 (PAY-02): cash the driver collects = the cash part of the fare +
+   * every CASH carried due of this ride; null when nothing is owed in cash.
+   */
   cashDue?: number | null;
+  /** M8 (W6): cancellation fees from earlier rides carried by this one. */
+  carriedDues: CarriedDue[];
   /** M8 (PAY-04): outside the fare total. */
   tip?: number | null;
   driverStream?: "ok" | "lost" | null;

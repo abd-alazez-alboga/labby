@@ -67,16 +67,15 @@ function StreamIndicator({ ctx }: { ctx: AvailabilityContextValue }) {
 /**
  * The floating GO button (UC-D-04 go online). Shown while the driver is
  * offline; blocked states disable it and explain themselves in the sheet.
- * `floorBlocked` (M8, COM-03) disables it too — the balance is at/below the
- * floor and the sheet shows the blocked card. Going offline is the sheet's
- * own action (`AvailabilitySheet`).
+ * A balance at/below the floor (M8, COM-03) does NOT disable it — UC-D-04
+ * E2: the driver may go online but gets no offers, and the home shows the
+ * red blocked card. Going offline is the sheet's own action
+ * (`AvailabilitySheet`).
  */
 export function AvailabilityGoButton({
   ctx,
-  floorBlocked,
 }: {
   ctx: AvailabilityContextValue | null;
-  floorBlocked?: boolean;
 }) {
   const { t } = useTranslation();
   if (!ctx || ctx.load.status !== "loaded" || ctx.load.data.online) return null;
@@ -85,7 +84,7 @@ export function AvailabilityGoButton({
     <GoButton
       label={t("availability.go")}
       accessibilityLabel={t("availability.goOnline")}
-      disabled={!data.canGoOnline || !!floorBlocked}
+      disabled={!data.canGoOnline}
       busy={ctx.pending !== null}
       onPress={() => void ctx.goOnline()}
       testID="availability-toggle"

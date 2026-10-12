@@ -32,6 +32,7 @@ import {
 } from "../test-utils/money";
 import { completedRide, RIDE_ID, rideFrame } from "../test-utils/rides";
 import type { MockResponse } from "../test-utils/contract";
+import { NON_WESTERN_DIGITS, simulateArabicIndicIcu } from "../test-utils/intl";
 
 const RIDE = `/api/v1/driver/rides/${RIDE_ID}`;
 const CASH = `POST ${RIDE}/cash-confirm`;
@@ -86,9 +87,9 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     expect(await screen.findByTestId("earning-line-fare")).toHaveTextContent(
       "Fare · you keep the cashSYP 28,000",
     );
-    // The dark card shows the posted fare once the earning loads.
+    // The dark card: the ride's cashDue — what the driver collected.
     expect(screen.getByTestId("trip-earnings-total")).toHaveTextContent(
-      "SYP 28,000",
+      "SYP 27,250",
     );
     expect(screen.getByTestId("earning-line-commission")).toHaveTextContent(
       "Commission · 25%−SYP 7,000",
@@ -118,7 +119,7 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
       paymentMethod: "wallet",
       paymentStatus: "paid_wallet",
       walletApplied: 27250,
-      cashDue: 0,
+      cashDue: null,
     });
     const contract = await renderDriverApp(
       {
@@ -202,7 +203,7 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
       "SYP 7,250",
     );
     expect(screen.getByTestId("fare-line-wallet-applied")).toHaveTextContent(
-      "Paid from walletSYP -20,000",
+      "Paid from wallet−SYP 20,000",
     );
     expect(screen.getByTestId("fare-line-cash-due")).toHaveTextContent(
       "Cash to collectSYP 7,250",
@@ -262,13 +263,21 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     fireEvent.press(await screen.findByTestId("cash-received"));
 
     expect(await screen.findByTestId("trip-earnings-missing")).toBeTruthy();
-    // The card still shows the collected fare from the ride itself.
+    // The card still shows the collected cash from the ride itself.
     expect(screen.getByTestId("trip-earnings-total")).toHaveTextContent(
       "SYP 27,250",
     );
-
     // Done is never blocked by the fetch.
     expect(screen.getByTestId("trip-earnings-done")).toBeTruthy();
+
+    // Retry re-reads the earnings; the posted entry now shows.
+    fireEvent.press(screen.getByTestId("trip-earnings-retry"));
+    expect(await screen.findByTestId("earning-line-fare")).toHaveTextContent(
+      "SYP 28,000",
+      { exact: false },
+    );
+    expect(screen.queryByTestId("trip-earnings-missing")).toBeNull();
+    expect(contract.requestsTo(EARNINGS)).toHaveLength(2);
   });
 
   it("renders the breakdown in Arabic with Western digits and ل.س", async () => {
@@ -297,10 +306,161 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     );
     const total = screen.getByTestId("trip-earnings-total");
     expect(total).toHaveTextContent("ل.س", { exact: false });
-    expect(total).toHaveTextContent("28,000", { exact: false });
+    expect(total).toHaveTextContent("27,250", { exact: false });
     expect(total).not.toHaveTextContent(/[٠-٩]/u);
     expect(screen.getByTestId("earning-line-net")).toHaveTextContent("2,000", {
       exact: false,
     });
+  });
+
+  it("cash ride with a carried fee: itemized on Complete, the card shows cashDue (W6)", async () => {
+    const due = {
+      dueId: "d0000000-0000-4000-8000-000000000001",
+      sourceRideId: "5b1d3f0e-1111-4c4c-9a9a-0000000000aa",
+      amount: 10000,
+      currency: "SYP",
+      method: "cash" as const,
+      status: "earmarked" as const,
+    };
+    const contract = await renderDriverApp(
+      {
+        [ACTIVE_RIDE]: ok(completedRide({ cashDue: 37250, carriedDues: [due] })),
+        [CASH]: ok(
+          completedRide({
+            paymentStatus: "paid_cash",
+            cashDue: 37250,
+            carriedDues: [{ ...due, status: "collected" }],
+          }),
+        ),
+        [EARNINGS]: ok(earningPage([tripEarningFixture()])),
+        [BALANCE]: ok(balanceViewFixture()),
+      },
+      { money: true },
+    );
+    await goLive();
+    await waitForResync(contract);
+
+    // Fare 27,250 + carried fee 10,000 = Collect 37,250.
+    expect(await screen.findByTestId("collect-total")).toHaveTextContent(
+      "SYP 37,250",
+    );
+    expect(
+      screen.getByTestId(`fare-line-carried-${due.dueId}`),
+    ).toHaveTextContent("Carried fee from an earlier rideSYP 10,000");
+    expect(screen.getByTestId("fare-line-cash-due")).toHaveTextContent(
+      "Cash to collectSYP 37,250",
+    );
+    expect(screen.queryByTestId("fare-line-wallet-applied")).toBeNull();
+
+    fireEvent.press(screen.getByTestId("cash-received"));
+    expect(await screen.findByTestId("trip-earnings-screen")).toBeTruthy();
+    // "Collected in cash" is the ride's cashDue, not the fare total.
+    expect(screen.getByTestId("trip-earnings-total")).toHaveTextContent(
+      "SYP 37,250",
+    );
+    // …and the carried fee inside it is itemized under the fare.
+    expect(
+      await screen.findByTestId(`earning-line-carried-${due.dueId}`),
+    ).toHaveTextContent("Carried fee from an earlier rideSYP 10,000");
+  });
+
+  it("wallet covered the whole fare but a cash fee is owed: collect just the fee (rides-v1 B)", async () => {
+    const due = {
+      dueId: "d0000000-0000-4000-8000-000000000002",
+      sourceRideId: "5b1d3f0e-1111-4c4c-9a9a-0000000000bb",
+      amount: 5000,
+      currency: "SYP",
+      method: "cash" as const,
+      status: "earmarked" as const,
+    };
+    // A wallet-taken due is not the driver's to collect — never a cash line.
+    const walletDue = {
+      ...due,
+      dueId: "d0000000-0000-4000-8000-000000000003",
+      method: "wallet" as const,
+      status: "collected" as const,
+    };
+    const pending = completedRide({
+      paymentMethod: "wallet",
+      walletApplied: 27250,
+      cashDue: 5000,
+      carriedDues: [due, walletDue],
+    });
+    const contract = await renderDriverApp(
+      {
+        [ACTIVE_RIDE]: ok(pending),
+        [CASH]: ok({
+          ...pending,
+          paymentStatus: "paid_mixed",
+          carriedDues: [{ ...due, status: "collected" }, walletDue],
+        }),
+        [EARNINGS]: ok(
+          earningPage([walletEarningFixture({ rideId: RIDE_ID, fareTotal: 27250 })]),
+        ),
+        [BALANCE]: ok(balanceViewFixture()),
+      },
+      { money: true },
+    );
+    await goLive();
+    await waitForResync(contract);
+
+    // The normal cash-confirm / mark-unpaid flow, collecting only the fee.
+    expect(await screen.findByTestId("collect-total")).toHaveTextContent(
+      "SYP 5,000",
+    );
+    expect(screen.getByTestId("fare-line-wallet-applied")).toHaveTextContent(
+      "Paid from wallet−SYP 27,250",
+    );
+    expect(
+      screen.getByTestId(`fare-line-carried-${due.dueId}`),
+    ).toHaveTextContent("Carried fee from an earlier rideSYP 5,000");
+    expect(
+      screen.queryByTestId(`fare-line-carried-${walletDue.dueId}`),
+    ).toBeNull();
+    expect(screen.getByTestId("fare-line-cash-due")).toHaveTextContent(
+      "Cash to collectSYP 5,000",
+    );
+    expect(screen.getByTestId("mark-unpaid")).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("cash-received"));
+    expect(await screen.findByTestId("trip-earnings-screen")).toBeTruthy();
+    expect(screen.getByTestId("trip-earnings-total")).toHaveTextContent(
+      "SYP 5,000",
+    );
+    expect(
+      await screen.findByTestId(`earning-line-carried-${due.dueId}`),
+    ).toHaveTextContent("Carried fee from an earlier rideSYP 5,000");
+    expect(
+      screen.queryByTestId(`earning-line-carried-${walletDue.dueId}`),
+    ).toBeNull();
+  });
+
+  it("keeps Western digits on Complete and the breakdown where plain 'ar' would not (W18)", async () => {
+    const restore = simulateArabicIndicIcu();
+    try {
+      await setAppLanguage("ar");
+      const contract = await renderDriverApp(
+        {
+          [ACTIVE_RIDE]: ok(completedRide()),
+          [CASH]: ok(completedRide({ paymentStatus: "paid_cash" })),
+          [EARNINGS]: ok(earningPage([tripEarningFixture()])),
+          [BALANCE]: ok(balanceViewFixture()),
+        },
+        { money: true, language: "ar" },
+      );
+      await goLive();
+      await waitForResync(contract);
+      // Complete: distance, minutes, every fare line.
+      expect(
+        await screen.findByTestId("ride-complete-screen"),
+      ).not.toHaveTextContent(NON_WESTERN_DIGITS);
+      fireEvent.press(screen.getByTestId("cash-received"));
+      expect(await screen.findByTestId("earning-line-net")).toBeTruthy();
+      expect(
+        screen.getByTestId("trip-earnings-screen"),
+      ).not.toHaveTextContent(NON_WESTERN_DIGITS);
+    } finally {
+      restore();
+    }
   });
 });

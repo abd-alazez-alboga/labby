@@ -81,3 +81,23 @@ export function formatSignedMoney(
   }
   return `${sign}${compose(numeric, currency, language)}`;
 }
+
+/** CLDR plural categories (integers) the count copy is keyed by. */
+export type PluralCategory = "zero" | "one" | "two" | "few" | "many" | "other";
+
+/**
+ * The CLDR plural category of a whole count — English one/other, Arabic
+ * zero/one/two/few/many/other. Hand-rolled (integers only) because Hermes
+ * does not ship `Intl.PluralRules`, which i18next's own plurals rely on.
+ */
+export function pluralCategory(count: number, language: string): PluralCategory {
+  const n = Math.abs(Math.trunc(count));
+  if (language !== "ar") return n === 1 ? "one" : "other";
+  if (n === 0) return "zero";
+  if (n === 1) return "one";
+  if (n === 2) return "two";
+  const rest = n % 100;
+  if (rest >= 3 && rest <= 10) return "few";
+  if (rest >= 11 && rest <= 99) return "many";
+  return "other";
+}

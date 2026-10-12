@@ -4,10 +4,10 @@ import { StyleSheet, View } from "react-native";
 
 import type { FareComponents, Ride } from "../../api/ride-types";
 import type { DriverRideContextValue } from "../../rides/DriverRideProvider";
+import { formatMoney, formatSignedMoney } from "../../money/format";
 import {
   formatDistance,
   formatMinutes,
-  formatMoney,
   formatNumber,
 } from "../../rides/format";
 import { colors, spacing } from "../../theme/tokens";
@@ -102,10 +102,13 @@ function fareLines(
 /**
  * Design canvas "Driver complete" (UC-D-09): "Collect SYP X in cash" from
  * the stored fare, its components, big "Cash received" (cash-confirm) and
- * "Rider didn't pay" (mark-unpaid, E1). M8 (PAY-02): a wallet-method ride
- * whose wallet ran short collects only the CASH REMAINDER (`cashDue`, incl.
- * collected dues) — the wallet part shows as its own line; a fully
- * wallet-covered ride never reaches this screen (auto-confirmed).
+ * "Rider didn't pay" (mark-unpaid, E1). M8 (PAY-02): the headline is the
+ * server's `cashDue` — the cash part of the fare plus every CASH carried
+ * due (W6). The wallet part and each carried fee are lines of their own,
+ * so the itemized lines add up to the headline. A wallet ride whose fare
+ * the wallet fully covered still lands here while a cash carried due is
+ * owed (rides-v1 B: `pending`) — the driver collects just the due. Only a
+ * ride with nothing owed in cash is auto-confirmed (`paid_wallet`).
  */
 export function CompleteScreen({
   ctx,
@@ -135,6 +138,11 @@ export function CompleteScreen({
     typeof ride.walletApplied === "number" && ride.walletApplied > 0
       ? ride.walletApplied
       : null;
+  // W6: carried fees the driver collects in cash, itemized (server amounts).
+  const cashDues = (ride.carriedDues ?? []).filter(
+    (due) => due.method === "cash",
+  );
+  const itemized = walletApplied !== null || cashDues.length > 0;
 
   return (
     <View style={styles.screen} testID="ride-complete-screen">
@@ -163,7 +171,6 @@ export function CompleteScreen({
                 testID="collect-total"
               >
                 {formatMoney(
-                  t,
                   collect ?? fare.components.total,
                   fare.components.currency,
                   language,
@@ -183,8 +190,7 @@ export function CompleteScreen({
                 <FareLine
                   key={line.key}
                   label={line.label}
-                  value={formatMoney(
-                    t,
+                  value={formatSignedMoney(
                     line.amount,
                     fare.components.currency,
                     language,
@@ -195,8 +201,7 @@ export function CompleteScreen({
               {walletApplied !== null ? (
                 <FareLine
                   label={t("ride.complete.walletApplied")}
-                  value={formatMoney(
-                    t,
+                  value={formatSignedMoney(
                     -walletApplied,
                     fare.components.currency,
                     language,
@@ -204,11 +209,18 @@ export function CompleteScreen({
                   testID="fare-line-wallet-applied"
                 />
               ) : null}
-              {walletApplied !== null && collect !== null ? (
+              {cashDues.map((due) => (
+                <FareLine
+                  key={due.dueId}
+                  label={t("ride.complete.carriedFee")}
+                  value={formatMoney(due.amount, due.currency, language)}
+                  testID={`fare-line-carried-${due.dueId}`}
+                />
+              ))}
+              {itemized && collect !== null ? (
                 <FareLine
                   label={t("ride.complete.cashToCollect")}
                   value={formatMoney(
-                    t,
                     collect,
                     fare.components.currency,
                     language,

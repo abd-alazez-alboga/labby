@@ -574,6 +574,7 @@
       "riderDidNotPay": "الراكب لم يدفع",
       "fareMissing": "الأجرة غير متاحة بعد. حدّث بعد لحظات.",
       "walletApplied": "مدفوع من المحفظة",
+      "carriedFee": "رسم مُرحَّل من رحلة سابقة",
       "cashToCollect": "النقد المطلوب تحصيله"
     },
     "fare": {
@@ -644,21 +645,30 @@
     "nextPeriod": "الفترة التالية",
     "totalWeekly": "أرباحك هذا الأسبوع",
     "totalMonthly": "أرباحك هذا الشهر",
-    "trips": "{{count}} رحلة",
+    "tripCount": {
+      "zero": "{{value}} رحلة",
+      "one": "رحلة واحدة",
+      "two": "رحلتان",
+      "few": "{{value}} رحلات",
+      "many": "{{value}} رحلة",
+      "other": "{{value}} رحلة"
+    },
     "fares": "الأجور {{amount}}",
     "tips": "الإكراميات {{amount}}",
     "commission": "العمولة {{amount}}",
     "tierHeading": "عمولة هذا الأسبوع: {{percent}}",
-    "tierNext": "{{count}} رحلة حتى الآن هذا الأسبوع. أكمل {{needed}} لتنخفض عمولة الأسبوع القادم إلى {{percent}}.",
-    "tierBest": "{{count}} رحلة حتى الآن هذا الأسبوع. أنت على أفضل نسبة عمولة.",
+    "tierNext": "{{trips}} حتى الآن هذا الأسبوع. أكمل {{needed}} لتنخفض عمولة الأسبوع القادم إلى {{percent}}.",
+    "tierBest": "{{trips}} حتى الآن هذا الأسبوع. أنت على أفضل نسبة عمولة.",
     "tripsHeading": "الرحلات",
     "rowCash": "نقداً",
     "rowWallet": "محفظة",
     "rowFare": "الأجرة {{amount}}",
     "rowCommission": "العمولة {{amount}}",
     "rowTip": "إكرامية {{amount}}",
+    "rowFee": "رسم إلغاء · لك بالكامل",
     "loadMore": "عرض المزيد",
-    "empty": "لا أرباح بعد — ستظهر رحلاتك المكتملة هنا."
+    "empty": "لا أرباح بعد — ستظهر رحلاتك المكتملة هنا.",
+    "summaryEmpty": "لا أرباح لعرضها بعد — ستُجمع رحلاتك المكتملة هنا."
   },
   "balance": {
     "title": "الرصيد",

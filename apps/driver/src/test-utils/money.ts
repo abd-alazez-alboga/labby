@@ -57,6 +57,46 @@ export function walletEarningFixture(
   });
 }
 
+/**
+ * A MIXED wallet ride (wallet ran short): fare 28,000, wallet 10,000,
+ * commission 7,000 → the server's netted fare entry is walletApplied −
+ * commission = +3,000 (money-v1 D). Override `net` for the negative case.
+ */
+export function mixedWalletEarningFixture(
+  overrides: Partial<TripEarning> = {},
+): TripEarning {
+  return tripEarningFixture({
+    rideId: "5b1d3f0e-1111-4c4c-9a9a-000000000003",
+    completedAt: "2026-10-11T10:15:00Z",
+    paymentMethod: "wallet",
+    fareTotal: 28000,
+    commissionAmount: 7000,
+    tip: null,
+    net: 3000,
+    ...overrides,
+  });
+}
+
+/**
+ * A FEE-ONLY row (contract shape): a cancelled ride whose 10,000 fee was
+ * credited to this driver — no fare, no commission, net = the fee.
+ */
+export function feeOnlyEarningFixture(
+  overrides: Partial<TripEarning> = {},
+): TripEarning {
+  return tripEarningFixture({
+    rideId: "5b1d3f0e-1111-4c4c-9a9a-000000000004",
+    completedAt: "2026-10-11T09:40:00Z",
+    fareTotal: 0,
+    commissionRate: 0,
+    commissionAmount: 0,
+    tip: null,
+    cancellationFee: 10000,
+    net: 10000,
+    ...overrides,
+  });
+}
+
 export function earningPage(
   items: TripEarning[],
   overrides: Partial<TripEarningPage> = {},
@@ -89,7 +129,10 @@ export function summaryFixture(
   };
 }
 
-/** COM-02: 25% this week, 38 trips so far, 101+ → 20% next week. */
+/**
+ * COM-02: 25% this week, 38 trips so far; MORE than 100 trips (i.e. 101)
+ * → 20% next week (backend tier condition is strictly greater-than).
+ */
 export function commissionFixture(
   overrides: Partial<CommissionStatus> = {},
 ): CommissionStatus {
@@ -98,7 +141,7 @@ export function commissionFixture(
     weekStart: "2026-10-06",
     weeklyTrips: 52,
     currentWeekTrips: 38,
-    nextTier: { percent: 20, weeklyTripsAbove: 101 },
+    nextTier: { percent: 20, weeklyTripsAbove: 100 },
     ...overrides,
   };
 }

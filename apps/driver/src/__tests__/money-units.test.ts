@@ -12,10 +12,11 @@ import {
   LTR_ISOLATE_END,
   LTR_ISOLATE_START,
   MINUS,
+  pluralCategory,
 } from "../money/format";
 import {
   floorAlertEntry,
-  worstFloorStatus,
+  operatingEntry,
 } from "../money/DriverMoneyProvider";
 import {
   localRange,
@@ -25,10 +26,16 @@ import {
   stepAnchor,
   weekStartIso,
 } from "../money/periods";
-import { floorFraction } from "../components/money/floor";
+import { floorFraction, floorHeadroom } from "../components/money/floor";
+import { tripsForNextTier } from "../components/money/earnings-screen";
+import { fareNet, isFeeOnlyEarning } from "../api/money-types";
 import {
   balanceEntryFixture,
   balanceViewFixture,
+  blockedBalanceView,
+  feeOnlyEarningFixture,
+  mixedWalletEarningFixture,
+  tripEarningFixture,
 } from "../test-utils/money";
 
 describe("money formatting (NFR-I2)", () => {
@@ -120,18 +127,34 @@ describe("earnings periods (UC-D-15)", () => {
 });
 
 describe("floor status (COM-03)", () => {
-  it("derives the worst status and the alert entry across currencies", () => {
-    expect(worstFloorStatus(null)).toBe("ok");
-    expect(worstFloorStatus(balanceViewFixture())).toBe("warning");
+  it("gates on the OPERATING currency only, never the worst across currencies (W16)", () => {
     const mixed = balanceViewFixture({
       balances: [
-        balanceEntryFixture({ currency: "USD", balance: 5, status: "ok" }),
-        balanceEntryFixture({ balance: -520000, status: "blocked" }),
+        balanceEntryFixture({ currency: "USD", balance: -80, floor: -50, status: "blocked" }),
+        balanceEntryFixture({ balance: -50000, status: "ok" }),
       ],
     });
-    expect(worstFloorStatus(mixed)).toBe("blocked");
-    expect(floorAlertEntry(mixed)?.balance).toBe(-520000);
-    expect(floorAlertEntry(balanceViewFixture({ balances: [] }))).toBeNull();
+    // Operating region in SYP: the blocked USD balance does not gate.
+    expect(operatingEntry(mixed, "SYP")?.currency).toBe("SYP");
+    expect(floorAlertEntry(mixed, "SYP", false)).toBeNull();
+    // Operating region in USD: it does.
+    expect(floorAlertEntry(mixed, "USD", false)?.currency).toBe("USD");
+    // Region unknown: a single entry is the operating one; several are not guessed…
+    expect(operatingEntry(blockedBalanceView(), null)?.status).toBe("blocked");
+    expect(operatingEntry(mixed, null)).toBeNull();
+    expect(floorAlertEntry(mixed, null, false)).toBeNull();
+    // …unless the server says offers are blocked for the floor.
+    expect(floorAlertEntry(mixed, null, true)?.currency).toBe("USD");
+    expect(floorAlertEntry(balanceViewFixture({ balances: [] }), "SYP", true)).toBeNull();
+    expect(floorAlertEntry(null, null, false)).toBeNull();
+  });
+
+  it("subtracts the floor headroom in integer minor units", () => {
+    // 0.3 − 0.1 in floats is 0.19999999999999998.
+    expect(
+      floorHeadroom(balanceEntryFixture({ currency: "USD", balance: 0.3, floor: 0.1 })),
+    ).toBe(0.2);
+    expect(floorHeadroom(balanceEntryFixture())).toBe(70000);
   });
 
   it("maps the debt progress toward the floor onto 0..1", () => {
@@ -144,5 +167,48 @@ describe("floor status (COM-03)", () => {
     expect(
       floorFraction(balanceEntryFixture({ balance: 10000, floor: -500000 })),
     ).toBe(0);
+  });
+});
+
+describe("count plurals (EN one/other, AR CLDR)", () => {
+  it("picks the CLDR category for whole counts", () => {
+    expect([0, 1, 2, 38].map((n) => pluralCategory(n, "en"))).toEqual([
+      "other",
+      "one",
+      "other",
+      "other",
+    ]);
+    expect(
+      [0, 1, 2, 3, 10, 11, 99, 100, 101, 103, 111].map((n) =>
+        pluralCategory(n, "ar"),
+      ),
+    ).toEqual([
+      "zero",
+      "one",
+      "two",
+      "few",
+      "few",
+      "many",
+      "many",
+      "other",
+      "other",
+      "few",
+      "many",
+    ]);
+  });
+});
+
+describe("trip earning rows (money-v1 D)", () => {
+  it("tells fee-only rows from fare rows and never recomputes the fare part", () => {
+    expect(isFeeOnlyEarning(feeOnlyEarningFixture())).toBe(true);
+    expect(isFeeOnlyEarning(tripEarningFixture())).toBe(false);
+    // Cash ride: net −2,000 incl. the +5,000 tip → fare part −7,000.
+    expect(fareNet(tripEarningFixture())).toBe(-7000);
+    // Mixed wallet ride: the server's net, as is.
+    expect(fareNet(mixedWalletEarningFixture())).toBe(3000);
+  });
+
+  it("needs weeklyTripsAbove + 1 trips for the next tier (strict >)", () => {
+    expect(tripsForNextTier({ percent: 20, weeklyTripsAbove: 100 })).toBe(101);
   });
 });

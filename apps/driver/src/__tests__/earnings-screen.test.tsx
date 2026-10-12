@@ -19,6 +19,7 @@ import {
   commissionFixture,
   EARNINGS,
   earningPage,
+  feeOnlyEarningFixture,
   okBalanceView,
   summaryFixture,
   summaryRoute,
@@ -26,6 +27,7 @@ import {
   walletEarningFixture,
 } from "../test-utils/money";
 import { renderMoneyScreens } from "../test-utils/money-harness";
+import { NON_WESTERN_DIGITS, simulateArabicIndicIcu } from "../test-utils/intl";
 import { screen } from "../test-utils/ride-harness";
 import type { MockResponse } from "../test-utils/contract";
 
@@ -74,10 +76,55 @@ describe("earnings screen (UC-D-15)", () => {
       { exact: false },
     );
     expect(screen.getByTestId("earnings-tier-body")).toHaveTextContent(
-      "38 trips so far this week. Finish 101+ and next week's commission drops to 20%.",
+      "38 trips so far this week. Finish 101 trips and next week's commission drops to 20%.",
       { exact: false },
     );
-    expect(screen.getByTestId("earnings-tier-bar")).toBeTruthy();
+    // 38 of the 101 needed (backend tier: strictly MORE than 100).
+    expect(
+      screen.getByTestId("earnings-tier-bar").props.accessibilityValue.now,
+    ).toBe(38);
+  });
+
+  it("is not full at exactly weeklyTripsAbove trips — one more is needed (W14)", async () => {
+    await renderMoneyScreens(
+      {
+        ...baseRoutes(),
+        [BALANCE]: ok(
+          balanceViewFixture({
+            commission: commissionFixture({ currentWeekTrips: 100 }),
+          }),
+        ),
+      },
+      { initialUrl: "/earnings" },
+    );
+    const bar = await screen.findByTestId("earnings-tier-bar");
+    expect(bar.props.accessibilityValue.now).toBeLessThan(100);
+    expect(screen.getByTestId("earnings-tier-body")).toHaveTextContent(
+      "100 trips so far this week. Finish 101 trips",
+      { exact: false },
+    );
+  });
+
+  it("says '1 trip', not '1 trips'", async () => {
+    await renderMoneyScreens(
+      {
+        ...baseRoutes(),
+        [WEEK_NOW()]: ok(summaryFixture({ trips: 1 })),
+        [BALANCE]: ok(
+          balanceViewFixture({
+            commission: commissionFixture({ currentWeekTrips: 1 }),
+          }),
+        ),
+      },
+      { initialUrl: "/earnings" },
+    );
+    expect(await screen.findByTestId("earnings-meta")).toHaveTextContent(
+      /^1 trip · fares/u,
+    );
+    expect(await screen.findByTestId("earnings-tier-body")).toHaveTextContent(
+      "1 trip so far this week.",
+      { exact: false },
+    );
   });
 
   it("says so when the driver is already on the best rate", async () => {
@@ -217,6 +264,39 @@ describe("earnings screen (UC-D-15)", () => {
     ).toHaveLength(1);
   });
 
+  it("shows an empty state, not a server error, when the driver has no operating region (404, W15)", async () => {
+    await renderMoneyScreens(
+      {
+        ...baseRoutes(),
+        [WEEK_NOW()]: { status: 404, body: { status: 404 } },
+        [EARNINGS]: ok(earningPage([])),
+      },
+      { initialUrl: "/earnings" },
+    );
+    expect(
+      await screen.findByTestId("earnings-summary-empty"),
+    ).toHaveTextContent("No earnings to show yet", { exact: false });
+    expect(screen.queryByTestId("earnings-summary-error")).toBeNull();
+    expect(screen.queryByTestId("earnings-total-card")).toBeNull();
+  });
+
+  it("renders a fee-only row as one 'Cancellation fee · all yours' item (W17)", async () => {
+    const fee = feeOnlyEarningFixture();
+    await renderMoneyScreens(
+      { ...baseRoutes(), [EARNINGS]: ok(earningPage([fee])) },
+      { initialUrl: "/earnings" },
+    );
+    const row = await screen.findByTestId(`trip-row-${fee.rideId}`);
+    expect(row).toHaveTextContent("Cancellation fee · all yours", {
+      exact: false,
+    });
+    expect(row).not.toHaveTextContent("fare", { exact: false });
+    expect(row).not.toHaveTextContent("commission", { exact: false });
+    expect(screen.getByTestId(`trip-net-${fee.rideId}`)).toHaveTextContent(
+      "+SYP 10,000",
+    );
+  });
+
   it("shows the empty state when there are no earnings", async () => {
     await renderMoneyScreens(
       {
@@ -270,8 +350,26 @@ describe("earnings screen (UC-D-15)", () => {
       exact: false,
     });
     expect(screen.getByTestId("earnings-tier-body")).toHaveTextContent(
-      "أكمل",
+      "أكمل ⁦101⁩ رحلة",
       { exact: false },
     );
+  });
+
+  it("keeps Western digits on the whole screen even where plain 'ar' would not (W18)", async () => {
+    const restore = simulateArabicIndicIcu();
+    try {
+      await setAppLanguage("ar");
+      await renderMoneyScreens(
+        { ...baseRoutes(), [BALANCE]: ok(okBalanceView()) },
+        { initialUrl: "/earnings", language: "ar" },
+      );
+      expect(await screen.findByTestId("earnings-trips")).toBeTruthy();
+      expect(await screen.findByTestId("earnings-total-card")).toBeTruthy();
+      expect(screen.getByTestId("earnings-screen")).not.toHaveTextContent(
+        NON_WESTERN_DIGITS,
+      );
+    } finally {
+      restore();
+    }
   });
 });

@@ -16,13 +16,34 @@ export interface TripEarning {
   commissionRate: number;
   commissionAmount: number;
   tip?: number | null;
-  /** Collected cancellation fee credited for this ride. */
+  /**
+   * Set only on a FEE-ONLY row: a cancelled ride whose fee was credited to
+   * this driver (fareTotal, commissionRate and commissionAmount are 0 and
+   * net = cancellationFee). Null on fare rows.
+   */
   cancellationFee?: number | null;
   /**
-   * Signed effect on the balance: wallet ride fare − commission (+ tip);
-   * cash ride −commission (+ tip) — the driver kept the cash fare.
+   * Signed effect on the balance — the server's number, NEVER recomputed:
+   * wallet ride walletApplied − commission (+ tip; negative when a mixed
+   * ride's wallet part is below the commission); cash ride −commission
+   * (+ tip) — the driver kept the cash fare.
    */
   net: number;
+}
+
+/** A cancellation-fee credit row (no fare, no commission) — money-v1 D. */
+export function isFeeOnlyEarning(earning: TripEarning): boolean {
+  return (
+    earning.fareTotal === 0 &&
+    earning.commissionAmount === 0 &&
+    typeof earning.cancellationFee === "number" &&
+    earning.cancellationFee !== 0
+  );
+}
+
+/** The fare part of a row's net — the server's net minus the tip. */
+export function fareNet(earning: TripEarning): number {
+  return earning.net - (earning.tip ?? 0);
 }
 
 export interface TripEarningPage {

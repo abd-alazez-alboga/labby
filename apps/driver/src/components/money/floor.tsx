@@ -20,6 +20,14 @@ export function floorFraction(entry: DriverBalanceEntry): number {
   return Math.min(1, Math.max(0, entry.balance / entry.floor));
 }
 
+/**
+ * How much more debt until the floor (balance − floor), subtracted in
+ * integer minor units so 2-dp server amounts never pick up float noise.
+ */
+export function floorHeadroom(entry: DriverBalanceEntry): number {
+  return (Math.round(entry.balance * 100) - Math.round(entry.floor * 100)) / 100;
+}
+
 /** Amber "You're close to the limit" banner with the debt progress bar. */
 export function FloorWarningBanner({
   entry,
@@ -31,11 +39,7 @@ export function FloorWarningBanner({
   const { t } = useTranslation();
   const { flipRows, language } = useDirection();
   const limit = formatMoney(entry.floor, entry.currency, language);
-  const toGo = formatMoney(
-    entry.balance - entry.floor,
-    entry.currency,
-    language,
-  );
+  const toGo = formatMoney(floorHeadroom(entry), entry.currency, language);
   return (
     <View style={styles.warning} testID={testID}>
       <View style={[styles.titleRow, flipRows && styles.rowReverse]}>

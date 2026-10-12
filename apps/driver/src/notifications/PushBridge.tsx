@@ -6,7 +6,14 @@ import { markNotificationRead } from "../api/notifications";
 import { useAuth } from "../auth/AuthProvider";
 import { addSignOutTask } from "../auth/sign-out-tasks";
 import { useOptionalDriverRide } from "../rides/DriverRideProvider";
-import { hrefForLink, isRideLink, parsePushPayload } from "./deep-links";
+import { useOptionalDriverMoney } from "../money/DriverMoneyProvider";
+import { useOptionalAvailability } from "../realtime/AvailabilityProvider";
+import {
+  hrefForLink,
+  isBalanceEvent,
+  isRideLink,
+  parsePushPayload,
+} from "./deep-links";
 import {
   configureForegroundPresentation,
   onNotificationReceived,
@@ -29,7 +36,8 @@ import { refreshUnread } from "./unread-store";
  * - routes notification taps (warm and cold start) through the shared
  *   deep-link mapper and marks the tapped notification read; a `ride_offer`
  *   / `ride` tap also makes the ride facade resync (the offer may be gone);
- * - refreshes the unread badge when a push arrives in the foreground.
+ * - refreshes the unread badge when a push arrives in the foreground, and
+ *   re-reads balance + availability on a `driver.balance_*` push (W16).
  */
 export function PushBridge() {
   const router = useRouter();
@@ -37,8 +45,22 @@ export function PushBridge() {
   const signedIn = status === "signedIn";
   const rides = useOptionalDriverRide();
   const openRideLink = rides?.openLink;
-  const context = useRef({ signedIn, isDriver, openRideLink });
-  context.current = { signedIn, isDriver, openRideLink };
+  const reloadBalance = useOptionalDriverMoney()?.reload;
+  const reloadAvailability = useOptionalAvailability()?.reload;
+  const context = useRef({
+    signedIn,
+    isDriver,
+    openRideLink,
+    reloadBalance,
+    reloadAvailability,
+  });
+  context.current = {
+    signedIn,
+    isDriver,
+    openRideLink,
+    reloadBalance,
+    reloadAvailability,
+  };
 
   useEffect(() => {
     configureForegroundPresentation();
@@ -102,8 +124,18 @@ export function PushBridge() {
     void takeLaunchTap().then((data) => {
       if (!cancelled && data) open(data);
     });
-    const removeReceived = onNotificationReceived(() => {
+    const removeReceived = onNotificationReceived((data) => {
       void refreshUnread();
+      // W16: a floor change (blocked / unblocked / warning) re-reads the
+      // balance AND availability, so the home updates without a poll.
+      if (
+        context.current.signedIn &&
+        context.current.isDriver &&
+        isBalanceEvent(parsePushPayload(data).event)
+      ) {
+        void context.current.reloadBalance?.();
+        void context.current.reloadAvailability?.();
+      }
     });
     return () => {
       cancelled = true;

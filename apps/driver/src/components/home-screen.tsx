@@ -194,7 +194,8 @@ export function HomeScreen() {
       ? region
       : null;
   const rides = useOptionalDriverRide();
-  // M8: balance floor state (COM-03) — refreshed with the availability data.
+  // M8: balance floor state (COM-03) of the operating currency (W16) —
+  // refreshed with the availability data. Blocked stops offers, not GO.
   const money = useOptionalDriverMoney();
   const floorBlocked = money?.floor === "blocked";
 
@@ -225,7 +226,7 @@ export function HomeScreen() {
       }
       bottom={
         <>
-          <AvailabilityGoButton ctx={availability} floorBlocked={floorBlocked} />
+          <AvailabilityGoButton ctx={availability} />
           <View
             onLayout={(event) =>
               setSheetHeight(event.nativeEvent.layout.height)

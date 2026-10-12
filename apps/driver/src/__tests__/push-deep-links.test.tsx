@@ -181,6 +181,7 @@ describe("deep-link mapper (UC-S-11)", () => {
         params: { documentType: "insurance" },
       },
       notificationId: null,
+      event: null,
     });
     expect(
       parsePushPayload({
@@ -190,7 +191,12 @@ describe("deep-link mapper (UC-S-11)", () => {
     ).toEqual({
       link: { screen: "driver_vehicles", params: null },
       notificationId: "n-1",
+      event: null,
     });
+    expect(
+      parsePushPayload({ event: "driver.balance_unblocked", notificationId: "n-2" })
+        .event,
+    ).toBe("driver.balance_unblocked");
     expect(
       parsePushPayload({ link: { screen: "notifications" } }).link,
     ).toEqual({
@@ -200,10 +206,12 @@ describe("deep-link mapper (UC-S-11)", () => {
     expect(parsePushPayload(null)).toEqual({
       link: null,
       notificationId: null,
+      event: null,
     });
     expect(parsePushPayload("garbage")).toEqual({
       link: null,
       notificationId: null,
+      event: null,
     });
   });
 });

@@ -40,10 +40,15 @@ export function maxVehicleYear(now: Date = new Date()): number {
   return now.getFullYear() + 1;
 }
 
+/** Western digits in BOTH languages (owner ruling 2026-10-11). */
+function dateLocale(language: string): string {
+  return language === "ar" ? "ar-u-nu-latn" : "en-GB";
+}
+
 /** Human date for display, localized when Intl is available. */
 export function formatDate(iso: string, language: string): string {
   try {
-    return new Intl.DateTimeFormat(language === "ar" ? "ar" : "en-GB", {
+    return new Intl.DateTimeFormat(dateLocale(language), {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -56,7 +61,7 @@ export function formatDate(iso: string, language: string): string {
 /** Human date-time for history entries (ISO date-time input). */
 export function formatDateTime(iso: string, language: string): string {
   try {
-    return new Intl.DateTimeFormat(language === "ar" ? "ar" : "en-GB", {
+    return new Intl.DateTimeFormat(dateLocale(language), {
       year: "numeric",
       month: "short",
       day: "numeric",

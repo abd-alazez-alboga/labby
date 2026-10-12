@@ -93,6 +93,10 @@ export function rideFixture(overrides: Partial<Ride> = {}): Ride {
     cancellationFee: null,
     fare: null,
     paymentStatus: null,
+    walletApplied: null,
+    cashDue: null,
+    tip: null,
+    carriedDues: [],
     driverStream: "ok",
     etaSeconds: 180,
     rider: {
@@ -137,10 +141,13 @@ export function inProgressRide(overrides: Partial<Ride> = {}): Ride {
   });
 }
 
+/** A completed cash ride awaiting the driver's cash-confirm / mark-unpaid. */
 export function completedRide(overrides: Partial<Ride> = {}): Ride {
   return inProgressRide({
     state: "completed",
     paymentStatus: "pending",
+    // Cash ride: the driver collects the whole stored fare (rides-v1 A).
+    cashDue: 27250,
     etaSeconds: null,
     fare: {
       distanceMeters: 4200,

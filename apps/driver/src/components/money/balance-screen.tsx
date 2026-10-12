@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import { getTripEarnings } from "../../api/money";
+import { fareNet, isFeeOnlyEarning } from "../../api/money-types";
 import type { TripEarning } from "../../api/money-types";
 import {
   formatAmountValue,
@@ -44,9 +45,12 @@ interface ActivityEntry {
 
 /**
  * The typed recent activity the driver contract exposes (UC-D-16): each
- * `TripEarning` expands into its ledger-shaped parts — the cash-ride
- * commission debit / wallet-ride earning credit (COM-01), the tip and the
- * collected cancellation fee. Amounts are the server's itemized numbers.
+ * `TripEarning` expands into its ledger-shaped parts — the ride's fare
+ * entry (cash ride: the commission debit; wallet ride: the netted earning,
+ * a debit when a mixed ride's wallet part is below the commission) and the
+ * tip; a fee-only row is one cancellation-fee credit. Amounts are the
+ * server's numbers — the fare entry is `net − tip`, never recomputed (H5),
+ * and its credit/debit styling follows the amount's sign.
  */
 export function activityEntries(
   items: TripEarning[],
@@ -57,47 +61,45 @@ export function activityEntries(
   for (const item of items) {
     const time = formatTime(item.completedAt, language);
     const date = formatDate(item.completedAt, language);
+    if (isFeeOnlyEarning(item)) {
+      // W17: a credited cancellation fee — no fare, no commission lines.
+      entries.push({
+        key: `${item.rideId}-fee`,
+        title: t("balance.feeTitle"),
+        subtitle: t("balance.feeSub", { date }),
+        amount: item.net,
+        currency: item.currency,
+        credit: item.net > 0,
+      });
+      continue;
+    }
     const fare = isolateDigits(formatAmountValue(item.fareTotal), language);
     const rate = isolateDigits(
       `${formatAmountValue(item.commissionRate)}%`,
       language,
     );
-    if (item.paymentMethod === "cash") {
-      entries.push({
-        key: `${item.rideId}-commission`,
-        title: t("balance.commissionTitle", { time }),
-        subtitle: t("balance.commissionSub", { date, fare, rate }),
-        amount: -item.commissionAmount,
-        currency: item.currency,
-        credit: false,
-      });
-    } else {
-      entries.push({
-        key: `${item.rideId}-earning`,
-        title: t("balance.earningTitle", { time }),
-        subtitle: t("balance.earningSub", { date, fare, rate }),
-        // COM-01: wallet ride credits fare − commission (both server numbers).
-        amount: item.fareTotal - item.commissionAmount,
-        currency: item.currency,
-        credit: true,
-      });
-    }
+    const amount = fareNet(item);
+    const cash = item.paymentMethod === "cash";
+    entries.push({
+      key: `${item.rideId}-${cash ? "commission" : "earning"}`,
+      title: t(cash ? "balance.commissionTitle" : "balance.earningTitle", {
+        time,
+      }),
+      subtitle: t(cash ? "balance.commissionSub" : "balance.earningSub", {
+        date,
+        fare,
+        rate,
+      }),
+      amount,
+      currency: item.currency,
+      credit: amount > 0,
+    });
     if (item.tip) {
       entries.push({
         key: `${item.rideId}-tip`,
         title: t("balance.tipTitle"),
         subtitle: t("balance.tipSub", { date }),
         amount: item.tip,
-        currency: item.currency,
-        credit: true,
-      });
-    }
-    if (item.cancellationFee) {
-      entries.push({
-        key: `${item.rideId}-fee`,
-        title: t("balance.feeTitle"),
-        subtitle: t("balance.feeSub", { date }),
-        amount: item.cancellationFee,
         currency: item.currency,
         credit: true,
       });
@@ -149,7 +151,8 @@ export function BalanceScreen() {
   }, [loadActivity, moneyReload]);
 
   const view = money?.balance ?? null;
-  const main = money?.alert ?? view?.balances[0] ?? null;
+  // The operating currency leads (W16); other currencies list below it.
+  const main = money?.alert ?? money?.entry ?? view?.balances[0] ?? null;
   const others = view?.balances.filter((entry) => entry !== main) ?? [];
   const debt = !!main && main.balance < 0;
 

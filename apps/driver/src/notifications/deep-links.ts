@@ -78,6 +78,8 @@ function stringParams(value: unknown): Record<string, string> | null {
 export interface PushPayload {
   link: DeepLink | null;
   notificationId: string | null;
+  /** The catalog event, e.g. `driver.balance_unblocked`. */
+  event: string | null;
 }
 
 /**
@@ -98,7 +100,13 @@ export function parsePushPayload(data: unknown): PushPayload {
   return {
     link: screen ? { screen, params: stringParams(source.params) } : null,
     notificationId,
+    event: typeof record.event === "string" ? record.event : null,
   };
+}
+
+/** `driver.balance_warning` / `_blocked` / `_unblocked` (COM-03). */
+export function isBalanceEvent(event: string | null | undefined): boolean {
+  return !!event && event.startsWith("driver.balance_");
 }
 
 /** Links the ride facade must resync for before the home route shows them. */

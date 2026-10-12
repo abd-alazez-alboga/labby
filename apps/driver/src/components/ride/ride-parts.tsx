@@ -123,10 +123,13 @@ export function ProgressBar({
   testID?: string;
 }) {
   const { flipRows } = useDirection();
-  const width = `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%` as const;
+  const percent = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+  const width = `${percent}%` as const;
   return (
     <View
       style={[styles.bar, flipRows && styles.rowReverse]}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: percent }}
       testID={testID}
     >
       <View style={[styles.barFill, { width }]} />

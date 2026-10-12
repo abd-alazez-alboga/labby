@@ -232,11 +232,13 @@ export async function takeLaunchTap(): Promise<unknown | null> {
   }
 }
 
-/** A push arrived while the app is open. */
-export function onNotificationReceived(listener: () => void): () => void {
+/** A push arrived while the app is open (with its data payload). */
+export function onNotificationReceived(
+  listener: (data: unknown) => void,
+): () => void {
   try {
-    const subscription = notifications().addNotificationReceivedListener(() =>
-      listener(),
+    const subscription = notifications().addNotificationReceivedListener(
+      (notification) => listener(notification?.request?.content?.data),
     );
     return () => subscription.remove();
   } catch {

@@ -25,6 +25,7 @@ import {
   LoadingState,
   PrimaryButton,
   SafeScrollView,
+  SecondaryButton,
   TextButton,
   useDirection,
   useSafeBottomBar,
@@ -99,10 +100,17 @@ export function TripEarningsScreen({
   const mixed = ride.paymentStatus === "paid_mixed";
   const cash = ride.paymentStatus === "paid_cash" || mixed;
 
-  // The dark card: what the driver collected in cash, or what was credited.
+  // The dark card: what the driver collected in cash (the server's
+  // `cashDue` — fare cash part + carried cash fees, W6), or what was
+  // credited. The fare total is only a fallback when cashDue is absent.
   const fareTotal = earning?.fareTotal ?? ride.fare?.components.total ?? null;
+  // Carried fees the driver took in cash with this fare (pass-through: the
+  // card's cashDue includes them, so each is itemized under the fare).
+  const cashDues = cash
+    ? (ride.carriedDues ?? []).filter((due) => due.method === "cash")
+    : [];
   const cardAmount = cash
-    ? (mixed ? (ride.cashDue ?? fareTotal) : fareTotal)
+    ? (ride.cashDue ?? fareTotal)
     : (earning ? earning.net : null);
   const metaParts: string[] = [];
   if (ride.fare) {
@@ -158,7 +166,14 @@ export function TripEarningsScreen({
           />
         ) : null}
         {load.status === "missing" ? (
-          <Banner tone="neutral" message={t("tripEarnings.missing")} testID="trip-earnings-missing" />
+          <Banner tone="neutral" message={t("tripEarnings.missing")} testID="trip-earnings-missing">
+            <SecondaryButton
+              title={t("onboarding.actions.retry")}
+              icon="refresh"
+              onPress={() => void fetchEarning()}
+              testID="trip-earnings-retry"
+            />
+          </Banner>
         ) : null}
 
         {earning ? (
@@ -176,6 +191,14 @@ export function TripEarningsScreen({
                   testID="earning-line-wallet"
                 />
               ) : null}
+              {cashDues.map((due) => (
+                <FareLine
+                  key={due.dueId}
+                  label={t("ride.complete.carriedFee")}
+                  value={formatMoney(due.amount, due.currency, language)}
+                  testID={`earning-line-carried-${due.dueId}`}
+                />
+              ))}
               <FareLine
                 label={t("tripEarnings.commission", {
                   rate: isolateDigits(

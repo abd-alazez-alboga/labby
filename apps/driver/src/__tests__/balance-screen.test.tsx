@@ -16,12 +16,16 @@ import {
   blockedBalanceView,
   EARNINGS,
   earningPage,
+  feeOnlyEarningFixture,
+  mixedWalletEarningFixture,
   okBalanceView,
   tripEarningFixture,
   walletEarningFixture,
 } from "../test-utils/money";
 import { renderMoneyScreens } from "../test-utils/money-harness";
+import { NON_WESTERN_DIGITS, simulateArabicIndicIcu } from "../test-utils/intl";
 import { screen } from "../test-utils/ride-harness";
+import { colors } from "../theme/tokens";
 import type { MockResponse } from "../test-utils/contract";
 
 const ok = (body: unknown): MockResponse => ({ status: 200, body });
@@ -32,7 +36,8 @@ function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
     [EARNINGS]: ok(
       earningPage([
         tripEarningFixture(),
-        walletEarningFixture({ cancellationFee: 10000 }),
+        walletEarningFixture(),
+        feeOnlyEarningFixture(),
       ]),
     ),
   };
@@ -130,6 +135,7 @@ describe("balance screen (UC-D-16)", () => {
   it("derives the typed recent activity from the per-trip itemization", async () => {
     const cashId = tripEarningFixture().rideId;
     const walletId = walletEarningFixture().rideId;
+    const feeId = feeOnlyEarningFixture().rideId;
     await renderMoneyScreens(baseRoutes(), { initialUrl: "/balance" });
 
     // Cash ride → commission debit.
@@ -146,11 +152,55 @@ describe("balance screen (UC-D-16)", () => {
     const earning = screen.getByTestId(`${walletId}-earning`);
     expect(earning).toHaveTextContent("Ride earnings · wallet ride", { exact: false });
     expect(earning).toHaveTextContent("+SYP 23,625", { exact: false });
-    // Collected cancellation fee → "all yours" credit.
-    const fee = screen.getByTestId(`${walletId}-fee`);
+    // Fee-only row → ONE "all yours" credit, no phantom fare/commission (W17).
+    const fee = screen.getByTestId(`${feeId}-fee`);
     expect(fee).toHaveTextContent("Cancellation fee", { exact: false });
     expect(fee).toHaveTextContent("all yours", { exact: false });
     expect(fee).toHaveTextContent("+SYP 10,000", { exact: false });
+    expect(screen.queryByTestId(`${feeId}-commission`)).toBeNull();
+    expect(screen.queryByTestId(`${feeId}-earning`)).toBeNull();
+    expect(screen.getByTestId("balance-activity")).not.toHaveTextContent(
+      "fare 0",
+      { exact: false },
+    );
+  });
+
+  it("renders a mixed wallet ride's fare entry as the server's net − tip (H5)", async () => {
+    // fare 28,000, wallet 10,000, commission 7,000, tip 2,000: net 5,000.
+    const positive = mixedWalletEarningFixture({ tip: 2000, net: 5000 });
+    // wallet 5,000 < commission 7,000: the ledger DEBITS 2,000.
+    const negative = mixedWalletEarningFixture({
+      rideId: "5b1d3f0e-1111-4c4c-9a9a-000000000005",
+      net: -2000,
+    });
+    await renderMoneyScreens(
+      { ...baseRoutes(), [EARNINGS]: ok(earningPage([positive, negative])) },
+      { initialUrl: "/balance" },
+    );
+
+    const credit = await screen.findByTestId(`${positive.rideId}-earning`);
+    // Never fare − commission (+21,000): the netted ledger amount.
+    expect(credit).toHaveTextContent("+SYP 3,000", { exact: false });
+    expect(credit).not.toHaveTextContent("21,000", { exact: false });
+    expect(screen.getByTestId(`${positive.rideId}-tip`)).toHaveTextContent(
+      "+SYP 2,000",
+      { exact: false },
+    );
+    const debit = screen.getByTestId(`${negative.rideId}-earning`);
+    expect(debit).toHaveTextContent("−SYP 2,000", { exact: false });
+    // Coloured by sign: credit in the accent, debit not.
+    const amountColor = (testID: string) =>
+      screen.getByTestId(testID).findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          /SYP/u.test(String(node.props.children)),
+      )[0]?.props.style;
+    expect(JSON.stringify(amountColor(`${positive.rideId}-earning`))).toContain(
+      colors.accent,
+    );
+    expect(JSON.stringify(amountColor(`${negative.rideId}-earning`))).not.toContain(
+      colors.accent,
+    );
   });
 
   it("shows the empty-activity state", async () => {
@@ -199,5 +249,25 @@ describe("balance screen (UC-D-16)", () => {
       "70,000",
       { exact: false },
     );
+  });
+
+  it("keeps Western digits on the whole screen even where plain 'ar' would not (W18)", async () => {
+    const restore = simulateArabicIndicIcu();
+    try {
+      expect(new Intl.NumberFormat("ar").format(5)).toBe("٥");
+      await setAppLanguage("ar");
+      await renderMoneyScreens(
+        { ...baseRoutes(), [BALANCE]: ok(balanceViewFixture()) },
+        { initialUrl: "/balance", language: "ar" },
+      );
+      const activity = await screen.findByTestId("balance-activity");
+      // Times and dates of every row, amounts, the floor banner.
+      expect(activity).toHaveTextContent("28,000", { exact: false });
+      expect(screen.getByTestId("balance-screen")).not.toHaveTextContent(
+        NON_WESTERN_DIGITS,
+      );
+    } finally {
+      restore();
+    }
   });
 });

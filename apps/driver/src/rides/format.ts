@@ -4,12 +4,14 @@ import type { Place } from "../api/ride-types";
 
 /**
  * Display helpers for the ride screens. Numbers follow the app's locale
- * convention (Intl with `ar` / `en-GB`, as the onboarding dates do); money
- * is ALWAYS a stored server amount — nothing here computes a fare.
+ * convention (Intl with `ar-u-nu-latn` / `en-GB`, as the onboarding dates
+ * do — Western digits in Arabic, owner ruling 2026-10-11); money is ALWAYS
+ * a stored server amount — nothing here computes a fare.
  */
 
+/** Western digits in BOTH languages (owner ruling 2026-10-11). */
 function locale(language: string): string {
-  return language === "ar" ? "ar" : "en-GB";
+  return language === "ar" ? "ar-u-nu-latn" : "en-GB";
 }
 
 export function formatNumber(
