@@ -4,10 +4,12 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "users": "Users",
     "regions": "Regions",
     "driverApplications": "Driver applications",
     "vehicleReviews": "Vehicle switches",
     "documentExpiries": "Document expiry",
+    "driverLedgers": "Driver ledgers",
     "admins": "Admins",
     "roles": "Roles",
     "auditLog": "Audit log"
@@ -646,6 +648,7 @@
     "driver-review": "Driver review",
     "support": "Support",
     "settlements": "Settlements",
+    "wallets": "Wallets",
     "promos": "Promotions",
     "analytics": "Analytics",
     "audit": "Audit",
@@ -679,6 +682,10 @@
     "settlements": {
       "view": "View settlements",
       "record": "Record settlements"
+    },
+    "wallets": {
+      "view": "View wallets",
+      "manage": "Grant credits & refunds"
     },
     "promos": {
       "view": "View promotions",
@@ -785,6 +792,152 @@
       "registering": "Setting up browser notifications…",
       "registered": "Browser notifications are on for this browser.",
       "failed": "Browser notifications couldn't be set up. Your notification center still works."
+    }
+  },
+  "money": {
+    "pageOf": "Page {{page}} of {{total}}",
+    "rideRef": "Ride {{when}}",
+    "currency": {
+      "SYP": "SYP"
+    },
+    "floor": {
+      "ok": "Above the floor",
+      "warning": "Near the floor",
+      "blocked": "Blocked — offers paused"
+    },
+    "columns": {
+      "entry": "Entry",
+      "linkedTo": "Linked to",
+      "when": "When",
+      "amount": "Amount",
+      "balanceAfter": "Balance after"
+    },
+    "rideState": {
+      "requested": "Requested",
+      "offering": "Finding a driver",
+      "accepted": "Accepted",
+      "driver_arrived": "Driver arrived",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled_by_rider": "Cancelled by rider",
+      "cancelled_by_driver": "Cancelled by driver",
+      "no_driver_found": "No driver found"
+    },
+    "txType": {
+      "fare_payment": "Ride payment",
+      "tip": "Tip",
+      "cancellation_fee": "Cancellation fee",
+      "refund": "Refund",
+      "admin_grant": "Credit grant",
+      "referral": "Referral credit",
+      "promo": "Promotion",
+      "loyalty_redemption": "Loyalty redemption"
+    },
+    "lookup": {
+      "usersTitle": "Users",
+      "usersSubtitle": "Find a user to inspect their wallet, grant credit or issue a refund.",
+      "ledgersTitle": "Driver ledgers",
+      "ledgersSubtitle": "Find a driver to inspect their balance and record settlements.",
+      "searchLabel": "Phone or user ID",
+      "placeholder": "+9639… or a user ID",
+      "search": "Search",
+      "hint": "A phone must match exactly in international format; it is looked up through ride history. Pasting a user ID opens the page directly.",
+      "needRidesPermission": "Searching by phone uses the ride history and needs the “View rides” permission — paste a user ID instead.",
+      "empty": "No rides matched this phone. Check the exact international format, or paste a user ID.",
+      "resultsTitle": "Matches",
+      "columns": {
+        "name": "Name",
+        "seenAs": "Seen as",
+        "rides": "Matched rides",
+        "open": "Open"
+      },
+      "seenAs": {
+        "rider": "Rider",
+        "driver": "Driver",
+        "both": "Rider & driver"
+      },
+      "openWallet": "Open wallet",
+      "openLedger": "Open ledger"
+    },
+    "wallet": {
+      "back": "Back to users",
+      "title": "User wallet",
+      "notFound": "No user with this ID.",
+      "balanceTile": "Wallet balance · {{currency}}",
+      "pendingDueTile": "Pending due · {{currency}}",
+      "dueLine": "Cancellation fee · {{date}} · collects on next ride",
+      "activityTitle": "Wallet activity",
+      "empty": "No wallet activity yet."
+    },
+    "panel": {
+      "title": "Grant credit / refund",
+      "typeLabel": "Type",
+      "grant": "Grant",
+      "refund": "Refund",
+      "amountLabel": "Amount · {{currency}}",
+      "currencyLabel": "Currency",
+      "rideLabelRefund": "Linked ride · required for refunds",
+      "rideLabelGrant": "Linked ride · optional",
+      "noRide": "—",
+      "rideIdPlaceholder": "Ride ID",
+      "reasonLabel": "Reason · required, shown to the user",
+      "submitBare": "Credit the wallet",
+      "submit": "Credit {{amount}}",
+      "audited": "Credited instantly, the user is notified, and the action lands in the audit log under your name.",
+      "amountInvalid": "Enter an amount greater than zero.",
+      "reasonRequired": "A reason is required — the user sees it.",
+      "rideRequired": "A refund must be linked to one of the user's rides.",
+      "rejected": "The server rejected the entry — check the amount, currency and ride link.",
+      "success": "Credited {{amount}}. Balances are up to date."
+    },
+    "ledger": {
+      "back": "Back to driver ledgers",
+      "title": "Driver ledger",
+      "notFound": "No driver with this ID.",
+      "balanceTile": "Balance · {{currency}}",
+      "floorTile": "Floor · {{currency}}",
+      "blockedHint": "At or below the floor — no new offers until settlement",
+      "ledgerTitle": "Ledger",
+      "empty": "No ledger entries yet.",
+      "currencyFilterLabel": "Currency",
+      "entryType": {
+        "ride_earning": "Ride earning",
+        "commission_due": "Commission due",
+        "tip": "Tip",
+        "cancellation_fee": "Cancellation fee",
+        "settlement_pay_in": "Settlement · pay-in",
+        "settlement_pay_out": "Settlement · pay-out",
+        "bonus": "Bonus",
+        "due_collection": "Due collected in cash"
+      },
+      "sub": {
+        "commission": "fare {{fare}} · {{rate}}%",
+        "tip": "commission-free",
+        "cancellationFee": "100% to the driver",
+        "dueCollection": "cash collected for another driver's cancellation fee"
+      }
+    },
+    "settle": {
+      "title": "Record a settlement",
+      "directionLabel": "Direction",
+      "payIn": "Pay-in",
+      "payOut": "Pay-out",
+      "explainer": "Pay-in: the driver handed cash to Labby. Pay-out: Labby paid out a positive balance. V1 records the truth — no money moves in the app.",
+      "amountLabel": "Amount · {{currency}}",
+      "noteLabel": "Note",
+      "previewTitle": "After recording",
+      "previewAbove": "Balance: {{balance}} · above the floor.",
+      "previewResume": "Balance: {{balance}} · above the floor — ride offers resume and the driver is notified.",
+      "previewBelow": "Balance: {{balance}} · still at or below the floor — ride offers stay paused.",
+      "submitBare": "Record the settlement",
+      "submitPayIn": "Record pay-in of {{amount}}",
+      "submitPayOut": "Record pay-out of {{amount}}",
+      "immutable": "Settlements are permanent — a mistake is corrected by a counter-settlement. Everything is audit-logged.",
+      "amountInvalid": "Enter an amount greater than zero.",
+      "rejected": "The server rejected the entry — check the amount and currency.",
+      "successOk": "Settlement recorded — new balance {{balance}}.",
+      "successResumed": "Settlement recorded — new balance {{balance}}. Above the floor again: ride offers resume and the driver is notified.",
+      "successBlocked": "Settlement recorded — new balance {{balance}}. Still at or below the floor — offers stay paused."
     }
   }
 }

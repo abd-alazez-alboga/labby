@@ -31,6 +31,11 @@ export function Sidenav() {
         <NavLink to="/" end className={linkClass}>
           {t('nav.dashboard')}
         </NavLink>
+        {can('wallets:view') ? (
+          <NavLink to="/users" className={linkClass}>
+            {t('nav.users')}
+          </NavLink>
+        ) : null}
         {can('driver-review:view') ? (
           <>
             <NavLink to="/driver-applications" className={linkClass}>
@@ -43,6 +48,11 @@ export function Sidenav() {
               {t('nav.documentExpiries')}
             </NavLink>
           </>
+        ) : null}
+        {can('settlements:view') ? (
+          <NavLink to="/driver-ledgers" className={linkClass}>
+            {t('nav.driverLedgers')}
+          </NavLink>
         ) : null}
         {can('regions:view') ? (
           <NavLink to="/regions" className={linkClass}>

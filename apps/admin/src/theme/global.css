@@ -851,6 +851,15 @@ input[type='radio'] {
   color: var(--labby-danger);
 }
 
+.kpi--warning .kpi__value {
+  color: var(--labby-warning);
+}
+
+.kpi__hint {
+  font-size: 12px;
+  color: var(--labby-text-muted);
+}
+
 /* ---------- Data tables ---------- */
 
 .table-card {
@@ -966,6 +975,37 @@ input[type='radio'] {
 }
 
 .table__muted {
+  color: var(--labby-text-secondary);
+}
+
+/* Numeric ledger columns (M8 money tables): end-aligned, mirrored in RTL. */
+.table th.table__num,
+.table td.table__num {
+  text-align: end;
+}
+
+.table .amount--credit {
+  font-weight: 800;
+}
+
+.table .amount--debit {
+  font-weight: 700;
+  color: var(--labby-text-secondary);
+}
+
+/* Typed ledger-entry cell: bold type label over a small muted sub-line. */
+.entry {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.entry__type {
+  font-weight: 800;
+}
+
+.entry__sub {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--labby-text-secondary);
 }
 

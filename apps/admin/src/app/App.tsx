@@ -24,6 +24,10 @@ const DocumentExpiriesPage = lazy(() => import('../pages/DocumentExpiriesPage'))
 const DocumentRenewalDetailPage = lazy(() => import('../pages/DocumentRenewalDetailPage'));
 const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
 const NotificationPreferencesPage = lazy(() => import('../pages/NotificationPreferencesPage'));
+const UsersPage = lazy(() => import('../pages/UsersPage'));
+const UserWalletPage = lazy(() => import('../pages/UserWalletPage'));
+const DriverLedgersPage = lazy(() => import('../pages/DriverLedgersPage'));
+const DriverLedgerPage = lazy(() => import('../pages/DriverLedgerPage'));
 
 export function App() {
   return (
@@ -87,6 +91,46 @@ export function App() {
                     <Suspense fallback={<div className="loading" />}>
                       <RequirePermission permission="regions:view">
                         <RegionDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="users"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="wallets:view">
+                        <UsersPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="users/:userId/wallet"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="wallets:view">
+                        <UserWalletPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="driver-ledgers"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="settlements:view">
+                        <DriverLedgersPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="driver-ledgers/:driverUserId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="settlements:view">
+                        <DriverLedgerPage />
                       </RequirePermission>
                     </Suspense>
                   }

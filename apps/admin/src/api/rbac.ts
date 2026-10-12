@@ -22,6 +22,8 @@ export type PermissionCode =
   | 'support:handle'
   | 'settlements:view'
   | 'settlements:record'
+  | 'wallets:view'
+  | 'wallets:manage'
   | 'promos:view'
   | 'promos:manage'
   | 'analytics:view'
