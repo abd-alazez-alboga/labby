@@ -1,7 +1,10 @@
 /**
- * Receipt (UC-R-07 step 4, PRC-04) — approved artboard RiderReceipt: the
- * route map drawn from `receipt.route` (the in_ride trace), timestamps, the
- * STORED fare components (never recomputed) and the payment status.
+ * Receipt (UC-R-07 step 4, PRC-04) — approved artboards RiderReceipt and
+ * RiderReceiptSplit: the route map drawn from `receipt.route` (the in_ride
+ * trace), timestamps, the STORED fare components (never recomputed), the
+ * payment status, and (M8) the "How you paid" box when the payment was
+ * split across wallet / cash / carried dues — plus the tip line, and a
+ * "Tip <driver>" entry while the 24 h window is open and no tip exists.
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -11,21 +14,25 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { failureKind, type FailureKind } from "../../api/http-client";
 import { getReceipt, type Receipt } from "../../api/rides";
+import { type TipResponse, withinTipWindow } from "../../api/wallet";
 import {
   AppText,
   ErrorView,
   LoadingView,
   MapFab,
   ScreenScrollView,
+  TextButton,
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
 import {
   formatClock,
   formatDateTime,
+  formatMoney,
   serviceName,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { TipSheet } from "../wallet/tip-sheet";
 import { FareBreakdown, RideMap, RouteColumn } from "./ride-parts";
 
 export default function ReceiptScreen({ rideId }: { rideId: string }) {
@@ -35,6 +42,8 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
   const router = useRouter();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [failure, setFailure] = useState<FailureKind | null>(null);
+  const [tipOpen, setTipOpen] = useState(false);
+  const [tipSent, setTipSent] = useState<TipResponse | null>(null);
 
   const load = useCallback(async () => {
     setFailure(null);
@@ -75,9 +84,31 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
   const paymentLabel =
     receipt.paymentStatus === "paid_cash"
       ? t("receipt.paidCash")
-      : receipt.paymentStatus === "unpaid"
-        ? t("receipt.unpaid")
-        : t("receipt.pending");
+      : receipt.paymentStatus === "paid_wallet"
+        ? t("receipt.paidWallet")
+        : receipt.paymentStatus === "paid_mixed"
+          ? t("receipt.paidMixed")
+          : receipt.paymentStatus === "unpaid"
+            ? t("receipt.unpaid")
+            : t("receipt.pending");
+  const paid =
+    receipt.paymentStatus === "paid_cash" ||
+    receipt.paymentStatus === "paid_wallet" ||
+    receipt.paymentStatus === "paid_mixed";
+
+  // PAY-02 split (M8): the contract sends walletApplied and the combined
+  // cashDue (fare remainder + collected dues); the due line is derived.
+  const currency = receipt.fare.components.currency;
+  const total = receipt.fare.components.total;
+  const walletApplied = receipt.walletApplied ?? 0;
+  const cashDue = receipt.cashDue ?? 0;
+  const fareCash = Math.min(cashDue, Math.max(0, total - walletApplied));
+  const carriedDue = Math.max(0, cashDue - fareCash);
+  const tipAmount = tipSent?.amount ?? receipt.tip ?? null;
+  const hasPaidBox = walletApplied > 0 || carriedDue > 0 || tipAmount !== null;
+  const canTip =
+    !!receipt.driver && tipAmount === null && withinTipWindow(completedAt);
+  const money = (amount: number) => formatMoney(amount, currency, locale, t);
 
   return (
     <ScreenScrollView style={styles.page} testID="receipt-screen">
@@ -131,6 +162,81 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
             testID="receipt-fare"
           />
         </View>
+        {hasPaidBox ? (
+          // Approved artboard RiderReceiptSplit: "How you paid".
+          <View style={styles.paidBox} testID="receipt-paid-box">
+            <AppText variant="secondary" weight={800}>
+              {t("ride.howYouPaid")}
+            </AppText>
+            {walletApplied > 0 ? (
+              <View
+                style={[styles.paidLine, { flexDirection: row }]}
+                testID="receipt-paid-wallet"
+              >
+                <Ionicons name="wallet-outline" size={16} color={colors.accent} />
+                <AppText variant="secondary" tone="secondary" style={styles.flex}>
+                  {t("ride.walletLine")}
+                </AppText>
+                <AppText variant="secondary" weight={700}>
+                  {money(walletApplied)}
+                </AppText>
+              </View>
+            ) : null}
+            {walletApplied > 0 && fareCash > 0 ? (
+              <View
+                style={[styles.paidLine, { flexDirection: row }]}
+                testID="receipt-paid-cash"
+              >
+                <AppText variant="secondary" tone="secondary" style={styles.flex}>
+                  {t("ride.cashRestLine")}
+                </AppText>
+                <AppText variant="secondary" weight={700}>
+                  {money(fareCash)}
+                </AppText>
+              </View>
+            ) : null}
+            {carriedDue > 0 ? (
+              <View
+                style={[styles.paidLine, styles.paidDivider, { flexDirection: row }]}
+                testID="receipt-paid-due"
+              >
+                <AppText variant="secondary" tone="secondary" style={styles.flex}>
+                  {t("ride.carriedFeeLine")}
+                </AppText>
+                <AppText variant="secondary" weight={700}>
+                  {money(carriedDue)}
+                </AppText>
+              </View>
+            ) : null}
+            {cashDue > 0 ? (
+              <View
+                style={[styles.paidLine, { flexDirection: row }]}
+                testID="receipt-paid-handed"
+              >
+                <AppText variant="secondary" weight={800} style={styles.flex}>
+                  {t("ride.cashHandedLine")}
+                </AppText>
+                <AppText variant="secondary" weight={800}>
+                  {money(cashDue)}
+                </AppText>
+              </View>
+            ) : null}
+            {tipAmount !== null ? (
+              <View
+                style={[styles.paidLine, { flexDirection: row }]}
+                testID="receipt-paid-tip"
+              >
+                <Ionicons name="heart-outline" size={16} color={colors.accent} />
+                <AppText variant="secondary" tone="secondary" style={styles.flex}>
+                  {t("ride.tipLine")}
+                </AppText>
+                <AppText variant="secondary" weight={700}>
+                  {money(tipAmount)}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         <View style={[styles.payment, { flexDirection: row }]}>
           <Ionicons name="cash-outline" size={22} color={colors.text} />
           <AppText
@@ -140,11 +246,30 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
           >
             {paymentLabel}
           </AppText>
-          {receipt.paymentStatus === "paid_cash" ? (
+          {paid ? (
             <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+          ) : null}
+          {canTip && receipt.driver ? (
+            <TextButton
+              label={t("tip.title", { name: receipt.driver.firstName })}
+              onPress={() => setTipOpen(true)}
+              testID="receipt-tip"
+            />
           ) : null}
         </View>
       </View>
+      {canTip && receipt.driver ? (
+        <TipSheet
+          visible={tipOpen}
+          onClose={() => setTipOpen(false)}
+          rideId={receipt.rideId}
+          currency={currency}
+          driverName={receipt.driver.firstName}
+          completedAt={completedAt ?? null}
+          rideLine={`${formatDateTime(startedAt ?? requestedAt, locale)} · ${money(total)}`}
+          onTipped={setTipSent}
+        />
+      ) : null}
     </ScreenScrollView>
   );
 }
@@ -186,6 +311,21 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: 14,
     minHeight: 48,
+  },
+  paidBox: {
+    backgroundColor: colors.surfaceFill,
+    borderRadius: radius.lg,
+    padding: 14,
+    gap: 10,
+  },
+  paidLine: {
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  paidDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.lineStrong,
+    paddingTop: 10,
   },
   flex: {
     flex: 1,

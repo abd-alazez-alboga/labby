@@ -52,9 +52,18 @@ export function isLiveRide(state: RideState): boolean {
   return LIVE_RIDE_STATES.includes(state);
 }
 
-/** `cash` only in M7 — `wallet` is answered 422 `payment_method_unavailable`. */
 export type PaymentMethod = "cash" | "wallet";
-export type PaymentStatus = "pending" | "paid_cash" | "unpaid" | null;
+/**
+ * M8 (money-v1.yaml): `paid_wallet` = fare fully covered by the wallet at
+ * completion; `paid_mixed` = wallet drained + cash remainder confirmed.
+ */
+export type PaymentStatus =
+  | "pending"
+  | "paid_cash"
+  | "paid_wallet"
+  | "paid_mixed"
+  | "unpaid"
+  | null;
 export type PickupDistanceMode = "nearby_only" | "accept_distant_fee";
 
 /** Rides allow at most this many intermediate stops (RIDE-01). */
@@ -215,6 +224,12 @@ export interface Ride {
   cancellationFee?: number | null;
   fare?: FinalFare | null;
   paymentStatus?: PaymentStatus;
+  /** M8 (PAY-02): wallet part of the payment. */
+  walletApplied?: number | null;
+  /** M8 (PAY-02): cash remainder (+ collected dues), shown to both. */
+  cashDue?: number | null;
+  /** M8 (PAY-04): outside the fare total. */
+  tip?: number | null;
   driverStream?: "ok" | "lost" | null;
   driverPosition?: LatLngPoint | null;
   etaSeconds?: number | null;
@@ -271,6 +286,12 @@ export interface Receipt {
   fare: FinalFare;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  /** M8 (PAY-02): wallet part of the payment. */
+  walletApplied?: number | null;
+  /** M8 (PAY-02): cash remainder + collected dues. */
+  cashDue?: number | null;
+  /** M8 (PAY-04): its own receipt line, outside the fare total. */
+  tip?: number | null;
   driver?: DriverSummary | null;
   /** GeoJSON LineString of the in_ride trace, `[lng, lat]`. */
   route: GeoJsonLineString;

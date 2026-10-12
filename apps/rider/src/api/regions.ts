@@ -19,7 +19,16 @@ export interface RegionServiceType {
   enabled: boolean;
 }
 
-/** The client-facing config of an ACTIVE region (contract `RegionConfig`). */
+/**
+ * The client-facing config of an ACTIVE region (contract `RegionConfig`).
+ *
+ * The M8 pricing fields below are OPTIONAL: the rider UI only needs them for
+ * pre-charge disclosure (the wait-charge accrual notice, UC-R-05/PRC-03) and
+ * tolerates their absence — the authoritative amounts always come from the
+ * stored fare. `RegionConfig` in regions-v1.yaml does not list them yet
+ * (flagged to the backend as an M8 contract gap); until it serves them the
+ * notice falls back to rate-less copy.
+ */
 export interface RegionConfig {
   id: string;
   name: string;
@@ -27,6 +36,10 @@ export interface RegionConfig {
   currency: string;
   emergencyNumber: string;
   serviceTypes: RegionServiceType[];
+  /** PRC-03 free waiting minutes after Arrived (region default: 5). */
+  waitGraceMin?: number | null;
+  /** PRC-03 per-minute wait charge once the grace ends. */
+  waitPerMinRate?: number | null;
 }
 
 /** `GET /api/v1/regions/resolve` — 200 config, 404 outside operating area. */

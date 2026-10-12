@@ -85,6 +85,20 @@ export default function SettingsScreen() {
     },
   ];
 
+  const walletRows: {
+    key: string;
+    label: string;
+    icon: IconName;
+    href: "/wallet";
+  }[] = [
+    {
+      key: "wallet",
+      label: t("settings.wallet"),
+      icon: "wallet-outline",
+      href: "/wallet",
+    },
+  ];
+
   const rideRows: {
     key: string;
     label: string;
@@ -210,6 +224,23 @@ export default function SettingsScreen() {
           >
             {direction}
           </AppText>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <AppText variant="heading">{t("settings.walletSection")}</AppText>
+        <View>
+          {walletRows.map((item, index) => (
+            <ListRow
+              key={item.key}
+              testID={`settings-${item.key}`}
+              title={item.label}
+              icon={item.icon}
+              chevron
+              last={index === walletRows.length - 1}
+              onPress={() => router.push(item.href as never)}
+            />
+          ))}
         </View>
       </View>
 

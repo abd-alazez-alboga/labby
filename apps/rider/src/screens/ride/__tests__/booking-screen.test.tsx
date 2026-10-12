@@ -197,8 +197,9 @@ describe("booking (UC-R-04)", () => {
     expect(screen.getByTestId("booking-surge")).toHaveTextContent(
       "Busy time: fares ×1.5",
     );
-    expect(screen.getByTestId("booking-pickup-fee-rule")).toHaveTextContent(
-      "A distant driver may add a pickup fee of SYP 500 per km beyond 10 km.",
+    // M8 disclosure card (approved artboard RiderWalletShort).
+    expect(screen.getByTestId("booking-pickup-fee-disclosure")).toHaveTextContent(
+      /You accept distant drivers: beyond 10 km a pickup fee of SYP 500\/km is added\. It shows on your receipt\./,
     );
   });
 
@@ -399,8 +400,9 @@ describe("booking in Arabic (RTL)", () => {
 
     expect(await screen.findByText("اختر رحلتك")).toBeOnTheScreen();
     expect(screen.getByText("اقتصادية")).toBeOnTheScreen();
+    // Western digits in an LTR isolate, currency "ل.س" (owner ruling).
     expect(screen.getByTestId(`booking-price-${ECONOMY_ID}`)).toHaveTextContent(
-      /SYP.*تقديريًا/,
+      "⁦22,000⁩ ل.س تقديريًا",
     );
     expect(
       screen.getByText("أسعار تقديرية — تُحتسب الأجرة النهائية حسب المسار الفعلي."),

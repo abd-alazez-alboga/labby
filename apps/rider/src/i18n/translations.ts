@@ -1,13 +1,16 @@
 /**
  * Translations for the Labby rider app (EN + AR).
  * Keys are nested per screen, mirroring the admin app's i18n layout.
- * The M7 ride slice lives in ride-translations.ts and is merged in here.
+ * The M7 ride slice lives in ride-translations.ts, the M8 money slice in
+ * money-translations.ts — both are merged in here.
  */
+import { moneyAr, moneyEn } from "./money-translations";
 import { rideAr, rideEn } from "./ride-translations";
 
 export const translations = {
   en: {
     ...rideEn,
+    ...moneyEn,
     common: {
       appName: "Labby",
       back: "Back",
@@ -147,6 +150,8 @@ export const translations = {
       rideHistory: "Your rides",
       savedPlaces: "Saved places",
       ridePreferences: "Ride preferences",
+      walletSection: "Wallet",
+      wallet: "Wallet",
     },
     profile: {
       title: "Edit profile",
@@ -270,6 +275,7 @@ export const translations = {
   },
   ar: {
     ...rideAr,
+    ...moneyAr,
     common: {
       appName: "لبي",
       back: "رجوع",
@@ -404,6 +410,8 @@ export const translations = {
       rideHistory: "رحلاتك",
       savedPlaces: "الأماكن المحفوظة",
       ridePreferences: "تفضيلات الرحلة",
+      walletSection: "المحفظة",
+      wallet: "المحفظة",
     },
     profile: {
       title: "تعديل الملف الشخصي",

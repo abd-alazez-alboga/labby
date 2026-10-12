@@ -24,6 +24,7 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { RIDER_CANCELLABLE_STATES, type Ride } from "../../api/rides";
+import { type TipResponse, withinTipWindow } from "../../api/wallet";
 import {
   AppText,
   Banner,
@@ -38,6 +39,7 @@ import {
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import { useOptionalRegion } from "../../region/region-context";
 import { useActiveRide } from "../../ride/ride-context";
 import { rideErrorMessage } from "../../ride/ride-errors";
 import {
@@ -50,6 +52,7 @@ import {
   serviceName,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { TipSheet } from "../wallet/tip-sheet";
 import { CancelSheet } from "./cancel-sheet";
 import {
   DriverCard,
@@ -57,6 +60,7 @@ import {
   FareBreakdown,
   IconWell,
   RideMap,
+  ridePaymentLine,
   RouteColumn,
   useNow,
 } from "./ride-parts";
@@ -109,6 +113,9 @@ export function RideView({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [tipOpen, setTipOpen] = useState(false);
+  const [tipSent, setTipSent] = useState<TipResponse | null>(null);
+  const region = useOptionalRegion();
 
   const driver = ride.driver ?? null;
   const name = serviceName(
@@ -133,6 +140,55 @@ export function RideView({
   if (ride.state === "completed" && ride.fare) {
     const fare = ride.fare;
     const completedAt = ride.timeline.completedAt;
+    const currency = fare.components.currency;
+    const total = fare.components.total;
+    // PAY-02 split (M8): wallet part, the fare's cash remainder, and any
+    // collected dues carried into cashDue (derived — the contract sends
+    // walletApplied and the combined cashDue).
+    const walletApplied = ride.walletApplied ?? 0;
+    const cashDue = ride.cashDue ?? 0;
+    const fareCash = Math.min(cashDue, Math.max(0, total - walletApplied));
+    const carriedDue = Math.max(0, cashDue - fareCash);
+    const hasSplit = walletApplied > 0 || carriedDue > 0;
+    const tipAmount = tipSent?.amount ?? ride.tip ?? null;
+    const statusLabel =
+      ride.paymentStatus === "paid_cash"
+        ? t("ride.paidCash")
+        : ride.paymentStatus === "paid_wallet"
+          ? t("ride.paidWallet")
+          : ride.paymentStatus === "paid_mixed"
+            ? t("ride.paidMixed")
+            : ride.paymentStatus === "unpaid"
+              ? t("ride.unpaid")
+              : walletApplied > 0
+                ? t("ride.payRemainder")
+                : t("ride.payCash");
+    const splitRows: { key: string; label: string; amount: number; strong?: boolean }[] =
+      hasSplit
+        ? [
+            ...(walletApplied > 0
+              ? [{ key: "wallet", label: t("ride.walletLine"), amount: walletApplied }]
+              : []),
+            ...(fareCash > 0
+              ? [{ key: "cash", label: t("ride.cashRestLine"), amount: fareCash }]
+              : []),
+            ...(carriedDue > 0
+              ? [{ key: "due", label: t("ride.carriedFeeLine"), amount: carriedDue }]
+              : []),
+            ...(cashDue > 0
+              ? [
+                  {
+                    key: "handed",
+                    label: t("ride.cashHandedLine"),
+                    amount: cashDue,
+                    strong: true,
+                  },
+                ]
+              : []),
+          ]
+        : [];
+    const canTip =
+      !!driver && tipAmount === null && withinTipWindow(completedAt);
     return (
       <ScreenScrollView
         style={styles.page}
@@ -150,19 +206,10 @@ export function RideView({
         </View>
         <View style={styles.cashBox} testID="ride-cash-due">
           <AppText variant="label" weight={700} tone="secondary">
-            {ride.paymentStatus === "paid_cash"
-              ? t("ride.paidCash")
-              : ride.paymentStatus === "unpaid"
-                ? t("ride.unpaid")
-                : t("ride.payCash")}
+            {statusLabel}
           </AppText>
           <AppText style={styles.bigAmount} weight={800} testID="ride-total">
-            {formatMoney(
-              fare.components.total,
-              fare.components.currency,
-              locale,
-              t,
-            )}
+            {formatMoney(total, currency, locale, t)}
           </AppText>
           <AppText variant="caption" tone="muted" weight={400}>
             {t("ride.meteredSummary", {
@@ -170,7 +217,42 @@ export function RideView({
               minutes: formatMinutes(fare.durationSeconds, locale),
             })}
           </AppText>
+          {splitRows.map((line) => (
+            <View
+              key={line.key}
+              style={[styles.splitRow, { flexDirection: row }]}
+              testID={`ride-paid-${line.key}`}
+            >
+              <AppText
+                variant="secondary"
+                tone="secondary"
+                weight={line.strong ? 800 : 400}
+                style={styles.flex}
+              >
+                {line.label}
+              </AppText>
+              <AppText variant="secondary" weight={line.strong ? 800 : 700}>
+                {formatMoney(line.amount, currency, locale, t)}
+              </AppText>
+            </View>
+          ))}
+          {tipAmount !== null ? (
+            <View
+              style={[styles.splitRow, { flexDirection: row }]}
+              testID="ride-paid-tip"
+            >
+              <AppText variant="secondary" tone="secondary" style={styles.flex}>
+                {t("ride.tipLine")}
+              </AppText>
+              <AppText variant="secondary" weight={700}>
+                {formatMoney(tipAmount, currency, locale, t)}
+              </AppText>
+            </View>
+          ) : null}
         </View>
+        {tipSent ? (
+          <Banner tone="success" message={t("tip.sent")} testID="ride-tip-sent" />
+        ) : null}
         <FareBreakdown components={fare.components} measured={fare} />
         {driver ? (
           <View style={styles.dividerTop}>
@@ -178,6 +260,13 @@ export function RideView({
           </View>
         ) : null}
         <View style={styles.actions}>
+          {canTip ? (
+            <SecondaryButton
+              label={t("tip.title", { name: driver.firstName })}
+              onPress={() => setTipOpen(true)}
+              testID="ride-tip"
+            />
+          ) : null}
           <SecondaryButton
             label={t("ride.viewReceipt")}
             onPress={() => router.push(`/receipt/${ride.id}` as never)}
@@ -185,6 +274,22 @@ export function RideView({
           />
           <PrimaryButton label={t("ride.done")} onPress={done} testID="ride-done" />
         </View>
+        {canTip ? (
+          <TipSheet
+            visible={tipOpen}
+            onClose={() => setTipOpen(false)}
+            rideId={ride.id}
+            currency={currency}
+            driverName={driver?.firstName ?? null}
+            completedAt={completedAt ?? null}
+            rideLine={
+              completedAt
+                ? `${placeLabel(ride.destination)} · ${formatMoney(total, currency, locale, t)}`
+                : null
+            }
+            onTipped={setTipSent}
+          />
+        ) : null}
       </ScreenScrollView>
     );
   }
@@ -252,7 +357,7 @@ export function RideView({
             {`${placeLabel(ride.pickup)} → ${placeLabel(ride.destination)}`}
           </AppText>
           <AppText variant="caption" tone="secondary" weight={400}>
-            {`${t("ride.serviceCash", { service: name })} · ${t(
+            {`${ridePaymentLine(ride, locale, t)} · ${t(
               "ride.estimateAmount",
               {
                 money: formatMoney(
@@ -336,9 +441,33 @@ export function RideView({
       </BottomSheet>
     );
   } else if (ride.state === "driver_arrived" && driver) {
-    const graceLeft = ride.waitGraceEndsAt
-      ? Math.max(0, (Date.parse(ride.waitGraceEndsAt) - now) / 1000)
+    const graceEndMs = ride.waitGraceEndsAt
+      ? Date.parse(ride.waitGraceEndsAt)
       : null;
+    const graceLeft =
+      graceEndMs !== null ? Math.max(0, (graceEndMs - now) / 1000) : null;
+    // PRC-03 wait charge (M8, approved artboard RiderWaitCharge): once the
+    // grace ends the charge accrues per minute. The per-minute rate comes
+    // from the region config when it carries one; the client-side amount is
+    // a courtesy preview — the authoritative value arrives with the fare.
+    const charging = graceEndMs !== null && now >= graceEndMs;
+    const waitRate = region?.config?.waitPerMinRate ?? null;
+    const waitCurrency = ride.estimate.components.currency;
+    const chargedMinutes = charging
+      ? Math.floor((now - (graceEndMs as number)) / 60_000)
+      : 0;
+    const minuteProgress = charging
+      ? ((now - (graceEndMs as number)) % 60_000) / 60_000
+      : 0;
+    const graceMinutes = (() => {
+      const arrivedAt = ride.timeline.driverArrivedAt
+        ? Date.parse(ride.timeline.driverArrivedAt)
+        : Number.NaN;
+      if (graceEndMs !== null && !Number.isNaN(arrivedAt)) {
+        return Math.max(0, Math.round((graceEndMs - arrivedAt) / 60_000));
+      }
+      return region?.config?.waitGraceMin ?? 5;
+    })();
     sheet = (
       <BottomSheet testID="ride-arrived">
         <View style={styles.titleBlock}>
@@ -350,7 +479,55 @@ export function RideView({
             })}
           </AppText>
         </View>
-        {graceLeft !== null ? (
+        {charging ? (
+          <View style={styles.waitCharge} testID="ride-wait-charge">
+            <View style={[styles.waitChargeHead, { flexDirection: row }]}>
+              <Ionicons name="time-outline" size={20} color={colors.warning} />
+              <AppText
+                variant="bodyStrong"
+                weight={800}
+                tone="warning"
+                style={styles.flex}
+              >
+                {t("ride.waitChargeTitle")}
+              </AppText>
+              {waitRate !== null ? (
+                <AppText
+                  variant="bodyStrong"
+                  weight={800}
+                  tone="warning"
+                  testID="ride-wait-charge-amount"
+                >
+                  {formatMoney(
+                    chargedMinutes * waitRate,
+                    waitCurrency,
+                    locale,
+                    t,
+                  )}
+                </AppText>
+              ) : null}
+            </View>
+            <View style={styles.waitBar}>
+              <View
+                style={[
+                  styles.waitBarFill,
+                  { width: `${Math.round(minuteProgress * 100)}%` },
+                ]}
+              />
+            </View>
+            <AppText variant="caption" tone="warning" weight={400}>
+              {waitRate !== null
+                ? t("ride.waitChargeBody", {
+                    minutes: graceMinutes,
+                    time: formatClock(graceEndMs as number, locale),
+                    money: formatMoney(waitRate, waitCurrency, locale, t),
+                  })
+                : t("ride.waitChargeBodyNoRate", {
+                    time: formatClock(graceEndMs as number, locale),
+                  })}
+            </AppText>
+          </View>
+        ) : graceLeft !== null ? (
           <View style={[styles.waitBox, { flexDirection: row }]}>
             <Ionicons name="time-outline" size={20} color={colors.accent} />
             <AppText variant="bodyStrong" style={styles.flex} tone="accent">
@@ -544,12 +721,7 @@ function EstimateFooterInline({ ride }: { ride: Ride }) {
   return (
     <View style={styles.inlineEstimate}>
       <AppText variant="caption" tone="muted" weight={400}>
-        {t("ride.serviceCash", {
-          service: serviceName(
-            { nameEn: ride.serviceTypeNameEn, nameAr: ride.serviceTypeNameAr },
-            locale,
-          ),
-        })}
+        {ridePaymentLine(ride, locale, t)}
       </AppText>
       <AppText variant="bodyStrong" weight={800} testID="ride-estimate">
         {ride.estimate.approximate
@@ -638,6 +810,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: "center",
     gap: spacing.md,
+  },
+  waitCharge: {
+    backgroundColor: colors.warningBg,
+    borderRadius: radius.lg,
+    padding: 14,
+    gap: 10,
+  },
+  waitChargeHead: {
+    alignItems: "center",
+    gap: 10,
+  },
+  // Track/fill amber per the approved RiderWaitCharge artboard.
+  waitBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#F2E3C4",
+    overflow: "hidden",
+  },
+  waitBarFill: {
+    height: "100%",
+    backgroundColor: "#D97706",
+  },
+  splitRow: {
+    alignItems: "center",
+    gap: spacing.md,
+    paddingTop: spacing.xs,
   },
   pill: {
     alignSelf: "auto",

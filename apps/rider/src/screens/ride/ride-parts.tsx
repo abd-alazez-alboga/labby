@@ -198,6 +198,31 @@ export function DriverCard({
   );
 }
 
+/**
+ * The payment line of a ride ("Economy · Cash" / "Economy · Wallet",
+ * metered variants in-ride).
+ */
+export function ridePaymentLine(
+  ride: Pick<Ride, "paymentMethod" | "serviceTypeNameEn" | "serviceTypeNameAr">,
+  locale: "en" | "ar",
+  t: (key: string, options?: object) => string,
+  metered = false,
+): string {
+  const service = serviceName(
+    { nameEn: ride.serviceTypeNameEn, nameAr: ride.serviceTypeNameAr },
+    locale,
+  );
+  const wallet = ride.paymentMethod === "wallet";
+  if (metered) {
+    return wallet
+      ? t("ride.meteredLineWallet", { service })
+      : t("ride.meteredLine", { service });
+  }
+  return wallet
+    ? t("ride.serviceWallet", { service })
+    : t("ride.serviceCash", { service });
+}
+
 /** "Economy · Cash" over "SYP 22,000 est." (approximate when flagged). */
 export function EstimateFooter({
   ride,
@@ -210,10 +235,6 @@ export function EstimateFooter({
 }) {
   const { t, locale } = useLocale();
   const { row } = useDirection();
-  const name = serviceName(
-    { nameEn: ride.serviceTypeNameEn, nameAr: ride.serviceTypeNameAr },
-    locale,
-  );
   const money = formatMoney(
     ride.estimate.components.total,
     ride.estimate.components.currency,
@@ -224,9 +245,7 @@ export function EstimateFooter({
     <View style={[styles.footer, { flexDirection: row }]}>
       <View style={styles.footerText}>
         <AppText variant="caption" tone="muted" weight={400}>
-          {metered
-            ? t("ride.meteredLine", { service: name })
-            : t("ride.serviceCash", { service: name })}
+          {ridePaymentLine(ride, locale, t, metered)}
         </AppText>
         <AppText variant="bodyStrong" weight={800} testID="ride-estimate">
           {ride.estimate.approximate

@@ -435,11 +435,12 @@ describe("ride flow (UC-R-05…07)", () => {
     await renderHome();
     await fireEvent.press(await screen.findByTestId("ride-cancel"));
 
+    // M8 carried-fee wording (approved artboard RiderCancelFee).
     expect(await screen.findByTestId("cancel-quote-fee")).toHaveTextContent(
-      /SYP 2,000 cancellation fee/,
+      /A cancellation fee of SYP 2,000 applies — it will be added to your next ride\./,
     );
     expect(screen.getByTestId("cancel-confirm")).toHaveTextContent(
-      "Cancel ride · SYP 2,000 fee",
+      "Cancel · SYP 2,000 fee",
     );
     await fireEvent.press(screen.getByTestId("cancel-reason-other"));
     await fireEvent.press(screen.getByTestId("cancel-confirm"));

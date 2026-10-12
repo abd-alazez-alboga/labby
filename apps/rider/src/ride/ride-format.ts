@@ -13,13 +13,18 @@ import type { AppLocale } from "../i18n/translations";
 
 type T = (key: string, options?: TranslateOptions) => string;
 
+/**
+ * Numbers always use WESTERN digits (owner ruling 2026-10-11, NFR-I2) —
+ * `-u-nu-latn` keeps the locale's own grouping/words while forcing 0-9,
+ * never Arabic-Indic digits.
+ */
 function formatNumber(
   value: number,
   locale: AppLocale,
   fractionDigits: { min: number; max: number },
 ): string {
   try {
-    return new Intl.NumberFormat(locale, {
+    return new Intl.NumberFormat(`${locale}-u-nu-latn`, {
       minimumFractionDigits: fractionDigits.min,
       maximumFractionDigits: fractionDigits.max,
     }).format(value);
@@ -28,17 +33,45 @@ function formatNumber(
   }
 }
 
-/** "SYP 22,000" (EN) / "22,000 SYP" (AR); up to 2 decimals, never rounded further. */
+/** The currency's display label ("SYP" / "ل.س"), falling back to the code. */
+function currencyLabel(currency: string, t: T): string {
+  return t(`money.currencies.${currency}`, { defaultValue: currency });
+}
+
+/**
+ * "SYP 15,000" (EN) / "15,000 ل.س" (AR, the number in an LTR isolate so it
+ * reads correctly inside RTL text); up to 2 decimals, never rounded further.
+ */
 export function formatMoney(
   amount: number,
   currency: string,
   locale: AppLocale,
   t: T,
 ): string {
+  const digits = formatNumber(amount, locale, { min: 0, max: 2 });
   return t("ride.money", {
-    currency,
-    amount: formatNumber(amount, locale, { min: 0, max: 2 }),
+    currency: currencyLabel(currency, t),
+    amount: locale === "ar" ? `⁦${digits}⁩` : digits,
   });
+}
+
+/**
+ * A signed amount for the wallet activity list: "+SYP 20,000" / "−SYP 27,250"
+ * (EN), "⁦+20,000⁩ ل.س" (AR — the sign travels inside the LTR isolate).
+ */
+export function formatSignedMoney(
+  amount: number,
+  currency: string,
+  locale: AppLocale,
+  t: T,
+): string {
+  const sign = amount < 0 ? "−" : "+";
+  const digits = formatNumber(Math.abs(amount), locale, { min: 0, max: 2 });
+  const money = t("ride.money", {
+    currency: currencyLabel(currency, t),
+    amount: locale === "ar" ? `⁦${sign}${digits}⁩` : digits,
+  });
+  return locale === "ar" ? money : `${sign}${money}`;
 }
 
 /** Kilometres with one decimal ("4.2"). */
@@ -61,12 +94,12 @@ export function formatCountdown(totalSeconds: number): string {
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-/** Clock time in the app language ("12:41"). */
+/** Clock time in the app language ("12:41"), Western digits (NFR-I2). */
 export function formatClock(value: string | number | Date, locale: AppLocale) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   try {
-    return new Intl.DateTimeFormat(locale, {
+    return new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
       hour: "numeric",
       minute: "2-digit",
     }).format(date);
@@ -75,12 +108,26 @@ export function formatClock(value: string | number | Date, locale: AppLocale) {
   }
 }
 
+/** Day + month ("5 Oct" / "5 تشرين الأول") for dues and wallet activity. */
+export function formatDate(iso: string, locale: AppLocale): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  try {
+    return new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
+      day: "numeric",
+      month: "short",
+    }).format(date);
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
 /** Day + time ("Wed 8 Oct · 12:29") for history and receipts. */
 export function formatDateTime(iso: string, locale: AppLocale): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   try {
-    const day = new Intl.DateTimeFormat(locale, {
+    const day = new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
       weekday: "short",
       day: "numeric",
       month: "short",

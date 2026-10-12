@@ -22,9 +22,11 @@ import {
   estimateRide,
   type EstimateResponse,
   listSavedLocations,
+  type PaymentMethod,
   type Place,
   type RiderPreferences,
 } from "../../api/rides";
+import { getWallet } from "../../api/wallet";
 import {
   AppText,
   Banner,
@@ -32,6 +34,7 @@ import {
   MapFab,
   MapScreen,
   PrimaryButton,
+  TextButton,
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
@@ -107,6 +110,81 @@ function MatchingLine({
   );
 }
 
+/**
+ * Wallet shortfall preview (PAY-02, approved artboard RiderWalletShort):
+ * "wallet covers X / remaining in cash ~Y" with a coverage bar; one line
+ * when the wallet covers the whole estimate; a note when the balance
+ * couldn't be read (the backend still applies the real balance).
+ */
+function WalletPreview({
+  total,
+  currency,
+  balance,
+  failed,
+}: {
+  total: number;
+  currency: string;
+  balance: number | null;
+  failed: boolean;
+}) {
+  const { t, locale } = useLocale();
+  const { row } = useDirection();
+  if (failed) {
+    return (
+      <View style={styles.walletBox} testID="booking-wallet-preview">
+        <AppText variant="caption" tone="muted" weight={400}>
+          {t("booking.walletBalanceFailed")}
+        </AppText>
+      </View>
+    );
+  }
+  if (balance === null) return null;
+  const covers = Math.min(balance, total);
+  const remaining = Math.max(0, total - covers);
+  if (remaining <= 0) {
+    return (
+      <View style={styles.walletBox} testID="booking-wallet-preview">
+        <AppText variant="caption" tone="secondary" weight={400}>
+          {t("booking.walletCoversAll")}
+        </AppText>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.walletBox} testID="booking-wallet-preview">
+      <View style={[styles.walletLine, { flexDirection: row }]}>
+        <AppText variant="secondary" tone="secondary" style={styles.flex}>
+          {t("booking.walletCovers")}
+        </AppText>
+        <AppText variant="secondary" weight={700} testID="booking-wallet-covers">
+          {formatMoney(covers, currency, locale, t)}
+        </AppText>
+      </View>
+      <View style={[styles.walletLine, { flexDirection: row }]}>
+        <AppText variant="secondary" tone="secondary" style={styles.flex}>
+          {t("booking.remainingCash")}
+        </AppText>
+        <AppText variant="secondary" weight={700} testID="booking-wallet-remaining">
+          {t("booking.approxMoney", {
+            money: formatMoney(remaining, currency, locale, t),
+          })}
+        </AppText>
+      </View>
+      <View style={styles.bar}>
+        <View
+          style={[
+            styles.barFill,
+            { width: `${Math.round((covers / total) * 100)}%` },
+          ]}
+        />
+      </View>
+      <AppText variant="caption" tone="muted" weight={400}>
+        {t("booking.walletShortNote")}
+      </AppText>
+    </View>
+  );
+}
+
 export default function BookingScreen({
   edit = false,
   destinationId = null,
@@ -131,6 +209,34 @@ export default function BookingScreen({
     null,
   );
   const [presetReady, setPresetReady] = useState(!destinationId);
+  // M8 payment choice (PAY-02): cash (default) or wallet with a shortfall
+  // preview from GET /wallet — approved artboard RiderWalletShort.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletFailed, setWalletFailed] = useState(false);
+
+  // The balance is read once, when the rider first switches to wallet.
+  useEffect(() => {
+    if (paymentMethod !== "wallet" || walletBalance !== null || walletFailed) {
+      return;
+    }
+    let cancelled = false;
+    getWallet()
+      .then((wallet) => {
+        if (cancelled) return;
+        const currency = estimate?.currency;
+        const entry = wallet.balances.find(
+          (item) => item.currency === currency,
+        );
+        setWalletBalance(entry?.balance ?? 0);
+      })
+      .catch(() => {
+        if (!cancelled) setWalletFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentMethod, walletBalance, walletFailed, estimate?.currency]);
 
   // A saved place tapped on home becomes the destination.
   useEffect(() => {
@@ -182,7 +288,7 @@ export default function BookingScreen({
         destination: planned.destination,
         stops: planned.stops,
         serviceTypeId: option.serviceTypeId,
-        paymentMethod: "cash",
+        paymentMethod,
       });
       router.back();
     } catch (error) {
@@ -323,33 +429,71 @@ export default function BookingScreen({
                 testID="booking-surge"
               />
             ) : null}
-            {estimate.pickupFeeRule ? (
-              <AppText
-                variant="caption"
-                tone="secondary"
-                weight={400}
-                testID="booking-pickup-fee-rule"
+            {estimate.pickupDistanceMode === "accept_distant_fee" &&
+            estimate.pickupFeeRule ? (
+              // PRC-03 disclosure card (approved artboard RiderWalletShort):
+              // only riders on accept_distant_fee can be charged the fee.
+              <View
+                style={[styles.disclosure, { flexDirection: row }]}
+                testID="booking-pickup-fee-disclosure"
               >
-                {t("booking.pickupFeeRule", {
-                  km: estimate.pickupFeeRule.thresholdKm,
-                  perKm: formatMoney(
-                    estimate.pickupFeeRule.perKm,
-                    estimate.currency,
-                    locale,
-                    t,
-                  ),
-                })}
-              </AppText>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={20}
+                  color={colors.textSecondary}
+                />
+                <AppText
+                  variant="caption"
+                  tone="secondary"
+                  weight={400}
+                  style={styles.flex}
+                >
+                  {t("booking.distantFeeDisclosure", {
+                    km: estimate.pickupFeeRule.thresholdKm,
+                    perKm: formatMoney(
+                      estimate.pickupFeeRule.perKm,
+                      estimate.currency,
+                      locale,
+                      t,
+                    ),
+                  })}
+                </AppText>
+              </View>
             ) : null}
             {bookError ? (
               <Banner tone="danger" message={bookError} testID="booking-error" />
             ) : null}
           </ScrollView>
-          <View style={[styles.payment, { flexDirection: row }]}>
-            <Ionicons name="cash-outline" size={22} color={colors.text} />
-            <AppText variant="bodyStrong" style={styles.flex} testID="booking-payment">
-              {t("booking.cash")}
-            </AppText>
+          <View style={styles.paymentBlock}>
+            <View style={[styles.payment, { flexDirection: row }]}>
+              <Ionicons
+                name={paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"}
+                size={22}
+                color={colors.text}
+              />
+              <AppText variant="bodyStrong" style={styles.flex} testID="booking-payment">
+                {paymentMethod === "wallet"
+                  ? t("booking.payingWallet")
+                  : t("booking.cash")}
+              </AppText>
+              <TextButton
+                label={t("booking.change")}
+                onPress={() =>
+                  setPaymentMethod((method) =>
+                    method === "wallet" ? "cash" : "wallet",
+                  )
+                }
+                testID="booking-payment-change"
+              />
+            </View>
+            {paymentMethod === "wallet" && option ? (
+              <WalletPreview
+                total={option.estimate.components.total}
+                currency={option.estimate.components.currency}
+                balance={walletBalance}
+                failed={walletFailed}
+              />
+            ) : null}
           </View>
           <PrimaryButton
             label={t("booking.choose", {
@@ -397,6 +541,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  paymentBlock: {
+    gap: spacing.sm,
+  },
   payment: {
     alignItems: "center",
     gap: spacing.md,
@@ -404,6 +551,35 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingTop: spacing.md,
+  },
+  walletBox: {
+    backgroundColor: colors.surfaceFill,
+    borderRadius: radius.lg,
+    padding: 14,
+    gap: spacing.sm,
+  },
+  walletLine: {
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  bar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.grabHandle,
+    overflow: "hidden",
+  },
+  barFill: {
+    height: "100%",
+    backgroundColor: colors.accent,
+  },
+  disclosure: {
+    alignItems: "flex-start",
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 14,
   },
   flex: {
     flex: 1,

@@ -87,6 +87,8 @@ export default function AppLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen name="rides" options={{ title: t("history.title") }} />
+          {/* M8: wallet, routed from Settings like the ride screens. */}
+          <Stack.Screen name="wallet" options={{ title: t("wallet.title") }} />
           <Stack.Screen
             name="saved-places"
             options={{ title: t("savedPlaces.title") }}

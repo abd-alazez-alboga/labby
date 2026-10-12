@@ -135,13 +135,17 @@ export function CancelSheet({
                   testID="cancel-quote-free"
                 />
               ) : (
+                // M8 (approved artboard RiderCancelFee): past the grace the
+                // fee is carried — "added to your next ride" (rider dues).
                 <Banner
                   tone="warning"
-                  title={t("cancel.feeTitle", { money: feeMoney ?? "" })}
                   message={
                     graceEnd
-                      ? t("cancel.feeBody", { time: graceEnd })
-                      : t("cancel.feeBodyNoTime")
+                      ? t("cancel.feeCarried", {
+                          time: graceEnd,
+                          money: feeMoney ?? "",
+                        })
+                      : t("cancel.feeCarriedNoTime", { money: feeMoney ?? "" })
                   }
                   testID="cancel-quote-fee"
                 />
