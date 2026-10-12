@@ -21,6 +21,18 @@ const DRIVING_LINKS: {
   testID: string;
 }[] = [
   {
+    href: "/earnings",
+    labelKey: "earnings.title",
+    icon: "stats-chart-outline",
+    testID: "earnings-link",
+  },
+  {
+    href: "/balance",
+    labelKey: "balance.title",
+    icon: "wallet-outline",
+    testID: "balance-link",
+  },
+  {
     href: "/vehicles",
     labelKey: "home.myVehicle",
     icon: "car-outline",

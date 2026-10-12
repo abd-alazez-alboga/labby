@@ -20,8 +20,11 @@ import { NotificationsBell } from "./notifications/notifications-bell";
 import { BackgroundLocationBanner } from "./availability/background-location-banner";
 import { RideNoticeBanner } from "./ride/ride-parts";
 import { RideScreen } from "./ride/ride-screen";
+import { FloorBlockedCard, FloorWarningBanner } from "./money/floor";
+import { TripEarningsScreen } from "./money/trip-earnings-screen";
 import { takeReturnRoute } from "../i18n/direction-reload";
 import { useLocale } from "../i18n/LocaleProvider";
+import { useOptionalDriverMoney } from "../money/DriverMoneyProvider";
 import { useOptionalAvailability } from "../realtime/AvailabilityProvider";
 import type { AvailabilityContextValue } from "../realtime/AvailabilityProvider";
 import { useOptionalRegion } from "../region/RegionProvider";
@@ -191,9 +194,18 @@ export function HomeScreen() {
       ? region
       : null;
   const rides = useOptionalDriverRide();
+  // M8: balance floor state (COM-03) — refreshed with the availability data.
+  const money = useOptionalDriverMoney();
+  const floorBlocked = money?.floor === "blocked";
 
   if (rides && (rides.offer || rides.ride)) {
     return <RideScreen ctx={rides} />;
+  }
+  if (rides?.settled) {
+    // UC-D-15: the just-settled ride's earnings breakdown.
+    return (
+      <TripEarningsScreen ride={rides.settled} onDone={rides.dismissSettled} />
+    );
   }
 
   return (
@@ -213,7 +225,7 @@ export function HomeScreen() {
       }
       bottom={
         <>
-          <AvailabilityGoButton ctx={availability} />
+          <AvailabilityGoButton ctx={availability} floorBlocked={floorBlocked} />
           <View
             onLayout={(event) =>
               setSheetHeight(event.nativeEvent.layout.height)
@@ -237,10 +249,21 @@ export function HomeScreen() {
                   onDismiss={rides.dismissNotice}
                 />
               ) : null}
+              {/* COM-03: the blocked floor state is unmistakable (UC-D-16). */}
+              {floorBlocked && money?.alert ? (
+                <FloorBlockedCard
+                  entry={money.alert}
+                  onSeeBalance={() => router.push("/balance")}
+                />
+              ) : null}
+              {money?.floor === "warning" && money.alert ? (
+                <FloorWarningBanner entry={money.alert} />
+              ) : null}
               <BackgroundLocationBanner />
               <AvailabilitySheet
                 ctx={availability}
                 regionLine={<RegionLine region={region} />}
+                floorBlocked={floorBlocked}
               />
               {regionBlocked ? <RegionBlocked region={regionBlocked} /> : null}
               <ApiStatus />

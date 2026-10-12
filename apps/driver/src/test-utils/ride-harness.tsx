@@ -8,6 +8,7 @@ import { AuthProvider } from "../auth/AuthProvider";
 import { HomeScreen } from "../components/home-screen";
 import { NotificationCenterScreen } from "../components/notifications/notification-center-screen";
 import { LocaleProvider } from "../i18n/LocaleProvider";
+import { DriverMoneyProvider } from "../money/DriverMoneyProvider";
 import { PushBridge } from "../notifications/PushBridge";
 import { AvailabilityProvider } from "../realtime/AvailabilityProvider";
 import { DriverRideProvider } from "../rides/DriverRideProvider";
@@ -88,16 +89,20 @@ export function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
   };
 }
 
-function Layout({ language }: { language: "en" | "ar" }) {
+function Layout({ language, money }: { language: "en" | "ar"; money: boolean }) {
   const { Slot } = jest.requireActual("expo-router");
+  const app = (
+    <DriverRideProvider>
+      <Slot />
+      <PushBridge />
+    </DriverRideProvider>
+  );
   return (
     <LocaleProvider initialLanguage={language}>
       <AuthProvider>
         <AvailabilityProvider>
-          <DriverRideProvider>
-            <Slot />
-            <PushBridge />
-          </DriverRideProvider>
+          {/* M8: opt-in — the provider fetches /driver/balance on mount. */}
+          {money ? <DriverMoneyProvider>{app}</DriverMoneyProvider> : app}
         </AvailabilityProvider>
       </AuthProvider>
     </LocaleProvider>
@@ -107,17 +112,24 @@ function Layout({ language }: { language: "en" | "ar" }) {
 /** Signs a driver in, mocks the contract and renders the app on the home route. */
 export async function renderDriverApp(
   routes: Record<string, MockResponse | MockResponse[]> = {},
-  options: { language?: "en" | "ar"; initialUrl?: string } = {},
+  options: {
+    language?: "en" | "ar";
+    initialUrl?: string;
+    /** Mounts the DriverMoneyProvider (M8) — mock GET /driver/balance. */
+    money?: boolean;
+  } = {},
 ): Promise<ContractFetch> {
   await seedSession(driverUser());
   const contract = installContractFetch({ ...baseRoutes(), ...routes });
   const language = options.language ?? "en";
   renderRouter(
     {
-      _layout: () => <Layout language={language} />,
+      _layout: () => <Layout language={language} money={!!options.money} />,
       index: () => <HomeScreen />,
       notifications: () => <NotificationCenterScreen />,
       settings: () => <View testID="settings-route" />,
+      earnings: () => <View testID="earnings-route" />,
+      balance: () => <View testID="balance-route" />,
     },
     { initialUrl: options.initialUrl ?? "/" },
   );

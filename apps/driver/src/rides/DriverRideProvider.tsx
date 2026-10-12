@@ -115,6 +115,12 @@ export interface DriverRideContextValue {
   offer: OfferWithDeadline | null;
   /** The current job (accepted..in_progress, or completed with payment pending). */
   ride: Ride | null;
+  /**
+   * A just-settled completed ride (paid_cash / paid_wallet / paid_mixed) —
+   * the home route shows its earnings breakdown (UC-D-15) until dismissed.
+   */
+  settled: Ride | null;
+  dismissSettled: () => void;
   /** `ride.updated` route_changed arrived for the current ride. */
   routeChanged: boolean;
   notice: RideNotice | null;
@@ -191,6 +197,19 @@ function noticeForEndedRide(ride: Ride): RideNotice | null {
   }
 }
 
+/**
+ * M8 (UC-D-15): a completed ride whose payment settled — these end with the
+ * per-trip earnings breakdown instead of a notice.
+ */
+function isSettledPayment(ride: Ride): boolean {
+  return (
+    ride.state === "completed" &&
+    (ride.paymentStatus === "paid_cash" ||
+      ride.paymentStatus === "paid_wallet" ||
+      ride.paymentStatus === "paid_mixed")
+  );
+}
+
 function numberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -208,6 +227,7 @@ export function DriverRideProvider({
 
   const [offer, setOffer] = useState<OfferWithDeadline | null>(null);
   const [ride, setRide] = useState<Ride | null>(null);
+  const [settled, setSettled] = useState<Ride | null>(null);
   const [routeChangedFor, setRouteChangedFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<RideNotice | null>(null);
   const [pending, setPending] = useState<RideAction | null>(null);
@@ -250,6 +270,7 @@ export function DriverRideProvider({
         if (current && current.id !== next.id) setRouteChangedFor(null);
         rideRef.current = next;
         setRide(next);
+        setSettled(null);
         if (offerRef.current?.offer.rideId === next.id) replaceOffer(null);
         return;
       }
@@ -258,7 +279,10 @@ export function DriverRideProvider({
         setRide(null);
         setRouteChangedFor(null);
         setError(null);
-        if (options.noticeOnEnd !== false) {
+        if (isSettledPayment(next)) {
+          // UC-D-15: the payment landed — show the earnings breakdown.
+          setSettled(next);
+        } else if (options.noticeOnEnd !== false) {
           const endNotice = noticeForEndedRide(next);
           if (endNotice) setNotice(endNotice);
         }
@@ -272,6 +296,7 @@ export function DriverRideProvider({
     replaceOffer(null);
     rideRef.current = null;
     setRide(null);
+    setSettled(null);
     setRouteChangedFor(null);
     setNotice(null);
     setPending(null);
@@ -634,6 +659,7 @@ export function DriverRideProvider({
 
   const clearError = useCallback(() => setError(null), []);
   const dismissNotice = useCallback(() => setNotice(null), []);
+  const dismissSettled = useCallback(() => setSettled(null), []);
 
   const openLink = useCallback(
     (link: DeepLink | null) => {
@@ -647,6 +673,8 @@ export function DriverRideProvider({
     () => ({
       offer,
       ride,
+      settled,
+      dismissSettled,
       routeChanged: !!ride && routeChangedFor === ride.id,
       notice,
       pending,
@@ -667,6 +695,8 @@ export function DriverRideProvider({
     [
       offer,
       ride,
+      settled,
+      dismissSettled,
       routeChangedFor,
       notice,
       pending,

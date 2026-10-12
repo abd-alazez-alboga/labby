@@ -362,10 +362,13 @@ export function RideNoticeBanner({
 export function FareLine({
   label,
   value,
+  valueColor,
   testID,
 }: {
   label: string;
   value: string;
+  /** e.g. the accent for tip credits (M8 artboards). */
+  valueColor?: string;
   testID?: string;
 }) {
   const { flipRows } = useDirection();
@@ -377,7 +380,7 @@ export function FareLine({
       <AppText color={colors.textSecondary} style={styles.fareLabel}>
         {label}
       </AppText>
-      <AppText variant="bodyStrong" align="auto">
+      <AppText variant="bodyStrong" color={valueColor} align="auto">
         {value}
       </AppText>
     </View>

@@ -10,6 +10,7 @@ import { loadStoredSession, updateSessionUser } from "../auth/session";
 import { initI18n } from "../i18n";
 import type { Language } from "../i18n";
 import { LocaleProvider } from "../i18n/LocaleProvider";
+import { DriverMoneyProvider } from "../money/DriverMoneyProvider";
 import { PushBridge } from "../notifications/PushBridge";
 // M6-X2: the background GPS task must be defined at load, before anything mounts.
 import "../realtime/background-location-task";
@@ -59,6 +60,15 @@ function AppStack() {
         <Stack.Screen
           name="settings"
           options={{ title: t("settings.title") }}
+        />
+        {/* Earnings & balance (M8, UC-D-15/16). */}
+        <Stack.Screen
+          name="earnings"
+          options={{ title: t("earnings.title") }}
+        />
+        <Stack.Screen
+          name="balance"
+          options={{ title: t("balance.title") }}
         />
         <Stack.Screen
           name="profile-edit"
@@ -164,13 +174,16 @@ export default function RootLayout() {
         <RegionProvider>
           {/* Online/offline + location streaming (M6-T4) — active drivers only. */}
           <AvailabilityProvider>
-            {/* Open offer + active ride facade on the same socket (M7-T4). */}
-            <DriverRideProvider>
-              <StatusBar style="dark" />
-              <AppStack />
-              {/* Push registration + notification-tap deep links (M6-T4). */}
-              <PushBridge />
-            </DriverRideProvider>
+            {/* Balance / floor status, refreshed with availability (M8-T4). */}
+            <DriverMoneyProvider>
+              {/* Open offer + active ride facade on the same socket (M7-T4). */}
+              <DriverRideProvider>
+                <StatusBar style="dark" />
+                <AppStack />
+                {/* Push registration + notification-tap deep links (M6-T4). */}
+                <PushBridge />
+              </DriverRideProvider>
+            </DriverMoneyProvider>
           </AvailabilityProvider>
         </RegionProvider>
       </AuthProvider>

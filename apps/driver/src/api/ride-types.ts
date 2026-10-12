@@ -17,8 +17,17 @@ export type RideState =
   | "no_driver_found";
 
 export type PaymentMethod = "cash" | "wallet";
-/** null until `completed`. */
-export type PaymentStatus = "pending" | "paid_cash" | "unpaid";
+/**
+ * null until `completed`. M8 (money-v1.yaml): `paid_wallet` = fare fully
+ * covered by the wallet at completion (auto-confirmed); `paid_mixed` =
+ * wallet drained + cash remainder confirmed by the driver.
+ */
+export type PaymentStatus =
+  | "pending"
+  | "paid_cash"
+  | "paid_wallet"
+  | "paid_mixed"
+  | "unpaid";
 
 export interface Place {
   lat: number;
@@ -127,6 +136,12 @@ export interface Ride {
   cancellationFee?: number | null;
   fare?: FinalFare | null;
   paymentStatus?: PaymentStatus | null;
+  /** M8 (PAY-02): wallet part of the payment. */
+  walletApplied?: number | null;
+  /** M8 (PAY-02): cash remainder (+ collected dues), shown to both. */
+  cashDue?: number | null;
+  /** M8 (PAY-04): outside the fare total. */
+  tip?: number | null;
   driverStream?: "ok" | "lost" | null;
   /** To the pickup before start, to the destination after. */
   etaSeconds?: number | null;

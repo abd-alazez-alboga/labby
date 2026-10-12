@@ -102,7 +102,10 @@ function fareLines(
 /**
  * Design canvas "Driver complete" (UC-D-09): "Collect SYP X in cash" from
  * the stored fare, its components, big "Cash received" (cash-confirm) and
- * "Rider didn't pay" (mark-unpaid, E1). Cash only in M7.
+ * "Rider didn't pay" (mark-unpaid, E1). M8 (PAY-02): a wallet-method ride
+ * whose wallet ran short collects only the CASH REMAINDER (`cashDue`, incl.
+ * collected dues) — the wallet part shows as its own line; a fully
+ * wallet-covered ride never reaches this screen (auto-confirmed).
  */
 export function CompleteScreen({
   ctx,
@@ -123,6 +126,15 @@ export function CompleteScreen({
       : null;
   const service =
     language === "ar" ? ride.serviceTypeNameAr : ride.serviceTypeNameEn;
+  // M8: the amount to collect is the cash remainder when the server sent one.
+  const collect =
+    typeof ride.cashDue === "number"
+      ? ride.cashDue
+      : fare?.components.total ?? null;
+  const walletApplied =
+    typeof ride.walletApplied === "number" && ride.walletApplied > 0
+      ? ride.walletApplied
+      : null;
 
   return (
     <View style={styles.screen} testID="ride-complete-screen">
@@ -152,7 +164,7 @@ export function CompleteScreen({
               >
                 {formatMoney(
                   t,
-                  fare.components.total,
+                  collect ?? fare.components.total,
                   fare.components.currency,
                   language,
                 )}
@@ -180,6 +192,30 @@ export function CompleteScreen({
                   testID={`fare-line-${line.key}`}
                 />
               ))}
+              {walletApplied !== null ? (
+                <FareLine
+                  label={t("ride.complete.walletApplied")}
+                  value={formatMoney(
+                    t,
+                    -walletApplied,
+                    fare.components.currency,
+                    language,
+                  )}
+                  testID="fare-line-wallet-applied"
+                />
+              ) : null}
+              {walletApplied !== null && collect !== null ? (
+                <FareLine
+                  label={t("ride.complete.cashToCollect")}
+                  value={formatMoney(
+                    t,
+                    collect,
+                    fare.components.currency,
+                    language,
+                  )}
+                  testID="fare-line-cash-due"
+                />
+              ) : null}
             </View>
           </>
         ) : (

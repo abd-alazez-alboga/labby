@@ -33,6 +33,11 @@ import {
   rideFrame,
 } from "../test-utils/rides";
 import type { MockResponse } from "../test-utils/contract";
+import {
+  EARNINGS,
+  earningPage,
+  tripEarningFixture,
+} from "../test-utils/money";
 
 const RIDE = `/api/v1/driver/rides/${RIDE_ID}`;
 const ARRIVE = `POST ${RIDE}/arrive`;
@@ -255,14 +260,17 @@ describe("active ride (UC-D-07..10)", () => {
     expect(screen.queryByTestId("fare-line-wait")).toBeNull();
   });
 
-  it("cash received → paid_cash → back to the online home", async () => {
+  it("cash received → paid_cash → the earnings breakdown (M8) → Done → online home", async () => {
     const { contract } = await withActiveRide(completedRide(), {
       [CASH]: ok(completedRide({ paymentStatus: "paid_cash" })),
+      [EARNINGS]: ok(earningPage([tripEarningFixture()])),
     });
     fireEvent.press(await screen.findByTestId("cash-received"));
-    expect(await screen.findByTestId("ride-notice-cashConfirmed")).toBeTruthy();
+    // UC-D-15: the per-trip breakdown replaces the M7 notice.
+    expect(await screen.findByTestId("trip-earnings-screen")).toBeTruthy();
     expect(contract.requestsTo(CASH)).toHaveLength(1);
-    expect(screen.getByTestId("availability-online")).toBeTruthy();
+    fireEvent.press(screen.getByTestId("trip-earnings-done"));
+    expect(await screen.findByTestId("availability-online")).toBeTruthy();
   });
 
   it("rider didn't pay → unpaid; the ride stays completed and closes (E1)", async () => {
