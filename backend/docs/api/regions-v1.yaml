@@ -85,7 +85,8 @@ paths:
       summary: Edit a region's bundle (UC-A-06)
       x-required-permission: 'regions:edit'
       description: >
-        Full-bundle replace (absent optional fields clear). Applies to NEW rides only. An
+        Full-bundle replace (absent optional fields clear — except `timeZone` and
+        `driverBalanceFloor`, which an omitted/null value keeps). Applies to NEW rides only. An
         ACTIVE region may not un-fill mandatory config -> 409; boundary edits that would make
         the region overlap another region -> 409 (M4-T2 rule); boundary edits that would leave
         a surge zone outside the region -> 409 naming the zones (move or delete them first;
@@ -540,7 +541,13 @@ components:
         waitPerMinRate: { type: [number, 'null'], minimum: 0 }
         pickupFeeThresholdKm: { type: [number, 'null'], minimum: 0 }
         pickupFeePerKm: { type: [number, 'null'], minimum: 0 }
-        driverBalanceFloor: { type: [number, 'null'], maximum: 0, description: 'COM-03 (M8); null = default -50; never positive' }
+        driverBalanceFloor:
+          type: [number, 'null']
+          maximum: 0
+          description: >
+            COM-03 (M8); never positive. Omitted or null → the region KEEPS its stored floor (same
+            rule as `timeZone`, M8 audit H1); a new region starts unset (= the SRS default -50).
+            To return to the default an admin sends -50 explicitly.
         surgeCap: { type: [number, 'null'], minimum: 1 }
         commissionTiers:
           oneOf:

@@ -122,4 +122,103 @@ class RideExtrasIntegrationTest extends AbstractMoneyIntegrationTest {
     dispatch();
     assertThat(stateOf(starved)).isEqualTo("no_driver_found");
   }
+
+  @Test
+  @DisplayName(
+      "PRC-03 + RIDE-07: a region with NON-default values (grace 3 min, 0.40/min, 4 km,"
+          + " 1.10/km, fee 3.50) charges exactly those values, never the SRS defaults")
+  void shouldUseRegionValuesNotDefaults() {
+    jdbcTemplate.update(
+        "UPDATE regions SET wait_grace_min = 3, wait_per_min_rate = 0.40,"
+            + " pickup_fee_threshold_km = 4.0, pickup_fee_per_km = 1.10, cancellation_fee = 3.50"
+            + " WHERE region_id = ?",
+        regionId);
+    Account rider = rider();
+    ok(
+        put(
+            "/api/v1/rider/preferences",
+            Map.of(
+                "temperature", "no_preference",
+                "conversation", "no_preference",
+                "music", "no_preference",
+                "pickupDistanceMode", "accept_distant_fee"),
+            rider.token()),
+        HttpStatus.OK);
+    JsonNode estimate =
+        ok(
+            post(
+                "/api/v1/rides/estimate",
+                Map.of(
+                    "pickup", place(PICKUP_LAT, PICKUP_LNG),
+                    "destination", place(DEST_LAT, DEST_LNG)),
+                rider.token()),
+            HttpStatus.OK);
+    assertThat(estimate.get("pickupFeeRule").get("thresholdKm").decimalValue())
+        .isEqualByComparingTo("4");
+    assertThat(estimate.get("pickupFeeRule").get("perKm").decimalValue())
+        .isEqualByComparingTo("1.10");
+
+    // A driver ~6 km from the pickup: beyond the region's 4 km (but within the default 10 km).
+    Account driver = driverAt(33.55, 36.33);
+    UUID rideId = book(rider);
+    dispatchAndAccept(rideId, driver);
+    int offeredDistanceM =
+        jdbcTemplate.queryForObject(
+            "SELECT pickup_distance_m FROM ride_offers WHERE ride_id = ? AND response ="
+                + " 'accepted'",
+            Integer.class,
+            rideId);
+    assertThat(offeredDistanceM).isBetween(4_001, 9_999);
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    ok(driverAction(driver, rideId, "arrive"), HttpStatus.OK);
+
+    // The region's 3-minute grace (not the default 5): notified once past it, at the region rate.
+    advance(Duration.ofMinutes(2));
+    rideTrackingService.monitor();
+    assertThat(outboxEvents(rider.userId())).doesNotContain("ride.wait_charge_started");
+    advance(Duration.ofMinutes(1).plusSeconds(1));
+    rideTrackingService.monitor();
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT params->>'rate' FROM notification_outbox WHERE user_id = ? AND event ="
+                    + " 'ride.wait_charge_started'",
+                String.class,
+                rider.userId()))
+        .isEqualTo("0.40");
+
+    // Start at Arrived + 5 min 30 s → 150 s past the grace × 0.40/min = 1.00.
+    advance(Duration.ofMinutes(2).plusSeconds(29));
+    ok(driverAction(driver, rideId, "start"), HttpStatus.OK);
+    JsonNode components =
+        ok(driverAction(driver, rideId, "complete"), HttpStatus.OK).get("fare").get("components");
+    assertThat(components.get("waitFare").decimalValue()).isEqualByComparingTo("1.00");
+    java.math.BigDecimal expectedPickupFee =
+        java.math.BigDecimal.valueOf(offeredDistanceM)
+            .divide(java.math.BigDecimal.valueOf(1000), 6, java.math.RoundingMode.HALF_UP)
+            .subtract(new java.math.BigDecimal("4"))
+            .multiply(new java.math.BigDecimal("1.10"))
+            .setScale(2, java.math.RoundingMode.HALF_UP);
+    assertThat(components.get("pickupFee").decimalValue()).isEqualByComparingTo(expectedPickupFee);
+
+    // RIDE-07: the region's 3.50 fee (not the fixture's 2.00) is recorded and carried.
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    JsonNode next = ok(tryBook(rider, booking("cash")), HttpStatus.CREATED);
+    UUID cancelledId = UUID.fromString(next.get("id").asText());
+    dispatchAndAccept(cancelledId, driver);
+    advance(Duration.ofMinutes(3)); // region cancellation grace is 2 min
+    JsonNode cancelled =
+        ok(
+            post(
+                "/api/v1/rides/" + cancelledId + "/cancel",
+                Map.of("reason", "changed_mind"),
+                rider.token()),
+            HttpStatus.OK);
+    assertThat(cancelled.get("cancellationFee").decimalValue()).isEqualByComparingTo("3.50");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT amount FROM rider_dues WHERE source_ride_id = ?",
+                java.math.BigDecimal.class,
+                cancelledId))
+        .isEqualByComparingTo("3.50");
+  }
 }

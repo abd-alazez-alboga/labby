@@ -100,6 +100,62 @@ class CommissionTierIntegrationTest extends AbstractMoneyIntegrationTest {
     assertThat(commission.get("nextTier").get("weeklyTripsAbove").asInt()).isEqualTo(100);
   }
 
+  @Test
+  @DisplayName(
+      "M8 audit W1: with NO recalc run, the balance view and the week's first completion already"
+          + " use the previous week's tier — the completion stores the row once")
+  void shouldComputeMissingWeekRateLazily() {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    UUID vehicle =
+        jdbcTemplate.queryForObject(
+            "SELECT vehicle_id FROM vehicles WHERE driver_user_id = ?",
+            UUID.class,
+            driver.userId());
+    ZoneId zone = ZoneId.of("Asia/Damascus");
+    LocalDate weekStart =
+        LocalDate.ofInstant(CLOCK.instant(), zone).with(java.time.DayOfWeek.MONDAY);
+    insertCompletedRides(
+        driver.userId(),
+        vehicle,
+        101,
+        weekStart.minusDays(7).atStartOfDay(zone).plusHours(30).toInstant());
+    String rateRows =
+        "SELECT count(*) FROM driver_commission_rates WHERE driver_user_id = ? AND week_start = ?";
+
+    // The status view computes the tier without writing a row.
+    JsonNode before =
+        ok(get("/api/v1/driver/balance", driver.token()), HttpStatus.OK).get("commission");
+    assertThat(before.get("percent").decimalValue()).isEqualByComparingTo("20");
+    assertThat(before.get("weeklyTrips").asInt()).isEqualTo(101);
+    assertThat(jdbcTemplate.queryForObject(rateRows, Integer.class, driver.userId(), weekStart))
+        .isZero();
+
+    // The first completion of the week posts at 20% (not the 25% base) and stores the row.
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    completeRide(rider(), driver, "cash");
+    Map<String, Object> fareEntry =
+        driverLedger(driver.userId()).stream()
+            .filter(e -> e.get("type").equals("commission_due"))
+            .findFirst()
+            .orElseThrow();
+    assertThat((BigDecimal) fareEntry.get("commission_rate")).isEqualByComparingTo("20");
+    assertThat((BigDecimal) fareEntry.get("commission_amount")).isEqualByComparingTo("0.30");
+    assertThat(jdbcTemplate.queryForObject(rateRows, Integer.class, driver.userId(), weekStart))
+        .isEqualTo(1);
+    // The job is now only a pre-warm: the row exists, nothing more is inserted for this driver.
+    commissionService.recalcWeeklyRates();
+    assertThat(jdbcTemplate.queryForObject(rateRows, Integer.class, driver.userId(), weekStart))
+        .isEqualTo(1);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT weekly_trips FROM driver_commission_rates WHERE driver_user_id = ? AND"
+                    + " week_start = ?",
+                Integer.class,
+                driver.userId(),
+                weekStart))
+        .isEqualTo(101);
+  }
+
   /** Inserts {@code count} completed rides for the driver in the test region. */
   private void insertCompletedRides(
       UUID driverUserId, UUID vehicleId, int count, java.time.Instant completedAt) {

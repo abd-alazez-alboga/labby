@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.labby.backend.dto.AuthTokensResponseDto;
 import com.labby.backend.enums.ClientType;
 import com.labby.backend.util.RbacIds;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -434,6 +435,39 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
                     token)
                 .getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  @DisplayName("M8 audit H1: a save without driverBalanceFloor keeps the stored floor")
+  void shouldKeepDriverBalanceFloorWhenOmitted() {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963934000031", RbacIds.SUPER_ADMIN_ROLE_ID);
+    String token = superAdmin.accessToken();
+    ResponseEntity<Map<String, Object>> created =
+        sendForMap("/api/v1/admin/regions", HttpMethod.POST, Map.of("name", "Homs"), token);
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody().get("driverBalanceFloor")).isNull();
+    String url = "/api/v1/admin/regions/" + created.getBody().get("id");
+
+    ResponseEntity<Map<String, Object>> set =
+        sendForMap(
+            url, HttpMethod.PUT, Map.of("name", "Homs", "driverBalanceFloor", -500000), token);
+    assertThat(set.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(new BigDecimal(String.valueOf(set.getBody().get("driverBalanceFloor"))))
+        .isEqualByComparingTo("-500000");
+
+    // The dashboard sends no floor field: the stored floor survives the save.
+    ResponseEntity<Map<String, Object>> saved =
+        sendForMap(url, HttpMethod.PUT, Map.of("name", "Homs Edited"), token);
+    assertThat(saved.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(saved.getBody().get("name")).isEqualTo("Homs Edited");
+    assertThat(new BigDecimal(String.valueOf(saved.getBody().get("driverBalanceFloor"))))
+        .isEqualByComparingTo("-500000");
+
+    // Back to the default is an explicit -50.
+    ResponseEntity<Map<String, Object>> reset =
+        sendForMap(url, HttpMethod.PUT, Map.of("name", "Homs", "driverBalanceFloor", -50), token);
+    assertThat(new BigDecimal(String.valueOf(reset.getBody().get("driverBalanceFloor"))))
+        .isEqualByComparingTo("-50");
   }
 
   @Test

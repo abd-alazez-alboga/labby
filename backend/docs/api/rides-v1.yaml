@@ -610,7 +610,12 @@ paths:
       - { $ref: '#/components/parameters/RideId' }
     post:
       tags: [DriverRides]
-      summary: Cash collected (UC-D-09) — paymentStatus pending → paid_cash
+      summary: Cash collected (UC-D-09) — paymentStatus pending → paid_cash / paid_mixed
+      description: >
+        M8 (money-v1.yaml): `paid_mixed` when the wallet paid part of the fare (`walletApplied` >
+        0), else `paid_cash`. The cash `carriedDues` of the ride are collected now (status
+        `earmarked` → `collected`; the driver's `due_collection` debit, the cancelled ride's
+        driver's fee credit).
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -627,7 +632,10 @@ paths:
     post:
       tags: [DriverRides]
       summary: Rider did not pay (UC-D-09 E1) — paymentStatus pending → unpaid; the ride stays completed
-      description: The support-ticket path arrives with support (M10+); M7 records the status only.
+      description: >
+        The support-ticket path arrives with support (M10+); M7 records the status only. M8: the
+        ride's earmarked cash `carriedDues` are released (pending again, carried by the rider's
+        next same-currency ride; no ledger lines) and leave this ride's `carriedDues`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: false
@@ -736,9 +744,9 @@ components:
       enum: [pending, paid_cash, paid_wallet, paid_mixed, unpaid, null]
       description: >
         null until `completed`. M8 (money-v1.yaml): `paid_wallet` = fare fully covered by the
-        wallet at completion (auto-confirmed); `paid_mixed` = wallet drained + cash remainder
-        confirmed by the driver (the cash-confirm endpoint resolves `pending` on both cash and
-        mixed rides).
+        wallet at completion AND no carried due owed in cash (auto-confirmed); otherwise
+        `pending` until the driver cash-confirms — `paid_mixed` when the wallet paid part of the
+        fare, else `paid_cash` — or marks it `unpaid`.
     PickupDistanceMode:
       type: string
       enum: [nearby_only, accept_distant_fee]
@@ -962,8 +970,21 @@ components:
             - { $ref: '#/components/schemas/FinalFare' }
             - { type: 'null' }
         paymentStatus: { $ref: '#/components/schemas/PaymentStatus' }
-        walletApplied: { type: [number, 'null'], description: 'M8 (PAY-02): wallet part of the payment' }
-        cashDue: { type: [number, 'null'], description: 'M8 (PAY-02): cash remainder (+ collected dues), shown to both' }
+        walletApplied: { type: [number, 'null'], description: 'M8 (PAY-02): wallet part of the FARE (null on cash-method rides)' }
+        cashDue:
+          type: [number, 'null']
+          description: >
+            M8 (PAY-02): the cash the driver collects = the fare's cash part + every CASH carried
+            due of this ride (earmarked or collected), shown to both. null when a wallet ride owes
+            nothing in cash, and on a cash-method ride without a cash carried due (the cash is
+            then the fare total).
+        carriedDues:
+          type: array
+          description: >
+            M8 (H3): the rider dues this ride carries, itemized; never null (`[]` when none). A
+            released (mark-unpaid) due is not listed. Rider view, driver views (active, detail,
+            completion response) and the admin ride detail.
+          items: { $ref: '#/components/schemas/CarriedDue' }
         tip: { type: [number, 'null'], description: 'M8 (PAY-04): outside the fare total' }
         driverStream: { type: [string, 'null'], enum: [ok, lost, null], description: 'TRK-04, accepted..in_progress' }
         driverPosition:
@@ -1060,6 +1081,21 @@ components:
         lng: { type: number }
         recordedAt: { type: string, format: date-time }
         phase: { type: string, enum: [to_pickup, in_ride] }
+    CarriedDue:
+      type: object
+      description: >
+        A rider due (money-v1 RiderDue — a cancelled ride's fee) carried by this completed ride.
+        `method: wallet` = taken from the rider's wallet at completion, always `collected`;
+        `method: cash` = collected via the driver: `earmarked` while the ride's payment is
+        `pending`, `collected` after cash-confirm. Its currency always equals the ride's.
+      required: [dueId, sourceRideId, amount, currency, method, status]
+      properties:
+        dueId: { type: string, format: uuid }
+        sourceRideId: { type: string, format: uuid, description: The cancelled ride the fee came from }
+        amount: { type: number, description: 2 dp, in `currency` }
+        currency: { type: string }
+        method: { type: string, enum: [wallet, cash] }
+        status: { type: string, enum: [earmarked, collected] }
     Receipt:
       type: object
       description: UC-R-07 step 4 — route map from the trace, timestamps, stored breakdown
@@ -1079,8 +1115,12 @@ components:
         fare: { $ref: '#/components/schemas/FinalFare' }
         paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         paymentStatus: { $ref: '#/components/schemas/PaymentStatus' }
-        walletApplied: { type: [number, 'null'], description: 'M8 (PAY-02)' }
-        cashDue: { type: [number, 'null'], description: 'M8 (PAY-02): cash remainder + collected dues' }
+        walletApplied: { type: [number, 'null'], description: 'M8 (PAY-02): wallet part of the fare' }
+        cashDue: { type: [number, 'null'], description: 'M8 (PAY-02): as on Ride — fare cash part + cash carried dues' }
+        carriedDues:
+          type: array
+          description: M8 (H3) — as on Ride; never null
+          items: { $ref: '#/components/schemas/CarriedDue' }
         tip: { type: [number, 'null'], description: 'M8 (PAY-04): its own receipt line, outside the fare total' }
         driver: { $ref: '#/components/schemas/DriverSummary' }
         route:

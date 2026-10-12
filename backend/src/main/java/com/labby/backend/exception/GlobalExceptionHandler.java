@@ -1,6 +1,7 @@
 package com.labby.backend.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -119,6 +120,19 @@ public class GlobalExceptionHandler {
         .body(
             ErrorResponse.of(
                 status.value(), status.getReasonPhrase(), "Malformed request parameter"));
+  }
+
+  /**
+   * Constraint violations on validated controller parameters (e.g. a summary {@code period} other
+   * than weekly|monthly, money-v1) are 400 per the contracts, not the catch-all 500 (M8 W5).
+   */
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.of(
+                status.value(), status.getReasonPhrase(), "Invalid request parameter"));
   }
 
   /** Missing required query params (e.g. resolve without lat/lng) are 400 per the contracts. */

@@ -37,6 +37,7 @@ public record RideDto(
     PaymentStatus paymentStatus,
     BigDecimal walletApplied,
     BigDecimal cashDue,
+    List<CarriedDueDto> carriedDues,
     BigDecimal tip,
     String driverStream,
     LatLngPointDto driverPosition,

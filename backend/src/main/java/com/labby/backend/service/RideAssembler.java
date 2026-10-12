@@ -119,6 +119,7 @@ public class RideAssembler {
         ride.getPaymentStatus(),
         money.walletApplied(),
         money.cashDue(),
+        money.carriedDues(),
         money.tip(),
         assigned ? (ride.getDriverStreamLostAt() == null ? "ok" : "lost") : null,
         driverPosition,

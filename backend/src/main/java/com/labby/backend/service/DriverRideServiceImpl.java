@@ -10,7 +10,6 @@ import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OfferResponse;
-import com.labby.backend.enums.PaymentMethod;
 import com.labby.backend.enums.PaymentStatus;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
@@ -267,7 +266,7 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setCompletedAt(now);
     ride.setPaymentStatus(PaymentStatus.PENDING);
     // PAY-02 + COM-01 (M8): wallet application (may flip the status to paid_wallet), the fare
-    // posting at the weekly rate, and the collection of every pending rider due — one transaction.
+    // posting at the weekly rate, and every pending rider due carried along — one transaction.
     rideMoneyService.applyAtCompletion(ride, fare);
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
@@ -290,7 +289,7 @@ public class DriverRideServiceImpl implements DriverRideService {
 
   @Override
   public RideDto confirmCash(UUID userId, UUID rideId) {
-    // PAY-02: confirming the cash of a wallet-method ride settles the drained-wallet remainder.
+    // PAY-02: the cash of the fare's remainder and of any carried cash due arrived.
     return settle(userId, rideId, null, null, "payment_confirmed");
   }
 
@@ -390,7 +389,10 @@ public class DriverRideServiceImpl implements DriverRideService {
             .build());
   }
 
-  /** {@code status} null = a cash confirmation ({@code paid_mixed} on wallet-method rides). */
+  /**
+   * {@code status} null = a cash confirmation ({@code paid_mixed} when the wallet paid part of the
+   * fare, else {@code paid_cash}); otherwise {@code unpaid}.
+   */
   private RideDto settle(
       UUID userId, UUID rideId, PaymentStatus status, String note, String reason) {
     Ride ride = lockOwned(userId, rideId);
@@ -401,10 +403,11 @@ public class DriverRideServiceImpl implements DriverRideService {
               .withCode("payment_not_pending");
     }
     if (status == null) {
-      status =
-          ride.getPaymentMethod() == PaymentMethod.WALLET
-              ? PaymentStatus.PAID_MIXED
-              : PaymentStatus.PAID_CASH;
+      // The cash arrived: the dues this ride carries in cash are collected now (M8 audit H3).
+      status = rideMoneyService.confirmCash(ride);
+    } else {
+      // Nothing was paid: the carried cash dues go back to pending, no money moved.
+      rideMoneyService.releaseCarriedDues(ride);
     }
     ride.setPaymentStatus(status);
     ride.setPaymentConfirmedAt(clock.instant());

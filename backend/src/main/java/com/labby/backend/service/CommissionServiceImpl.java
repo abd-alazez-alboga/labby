@@ -22,10 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * COM-02: the rate applied to a completion is the driver's stored weekly rate row for the ride's
- * region (Monday-start week in the region's time zone), else the region's base tier. The weekly
- * recalc inserts the current week's rows from the previous week's completed trips, idempotently
- * (the unique constraint keeps existing rows).
+ * COM-02: the rate applied to a completion is the driver's weekly rate row for the ride's region
+ * (Monday-start week in the region's time zone). The row is computed from the PREVIOUS week's
+ * completed trips in that region — by the weekly recalc, or lazily by the first completion of the
+ * week when the job has not run yet (M8 audit W1); both insert idempotently (the unique constraint
+ * keeps an existing row), so the job is only a pre-warm and never decides the rate alone.
  */
 @Slf4j
 @Service
@@ -39,13 +40,29 @@ public class CommissionServiceImpl implements CommissionService {
   private final Clock clock;
 
   @Override
-  @Transactional(readOnly = true)
+  @Transactional
   public BigDecimal ratePercent(UUID driverUserId, Region region, Instant at) {
-    LocalDate weekStart = CommissionPolicy.weekStart(at, ZoneId.of(region.getTimeZone()));
+    ZoneId zone = ZoneId.of(region.getTimeZone());
+    LocalDate weekStart = CommissionPolicy.weekStart(at, zone);
+    Optional<DriverCommissionRate> stored =
+        driverCommissionRateRepository.findByDriverUserIdAndRegionIdAndWeekStart(
+            driverUserId, region.getId(), weekStart);
+    if (stored.isPresent()) {
+      return stored.get().getPercent();
+    }
+    WeekRate computed = computeWeekRate(driverUserId, region, weekStart, zone);
+    driverCommissionRateRepository.insertIfAbsent(
+        driverUserId,
+        region.getId(),
+        weekStart,
+        computed.percent(),
+        computed.weeklyTrips(),
+        clock.instant());
+    // A concurrent writer (the job, another completion) may have won the insert: read the row.
     return driverCommissionRateRepository
         .findByDriverUserIdAndRegionIdAndWeekStart(driverUserId, region.getId(), weekStart)
         .map(DriverCommissionRate::getPercent)
-        .orElseGet(() -> commissionPolicy.baseTier(commissionPolicy.tiers(region)).percent());
+        .orElse(computed.percent());
   }
 
   @Override
@@ -54,18 +71,12 @@ public class CommissionServiceImpl implements CommissionService {
     ZoneId zone = ZoneId.of(region.getTimeZone());
     LocalDate weekStart = CommissionPolicy.weekStart(at, zone);
     List<CommissionPolicy.Tier> tiers = commissionPolicy.tiers(region);
-    Optional<DriverCommissionRate> rate =
-        driverCommissionRateRepository.findByDriverUserIdAndRegionIdAndWeekStart(
-            driverUserId, region.getId(), weekStart);
-    BigDecimal percent =
-        rate.map(DriverCommissionRate::getPercent)
-            .orElseGet(() -> commissionPolicy.baseTier(tiers).percent());
-    int weeklyTrips =
-        rate.map(DriverCommissionRate::getWeeklyTrips)
-            .orElseGet(
-                () ->
-                    completedTrips(
-                        driverUserId, region.getId(), weekStart.minusDays(7), weekStart, zone));
+    // The stored row, else exactly what the week's first completion will store (no write here).
+    WeekRate rate =
+        driverCommissionRateRepository
+            .findByDriverUserIdAndRegionIdAndWeekStart(driverUserId, region.getId(), weekStart)
+            .map(row -> new WeekRate(row.getPercent(), row.getWeeklyTrips()))
+            .orElseGet(() -> computeWeekRate(driverUserId, region, weekStart, zone));
     int currentWeekTrips =
         completedTrips(driverUserId, region.getId(), weekStart, weekStart.plusDays(7), zone);
     NextTierDto nextTier =
@@ -73,7 +84,8 @@ public class CommissionServiceImpl implements CommissionService {
             .nextTier(currentWeekTrips, tiers)
             .map(tier -> new NextTierDto(tier.percent(), tier.weeklyTripsAbove()))
             .orElse(null);
-    return new CommissionStatusDto(percent, weekStart, weeklyTrips, currentWeekTrips, nextTier);
+    return new CommissionStatusDto(
+        rate.percent(), weekStart, rate.weeklyTrips(), currentWeekTrips, nextTier);
   }
 
   @Override
@@ -107,6 +119,14 @@ public class CommissionServiceImpl implements CommissionService {
     return inserted;
   }
 
+  /** The week's rate from the previous week's completed trips in the region (the recalc rule). */
+  private WeekRate computeWeekRate(
+      UUID driverUserId, Region region, LocalDate weekStart, ZoneId zone) {
+    int trips =
+        completedTrips(driverUserId, region.getId(), weekStart.minusDays(7), weekStart, zone);
+    return new WeekRate(commissionPolicy.percentFor(trips, commissionPolicy.tiers(region)), trips);
+  }
+
   private int completedTrips(
       UUID driverUserId, UUID regionId, LocalDate from, LocalDate to, ZoneId zone) {
     return (int)
@@ -118,4 +138,7 @@ public class CommissionServiceImpl implements CommissionService {
                 from.atStartOfDay(zone).toInstant(),
                 to.atStartOfDay(zone).toInstant());
   }
+
+  /** A week's rate and the previous-week trip count it came from. */
+  private record WeekRate(BigDecimal percent, int weeklyTrips) {}
 }

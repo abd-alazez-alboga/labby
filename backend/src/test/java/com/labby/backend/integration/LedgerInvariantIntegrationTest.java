@@ -47,6 +47,9 @@ class LedgerInvariantIntegrationTest extends AbstractMoneyIntegrationTest {
     jdbcTemplate.update(
         "INSERT INTO role_assignments (user_id, role, state) VALUES (?, 'driver', 'active')",
         driver.userId());
+    // W7: settlements need a currency the driver holds; open zero balances in both up front.
+    driverLedgerService.lockBalances(List.of(driver.userId()), "SYP");
+    driverLedgerService.lockBalances(List.of(driver.userId()), "USD");
     List<UUID> riders = List.of(riderA.userId(), riderB.userId());
     List<UUID> ridePool = new ArrayList<>();
     for (int i = 0; i < 20; i++) {

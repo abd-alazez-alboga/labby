@@ -16,8 +16,10 @@ info:
     floating point) tagged with its ISO 4217 currency. Derived amounts (commission, wait
     per-minute, pickup per-km) round HALF_UP to 2 decimals at computation (owner ruling
     2026-10-11); display formatting (e.g. SYP without decimal places) is a client concern
-    (NFR-I2). Wallet credits are spendable only in matching-currency regions — no conversion
-    (PAY-01).
+    (NFR-I2) — except in server-rendered push copy, which formats amounts itself (M8 audit W8):
+    grouping separators, Western digits, SYP without decimals and other currencies with 2,
+    English `SYP 500,000`, Arabic `500,000 ل.س`, a leading minus for negatives. Wallet credits
+    are spendable only in matching-currency regions — no conversion (PAY-01).
 
 
     **Ledgers are append-only.** `wallet_transactions`, `driver_ledger` and `settlements` accept
@@ -30,23 +32,33 @@ info:
     **Payment application at completion (PAY-02, UC-R-07).** Method `cash`: unchanged from M7
     (`pending → paid_cash` via cash-confirm or `pending → unpaid` via mark-unpaid). Method
     `wallet`: at completion the rider's wallet balance in the ride currency is applied — covers
-    the total → one `fare_payment` debit, `paymentStatus = paid_wallet`, confirmed immediately;
-    short → the wallet is drained and the remainder is due in CASH, shown to both parties
-    (`walletApplied` / `cashDue` on the ride detail and receipt, rides-v1.yaml); the driver then
-    cash-confirms the remainder (`pending → paid_mixed`) or marks unpaid. Any pending rider dues
-    (below) are collected on top of the fare at the same completion.
+    the total → one `fare_payment` debit; short → the wallet is drained and the remainder is due
+    in CASH, shown to both parties (`walletApplied` / `cashDue` / `carriedDues` on the ride
+    detail and receipt, rides-v1.yaml). The rider's pending dues in the ride's currency (below)
+    are carried on top at the same completion. `paymentStatus = paid_wallet` (confirmed
+    immediately) ONLY when the wallet covered the whole fare AND no due is carried in cash;
+    otherwise the ride stays `pending` and the driver cash-confirms or marks unpaid (owner
+    ruling 2026-10-12, M8 audit H3). Cash-confirm: a wallet-method ride whose wallet paid part of
+    the fare (`walletApplied` > 0) → `paid_mixed`; a wallet-method ride with nothing applied, or
+    a cash-method ride → `paid_cash`.
 
 
     **Cancellation fees (RIDE-07, PRC-03; owner rulings 2026-10-11).** The fee recorded on a
     cancelled ride goes 100% to that ride's driver, commission-free. Collection: on a
     wallet-method ride the wallet is debited at cancellation (`cancellation_fee`, linked to the
     cancelled ride); whatever the wallet cannot cover — and the whole fee on a cash-method
-    ride — becomes a pending RIDER DUE, added to the rider's next completed ride (any method,
-    all pending dues at once). A due collected in cash passes through the collecting ride's
-    driver: that driver gets a `due_collection` debit (they pocketed the extra cash) and the
-    cancelled ride's driver the `cancellation_fee` credit. The driver is credited ONCE, when the
-    fee is fully collected. Fees recorded during M7 were backfilled as pending dues (V12) and
-    collect the same way.
+    ride — becomes a pending RIDER DUE, carried by the rider's next completed ride IN THE DUE'S
+    CURRENCY (any method, all such pending dues at once; dues in other currencies stay pending
+    for a ride in their currency — PAY-01 isolation, owner ruling 2026-10-12). Each carried due
+    is paid in full or not at all: on a wallet-method ride from the wallet when it covers the due
+    (after the fare) — collected at completion; otherwise in CASH through the carrying ride's
+    driver — EARMARKED at completion (no money moves) and collected when the driver
+    cash-confirms: that driver gets a `due_collection` debit (they pocketed the extra cash,
+    `ride_id` = the carrying ride, `rider_due_id` = the due) and the cancelled ride's driver the
+    `cancellation_fee` credit. Mark-unpaid releases the earmark (no ledger lines) — the due is
+    pending again and the rider's next same-currency ride carries it. The driver is credited
+    ONCE, when the fee is fully collected. Fees recorded during M7 were backfilled as pending
+    dues (V12) and collect the same way.
 
 
     **Tips (PAY-04, UC-R-08).** Wallet-only, during the ride (`in_progress`) or ≤ 24 h after
@@ -62,8 +74,10 @@ info:
     `ride_earning`, negative → `commission_due`; an exactly-zero net posts nothing — the ledger
     forbids zero amounts). Every fare entry is itemized (fare, rate, commission). The commission
     rate is the driver's weekly rate for the ride's region: tiers from the region config
-    (COM-02), recalculated weekly (Monday-start week in the region's time zone) from the
-    PREVIOUS week's completed trips in that region; no rate row → the region's base tier.
+    (COM-02), computed per Monday-start week (region time zone) from the PREVIOUS week's
+    completed trips in that region — by the weekly job, or by the week's first completion when
+    the job has not run yet (stored idempotently; M8 audit W1). The balance view reports the
+    same rate without storing it.
 
 
     **Floor (COM-03, UC-D-16).** Per region (`driverBalanceFloor`, regions-v1.yaml; NULL = the
@@ -77,7 +91,7 @@ info:
     per RBAC-03) and audit-logged (`wallet.grant`, `wallet.refund`, `settlement.record`).
     New catalog entries: `wallets:view`, `wallets:manage` (RbacCatalogSeeder syncs them;
     `settlements:view/record` exist since M3). Errors use the global ErrorResponse shape
-    (status, message, fieldErrors?).
+    (status, message, fieldErrors?, code? — machine code on 409s where documented).
 
 servers:
   - url: /api/v1
@@ -115,8 +129,10 @@ paths:
       description: >
         Rider of the ride only. Allowed from `in_progress` until 24 h after `completedAt`; one
         tip per ride. The tip is debited in the ride's currency and credited 100% to the driver,
-        commission-free. 409 (distinct plain messages) — window expired, already tipped,
-        insufficient wallet balance, ride not tippable (wrong state / cancelled).
+        commission-free. Every 409 carries a machine `code` (ErrorResponse `code`; clients
+        switch on it, never on the message): `tip_window_closed` (more than 24 h after
+        completion), `already_tipped`, `insufficient_balance` (wallet short in the ride's
+        currency), `not_tippable` (wrong state / cancelled).
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: rideId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -133,7 +149,10 @@ paths:
               schema: { $ref: '#/components/schemas/TipResponse' }
         '400': { description: Invalid amount }
         '404': { description: Not the rider's ride / unknown ride }
-        '409': { description: Window expired / already tipped / insufficient balance / not tippable }
+        '409':
+          description: >
+            `code` = `tip_window_closed` | `already_tipped` | `insufficient_balance` |
+            `not_tippable`
 
   /driver/earnings:
     get:
@@ -157,7 +176,8 @@ paths:
         `period=weekly` → the Monday-start week (driver's operating region time zone) containing
         `anchor` (default today); `period=monthly` → the calendar month containing `anchor`.
         Totals cover the operating region's currency. 404 while the driver has no operating
-        region yet (never located, never rode).
+        region yet (never located, never rode); 400 for a missing period or any period other
+        than weekly|monthly.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: period, in: query, required: true, schema: { type: string, enum: [weekly, monthly] } }
@@ -168,6 +188,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/EarningsSummary' }
+        '400': { description: Missing or unknown period (only weekly / monthly) }
+        '404': { description: No operating region yet }
 
   /driver/balance:
     get:
@@ -222,8 +244,9 @@ paths:
       description: >
         `type=grant` — reason mandatory, ride link optional. `type=refund` — reason AND `rideId`
         mandatory (PAY-03 link; ticket links arrive with M14). Credited instantly in the given
-        currency; the user is notified; the action is audit-logged. 400 for a refund `rideId`
-        that is not a ride of this user.
+        currency; the user is notified; the action is audit-logged. 400 for a `rideId` that is
+        not a ride of this user, a `currency` no region uses (M8 audit W7), and a refund whose
+        `currency` differs from its ride's.
       security: [{ bearerAuth: [] }]
       x-required-permission: 'wallets:manage'
       parameters:
@@ -269,7 +292,8 @@ paths:
         records the truth, including overshoot); settlements are immutable — a mistake is
         corrected by a counter-settlement. The response carries the new balance and floor
         status; crossing back above the floor unblocks offers automatically and notifies the
-        driver. Audit-logged.
+        driver. Audit-logged. 400 when `currency` is neither a currency the driver already
+        holds a balance in nor the currency of the driver's operating region (M8 audit W7).
       security: [{ bearerAuth: [] }]
       x-required-permission: 'settlements:record'
       parameters:
@@ -301,8 +325,10 @@ components:
     RiderDue:
       type: object
       description: >
-        A carried charge (owner ruling (a)) collected on the rider's next completed ride.
-        `pending` dues are shown wherever the fee is displayed (M8-T3).
+        A carried charge (owner ruling (a)) collected on the rider's next completed ride in the
+        due's currency. `pending` dues are shown wherever the fee is displayed (M8-T3); a due a
+        completed ride carries in cash stays `pending` until that ride's cash-confirm (rides-v1
+        `carriedDues`).
       required: [id, currency, amount, type, sourceRideId, status, createdAt]
       properties:
         id: { type: string, format: uuid }

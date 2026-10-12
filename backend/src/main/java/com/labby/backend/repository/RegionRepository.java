@@ -18,6 +18,9 @@ public interface RegionRepository extends JpaRepository<Region, UUID> {
 
   boolean existsByNameIgnoreCase(String name);
 
+  /** Whether any region is configured with the currency (admin wallet credits, M8 audit W7). */
+  boolean existsByCurrency(String currency);
+
   /**
    * Active regions whose boundary covers the point — the SD-01 resolution query. ST_Covers (not
    * ST_Contains) so a point exactly ON the boundary resolves to the region. Region boundaries may

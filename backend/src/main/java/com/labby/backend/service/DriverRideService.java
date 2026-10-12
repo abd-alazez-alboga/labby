@@ -90,7 +90,8 @@ public interface DriverRideService {
   RideDto complete(UUID userId, UUID rideId);
 
   /**
-   * Cash collected (UC-D-09).
+   * Cash collected (UC-D-09): {@code paid_cash} / {@code paid_mixed}, and the ride's cash-carried
+   * rider dues are collected (M8 audit H3).
    *
    * @param userId the driver
    * @param rideId the ride
@@ -99,7 +100,8 @@ public interface DriverRideService {
   RideDto confirmCash(UUID userId, UUID rideId);
 
   /**
-   * Rider did not pay (UC-D-09 E1); the ride stays completed.
+   * Rider did not pay (UC-D-09 E1); the ride stays completed and its cash-carried rider dues are
+   * released back to pending.
    *
    * @param userId the driver
    * @param rideId the ride

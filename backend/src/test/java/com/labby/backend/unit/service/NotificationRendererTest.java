@@ -117,14 +117,15 @@ class NotificationRendererTest {
     assertThat(renderer.render("ride.accepted", rideParams).orElseThrow().bodyEn())
         .contains("Sami");
     assertThat(renderer.render("ride.completed", rideParams).orElseThrow().bodyAr())
-        .contains("4.25 SYP");
+        .contains("4.25 ل.س");
     Rendered noShow =
         renderer
             .render(
                 "ride.cancelled_by_driver",
                 Map.of("rideId", "r", "noShow", "true", "fee", "2.00", "currency", "SYP"))
             .orElseThrow();
-    assertThat(noShow.bodyEn()).contains("2.00 SYP");
+    assertThat(noShow.bodyEn()).contains("SYP 2 applies");
+    assertThat(noShow.bodyAr()).contains("2 ل.س");
     assertThat(
             renderer
                 .render("ride.cancelled_by_driver", Map.of("rideId", "r", "noShow", "false"))
@@ -176,9 +177,11 @@ class NotificationRendererTest {
     assertThat(renderer.render("ride.wait_charge_started", moneyParams).orElseThrow().linkParams())
         .containsEntry("rideId", "11111111-1111-1111-1111-111111111111");
     assertThat(renderer.render("wallet.granted", moneyParams).orElseThrow().bodyEn())
-        .contains("7.25 SYP");
+        .contains("SYP 7.25");
     assertThat(renderer.render("driver.balance_blocked", moneyParams).orElseThrow().bodyEn())
-        .contains("-45.00 SYP", "-50 SYP");
+        .contains("-SYP 45", "-SYP 50");
+    assertThat(renderer.render("driver.balance_blocked", moneyParams).orElseThrow().bodyAr())
+        .contains("-45 ل.س", "-50 ل.س");
     // PAY-02 completion copies: fully wallet-paid vs wallet + cash remainder.
     Map<String, Object> walletPaid =
         Map.of("rideId", "r", "total", "4.25", "currency", "SYP", "method", "wallet");
@@ -193,7 +196,19 @@ class NotificationRendererTest {
             "walletApplied", "3.00",
             "cashDue", "1.25");
     assertThat(renderer.render("ride.completed", mixed).orElseThrow().bodyEn())
-        .contains("3.00 SYP", "1.25 SYP");
+        .contains("SYP 4.25", "SYP 3", "SYP 1.25");
+    // W8: grouping and SYP without decimals on real amounts, Western digits in Arabic too.
+    Map<String, Object> large =
+        Map.of(
+            "rideId", "r",
+            "total", "750000.00",
+            "currency", "SYP",
+            "method", "wallet",
+            "walletApplied", "250000.00",
+            "cashDue", "500000.00");
+    Rendered largeRendered = renderer.render("ride.completed", large).orElseThrow();
+    assertThat(largeRendered.bodyEn()).contains("SYP 750,000", "SYP 250,000", "SYP 500,000");
+    assertThat(largeRendered.bodyAr()).contains("750,000 ل.س", "500,000 ل.س");
   }
 
   @Test

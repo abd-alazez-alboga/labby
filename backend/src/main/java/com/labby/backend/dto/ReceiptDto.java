@@ -21,6 +21,7 @@ public record ReceiptDto(
     PaymentStatus paymentStatus,
     BigDecimal walletApplied,
     BigDecimal cashDue,
+    List<CarriedDueDto> carriedDues,
     BigDecimal tip,
     DriverSummaryDto driver,
     GeoJsonLineStringDto route) {}

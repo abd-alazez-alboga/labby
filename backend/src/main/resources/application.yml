@@ -140,8 +140,9 @@ labby:
     center-lng: ${RIDE_SIM_CENTER_LNG:36.28}
   money:
     # M8 money rails (money-v1.yaml). A driver balance within this much above the region floor is
-    # status "warning" (COM-03); the weekly commission recalc runs on this Spring cron (server
-    # time zone — weeks themselves are computed per region time zone; "-" disables, COM-02).
+    # status "warning" (COM-03); the weekly commission recalc runs on this Spring cron (operating
+    # timezone — weeks themselves are computed per region time zone; "-" disables, COM-02). A
+    # completion computes a missing week rate itself, so the job only pre-warms the rows.
     floor-warning-margin: ${MONEY_FLOOR_WARNING_MARGIN:10}
     commission-recalc-cron: ${MONEY_COMMISSION_RECALC_CRON:0 10 0 * * MON}
   routing:

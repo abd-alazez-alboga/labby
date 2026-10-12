@@ -70,6 +70,47 @@ class FareCalculatorTest {
   }
 
   @Test
+  @DisplayName(
+      "PRC-03 extras: wait and pickup fees are their own components, outside surcharge/surge,"
+          + " and count toward the minimum before any top-up")
+  void shouldAddExtrasBeforeTheMinimumFloor() {
+    // subtotal 1.00 + 1.00 + 0.50 = 2.50; +10% = 0.25; surge 1.2 on 2.75 = 0.55; extras are NOT
+    // surged: + wait 0.807 → 0.81 + pickup 1.125 → 1.13 = 5.24.
+    FareComponentsDto fare =
+        calculator.price(
+            economy(),
+            "SYP",
+            2000,
+            300,
+            new BigDecimal("10"),
+            new BigDecimal("1.2"),
+            new BigDecimal("0.807"),
+            new BigDecimal("1.125"));
+
+    assertThat(fare.surchargeAmount()).isEqualByComparingTo("0.25");
+    assertThat(fare.surgeAmount()).isEqualByComparingTo("0.55");
+    assertThat(fare.waitFare()).isEqualByComparingTo("0.81");
+    assertThat(fare.pickupFee()).isEqualByComparingTo("1.13");
+    assertThat(fare.minimumFareAdjustment()).isEqualByComparingTo("0.00");
+    assertThat(fare.total()).isEqualByComparingTo("5.24");
+
+    // A zero-distance ride: base 1.00 + wait 0.30 = 1.30 → top-up 0.20 to the 1.50 minimum.
+    FareComponentsDto floored =
+        calculator.price(
+            economy(),
+            "SYP",
+            0,
+            0,
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            new BigDecimal("0.30"),
+            BigDecimal.ZERO);
+    assertThat(floored.waitFare()).isEqualByComparingTo("0.30");
+    assertThat(floored.minimumFareAdjustment()).isEqualByComparingTo("0.20");
+    assertThat(floored.total()).isEqualByComparingTo("1.50");
+  }
+
+  @Test
   @DisplayName("surcharge is a percent of the subtotal; surge uplifts subtotal + surcharge")
   void shouldApplySurchargeThenSurge() {
     // subtotal 1.00 + 2.50 + 1.00 = 4.50; +25% = 1.125 → 1.13; surge 1.2 on 5.63 = 1.126 → 1.13.

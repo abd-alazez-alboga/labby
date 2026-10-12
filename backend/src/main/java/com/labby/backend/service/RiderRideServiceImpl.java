@@ -276,6 +276,7 @@ public class RiderRideServiceImpl implements RiderRideService {
         ride.getPaymentStatus(),
         money.walletApplied(),
         money.cashDue(),
+        money.carriedDues(),
         money.tip(),
         rideAssembler.driverSummary(ride.getDriverUserId(), ride.getVehicleId()),
         rideLifecycle.inRideLine(ride.getId()));

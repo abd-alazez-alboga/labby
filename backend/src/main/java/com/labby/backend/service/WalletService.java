@@ -5,6 +5,7 @@ import com.labby.backend.dto.WalletViewDto;
 import com.labby.backend.enums.WalletTransactionType;
 import com.labby.backend.model.WalletTransaction;
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -80,6 +81,21 @@ public interface WalletService {
    * @throws com.labby.backend.exception.ConflictException when the balance is insufficient
    */
   WalletTransaction debit(
+      UUID userId, String currency, BigDecimal amount, WalletTransactionType type, UUID rideId);
+
+  /**
+   * Debits exactly {@code amount} when the LOCKED balance covers it, else nothing — the
+   * full-or-nothing wallet collection of a carried due (owner ruling (a)). Unlike {@link #debit} a
+   * shortfall is not an error, so the caller's transaction stays committable.
+   *
+   * @param userId the account
+   * @param currency the currency
+   * @param amount the positive amount
+   * @param type the debit type
+   * @param rideId the linked ride
+   * @return the ledger entry, or empty when the balance is short
+   */
+  Optional<WalletTransaction> debitIfCovered(
       UUID userId, String currency, BigDecimal amount, WalletTransactionType type, UUID rideId);
 
   /**

@@ -6,6 +6,9 @@ import com.labby.backend.repository.DriverBalanceRepository;
 import com.labby.backend.repository.DriverLedgerRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,16 +30,7 @@ public class DriverLedgerServiceImpl implements DriverLedgerService {
 
   @Override
   public DriverLedgerEntry post(LedgerPosting posting) {
-    DriverBalance balance =
-        driverBalanceRepository
-            .findForUpdate(posting.driverUserId(), posting.currency())
-            .orElseGet(
-                () ->
-                    driverBalanceRepository.saveAndFlush(
-                        DriverBalance.builder()
-                            .driverUserId(posting.driverUserId())
-                            .currency(posting.currency())
-                            .build()));
+    DriverBalance balance = lockOrCreate(posting.driverUserId(), posting.currency());
     BigDecimal before = balance.getBalance();
     BigDecimal after = before.add(posting.amount());
     balance.setBalance(after);
@@ -60,5 +54,20 @@ public class DriverLedgerServiceImpl implements DriverLedgerService {
     moneyFloors.notifyTransition(
         posting.driverUserId(), posting.currency(), before, after, posting.type());
     return entry;
+  }
+
+  @Override
+  public void lockBalances(Collection<UUID> driverUserIds, String currency) {
+    driverUserIds.stream()
+        .filter(Objects::nonNull)
+        .distinct()
+        .sorted()
+        .forEach(driverUserId -> lockOrCreate(driverUserId, currency));
+  }
+
+  /** Insert-if-absent, then lock: a racing first posting never hits a primary-key clash (W3). */
+  private DriverBalance lockOrCreate(UUID driverUserId, String currency) {
+    driverBalanceRepository.insertIfAbsent(driverUserId, currency);
+    return driverBalanceRepository.findForUpdate(driverUserId, currency).orElseThrow();
   }
 }

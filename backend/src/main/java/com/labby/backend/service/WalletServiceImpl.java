@@ -15,6 +15,7 @@ import com.labby.backend.repository.WalletBalanceRepository;
 import com.labby.backend.repository.WalletTransactionRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -119,6 +120,16 @@ public class WalletServiceImpl implements WalletService {
   }
 
   @Override
+  public Optional<WalletTransaction> debitIfCovered(
+      UUID userId, String currency, BigDecimal amount, WalletTransactionType type, UUID rideId) {
+    WalletBalance balance = walletBalanceRepository.findForUpdate(userId, currency).orElse(null);
+    if (balance == null || balance.getBalance().compareTo(amount) < 0) {
+      return Optional.empty();
+    }
+    return Optional.of(applyDebit(balance, amount, type, rideId));
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public BigDecimal balance(UUID userId, String currency) {
     return walletBalanceRepository
@@ -165,13 +176,10 @@ public class WalletServiceImpl implements WalletService {
             .build());
   }
 
+  /** Insert-if-absent, then lock: a racing first credit never hits a primary-key clash (W3). */
   private WalletBalance lockOrCreate(UUID userId, String currency) {
-    return walletBalanceRepository
-        .findForUpdate(userId, currency)
-        .orElseGet(
-            () ->
-                walletBalanceRepository.saveAndFlush(
-                    WalletBalance.builder().userId(userId).currency(currency).build()));
+    walletBalanceRepository.insertIfAbsent(userId, currency);
+    return walletBalanceRepository.findForUpdate(userId, currency).orElseThrow();
   }
 
   static WalletTransactionDto toDto(WalletTransaction transaction) {

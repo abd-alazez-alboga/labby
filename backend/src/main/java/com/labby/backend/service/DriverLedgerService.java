@@ -3,6 +3,7 @@ package com.labby.backend.service;
 import com.labby.backend.enums.DriverLedgerType;
 import com.labby.backend.model.DriverLedgerEntry;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.UUID;
 
 /**
@@ -19,6 +20,17 @@ public interface DriverLedgerService {
    * @return the stored entry (with {@code balanceAfter})
    */
   DriverLedgerEntry post(LedgerPosting posting);
+
+  /**
+   * Locks (creating when absent) the balance rows of every driver a multi-driver money step will
+   * post to, in user-id order, before its first posting (M8 audit W2): two such steps touching the
+   * same drivers in opposite roles queue instead of deadlocking. Later {@link #post} calls in the
+   * transaction re-enter the held locks.
+   *
+   * @param driverUserIds the drivers (nulls and duplicates ignored)
+   * @param currency the currency of every posting
+   */
+  void lockBalances(Collection<UUID> driverUserIds, String currency);
 
   /**
    * One driver ledger posting.

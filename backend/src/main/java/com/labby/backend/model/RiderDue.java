@@ -21,9 +21,10 @@ import lombok.Setter;
 
 /**
  * A carried rider charge (owner ruling (a)): a cancellation fee the wallet could not cover (and
- * every fee on a cash-method ride), collected in full on the rider's NEXT completed ride. A
- * workflow row, not a ledger — the money truth lands in {@code wallet_transactions} / {@code
- * driver_ledger} at collection.
+ * every fee on a cash-method ride), collected in full on the rider's NEXT completed ride in the
+ * due's currency — from the wallet at completion, or in cash: earmarked at completion and collected
+ * on the driver's cash-confirm (M8 audit H3). A workflow row, not a ledger — the money truth lands
+ * in {@code wallet_transactions} / {@code driver_ledger} at collection.
  */
 @Entity
 @Table(name = "rider_dues")
@@ -62,6 +63,13 @@ public class RiderDue {
 
   @Column(name = "collected_ride_id")
   private UUID collectedRideId;
+
+  /**
+   * The completed ride carrying this still-pending due in CASH (M8 audit H3): set at that ride's
+   * completion, collected on its cash-confirm, released (null) on mark-unpaid.
+   */
+  @Column(name = "collecting_ride_id")
+  private UUID collectingRideId;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;

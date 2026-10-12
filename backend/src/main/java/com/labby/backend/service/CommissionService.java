@@ -11,7 +11,9 @@ public interface CommissionService {
 
   /**
    * The driver's rate percent for the week containing {@code at} in the region: the stored weekly
-   * rate row, or the region's base tier when none exists.
+   * rate row; when none exists yet it is computed from the previous week's completed trips in the
+   * region and stored idempotently (the week's first completion, M8 audit W1). Must run inside the
+   * caller's (completion) transaction.
    *
    * @param driverUserId the driver
    * @param region the ride's region

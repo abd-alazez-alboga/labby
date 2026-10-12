@@ -5,6 +5,7 @@ import com.labby.backend.enums.NotificationAudience;
 import com.labby.backend.enums.NotificationCategory;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.SuspensionReason;
+import com.labby.backend.util.MoneyFormat;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
@@ -253,80 +254,60 @@ public class NotificationRenderer {
               event,
               params,
               "Wait time is now charged",
-              "Your driver is waiting. From now, wait time adds %s %s per minute to your fare."
-                  .formatted(text(params.get("rate")), text(params.get("currency"))),
+              "Your driver is waiting. From now, wait time adds %s per minute to your fare."
+                  .formatted(moneyEn(params, "rate")),
               "بدأ احتساب وقت الانتظار",
-              "سائقك بانتظارك. من الآن، تُضاف %s %s عن كل دقيقة انتظار إلى أجرة رحلتك."
-                  .formatted(text(params.get("rate")), text(params.get("currency"))));
+              "سائقك بانتظارك. من الآن، تُضاف %s عن كل دقيقة انتظار إلى أجرة رحلتك."
+                  .formatted(moneyAr(params, "rate")));
       case WALLET_GRANTED ->
           account(
               event,
               NotificationAudience.RIDER,
               "Credit added to your wallet",
-              "We added %s %s to your Labby wallet."
-                  .formatted(text(params.get("amount")), text(params.get("currency"))),
+              "We added %s to your Labby wallet.".formatted(moneyEn(params, "amount")),
               "رصيد أُضيف إلى محفظتك",
-              "أضفنا %s %s إلى محفظتك في لبي."
-                  .formatted(text(params.get("amount")), text(params.get("currency"))));
+              "أضفنا %s إلى محفظتك في لبي.".formatted(moneyAr(params, "amount")));
       case WALLET_REFUNDED ->
           account(
               event,
               NotificationAudience.RIDER,
               "You've been refunded",
-              "We refunded %s %s to your Labby wallet."
-                  .formatted(text(params.get("amount")), text(params.get("currency"))),
+              "We refunded %s to your Labby wallet.".formatted(moneyEn(params, "amount")),
               "تم رد المبلغ",
-              "أعدنا %s %s إلى محفظتك في لبي."
-                  .formatted(text(params.get("amount")), text(params.get("currency"))));
+              "أعدنا %s إلى محفظتك في لبي.".formatted(moneyAr(params, "amount")));
       case DRIVER_BALANCE_WARNING ->
           account(
               event,
               NotificationAudience.DRIVER,
               "Your balance is getting low",
-              ("Your balance is %s %s, close to the limit of %s %s. Settle soon to keep receiving"
+              ("Your balance is %s, close to the limit of %s. Settle soon to keep receiving"
                       + " ride requests.")
-                  .formatted(
-                      text(params.get("balance")),
-                      text(params.get("currency")),
-                      text(params.get("floor")),
-                      text(params.get("currency"))),
+                  .formatted(moneyEn(params, "balance"), moneyEn(params, "floor")),
               "رصيدك يقترب من الحد",
-              "رصيدك %s %s وهو قريب من الحد %s %s. سوِّ رصيدك قريباً لتستمر في استقبال طلبات الرحلات."
-                  .formatted(
-                      text(params.get("balance")),
-                      text(params.get("currency")),
-                      text(params.get("floor")),
-                      text(params.get("currency"))));
+              "رصيدك %s وهو قريب من الحد %s. سوِّ رصيدك قريباً لتستمر في استقبال طلبات الرحلات."
+                  .formatted(moneyAr(params, "balance"), moneyAr(params, "floor")));
       case DRIVER_BALANCE_BLOCKED ->
           account(
               event,
               NotificationAudience.DRIVER,
               "Ride requests paused",
-              ("Your balance reached %s %s, at or below the limit of %s %s. Settle your balance to"
+              ("Your balance reached %s, at or below the limit of %s. Settle your balance to"
                       + " receive ride requests again.")
-                  .formatted(
-                      text(params.get("balance")),
-                      text(params.get("currency")),
-                      text(params.get("floor")),
-                      text(params.get("currency"))),
+                  .formatted(moneyEn(params, "balance"), moneyEn(params, "floor")),
               "توقفت طلبات الرحلات",
-              "وصل رصيدك إلى %s %s وهو عند الحد %s %s أو دونه. سوِّ رصيدك لتستقبل طلبات الرحلات من جديد."
-                  .formatted(
-                      text(params.get("balance")),
-                      text(params.get("currency")),
-                      text(params.get("floor")),
-                      text(params.get("currency"))));
+              "وصل رصيدك إلى %s وهو عند الحد %s أو دونه. سوِّ رصيدك لتستقبل طلبات الرحلات من جديد."
+                  .formatted(moneyAr(params, "balance"), moneyAr(params, "floor")));
       case DRIVER_BALANCE_UNBLOCKED ->
           account(
               event,
               NotificationAudience.DRIVER,
               "Ride requests resumed",
-              ("Thanks for settling. Your balance is now %s %s and you can receive ride requests"
+              ("Thanks for settling. Your balance is now %s and you can receive ride requests"
                       + " again.")
-                  .formatted(text(params.get("balance")), text(params.get("currency"))),
+                  .formatted(moneyEn(params, "balance")),
               "عادت طلبات الرحلات",
-              "شكراً لتسوية رصيدك. رصيدك الآن %s %s ويمكنك استقبال طلبات الرحلات من جديد."
-                  .formatted(text(params.get("balance")), text(params.get("currency"))));
+              "شكراً لتسوية رصيدك. رصيدك الآن %s ويمكنك استقبال طلبات الرحلات من جديد."
+                  .formatted(moneyAr(params, "balance")));
     };
   }
 
@@ -336,33 +317,32 @@ public class NotificationRenderer {
    * collected).
    */
   private static Rendered completed(NotificationEvent event, Map<String, Object> params) {
-    String total = text(params.get("total"));
-    String currency = text(params.get("currency"));
     String cashDue = text(params.get("cashDue"));
     boolean wallet = "wallet".equals(text(params.get("method")));
+    String totalEn = moneyEn(params, "total");
+    String totalAr = moneyAr(params, "total");
     String bodyEn;
     String bodyAr;
     if (wallet && cashDue.isEmpty()) {
-      bodyEn = "Your fare is %s %s. It was paid from your wallet.".formatted(total, currency);
-      bodyAr = "أجرة رحلتك %s %s. تم دفعها من محفظتك.".formatted(total, currency);
+      bodyEn = "Your fare is %s. It was paid from your wallet.".formatted(totalEn);
+      bodyAr = "أجرة رحلتك %s. تم دفعها من محفظتك.".formatted(totalAr);
     } else if (wallet) {
-      String applied = text(params.get("walletApplied"));
       bodyEn =
-          "Your fare is %s %s. Your wallet covered %s %s — please pay your driver %s %s in cash."
-              .formatted(total, currency, applied, currency, cashDue, currency);
+          "Your fare is %s. Your wallet covered %s — please pay your driver %s in cash."
+              .formatted(totalEn, moneyEn(params, "walletApplied"), moneyEn(params, "cashDue"));
       bodyAr =
-          "أجرة رحلتك %s %s. غطت محفظتك %s %s، يرجى دفع %s %s للسائق نقداً."
-              .formatted(total, currency, applied, currency, cashDue, currency);
+          "أجرة رحلتك %s. غطت محفظتك %s، يرجى دفع %s للسائق نقداً."
+              .formatted(totalAr, moneyAr(params, "walletApplied"), moneyAr(params, "cashDue"));
     } else if (!cashDue.isEmpty()) {
       bodyEn =
-          "Your fare is %s %s. With your carried fees, please pay your driver %s %s in cash."
-              .formatted(total, currency, cashDue, currency);
+          "Your fare is %s. With your carried fees, please pay your driver %s in cash."
+              .formatted(totalEn, moneyEn(params, "cashDue"));
       bodyAr =
-          "أجرة رحلتك %s %s. مع الرسوم المستحقة عليك، يرجى دفع %s %s للسائق نقداً."
-              .formatted(total, currency, cashDue, currency);
+          "أجرة رحلتك %s. مع الرسوم المستحقة عليك، يرجى دفع %s للسائق نقداً."
+              .formatted(totalAr, moneyAr(params, "cashDue"));
     } else {
-      bodyEn = "Your fare is %s %s. Please pay your driver in cash.".formatted(total, currency);
-      bodyAr = "أجرة رحلتك %s %s. يرجى الدفع للسائق نقداً.".formatted(total, currency);
+      bodyEn = "Your fare is %s. Please pay your driver in cash.".formatted(totalEn);
+      bodyAr = "أجرة رحلتك %s. يرجى الدفع للسائق نقداً.".formatted(totalAr);
     }
     return toRider(event, params, "You've arrived", bodyEn, "وصلت إلى وجهتك", bodyAr);
   }
@@ -396,13 +376,13 @@ public class NotificationRenderer {
           "Ride cancelled",
           charged
               ? ("Your driver waited but couldn't find you, so the ride was cancelled. A"
-                      + " cancellation fee of %s %s applies.")
-                  .formatted(text(params.get("fee")), text(params.get("currency")))
+                      + " cancellation fee of %s applies.")
+                  .formatted(moneyEn(params, "fee"))
               : "Your driver waited but couldn't find you, so the ride was cancelled.",
           "أُلغيت الرحلة",
           charged
-              ? "انتظرك السائق ولم يجدك، فأُلغيت الرحلة. تُطبَّق رسوم إلغاء قدرها %s %s."
-                  .formatted(text(params.get("fee")), text(params.get("currency")))
+              ? "انتظرك السائق ولم يجدك، فأُلغيت الرحلة. تُطبَّق رسوم إلغاء قدرها %s."
+                  .formatted(moneyAr(params, "fee"))
               : "انتظرك السائق ولم يجدك، فأُلغيت الرحلة.");
     }
     return toRider(
@@ -573,6 +553,16 @@ public class NotificationRenderer {
 
   private static String capitalize(String value) {
     return Character.toUpperCase(value.charAt(0)) + value.substring(1);
+  }
+
+  /** A money param in English, formatted for the params' currency (W8). */
+  private static String moneyEn(Map<String, Object> params, String key) {
+    return MoneyFormat.en(params.get(key), text(params.get("currency")));
+  }
+
+  /** A money param in Arabic, formatted for the params' currency (W8). */
+  private static String moneyAr(Map<String, Object> params, String key) {
+    return MoneyFormat.ar(params.get(key), text(params.get("currency")));
   }
 
   private static String text(Object value) {

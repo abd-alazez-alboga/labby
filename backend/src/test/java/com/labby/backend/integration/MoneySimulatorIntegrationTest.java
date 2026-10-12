@@ -78,7 +78,8 @@ class MoneySimulatorIntegrationTest extends AbstractMoneyIntegrationTest {
     BigDecimal paidFare = fareTotal(paid);
     JsonNode paidView = riderRide(rider, paid);
     assertThat(paidView.get("walletApplied").decimalValue()).isEqualByComparingTo(paidFare);
-    assertThat(paidView.get("cashDue").decimalValue()).isEqualByComparingTo("0");
+    assertThat(paidView.get("cashDue").isNull()).isTrue();
+    assertThat(paidView.get("carriedDues")).isEmpty();
     assertThat(walletBalance(rider.userId()))
         .isEqualByComparingTo(new BigDecimal("50.00").subtract(paidFare));
     assertFareEntry(paid, paidFare, "25");
@@ -212,8 +213,9 @@ class MoneySimulatorIntegrationTest extends AbstractMoneyIntegrationTest {
 
   @Test
   @DisplayName(
-      "RIDE-07 + owner ruling: a cancellation fee short of the wallet becomes a due, collected in"
-          + " cash on the next ride; the cancelled ride's driver gets the full fee once")
+      "RIDE-07 + owner ruling: a cancellation fee short of the wallet becomes a due, earmarked on"
+          + " the next ride and collected with its cash confirmation; the cancelled ride's driver"
+          + " gets the full fee once")
   void shouldCollectCancellationDueOnNextRide() {
     Account rider = rider();
     grant(rider.userId(), "0.50");
@@ -244,12 +246,21 @@ class MoneySimulatorIntegrationTest extends AbstractMoneyIntegrationTest {
             });
     assertThat(driverLedger(sim.userId())).isEmpty();
 
-    // The next (cash) ride carries the due; the simulator collects it with the fare.
+    // The next (cash) ride carries the due; the simulator's cash confirmation collects it.
     UUID next = simulateRide(rider, "cash");
     assertThat(paymentStatus(next)).isEqualTo("paid_cash");
     JsonNode nextView = riderRide(rider, next);
     assertThat(nextView.get("cashDue").decimalValue())
         .isEqualByComparingTo(fareTotal(next).add(new BigDecimal("1.50")));
+    assertThat(nextView.get("carriedDues"))
+        .singleElement()
+        .satisfies(
+            carried -> {
+              assertThat(carried.get("sourceRideId").asText()).isEqualTo(cancelled.toString());
+              assertThat(carried.get("amount").decimalValue()).isEqualByComparingTo("1.50");
+              assertThat(carried.get("method").asText()).isEqualTo("cash");
+              assertThat(carried.get("status").asText()).isEqualTo("collected");
+            });
     Map<String, Object> due = dues(rider.userId()).get(0);
     assertThat(due.get("status")).isEqualTo("collected");
     assertThat(due.get("collected_ride_id")).isEqualTo(next);
@@ -431,7 +442,10 @@ class MoneySimulatorIntegrationTest extends AbstractMoneyIntegrationTest {
         .toList();
   }
 
-  /** A cash ride's single fare entry: −commission at the rate, itemized with the stored fare. */
+  /**
+   * A completed ride's single fare entry, itemized with the stored fare: −commission on a cash
+   * ride, fare − commission on a fully wallet-paid one.
+   */
   private void assertFareEntry(UUID rideId, BigDecimal fare, String percent) {
     BigDecimal commission = commission(fare, percent);
     String method =

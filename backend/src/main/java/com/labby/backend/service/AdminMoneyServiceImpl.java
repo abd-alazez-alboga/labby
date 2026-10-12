@@ -16,9 +16,12 @@ import com.labby.backend.enums.WalletTransactionType;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.DriverLedgerEntry;
+import com.labby.backend.model.Ride;
 import com.labby.backend.model.Settlement;
 import com.labby.backend.model.WalletTransaction;
+import com.labby.backend.repository.DriverBalanceRepository;
 import com.labby.backend.repository.DriverLedgerRepository;
+import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.SettlementRepository;
@@ -54,6 +57,8 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
   private final RideRepository rideRepository;
   private final SettlementRepository settlementRepository;
   private final DriverLedgerRepository driverLedgerRepository;
+  private final DriverBalanceRepository driverBalanceRepository;
+  private final RegionRepository regionRepository;
   private final AuditService auditService;
   private final NotificationService notificationService;
   private final Clock clock;
@@ -84,12 +89,18 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
     if (refund && request.rideId() == null) {
       throw new InvalidRequestException("A refund must be linked to a ride (PAY-03)");
     }
-    if (request.rideId() != null
-        && rideRepository
-            .findById(request.rideId())
-            .filter(ride -> userId.equals(ride.getRiderUserId()))
-            .isEmpty()) {
-      throw new InvalidRequestException("rideId is not a ride of this user");
+    if (!regionRepository.existsByCurrency(request.currency())) {
+      throw new InvalidRequestException("currency is not used by any region");
+    }
+    if (request.rideId() != null) {
+      Ride ride =
+          rideRepository
+              .findById(request.rideId())
+              .filter(candidate -> userId.equals(candidate.getRiderUserId()))
+              .orElseThrow(() -> new InvalidRequestException("rideId is not a ride of this user"));
+      if (refund && !ride.getCurrency().equals(request.currency())) {
+        throw new InvalidRequestException("A refund must be in the ride's currency");
+      }
     }
     WalletTransaction transaction =
         walletService.credit(
@@ -151,6 +162,10 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
     if (request.amount().scale() > 2) {
       throw new InvalidRequestException("The amount can have at most 2 decimals");
     }
+    if (!settlementCurrencyAllowed(driverUserId, request.currency())) {
+      throw new InvalidRequestException(
+          "currency must be one the driver holds a balance in or their operating region's");
+    }
     boolean payIn = request.direction() == SettlementDirection.PAY_IN;
     Settlement settlement =
         settlementRepository.saveAndFlush(
@@ -208,6 +223,18 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
     if (!roleAssignmentRepository.existsByUserIdAndRole(driverUserId, Role.DRIVER)) {
       throw new ResourceNotFoundException("Not a driver");
     }
+  }
+
+  /**
+   * W7: a settlement moves money in a currency the driver already holds a balance in, or in their
+   * operating region's currency (a first pay-in before any ride posting).
+   */
+  private boolean settlementCurrencyAllowed(UUID driverUserId, String currency) {
+    return driverBalanceRepository.findByDriverUserIdAndCurrency(driverUserId, currency).isPresent()
+        || moneyFloors
+            .operatingRegion(driverUserId)
+            .filter(region -> currency.equals(region.getCurrency()))
+            .isPresent();
   }
 
   private static String blankToNull(String value) {

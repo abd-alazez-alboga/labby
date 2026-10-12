@@ -235,7 +235,11 @@ public class RegionServiceImpl implements RegionService {
     region.setPickupFeeThresholdKm(request.pickupFeeThresholdKm());
     region.setPickupFeePerKm(request.pickupFeePerKm());
     region.setSurgeCap(request.surgeCap());
-    region.setDriverBalanceFloor(request.driverBalanceFloor());
+    // Like timeZone (M8 audit H1): the dashboard has no floor field, so an omitted/null floor keeps
+    // the stored one; a new region starts NULL (= the SRS default -50).
+    if (request.driverBalanceFloor() != null) {
+      region.setDriverBalanceFloor(request.driverBalanceFloor());
+    }
     region.setCommissionTiers(
         request.commissionTiers() == null
             ? null

@@ -179,4 +179,92 @@ class AdminMoneyIntegrationTest extends AbstractMoneyIntegrationTest {
         .isEqualTo(HttpStatus.NOT_FOUND);
     assertLedgerInvariants();
   }
+
+  @Test
+  @DisplayName("RBAC-03: wallets:view alone reads a wallet (200) but cannot credit it (403)")
+  void shouldSplitWalletViewFromManage() {
+    Account rider = rider();
+    UUID roleId =
+        jdbcTemplate.queryForObject(
+            "INSERT INTO roles (name, is_system) VALUES ('Wallet viewer', false) RETURNING role_id",
+            UUID.class);
+    jdbcTemplate.update(
+        "INSERT INTO role_permissions (role_id, permission_id)"
+            + " SELECT ?, permission_id FROM permissions WHERE code = 'wallets:view'",
+        roleId);
+    String viewer = registerAdmin("+963937815002", roleId);
+
+    ok(get("/api/v1/admin/users/" + rider.userId() + "/wallet", viewer), HttpStatus.OK);
+    ok(
+        get("/api/v1/admin/users/" + rider.userId() + "/wallet/transactions", viewer),
+        HttpStatus.OK);
+    assertThat(
+            post(
+                    "/api/v1/admin/users/" + rider.userId() + "/wallet/credits",
+                    credit("grant", "1.00", null),
+                    viewer)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(walletBalance(rider.userId())).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName(
+      "W7: credits need a currency some region uses; a refund is in its ride's currency;"
+          + " settlements in a held or operating-region currency — else 400")
+  void shouldValidateCurrencies() {
+    Account rider = rider();
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    UUID rideId = completeRide(rider, driver, "cash");
+    ok(driverAction(driver, rideId, "cash-confirm"), HttpStatus.OK);
+    String creditsUrl = "/api/v1/admin/users/" + rider.userId() + "/wallet/credits";
+
+    // No region uses XYZ → 400, nothing credited.
+    Map<String, Object> unknown = credit("grant", "1.00", null);
+    unknown.put("currency", "XYZ");
+    ResponseEntity<JsonNode> refused = post(creditsUrl, unknown, admin);
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(refused.getBody().get("message").asText()).contains("currency");
+
+    // A (draft) USD region makes USD a usable grant currency …
+    jdbcTemplate.update("INSERT INTO regions (name, currency) VALUES ('Dollar Draft', 'USD')");
+    Map<String, Object> usdGrant = credit("grant", "1.00", null);
+    usdGrant.put("currency", "USD");
+    ok(post(creditsUrl, usdGrant, admin), HttpStatus.CREATED);
+    // … but a refund of the SYP ride must be in SYP.
+    Map<String, Object> usdRefund = credit("refund", "1.00", rideId);
+    usdRefund.put("currency", "USD");
+    assertThat(post(creditsUrl, usdRefund, admin).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    ok(post(creditsUrl, credit("refund", "1.00", rideId), admin), HttpStatus.CREATED);
+
+    // Settlements: SYP is held (and the operating region's); USD is neither → 400.
+    String settlementsUrl = "/api/v1/admin/drivers/" + driver.userId() + "/settlements";
+    assertThat(
+            post(
+                    settlementsUrl,
+                    Map.of("amount", "1.00", "direction", "pay_in", "currency", "USD"),
+                    admin)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    ok(
+        post(
+            settlementsUrl,
+            Map.of("amount", "0.38", "direction", "pay_in", "currency", "SYP"),
+            admin),
+        HttpStatus.CREATED);
+    // A driver with no balance yet may settle in the operating region's currency.
+    Account fresh = driverAt(PICKUP_LAT, PICKUP_LNG);
+    ok(
+        post(
+            "/api/v1/admin/drivers/" + fresh.userId() + "/settlements",
+            Map.of("amount", "5.00", "direction", "pay_in", "currency", "SYP"),
+            admin),
+        HttpStatus.CREATED);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM settlements WHERE currency = 'USD'", Integer.class))
+        .isZero();
+    assertLedgerInvariants();
+  }
 }
