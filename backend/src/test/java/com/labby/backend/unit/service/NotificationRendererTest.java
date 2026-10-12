@@ -36,6 +36,9 @@ class NotificationRendererTest {
       if (event.getValue().startsWith("ride.")) {
         continue; // M7 ride events: see shouldRenderRideEvents.
       }
+      if (event.getValue().startsWith("wallet.") || event.getValue().startsWith("driver.balance")) {
+        continue; // M8 money events: see shouldRenderMoneyEvents.
+      }
       Map<String, Object> params =
           switch (event) {
             case DOCUMENT_EXPIRY_REMINDER -> REMINDER_PARAMS;
@@ -128,6 +131,69 @@ class NotificationRendererTest {
                 .orElseThrow()
                 .bodyEn())
         .contains("another driver");
+  }
+
+  @Test
+  @DisplayName(
+      "M8 money events: bilingual, category account/ride, the right audience, no broken"
+          + " placeholders")
+  void shouldRenderMoneyEvents() {
+    Map<String, Object> moneyParams =
+        Map.of(
+            "rideId", "11111111-1111-1111-1111-111111111111",
+            "amount", "7.25",
+            "rate", "0.25",
+            "balance", "-45.00",
+            "floor", "-50",
+            "currency", "SYP");
+    Map<NotificationEvent, NotificationAudience> audiences =
+        Map.of(
+            NotificationEvent.RIDE_WAIT_CHARGE_STARTED, NotificationAudience.RIDER,
+            NotificationEvent.WALLET_GRANTED, NotificationAudience.RIDER,
+            NotificationEvent.WALLET_REFUNDED, NotificationAudience.RIDER,
+            NotificationEvent.DRIVER_BALANCE_WARNING, NotificationAudience.DRIVER,
+            NotificationEvent.DRIVER_BALANCE_BLOCKED, NotificationAudience.DRIVER,
+            NotificationEvent.DRIVER_BALANCE_UNBLOCKED, NotificationAudience.DRIVER);
+    for (Map.Entry<NotificationEvent, NotificationAudience> entry : audiences.entrySet()) {
+      Rendered rendered = renderer.render(entry.getKey().getValue(), moneyParams).orElseThrow();
+      assertThat(rendered.audience()).isEqualTo(entry.getValue());
+      assertThat(rendered.category())
+          .isEqualTo(
+              entry.getKey() == NotificationEvent.RIDE_WAIT_CHARGE_STARTED
+                  ? NotificationCategory.RIDE
+                  : NotificationCategory.ACCOUNT);
+      for (String text :
+          new String[] {
+            rendered.titleEn(), rendered.bodyEn(), rendered.titleAr(), rendered.bodyAr()
+          }) {
+        assertThat(text).isNotBlank().doesNotContain("%s", "{", "}", "null");
+        assertThat(text.toLowerCase(Locale.ROOT)).doesNotContain("verification", "verify");
+        assertThat(text).doesNotContain("التحقق");
+      }
+      assertThat(rendered.titleAr()).containsPattern("[\\u0600-\\u06FF]");
+      assertThat(rendered.bodyAr()).containsPattern("[\\u0600-\\u06FF]");
+    }
+    assertThat(renderer.render("ride.wait_charge_started", moneyParams).orElseThrow().linkParams())
+        .containsEntry("rideId", "11111111-1111-1111-1111-111111111111");
+    assertThat(renderer.render("wallet.granted", moneyParams).orElseThrow().bodyEn())
+        .contains("7.25 SYP");
+    assertThat(renderer.render("driver.balance_blocked", moneyParams).orElseThrow().bodyEn())
+        .contains("-45.00 SYP", "-50 SYP");
+    // PAY-02 completion copies: fully wallet-paid vs wallet + cash remainder.
+    Map<String, Object> walletPaid =
+        Map.of("rideId", "r", "total", "4.25", "currency", "SYP", "method", "wallet");
+    assertThat(renderer.render("ride.completed", walletPaid).orElseThrow().bodyEn())
+        .contains("paid from your wallet");
+    Map<String, Object> mixed =
+        Map.of(
+            "rideId", "r",
+            "total", "4.25",
+            "currency", "SYP",
+            "method", "wallet",
+            "walletApplied", "3.00",
+            "cashDue", "1.25");
+    assertThat(renderer.render("ride.completed", mixed).orElseThrow().bodyEn())
+        .contains("3.00 SYP", "1.25 SYP");
   }
 
   @Test

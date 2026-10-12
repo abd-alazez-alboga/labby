@@ -155,7 +155,8 @@ public class RideDispatchServiceImpl implements RideDispatchService {
     LatLngDto pickup = new LatLngDto(ride.getPickup().getY(), ride.getPickup().getX());
     List<Pick> picks = new ArrayList<>();
     for (DispatchCandidate candidate : pool) {
-      if (driverDutyGates.offersBlockedReason(candidate.getDriverUserId()) != null) {
+      if (driverDutyGates.offersBlockedReason(candidate.getDriverUserId(), ride.getRegionId())
+          != null) {
         continue;
       }
       RouteDto route =

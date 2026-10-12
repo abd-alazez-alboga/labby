@@ -138,6 +138,12 @@ labby:
     # Where idle sim drivers wait (inside the demo Damascus region).
     center-lat: ${RIDE_SIM_CENTER_LAT:33.515}
     center-lng: ${RIDE_SIM_CENTER_LNG:36.28}
+  money:
+    # M8 money rails (money-v1.yaml). A driver balance within this much above the region floor is
+    # status "warning" (COM-03); the weekly commission recalc runs on this Spring cron (server
+    # time zone — weeks themselves are computed per region time zone; "-" disables, COM-02).
+    floor-warning-margin: ${MONEY_FLOOR_WARNING_MARGIN:10}
+    commission-recalc-cron: ${MONEY_COMMISSION_RECALC_CRON:0 10 0 * * MON}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

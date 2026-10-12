@@ -380,7 +380,8 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
     assertThat(stripped.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(stripped.getBody()).contains("currency").contains("surge cap");
 
-    // SD-01: the rider app resolves the active region from GPS.
+    // SD-01: the rider app resolves the active region from GPS. The client config also carries
+    // the PRC-03 wait-charge values so the app can display accrual (M8).
     ResponseEntity<String> resolved =
         get("/api/v1/regions/resolve?lat=33.25&lng=36.25", rider.accessToken());
     assertThat(resolved.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -388,7 +389,13 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
         .contains(regionId)
         .contains("\"currency\":\"SYP\"")
         .contains("\"emergencyNumber\":\"112\"")
+        .contains("\"waitGraceMin\":5")
+        .contains("\"waitPerMinRate\":0.25")
         .contains("Economy");
+    ResponseEntity<String> config =
+        get("/api/v1/regions/" + regionId + "/config", rider.accessToken());
+    assertThat(config.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(config.getBody()).contains("\"waitGraceMin\":5").contains("\"waitPerMinRate\":0.25");
   }
 
   @Test

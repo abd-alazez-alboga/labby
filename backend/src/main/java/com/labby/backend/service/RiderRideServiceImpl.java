@@ -4,6 +4,7 @@ import com.labby.backend.dto.BookRideRequestDto;
 import com.labby.backend.dto.CancellationQuoteDto;
 import com.labby.backend.dto.EstimateDto;
 import com.labby.backend.dto.EstimateResponseDto;
+import com.labby.backend.dto.FinalFareDto;
 import com.labby.backend.dto.GeoJsonLineStringDto;
 import com.labby.backend.dto.PickupFeeRuleDto;
 import com.labby.backend.dto.PlaceDto;
@@ -18,7 +19,6 @@ import com.labby.backend.dto.RouteSummaryDto;
 import com.labby.backend.dto.ServiceTypeEstimateDto;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
-import com.labby.backend.enums.PaymentMethod;
 import com.labby.backend.enums.PickupDistanceMode;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
@@ -75,6 +75,7 @@ public class RiderRideServiceImpl implements RiderRideService {
   private final RideAssembler rideAssembler;
   private final RideEvents rideEvents;
   private final RideLifecycle rideLifecycle;
+  private final RideMoneyService rideMoneyService;
   private final RideRepository rideRepository;
   private final FareRepository fareRepository;
   private final RegionRepository regionRepository;
@@ -185,6 +186,11 @@ public class RiderRideServiceImpl implements RiderRideService {
     ride.setCancellationReason(request.reason());
     ride.setCancellationNote(blankToNull(request.note()));
     ride = rideRepository.saveAndFlush(ride);
+    // RIDE-07 collection (M8): wallet-method rides are debited now; any shortfall (and the whole
+    // fee on cash-method rides) is carried as a pending due.
+    if (ride.getCancellationFee() != null) {
+      rideMoneyService.collectCancellationFee(ride);
+    }
     rideEvents.stateChanged(ride);
     if (driverUserId != null) {
       rideEvents.push(
@@ -253,6 +259,9 @@ public class RiderRideServiceImpl implements RiderRideService {
       throw new ResourceNotFoundException("No receipt for this ride");
     }
     ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
+    FinalFareDto fare =
+        fareRepository.findById(ride.getId()).map(rideAssembler::finalFare).orElseThrow();
+    RideMoneyService.RideMoney money = rideMoneyService.rideMoney(ride, fare.components().total());
     return new ReceiptDto(
         ride.getId(),
         ride.getRegionId(),
@@ -262,9 +271,12 @@ public class RiderRideServiceImpl implements RiderRideService {
         rideAssembler.place(ride.getDestination(), ride.getDestinationLabel()),
         rideAssembler.stops(ride.getStops()),
         rideAssembler.timeline(ride),
-        fareRepository.findById(ride.getId()).map(rideAssembler::finalFare).orElseThrow(),
+        fare,
         ride.getPaymentMethod(),
         ride.getPaymentStatus(),
+        money.walletApplied(),
+        money.cashDue(),
+        money.tip(),
         rideAssembler.driverSummary(ride.getDriverUserId(), ride.getVehicleId()),
         rideLifecycle.inRideLine(ride.getId()));
   }
@@ -283,10 +295,6 @@ public class RiderRideServiceImpl implements RiderRideService {
                     new BusinessRuleViolationException(
                             "This service type is not available in the pickup's operating area")
                         .withCode("service_type_unavailable"));
-    if (request.paymentMethod() != PaymentMethod.CASH) {
-      throw new BusinessRuleViolationException("Only cash payment is available for now")
-          .withCode("payment_method_unavailable");
-    }
     if (rideRepository
         .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ACTIVE_STATES)
         .isPresent()) {

@@ -54,6 +54,14 @@ abstract class AbstractOnboardingIntegrationTest extends AbstractAuthIntegration
 
   @AfterEach
   void cleanOnboardingRows() {
+    // The M8 money rows reference rides, regions and users — they go before the ride rows
+    // (this subclass cleanup runs BEFORE the parent's cleanDatabase). The ledgers are
+    // append-only (V12 triggers), so TRUNCATE like audit_log.
+    jdbcTemplate.execute("TRUNCATE wallet_transactions, driver_ledger, settlements");
+    jdbcTemplate.update("DELETE FROM rider_dues");
+    jdbcTemplate.update("DELETE FROM driver_commission_rates");
+    jdbcTemplate.update("DELETE FROM wallet_balances");
+    jdbcTemplate.update("DELETE FROM driver_balances");
     // M7 ride rows reference users, vehicles, regions and service types: they go first.
     jdbcTemplate.update("DELETE FROM fares");
     jdbcTemplate.update("DELETE FROM ride_traces");

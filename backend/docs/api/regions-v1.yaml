@@ -656,6 +656,14 @@ components:
         name: { type: string }
         currency: { type: string, description: ISO 4217 }
         emergencyNumber: { type: string }
+        waitGraceMin:
+          type: [integer, 'null']
+          description: 'PRC-03 (M8): wait grace in minutes; null = the SRS default 5'
+        waitPerMinRate:
+          type: [number, 'null']
+          description: >-
+            PRC-03 (M8): per-minute wait rate charged after the grace, in the region currency —
+            the rider app displays accrual with it; null = the SRS default 0.25
         serviceTypes:
           type: array
           description: ENABLED service types only

@@ -10,6 +10,7 @@ import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OfferResponse;
+import com.labby.backend.enums.PaymentMethod;
 import com.labby.backend.enums.PaymentStatus;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
@@ -17,11 +18,13 @@ import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Fare;
+import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.ServiceType;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.FareRepository;
+import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideOfferRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RideTraceRepository;
@@ -67,7 +70,10 @@ public class DriverRideServiceImpl implements DriverRideService {
   private final RideEvents rideEvents;
   private final RideLifecycle rideLifecycle;
   private final FareCalculator fareCalculator;
+  private final RideExtrasCalculator rideExtrasCalculator;
+  private final RideMoneyService rideMoneyService;
   private final RideRepository rideRepository;
+  private final RegionRepository regionRepository;
   private final RideOfferRepository rideOfferRepository;
   private final RideTraceRepository rideTraceRepository;
   private final FareRepository fareRepository;
@@ -226,6 +232,7 @@ public class DriverRideServiceImpl implements DriverRideService {
     long distanceMeters = Math.round(rideTraceRepository.meteredDistanceMeters(rideId));
     long durationSeconds = Math.max(0, Duration.between(ride.getStartedAt(), now).toSeconds());
     ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
+    Region region = regionRepository.findById(ride.getRegionId()).orElseThrow();
     FareComponentsDto components =
         fareCalculator.price(
             serviceType,
@@ -233,48 +240,58 @@ public class DriverRideServiceImpl implements DriverRideService {
             distanceMeters,
             durationSeconds,
             ride.getSurchargePercent(),
-            ride.getSurgeMultiplier());
-    fareRepository.saveAndFlush(
-        Fare.builder()
-            .rideId(ride.getId())
-            .currency(components.currency())
-            .distanceM((int) distanceMeters)
-            .durationS((int) durationSeconds)
-            .baseFare(components.baseFare())
-            .distanceFare(components.distanceFare())
-            .timeFare(components.timeFare())
-            .surchargePercent(components.surchargePercent())
-            .surchargeAmount(components.surchargeAmount())
-            .surgeMultiplier(components.surgeMultiplier())
-            .surgeAmount(components.surgeAmount())
-            .waitFare(components.waitFare())
-            .pickupFee(components.pickupFee())
-            .minimumFareAdjustment(components.minimumFareAdjustment())
-            .discount(components.discount())
-            .total(components.total())
-            .build());
+            ride.getSurgeMultiplier(),
+            rideExtrasCalculator.waitFare(ride, region),
+            rideExtrasCalculator.pickupFee(ride, region));
+    Fare fare =
+        fareRepository.saveAndFlush(
+            Fare.builder()
+                .rideId(ride.getId())
+                .currency(components.currency())
+                .distanceM((int) distanceMeters)
+                .durationS((int) durationSeconds)
+                .baseFare(components.baseFare())
+                .distanceFare(components.distanceFare())
+                .timeFare(components.timeFare())
+                .surchargePercent(components.surchargePercent())
+                .surchargeAmount(components.surchargeAmount())
+                .surgeMultiplier(components.surgeMultiplier())
+                .surgeAmount(components.surgeAmount())
+                .waitFare(components.waitFare())
+                .pickupFee(components.pickupFee())
+                .minimumFareAdjustment(components.minimumFareAdjustment())
+                .discount(components.discount())
+                .total(components.total())
+                .build());
     ride.setState(RideState.COMPLETED);
     ride.setCompletedAt(now);
     ride.setPaymentStatus(PaymentStatus.PENDING);
+    // PAY-02 + COM-01 (M8): wallet application (may flip the status to paid_wallet), the fare
+    // posting at the weekly rate, and the collection of every pending rider due — one transaction.
+    rideMoneyService.applyAtCompletion(ride, fare);
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
-    rideEvents.push(
-        ride.getRiderUserId(),
-        NotificationEvent.RIDE_COMPLETED,
-        Map.of(
-            "rideId",
-            ride.getId().toString(),
-            "total",
-            components.total().toPlainString(),
-            "currency",
-            components.currency()));
+    RideMoneyService.RideMoney money = rideMoneyService.rideMoney(ride, fare.getTotal());
+    Map<String, Object> pushParams = new HashMap<>();
+    pushParams.put("rideId", ride.getId().toString());
+    pushParams.put("total", components.total().toPlainString());
+    pushParams.put("currency", components.currency());
+    pushParams.put("method", ride.getPaymentMethod().getValue());
+    if (money.walletApplied() != null) {
+      pushParams.put("walletApplied", money.walletApplied().toPlainString());
+    }
+    if (money.cashDue() != null) {
+      pushParams.put("cashDue", money.cashDue().toPlainString());
+    }
+    rideEvents.push(ride.getRiderUserId(), NotificationEvent.RIDE_COMPLETED, pushParams);
     rideLifecycle.releaseDriver(userId, now);
     return rideAssembler.view(ride, Audience.DRIVER);
   }
 
   @Override
   public RideDto confirmCash(UUID userId, UUID rideId) {
-    return settle(userId, rideId, PaymentStatus.PAID_CASH, null, "payment_confirmed");
+    // PAY-02: confirming the cash of a wallet-method ride settles the drained-wallet remainder.
+    return settle(userId, rideId, null, null, "payment_confirmed");
   }
 
   @Override
@@ -318,6 +335,10 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setCancellationReason(request.reason());
     ride.setCancellationNote(RiderRideServiceImpl.blankToNull(request.note()));
     ride = rideRepository.saveAndFlush(ride);
+    // RIDE-07 collection (M8): a no-show fee is collected like a rider-cancel fee.
+    if (ride.getCancellationFee() != null) {
+      rideMoneyService.collectCancellationFee(ride);
+    }
     // The new linked ride is saved BEFORE the cancelled ride is announced, so the rider's
     // ride.state frame already carries redispatchedAsRideId (rides-v1 rider view).
     Ride redispatched = noShow ? null : redispatch(ride, now);
@@ -369,6 +390,7 @@ public class DriverRideServiceImpl implements DriverRideService {
             .build());
   }
 
+  /** {@code status} null = a cash confirmation ({@code paid_mixed} on wallet-method rides). */
   private RideDto settle(
       UUID userId, UUID rideId, PaymentStatus status, String note, String reason) {
     Ride ride = lockOwned(userId, rideId);
@@ -377,6 +399,12 @@ public class DriverRideServiceImpl implements DriverRideService {
       throw (ConflictException)
           new ConflictException("The payment of this ride is already settled or not due")
               .withCode("payment_not_pending");
+    }
+    if (status == null) {
+      status =
+          ride.getPaymentMethod() == PaymentMethod.WALLET
+              ? PaymentStatus.PAID_MIXED
+              : PaymentStatus.PAID_CASH;
     }
     ride.setPaymentStatus(status);
     ride.setPaymentConfirmedAt(clock.instant());

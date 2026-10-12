@@ -165,6 +165,28 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   List<Ride> findByStateIn(Collection<RideState> states);
 
+  /** Completed trips per driver in a region inside a window (COM-02 weekly recalc). */
+  @Query(
+      """
+      SELECT r.driverUserId AS driverUserId, COUNT(r) AS trips FROM Ride r
+      WHERE r.regionId = :regionId AND r.state = com.labby.backend.enums.RideState.COMPLETED
+        AND r.driverUserId IS NOT NULL
+        AND r.completedAt >= :from AND r.completedAt < :to
+      GROUP BY r.driverUserId
+      """)
+  List<DriverTripCount> countCompletedTripsByDriver(
+      @Param("regionId") UUID regionId, @Param("from") Instant from, @Param("to") Instant to);
+
+  long countByDriverUserIdAndRegionIdAndStateAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
+      UUID driverUserId, UUID regionId, RideState state, Instant from, Instant to);
+
+  /** One driver's completed-trip count in a window (COM-02). */
+  interface DriverTripCount {
+    UUID getDriverUserId();
+
+    long getTrips();
+  }
+
   /** A dispatch candidate row. */
   interface DispatchCandidate {
     UUID getDriverUserId();

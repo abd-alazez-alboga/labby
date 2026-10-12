@@ -89,7 +89,6 @@ class RideBookingIntegrationTest extends AbstractRideIntegrationTest {
                     place(33.502, 36.30),
                     place(33.503, 36.30),
                     place(33.504, 36.30)))));
-    refusals.put("payment_method_unavailable", tryBook(rider, with("paymentMethod", "wallet")));
     refusals.put(
         "service_type_unavailable",
         tryBook(rider, with("serviceTypeId", UUID.randomUUID().toString())));

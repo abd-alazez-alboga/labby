@@ -90,6 +90,10 @@ public class Region {
   @Column(name = "surge_cap")
   private BigDecimal surgeCap;
 
+  /** COM-03 floor (M8): never positive; NULL means the SRS default (−50). */
+  @Column(name = "driver_balance_floor")
+  private BigDecimal driverBalanceFloor;
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "commission_tiers")
   private List<Map<String, Object>> commissionTiers;

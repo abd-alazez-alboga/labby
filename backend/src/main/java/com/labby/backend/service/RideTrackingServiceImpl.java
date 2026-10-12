@@ -4,18 +4,24 @@ import com.labby.backend.config.RideProperties;
 import com.labby.backend.config.TrackingProperties;
 import com.labby.backend.dto.LatLngDto;
 import com.labby.backend.dto.LocationSampleDto;
+import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.enums.TracePhase;
 import com.labby.backend.model.DriverLocation;
+import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.repository.DriverLocationRepository;
+import com.labby.backend.repository.NotificationOutboxRepository;
+import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RideTraceRepository;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +45,9 @@ public class RideTrackingServiceImpl implements RideTrackingService {
   private final RideRepository rideRepository;
   private final RideTraceRepository rideTraceRepository;
   private final DriverLocationRepository driverLocationRepository;
+  private final RegionRepository regionRepository;
+  private final NotificationOutboxRepository notificationOutboxRepository;
+  private final RideExtrasCalculator rideExtrasCalculator;
   private final TrackingProperties trackingProperties;
   private final RoutingProvider routingProvider;
   private final RideEvents rideEvents;
@@ -116,6 +125,7 @@ public class RideTrackingServiceImpl implements RideTrackingService {
       rideEvents.connection(ride, false);
       changed = true;
     }
+    notifyWaitChargeStart(ride, now);
     boolean etaDue =
         ride.getEtaRefreshedAt() == null
             || !ride.getEtaRefreshedAt()
@@ -136,5 +146,31 @@ public class RideTrackingServiceImpl implements RideTrackingService {
       rideRepository.saveAndFlush(ride);
     }
     return changed;
+  }
+
+  /**
+   * PRC-03: tells the rider ONCE when wait-charge accrual starts (the region's wait grace after
+   * Arrived ran out while the trip has not started). The outbox is the once-only guard — it keeps
+   * delivered rows, so the notice survives restarts and concurrent monitor instances.
+   */
+  private void notifyWaitChargeStart(Ride ride, Instant now) {
+    if (ride.getState() != RideState.DRIVER_ARRIVED) {
+      return;
+    }
+    Region region = regionRepository.findById(ride.getRegionId()).orElseThrow();
+    BigDecimal rate = rideExtrasCalculator.waitPerMinRate(region);
+    if (rate.signum() <= 0
+        || now.isBefore(rideExtrasCalculator.waitChargeStartsAt(ride, region))
+        || notificationOutboxRepository.existsByEventAndRideId(
+            NotificationEvent.RIDE_WAIT_CHARGE_STARTED.getValue(), ride.getId().toString())) {
+      return;
+    }
+    rideEvents.push(
+        ride.getRiderUserId(),
+        NotificationEvent.RIDE_WAIT_CHARGE_STARTED,
+        Map.of(
+            "rideId", ride.getId().toString(),
+            "rate", rate.toPlainString(),
+            "currency", ride.getCurrency()));
   }
 }

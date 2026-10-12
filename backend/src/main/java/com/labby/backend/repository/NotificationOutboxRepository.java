@@ -58,4 +58,22 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
       nativeQuery = true)
   Optional<NotificationOutboxEntry> lockClaimable(
       @Param("id") UUID id, @Param("staleBefore") Instant staleBefore);
+
+  /**
+   * Whether an event was already queued for a ride — the ride monitor's once-only guard for the
+   * wait-charge notice (PRC-03), restart- and multi-instance-safe because the outbox keeps
+   * delivered rows.
+   *
+   * @param event the event key
+   * @param rideId the ride id (as the params carry it)
+   * @return true when queued before
+   */
+  @Query(
+      value =
+          """
+          SELECT EXISTS (SELECT 1 FROM notification_outbox
+                         WHERE event = :event AND params->>'rideId' = :rideId)
+          """,
+      nativeQuery = true)
+  boolean existsByEventAndRideId(@Param("event") String event, @Param("rideId") String rideId);
 }

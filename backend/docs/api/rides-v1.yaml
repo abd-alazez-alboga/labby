@@ -62,8 +62,8 @@ info:
     `rider_suspended`, `details.suspensionReason`); pickup inside an ACTIVE region (E1 → 422
     `outside_region`); at most 3 stops (422 `too_many_stops`); destination and stops inside the
     same region (422 `outside_region`); service type enabled in that region (422
-    `service_type_unavailable`); payment method `cash` (`wallet` → 422
-    `payment_method_unavailable` until M8); no other active ride (E4 → 409
+    `service_type_unavailable`); payment method `cash` or — from M8 — `wallet` (payment
+    application rules: money-v1.yaml); no other active ride (E4 → 409
     `active_ride_exists`). The estimate is recomputed server-side at booking — the client's
     figure is never trusted — and stored with the ride; an `approximate` route (OSRM down,
     NFR-A3) is allowed and flagged.

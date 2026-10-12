@@ -2,6 +2,7 @@ package com.labby.backend.dto;
 
 import com.labby.backend.enums.PaymentMethod;
 import com.labby.backend.enums.PaymentStatus;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,5 +19,8 @@ public record ReceiptDto(
     FinalFareDto fare,
     PaymentMethod paymentMethod,
     PaymentStatus paymentStatus,
+    BigDecimal walletApplied,
+    BigDecimal cashDue,
+    BigDecimal tip,
     DriverSummaryDto driver,
     GeoJsonLineStringDto route) {}

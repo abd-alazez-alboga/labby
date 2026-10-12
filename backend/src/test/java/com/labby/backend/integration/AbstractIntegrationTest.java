@@ -47,6 +47,8 @@ public abstract class AbstractIntegrationTest {
     // Nor do the ride dispatcher and monitor: ride tests advance them on a controlled clock (M7).
     registry.add("labby.rides.dispatch-cron", () -> "-");
     registry.add("labby.rides.monitor-cron", () -> "-");
+    // The weekly commission recalc fires only when tests call it on their controlled clock (M8).
+    registry.add("labby.money.commission-recalc-cron", () -> "-");
     // Tests never call the public OSRM server: the discard port refuses connections, so routing
     // takes the straight-line fallback unless a test points the URL at its own stub (M6-T3).
     registry.add("labby.routing.osrm-url", () -> "http://127.0.0.1:9");

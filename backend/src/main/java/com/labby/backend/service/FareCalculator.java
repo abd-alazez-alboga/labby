@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
  *   <li>base + per-km × km + per-min × min (each component rounded half-up to 2 decimals);
  *   <li>surcharge = percent × that subtotal;
  *   <li>surge uplift = (subtotal + surcharge) × (multiplier − 1) — 0 until M9;
- *   <li>wait / pickup fee / discount — 0 in M7 (M8);
+ *   <li>wait charge + pickup-distance fee (M8, computed by {@code RideExtrasCalculator}; 0 in
+ *       estimates) — discounts stay 0 until M13;
  *   <li>minimum-fare top-up so the total never falls below the service type's minimum.
  * </ol>
  *
@@ -37,7 +38,7 @@ public class FareCalculator {
   private static final BigDecimal SIXTY = BigDecimal.valueOf(60);
 
   /**
-   * Prices a distance + duration for a service type.
+   * Prices a distance + duration for a service type without extras (estimates; M7-shape finals).
    *
    * @param serviceType the region's service type (its rates and minimum)
    * @param currency the region currency
@@ -54,6 +55,40 @@ public class FareCalculator {
       long durationSeconds,
       BigDecimal surchargePercent,
       BigDecimal surgeMultiplier) {
+    return price(
+        serviceType,
+        currency,
+        distanceMeters,
+        durationSeconds,
+        surchargePercent,
+        surgeMultiplier,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO);
+  }
+
+  /**
+   * Prices a distance + duration for a service type, with the PRC-03 extras (M8): the wait charge
+   * and the pickup-distance fee join the total BEFORE the minimum-fare floor (RIDE-06).
+   *
+   * @param serviceType the region's service type (its rates and minimum)
+   * @param currency the region currency
+   * @param distanceMeters routed (estimate) or metered (final) distance
+   * @param durationSeconds routed or actual duration
+   * @param surchargePercent the time-window surcharge (0 = none)
+   * @param surgeMultiplier the locked surge multiplier (≥ 1)
+   * @param waitFare the computed wait charge (0 = none)
+   * @param pickupFee the computed pickup-distance fee (0 = none)
+   * @return every component and the total
+   */
+  public FareComponentsDto price(
+      ServiceType serviceType,
+      String currency,
+      long distanceMeters,
+      long durationSeconds,
+      BigDecimal surchargePercent,
+      BigDecimal surgeMultiplier,
+      BigDecimal waitFare,
+      BigDecimal pickupFee) {
     BigDecimal km = BigDecimal.valueOf(distanceMeters).divide(THOUSAND);
     BigDecimal minutes = BigDecimal.valueOf(durationSeconds).divide(SIXTY, 6, RoundingMode.HALF_UP);
     BigDecimal base = money(serviceType.getBaseFare());
@@ -64,7 +99,9 @@ public class FareCalculator {
     BigDecimal surge =
         money(subtotal.add(surcharge).multiply(surgeMultiplier.subtract(BigDecimal.ONE)));
     BigDecimal zero = money(BigDecimal.ZERO);
-    BigDecimal beforeFloor = subtotal.add(surcharge).add(surge);
+    BigDecimal wait = money(waitFare);
+    BigDecimal pickup = money(pickupFee);
+    BigDecimal beforeFloor = subtotal.add(surcharge).add(surge).add(wait).add(pickup);
     BigDecimal minimum = money(serviceType.getMinimumFare());
     BigDecimal topUp = beforeFloor.compareTo(minimum) < 0 ? minimum.subtract(beforeFloor) : zero;
     return new FareComponentsDto(
@@ -76,8 +113,8 @@ public class FareCalculator {
         surcharge,
         surgeMultiplier.setScale(2, RoundingMode.HALF_UP),
         surge,
-        zero,
-        zero,
+        wait,
+        pickup,
         topUp,
         zero,
         beforeFloor.add(topUp));

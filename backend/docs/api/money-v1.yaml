@@ -55,8 +55,12 @@ info:
     tips happen outside the app). Suggested amounts are a client concern.
 
 
-    **Driver ledger (COM-01/02).** Wallet-paid ride → `ride_earning` credit of fare −
-    commission; cash-paid ride → `commission_due` debit (driver keeps the cash). The commission
+    **Driver ledger (COM-01/02).** One fare entry per completed ride, netting what the platform
+    holds for the driver: `walletApplied − commission` — a fully wallet-paid ride is the
+    `ride_earning` credit of fare − commission, a cash ride (walletApplied 0) the
+    `commission_due` debit (driver keeps the cash), and a mixed ride lands in between (positive →
+    `ride_earning`, negative → `commission_due`; an exactly-zero net posts nothing — the ledger
+    forbids zero amounts). Every fare entry is itemized (fare, rate, commission). The commission
     rate is the driver's weekly rate for the ride's region: tiers from the region config
     (COM-02), recalculated weekly (Monday-start week in the region's time zone) from the
     PREVIOUS week's completed trips in that region; no rate row → the region's base tier.
@@ -152,6 +156,8 @@ paths:
       description: >
         `period=weekly` → the Monday-start week (driver's operating region time zone) containing
         `anchor` (default today); `period=monthly` → the calendar month containing `anchor`.
+        Totals cover the operating region's currency. 404 while the driver has no operating
+        region yet (never located, never rode).
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: period, in: query, required: true, schema: { type: string, enum: [weekly, monthly] } }
@@ -363,12 +369,16 @@ components:
         createdAt: { type: string, format: date-time }
     TripEarning:
       type: object
-      description: COM-01 itemization for one completed ride
+      description: >
+        COM-01 itemization for one ride that moved money: a completed ride's fare posting, or a
+        CANCELLED ride whose collected fee was credited to this driver — such a row carries
+        fareTotal / commissionRate / commissionAmount 0, the fee in `cancellationFee`, and the
+        collection moment as `completedAt`.
       required: [rideId, completedAt, currency, fareTotal, paymentMethod, commissionRate,
                  commissionAmount, net]
       properties:
         rideId: { type: string, format: uuid }
-        completedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, description: Completion (or fee collection) moment }
         currency: { type: string }
         fareTotal: { type: number }
         paymentMethod: { type: string, enum: [cash, wallet] }
@@ -380,7 +390,8 @@ components:
           type: number
           description: >
             Signed effect on the balance: wallet ride fare − commission (+ tip); cash ride
-            −commission (+ tip) — the driver kept the cash fare.
+            −commission (+ tip) — the driver kept the cash fare. (Dues collected in cash through
+            this driver pass outside the trip rows; they show in the admin ledger.)
     TripEarningPage:
       type: object
       required: [items, page, size, totalItems, totalPages]
@@ -404,7 +415,11 @@ components:
         fares: { type: number, description: Sum of fare totals }
         commission: { type: number }
         tips: { type: number }
-        net: { type: number, description: Signed balance effect of the period's entries }
+        net:
+          type: number
+          description: >
+            Signed balance effect of the period's ride money (fares, commissions, tips,
+            cancellation-fee credits, due collections, bonuses) — settlements excluded
     CommissionStatus:
       type: object
       description: COM-02 — the driver's current weekly rate and next-tier progress (UC-D-15)
@@ -434,7 +449,11 @@ components:
       properties:
         currency: { type: string }
         balance: { type: number, description: Signed — negative = debt }
-        floor: { type: number, description: The operating region's floor (default -50) }
+        floor:
+          type: number
+          description: >
+            The operating region's floor when its currency matches this entry, else the SRS
+            default (-50)
         status: { $ref: '#/components/schemas/FloorStatus' }
     DriverBalanceView:
       type: object

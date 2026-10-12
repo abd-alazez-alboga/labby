@@ -1,6 +1,7 @@
 package com.labby.backend.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +27,7 @@ public record RegionUpsertRequestDto(
     @DecimalMin("0") BigDecimal pickupFeeThresholdKm,
     @DecimalMin("0") BigDecimal pickupFeePerKm,
     @DecimalMin("1") BigDecimal surgeCap,
+    @DecimalMax("0") BigDecimal driverBalanceFloor,
     List<@Valid CommissionTierDto> commissionTiers,
     @Valid IncentiveValuesDto incentiveValues,
     @Valid SuspensionThresholdsDto suspensionThresholds) {}

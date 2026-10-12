@@ -78,6 +78,14 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     // audit_log is append-only (V4 trigger blocks DELETE) and references users; TRUNCATE
     // bypasses row-level triggers, so the shared test DB can still be reset between tests.
     jdbcTemplate.execute("TRUNCATE audit_log");
+    // The M8 money ledgers are append-only too (V12 triggers); one TRUNCATE handles their
+    // cross-references (driver_ledger -> settlements / rider_dues). The money rows reference
+    // rides and users, so they go before both.
+    jdbcTemplate.execute("TRUNCATE wallet_transactions, driver_ledger, settlements");
+    jdbcTemplate.update("DELETE FROM rider_dues");
+    jdbcTemplate.update("DELETE FROM driver_commission_rates");
+    jdbcTemplate.update("DELETE FROM wallet_balances");
+    jdbcTemplate.update("DELETE FROM driver_balances");
     // M7 ride rows reference users, vehicles, regions and service types: they go first.
     jdbcTemplate.update("DELETE FROM fares");
     jdbcTemplate.update("DELETE FROM ride_traces");

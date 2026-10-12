@@ -9,7 +9,10 @@ import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.dto.RiderCancelRequestDto;
 import com.labby.backend.dto.RouteChangeRequestDto;
 import com.labby.backend.dto.RouteInputDto;
+import com.labby.backend.dto.TipRequestDto;
+import com.labby.backend.dto.TipResponseDto;
 import com.labby.backend.security.SecurityUtils;
+import com.labby.backend.service.RideMoneyService;
 import com.labby.backend.service.RiderRideService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +38,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class RiderRidesController {
 
   private final RiderRideService riderRideService;
+  private final RideMoneyService rideMoneyService;
+
+  /**
+   * Tips the driver from the wallet (PAY-04, UC-R-08).
+   *
+   * @param rideId the ride
+   * @param request the tip amount (ride currency)
+   * @return 201 with the applied tip; 409 window expired / already tipped / insufficient balance /
+   *     not tippable
+   */
+  @PostMapping("/{rideId}/tip")
+  @Operation(summary = "Tip the driver from the wallet (PAY-04)")
+  public ResponseEntity<TipResponseDto> tip(
+      @PathVariable UUID rideId, @Valid @RequestBody TipRequestDto request) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(rideMoneyService.tip(SecurityUtils.currentUserId(), rideId, request.amount()));
+  }
 
   /**
    * Estimates every enabled service type (RIDE-01).

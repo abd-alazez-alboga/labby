@@ -1,0 +1,125 @@
+package com.labby.backend.integration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+
+/**
+ * PRC-03 extras in the fare engine (region config, SRS defaults when unset): the wait charge bills
+ * minutes beyond the wait grace between Arrived and start (the rider notified ONCE when accrual
+ * starts, via the monitor), and the pickup-distance fee bills the accepted offer's distance beyond
+ * the threshold for {@code accept_distant_fee} riders.
+ */
+class RideExtrasIntegrationTest extends AbstractMoneyIntegrationTest {
+
+  @Test
+  @DisplayName(
+      "PRC-03: minutes beyond the wait grace land in waitFare — and the rider is notified"
+          + " once when accrual starts")
+  void shouldChargeWaitTime() {
+    Account rider = rider();
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    UUID rideId = book(rider);
+    dispatchAndAccept(rideId, driver);
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    ok(driverAction(driver, rideId, "arrive"), HttpStatus.OK);
+
+    // Inside the 5-minute grace: the monitor queues nothing.
+    advance(Duration.ofMinutes(4));
+    rideTrackingService.monitor();
+    assertThat(outboxEvents(rider.userId())).doesNotContain("ride.wait_charge_started");
+
+    // Past the grace: notified exactly once, however often the monitor ticks.
+    advance(Duration.ofMinutes(2));
+    rideTrackingService.monitor();
+    rideTrackingService.monitor();
+    assertThat(
+            outboxEvents(rider.userId()).stream()
+                .filter("ride.wait_charge_started"::equals)
+                .count())
+        .isEqualTo(1);
+
+    // Start at Arrived + 9 min → 4 charged minutes × 0.25 = 1.00. The extras join BEFORE the
+    // minimum-fare floor (RIDE-06): base 1.00 + wait 1.00 = 2.00, no top-up.
+    advance(Duration.ofMinutes(3));
+    ok(driverAction(driver, rideId, "start"), HttpStatus.OK);
+    JsonNode completed = ok(driverAction(driver, rideId, "complete"), HttpStatus.OK);
+    JsonNode components = completed.get("fare").get("components");
+    assertThat(components.get("waitFare").decimalValue()).isEqualByComparingTo("1.00");
+    assertThat(components.get("minimumFareAdjustment").decimalValue()).isEqualByComparingTo("0");
+    assertThat(components.get("total").decimalValue()).isEqualByComparingTo("2.00");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT wait_fare FROM fares WHERE ride_id = ?",
+                java.math.BigDecimal.class,
+                rideId))
+        .isEqualByComparingTo("1.00");
+  }
+
+  @Test
+  @DisplayName(
+      "PRC-03: accept_distant_fee riders pay per km beyond the threshold; nearby_only"
+          + " riders never see the fee")
+  void shouldChargePickupDistanceFee() {
+    Account rider = rider();
+    // The rider opts into distant drivers (UC-R-03); disclosed pre-booking via the estimate rule.
+    ok(
+        put(
+            "/api/v1/rider/preferences",
+            Map.of(
+                "temperature", "no_preference",
+                "conversation", "no_preference",
+                "music", "no_preference",
+                "pickupDistanceMode", "accept_distant_fee"),
+            rider.token()),
+        HttpStatus.OK);
+    JsonNode estimate =
+        ok(
+            post(
+                "/api/v1/rides/estimate",
+                Map.of(
+                    "pickup", place(PICKUP_LAT, PICKUP_LNG),
+                    "destination", place(DEST_LAT, DEST_LNG)),
+                rider.token()),
+            HttpStatus.OK);
+    assertThat(estimate.get("pickupFeeRule").get("thresholdKm").decimalValue())
+        .isEqualByComparingTo("10");
+    assertThat(estimate.get("pickupFeeRule").get("perKm").decimalValue())
+        .isEqualByComparingTo("0.50");
+
+    // A driver ~13 km from the pickup (inside the region, beyond the 10 km threshold).
+    Account driver = driverAt(33.59, 36.39);
+    UUID rideId = book(rider);
+    dispatchAndAccept(rideId, driver);
+    int offeredDistanceM =
+        jdbcTemplate.queryForObject(
+            "SELECT pickup_distance_m FROM ride_offers WHERE ride_id = ? AND response ="
+                + " 'accepted'",
+            Integer.class,
+            rideId);
+    assertThat(offeredDistanceM).isGreaterThan(10_000);
+    arriveAndStart(rideId, driver);
+    JsonNode completed = ok(driverAction(driver, rideId, "complete"), HttpStatus.OK);
+    java.math.BigDecimal expected =
+        java.math.BigDecimal.valueOf(offeredDistanceM)
+            .divide(java.math.BigDecimal.valueOf(1000), 6, java.math.RoundingMode.HALF_UP)
+            .subtract(java.math.BigDecimal.TEN)
+            .multiply(new java.math.BigDecimal("0.50"))
+            .setScale(2, java.math.RoundingMode.HALF_UP);
+    assertThat(completed.get("fare").get("components").get("pickupFee").decimalValue())
+        .isEqualByComparingTo(expected);
+
+    // A nearby_only rider is never charged: dispatch keeps distant drivers away entirely.
+    Account nearbyRider = rider();
+    position(driver, 33.59, 36.39);
+    UUID starved = book(nearbyRider);
+    dispatch();
+    assertThat(stateOf(starved)).isEqualTo("no_driver_found");
+  }
+}

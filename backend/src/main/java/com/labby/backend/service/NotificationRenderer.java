@@ -228,16 +228,7 @@ public class NotificationRenderer {
               "Enjoy your ride with Labby.",
               "بدأت رحلتك",
               "رحلة سعيدة مع لبي.");
-      case RIDE_COMPLETED ->
-          toRider(
-              event,
-              params,
-              "You've arrived",
-              "Your fare is %s %s. Please pay your driver in cash."
-                  .formatted(text(params.get("total")), text(params.get("currency"))),
-              "وصلت إلى وجهتك",
-              "أجرة رحلتك %s %s. يرجى الدفع للسائق نقداً."
-                  .formatted(text(params.get("total")), text(params.get("currency"))));
+      case RIDE_COMPLETED -> completed(event, params);
       case RIDE_CANCELLED_BY_DRIVER -> cancelledByDriver(event, params);
       case RIDE_CANCELLED_BY_RIDER ->
           ride(
@@ -257,7 +248,143 @@ public class NotificationRenderer {
               "We couldn't find a driver right now. Tap to try again.",
               "لا يوجد سائق متاح",
               "لم نجد سائقاً متاحاً حالياً. اضغط لإعادة المحاولة.");
+      case RIDE_WAIT_CHARGE_STARTED ->
+          toRider(
+              event,
+              params,
+              "Wait time is now charged",
+              "Your driver is waiting. From now, wait time adds %s %s per minute to your fare."
+                  .formatted(text(params.get("rate")), text(params.get("currency"))),
+              "بدأ احتساب وقت الانتظار",
+              "سائقك بانتظارك. من الآن، تُضاف %s %s عن كل دقيقة انتظار إلى أجرة رحلتك."
+                  .formatted(text(params.get("rate")), text(params.get("currency"))));
+      case WALLET_GRANTED ->
+          account(
+              event,
+              NotificationAudience.RIDER,
+              "Credit added to your wallet",
+              "We added %s %s to your Labby wallet."
+                  .formatted(text(params.get("amount")), text(params.get("currency"))),
+              "رصيد أُضيف إلى محفظتك",
+              "أضفنا %s %s إلى محفظتك في لبي."
+                  .formatted(text(params.get("amount")), text(params.get("currency"))));
+      case WALLET_REFUNDED ->
+          account(
+              event,
+              NotificationAudience.RIDER,
+              "You've been refunded",
+              "We refunded %s %s to your Labby wallet."
+                  .formatted(text(params.get("amount")), text(params.get("currency"))),
+              "تم رد المبلغ",
+              "أعدنا %s %s إلى محفظتك في لبي."
+                  .formatted(text(params.get("amount")), text(params.get("currency"))));
+      case DRIVER_BALANCE_WARNING ->
+          account(
+              event,
+              NotificationAudience.DRIVER,
+              "Your balance is getting low",
+              ("Your balance is %s %s, close to the limit of %s %s. Settle soon to keep receiving"
+                      + " ride requests.")
+                  .formatted(
+                      text(params.get("balance")),
+                      text(params.get("currency")),
+                      text(params.get("floor")),
+                      text(params.get("currency"))),
+              "رصيدك يقترب من الحد",
+              "رصيدك %s %s وهو قريب من الحد %s %s. سوِّ رصيدك قريباً لتستمر في استقبال طلبات الرحلات."
+                  .formatted(
+                      text(params.get("balance")),
+                      text(params.get("currency")),
+                      text(params.get("floor")),
+                      text(params.get("currency"))));
+      case DRIVER_BALANCE_BLOCKED ->
+          account(
+              event,
+              NotificationAudience.DRIVER,
+              "Ride requests paused",
+              ("Your balance reached %s %s, at or below the limit of %s %s. Settle your balance to"
+                      + " receive ride requests again.")
+                  .formatted(
+                      text(params.get("balance")),
+                      text(params.get("currency")),
+                      text(params.get("floor")),
+                      text(params.get("currency"))),
+              "توقفت طلبات الرحلات",
+              "وصل رصيدك إلى %s %s وهو عند الحد %s %s أو دونه. سوِّ رصيدك لتستقبل طلبات الرحلات من جديد."
+                  .formatted(
+                      text(params.get("balance")),
+                      text(params.get("currency")),
+                      text(params.get("floor")),
+                      text(params.get("currency"))));
+      case DRIVER_BALANCE_UNBLOCKED ->
+          account(
+              event,
+              NotificationAudience.DRIVER,
+              "Ride requests resumed",
+              ("Thanks for settling. Your balance is now %s %s and you can receive ride requests"
+                      + " again.")
+                  .formatted(text(params.get("balance")), text(params.get("currency"))),
+              "عادت طلبات الرحلات",
+              "شكراً لتسوية رصيدك. رصيدك الآن %s %s ويمكنك استقبال طلبات الرحلات من جديد."
+                  .formatted(text(params.get("balance")), text(params.get("currency"))));
     };
+  }
+
+  /**
+   * PAY-02: the completion push says how the fare was (or is to be) paid — fully from the wallet,
+   * wallet + cash remainder, or cash (with carried fees added to the cash when dues were
+   * collected).
+   */
+  private static Rendered completed(NotificationEvent event, Map<String, Object> params) {
+    String total = text(params.get("total"));
+    String currency = text(params.get("currency"));
+    String cashDue = text(params.get("cashDue"));
+    boolean wallet = "wallet".equals(text(params.get("method")));
+    String bodyEn;
+    String bodyAr;
+    if (wallet && cashDue.isEmpty()) {
+      bodyEn = "Your fare is %s %s. It was paid from your wallet.".formatted(total, currency);
+      bodyAr = "أجرة رحلتك %s %s. تم دفعها من محفظتك.".formatted(total, currency);
+    } else if (wallet) {
+      String applied = text(params.get("walletApplied"));
+      bodyEn =
+          "Your fare is %s %s. Your wallet covered %s %s — please pay your driver %s %s in cash."
+              .formatted(total, currency, applied, currency, cashDue, currency);
+      bodyAr =
+          "أجرة رحلتك %s %s. غطت محفظتك %s %s، يرجى دفع %s %s للسائق نقداً."
+              .formatted(total, currency, applied, currency, cashDue, currency);
+    } else if (!cashDue.isEmpty()) {
+      bodyEn =
+          "Your fare is %s %s. With your carried fees, please pay your driver %s %s in cash."
+              .formatted(total, currency, cashDue, currency);
+      bodyAr =
+          "أجرة رحلتك %s %s. مع الرسوم المستحقة عليك، يرجى دفع %s %s للسائق نقداً."
+              .formatted(total, currency, cashDue, currency);
+    } else {
+      bodyEn = "Your fare is %s %s. Please pay your driver in cash.".formatted(total, currency);
+      bodyAr = "أجرة رحلتك %s %s. يرجى الدفع للسائق نقداً.".formatted(total, currency);
+    }
+    return toRider(event, params, "You've arrived", bodyEn, "وصلت إلى وجهتك", bodyAr);
+  }
+
+  /** An account-category notice without a deep link (push tap opens the notification center). */
+  private static Rendered account(
+      NotificationEvent event,
+      NotificationAudience audience,
+      String titleEn,
+      String bodyEn,
+      String titleAr,
+      String bodyAr) {
+    return new Rendered(
+        NotificationCategory.ACCOUNT,
+        audience,
+        event.getValue(),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr,
+        null,
+        Map.of());
   }
 
   private static Rendered cancelledByDriver(NotificationEvent event, Map<String, Object> params) {

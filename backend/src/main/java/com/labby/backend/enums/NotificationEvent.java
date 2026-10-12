@@ -43,7 +43,22 @@ public enum NotificationEvent {
   /** To the released driver. Params: rideId. */
   RIDE_CANCELLED_BY_RIDER("ride.cancelled_by_rider"),
   /** To the rider. Params: rideId. */
-  RIDE_NO_DRIVER_FOUND("ride.no_driver_found");
+  RIDE_NO_DRIVER_FOUND("ride.no_driver_found"),
+  // M8 money events (money-v1.yaml; PRC-03, PAY-03, COM-03).
+  /** To the rider when wait-charge accrual starts (PRC-03). Params: rideId, rate, currency. */
+  RIDE_WAIT_CHARGE_STARTED("ride.wait_charge_started"),
+  /** To the credited user (UC-A-15). Params: amount, currency. */
+  WALLET_GRANTED("wallet.granted"),
+  /** To the refunded user (PAY-03). Params: amount, currency. */
+  WALLET_REFUNDED("wallet.refunded"),
+  /** To the driver entering the floor-warning margin (COM-03). Params: balance, floor, currency. */
+  DRIVER_BALANCE_WARNING("driver.balance_warning"),
+  /** To the driver at/below the floor (COM-03). Params: balance, floor, currency. */
+  DRIVER_BALANCE_BLOCKED("driver.balance_blocked"),
+  /**
+   * To the driver a settlement lifted back above the floor (UC-A-27). Params: balance, currency.
+   */
+  DRIVER_BALANCE_UNBLOCKED("driver.balance_unblocked");
 
   private final String value;
 

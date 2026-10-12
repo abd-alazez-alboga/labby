@@ -62,6 +62,7 @@ public class RideAssembler {
   private final DriverLocationRepository driverLocationRepository;
   private final RegionRepository regionRepository;
   private final OnboardingAssembler onboardingAssembler;
+  private final RideMoneyService rideMoneyService;
   private final ObjectMapper objectMapper;
 
   /** Which party a view is for. */
@@ -90,6 +91,9 @@ public class RideAssembler {
                 .map(location -> point(location.getPosition()))
                 .orElse(null)
             : null;
+    FinalFareDto fare = fareRepository.findById(ride.getId()).map(this::finalFare).orElse(null);
+    RideMoneyService.RideMoney money =
+        rideMoneyService.rideMoney(ride, fare == null ? null : fare.components().total());
     return new RideDto(
         ride.getId(),
         ride.getState(),
@@ -111,8 +115,11 @@ public class RideAssembler {
         waitGraceEndsAt(ride),
         ride.getCancellationReason(),
         ride.getCancellationFee(),
-        fareRepository.findById(ride.getId()).map(this::finalFare).orElse(null),
+        fare,
         ride.getPaymentStatus(),
+        money.walletApplied(),
+        money.cashDue(),
+        money.tip(),
         assigned ? (ride.getDriverStreamLostAt() == null ? "ok" : "lost") : null,
         driverPosition,
         assigned ? ride.getEtaSeconds() : null,

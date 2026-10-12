@@ -235,6 +235,7 @@ public class RegionServiceImpl implements RegionService {
     region.setPickupFeeThresholdKm(request.pickupFeeThresholdKm());
     region.setPickupFeePerKm(request.pickupFeePerKm());
     region.setSurgeCap(request.surgeCap());
+    region.setDriverBalanceFloor(request.driverBalanceFloor());
     region.setCommissionTiers(
         request.commissionTiers() == null
             ? null
@@ -336,6 +337,7 @@ public class RegionServiceImpl implements RegionService {
         region.getPickupFeeThresholdKm(),
         region.getPickupFeePerKm(),
         region.getSurgeCap(),
+        region.getDriverBalanceFloor(),
         region.getCommissionTiers() == null
             ? null
             : objectMapper.convertValue(
@@ -361,6 +363,8 @@ public class RegionServiceImpl implements RegionService {
         region.getName(),
         region.getCurrency(),
         region.getEmergencyNumber(),
+        region.getWaitGraceMin(),
+        region.getWaitPerMinRate(),
         serviceTypes);
   }
 
@@ -393,6 +397,7 @@ public class RegionServiceImpl implements RegionService {
     snapshot.put("pickupFeeThresholdKm", region.getPickupFeeThresholdKm());
     snapshot.put("pickupFeePerKm", region.getPickupFeePerKm());
     snapshot.put("surgeCap", region.getSurgeCap());
+    snapshot.put("driverBalanceFloor", region.getDriverBalanceFloor());
     snapshot.put("commissionTiers", region.getCommissionTiers());
     snapshot.put("incentiveValues", region.getIncentiveValues());
     snapshot.put("suspensionThresholds", region.getSuspensionThresholds());
