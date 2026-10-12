@@ -9,7 +9,7 @@
  *   hidden; the cancel action takes the Safety button's place
  * - driver_arrived                  RiderArrived (free-waiting countdown)
  * - in_progress                     RiderInRide (stops, change destination /
- *   add stop, no cancel — UC-R-09 E1)
+ *   add stop, no cancel — UC-R-09 E1; "Tip <driver>" until tipped, PAY-04)
  * - completed                       RiderComplete (stored fare components,
  *   cash due)
  * - cancelled_by_rider / rider no-show: the recorded fee (or "not
@@ -42,6 +42,7 @@ import { useLocale } from "../../i18n/locale-context";
 import { useOptionalRegion } from "../../region/region-context";
 import { useActiveRide } from "../../ride/ride-context";
 import { rideErrorMessage } from "../../ride/ride-errors";
+import { paymentRows, waitChargePreview } from "../../ride/money-math";
 import {
   formatClock,
   formatCountdown,
@@ -59,6 +60,7 @@ import {
   EstimateFooter,
   FareBreakdown,
   IconWell,
+  paymentRowLabel,
   RideMap,
   ridePaymentLine,
   RouteColumn,
@@ -118,6 +120,8 @@ export function RideView({
   const region = useOptionalRegion();
 
   const driver = ride.driver ?? null;
+  // PAY-04: one tip per ride — the recorded one or the one just sent.
+  const tipAmount = tipSent?.amount ?? ride.tip ?? null;
   const name = serviceName(
     { nameEn: ride.serviceTypeNameEn, nameAr: ride.serviceTypeNameAr },
     locale,
@@ -142,15 +146,10 @@ export function RideView({
     const completedAt = ride.timeline.completedAt;
     const currency = fare.components.currency;
     const total = fare.components.total;
-    // PAY-02 split (M8): wallet part, the fare's cash remainder, and any
-    // collected dues carried into cashDue (derived — the contract sends
-    // walletApplied and the combined cashDue).
+    // PAY-02 split (M8): wallet part, the fare's cash remainder and the
+    // itemized carried dues — the same rows as the receipt.
     const walletApplied = ride.walletApplied ?? 0;
-    const cashDue = ride.cashDue ?? 0;
-    const fareCash = Math.min(cashDue, Math.max(0, total - walletApplied));
-    const carriedDue = Math.max(0, cashDue - fareCash);
-    const hasSplit = walletApplied > 0 || carriedDue > 0;
-    const tipAmount = tipSent?.amount ?? ride.tip ?? null;
+    const splitRows = paymentRows(ride);
     const statusLabel =
       ride.paymentStatus === "paid_cash"
         ? t("ride.paidCash")
@@ -163,30 +162,6 @@ export function RideView({
               : walletApplied > 0
                 ? t("ride.payRemainder")
                 : t("ride.payCash");
-    const splitRows: { key: string; label: string; amount: number; strong?: boolean }[] =
-      hasSplit
-        ? [
-            ...(walletApplied > 0
-              ? [{ key: "wallet", label: t("ride.walletLine"), amount: walletApplied }]
-              : []),
-            ...(fareCash > 0
-              ? [{ key: "cash", label: t("ride.cashRestLine"), amount: fareCash }]
-              : []),
-            ...(carriedDue > 0
-              ? [{ key: "due", label: t("ride.carriedFeeLine"), amount: carriedDue }]
-              : []),
-            ...(cashDue > 0
-              ? [
-                  {
-                    key: "handed",
-                    label: t("ride.cashHandedLine"),
-                    amount: cashDue,
-                    strong: true,
-                  },
-                ]
-              : []),
-          ]
-        : [];
     const canTip =
       !!driver && tipAmount === null && withinTipWindow(completedAt);
     return (
@@ -217,25 +192,28 @@ export function RideView({
               minutes: formatMinutes(fare.durationSeconds, locale),
             })}
           </AppText>
-          {splitRows.map((line) => (
-            <View
-              key={line.key}
-              style={[styles.splitRow, { flexDirection: row }]}
-              testID={`ride-paid-${line.key}`}
-            >
-              <AppText
-                variant="secondary"
-                tone="secondary"
-                weight={line.strong ? 800 : 400}
-                style={styles.flex}
+          {splitRows.map((line) => {
+            const strong = line.kind === "handed";
+            return (
+              <View
+                key={line.key}
+                style={[styles.splitRow, { flexDirection: row }]}
+                testID={`ride-paid-${line.key}`}
               >
-                {line.label}
-              </AppText>
-              <AppText variant="secondary" weight={line.strong ? 800 : 700}>
-                {formatMoney(line.amount, currency, locale, t)}
-              </AppText>
-            </View>
-          ))}
+                <AppText
+                  variant="secondary"
+                  tone="secondary"
+                  weight={strong ? 800 : 400}
+                  style={styles.flex}
+                >
+                  {paymentRowLabel(line, t)}
+                </AppText>
+                <AppText variant="secondary" weight={strong ? 800 : 700}>
+                  {formatMoney(line.amount, currency, locale, t)}
+                </AppText>
+              </View>
+            );
+          })}
           {tipAmount !== null ? (
             <View
               style={[styles.splitRow, { flexDirection: row }]}
@@ -302,6 +280,9 @@ export function RideView({
     ride.state === "requested" || ride.state === "offering" || redispatching;
   const followingRedispatch =
     redispatching || (finding && !!ride.redispatchOfRideId);
+
+  const inRideTip =
+    ride.state === "in_progress" && !!driver && tipAmount === null;
 
   let sheet: React.ReactNode;
 
@@ -447,15 +428,17 @@ export function RideView({
     const graceLeft =
       graceEndMs !== null ? Math.max(0, (graceEndMs - now) / 1000) : null;
     // PRC-03 wait charge (M8, approved artboard RiderWaitCharge): once the
-    // grace ends the charge accrues per minute. The per-minute rate comes
+    // grace ends the charge accrues at the per-minute rate, per second. The per-minute rate comes
     // from the region config when it carries one; the client-side amount is
     // a courtesy preview — the authoritative value arrives with the fare.
     const charging = graceEndMs !== null && now >= graceEndMs;
     const waitRate = region?.config?.waitPerMinRate ?? null;
     const waitCurrency = ride.estimate.components.currency;
-    const chargedMinutes = charging
-      ? Math.floor((now - (graceEndMs as number)) / 60_000)
-      : 0;
+    // Prorated per second, rounded like the backend (RideExtrasCalculator).
+    const waitAmount =
+      charging && waitRate !== null
+        ? waitChargePreview(now - (graceEndMs as number), waitRate)
+        : 0;
     const minuteProgress = charging
       ? ((now - (graceEndMs as number)) % 60_000) / 60_000
       : 0;
@@ -498,12 +481,7 @@ export function RideView({
                   tone="warning"
                   testID="ride-wait-charge-amount"
                 >
-                  {formatMoney(
-                    chargedMinutes * waitRate,
-                    waitCurrency,
-                    locale,
-                    t,
-                  )}
+                  {formatMoney(waitAmount, waitCurrency, locale, t)}
                 </AppText>
               ) : null}
             </View>
@@ -606,6 +584,17 @@ export function RideView({
             />
           ) : null}
         </View>
+        {inRideTip && driver ? (
+          // PAY-04 / UC-R-08: tipping is open during the ride too.
+          <SecondaryButton
+            label={t("tip.title", { name: driver.firstName })}
+            onPress={() => setTipOpen(true)}
+            testID="ride-tip-in-progress"
+          />
+        ) : null}
+        {tipSent ? (
+          <Banner tone="success" message={t("tip.sent")} testID="ride-tip-sent" />
+        ) : null}
         <EstimateFooter ride={ride} metered />
       </BottomSheet>
     );
@@ -701,6 +690,17 @@ export function RideView({
               ride={ride}
               visible={cancelOpen}
               onClose={() => setCancelOpen(false)}
+            />
+          ) : null}
+          {inRideTip ? (
+            <TipSheet
+              visible={tipOpen}
+              onClose={() => setTipOpen(false)}
+              rideId={ride.id}
+              currency={ride.estimate.components.currency}
+              driverName={driver?.firstName ?? null}
+              completedAt={null}
+              onTipped={setTipSent}
             />
           ) : null}
         </>

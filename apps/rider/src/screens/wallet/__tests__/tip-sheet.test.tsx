@@ -13,7 +13,7 @@ import { LocaleProvider } from "../../../i18n/locale-context";
 import { mockApi, seedSignedInSession } from "../../../test-utils/mock-api";
 import { tipResponse, walletView } from "../../../test-utils/money-fixtures";
 import { RIDE_ID } from "../../../test-utils/ride-fixtures";
-import { TipSheet } from "../tip-sheet";
+import { parseTipAmount, suggestedTips, TipSheet } from "../tip-sheet";
 
 // The real icon component re-renders after its async font load, which this
 // jest env cannot flush safely — icons render as their name instead (same
@@ -143,16 +143,16 @@ describe("tip sheet (UC-R-08)", () => {
   });
 
   it.each([
-    ["Tip window expired", "The tip window has ended — tips are possible up to 24 hours after a ride."],
-    ["Ride already tipped", "You already tipped for this ride."],
-    ["Insufficient wallet balance", "Your wallet balance doesn't cover this tip."],
-    ["Ride is not tippable", "This ride can't be tipped."],
-  ])("explains the contract 409 '%s' distinctly", async (serverMessage, shown) => {
+    ["tip_window_closed", "The tip window for this ride has closed", "The tip window has ended — tips are possible up to 24 hours after a ride."],
+    ["already_tipped", "This ride already has a tip", "You already tipped for this ride."],
+    ["insufficient_balance", "Your wallet balance is not enough for this tip", "Your wallet balance doesn't cover this tip."],
+    ["not_tippable", "This ride cannot be tipped", "This ride can't be tipped."],
+  ])("explains the contract 409 '%s' distinctly", async (code, serverMessage, shown) => {
     mockApi({
       "GET /api/v1/wallet": { status: 200, body: walletView() },
       [TIP_URL]: {
         status: 409,
-        body: { status: 409, message: serverMessage },
+        body: { status: 409, code, message: serverMessage },
       },
     });
     const { onTipped } = await renderSheet();
@@ -174,5 +174,94 @@ describe("tip sheet (UC-R-08)", () => {
     expect(send.props.accessibilityState).toEqual(
       expect.objectContaining({ disabled: true }),
     );
+  });
+
+  it("accepts a grouped and an Arabic-Indic custom amount", async () => {
+    const api = mockApi({
+      "GET /api/v1/wallet": { status: 200, body: walletView() },
+      [TIP_URL]: { status: 201, body: tipResponse({ amount: 5000 }) },
+    });
+    await renderSheet();
+
+    await fireEvent.changeText(await screen.findByTestId("tip-custom"), "5,000");
+    expect(screen.getByTestId("tip-send")).toHaveTextContent(
+      "Send SYP 5,000 tip",
+    );
+    await fireEvent.changeText(screen.getByTestId("tip-custom"), "٥٠٠٠");
+    expect(screen.getByTestId("tip-send")).toHaveTextContent(
+      "Send SYP 5,000 tip",
+    );
+    await fireEvent.press(screen.getByTestId("tip-send"));
+    expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/tip`)[0].body).toEqual(
+      { amount: 5000 },
+    );
+  });
+
+  it("rejects more than 2 decimals with the invalid-amount error", async () => {
+    mockApi({
+      "GET /api/v1/wallet": { status: 200, body: walletView() },
+    });
+    await renderSheet();
+
+    await fireEvent.changeText(await screen.findByTestId("tip-custom"), "1.234");
+    expect(screen.getByTestId("tip-custom-error")).toHaveTextContent(
+      "Enter a tip amount.",
+    );
+    expect(screen.getByTestId("tip-send").props.accessibilityState).toEqual(
+      expect.objectContaining({ disabled: true }),
+    );
+  });
+
+  it("offers no chips for a currency without suggestions (custom only)", async () => {
+    const api = mockApi({
+      "GET /api/v1/wallet": {
+        status: 200,
+        body: walletView({ balances: [{ currency: "USD", balance: 40 }] }),
+      },
+      [TIP_URL]: {
+        status: 201,
+        body: tipResponse({ amount: 12.5, currency: "USD" }),
+      },
+    });
+    await renderSheet({ currency: "USD" });
+
+    expect(await screen.findByTestId("tip-balance")).toHaveTextContent(/USD 40/);
+    expect(screen.queryByTestId(/^tip-amount-/)).toBeNull();
+    expect(screen.getByTestId("tip-send").props.accessibilityState).toEqual(
+      expect.objectContaining({ disabled: true }),
+    );
+    await fireEvent.changeText(screen.getByTestId("tip-custom"), "12٫5");
+    await fireEvent.press(screen.getByTestId("tip-send"));
+    expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/tip`)[0].body).toEqual(
+      { amount: 12.5 },
+    );
+  });
+});
+
+describe("parseTipAmount", () => {
+  it.each([
+    ["5,000", 5000],
+    ["٥٠٠٠", 5000],
+    ["۵۰۰۰", 5000],
+    ["5٬000", 5000],
+    ["5 000", 5000],
+    ["12٫5", 12.5],
+    ["12.5", 12.5],
+    ["12.50", 12.5],
+    ["1.234", null],
+    ["1.2.3", null],
+    ["abc", null],
+    ["0", null],
+    ["-5", null],
+    ["", null],
+  ])("parses %p as %p", (text, expected) => {
+    expect(parseTipAmount(text)).toBe(expected);
+  });
+});
+
+describe("suggestedTips", () => {
+  it("keys the chips by currency", () => {
+    expect(suggestedTips("SYP")).toEqual([2000, 5000, 10000]);
+    expect(suggestedTips("USD")).toEqual([]);
   });
 });

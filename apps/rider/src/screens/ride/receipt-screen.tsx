@@ -3,7 +3,8 @@
  * RiderReceiptSplit: the route map drawn from `receipt.route` (the in_ride
  * trace), timestamps, the STORED fare components (never recomputed), the
  * payment status, and (M8) the "How you paid" box when the payment was
- * split across wallet / cash / carried dues — plus the tip line, and a
+ * split across wallet / cash / the itemized carried dues (rows shared with
+ * the ride-complete screen) — plus the tip line, and a
  * "Tip <driver>" entry while the 24 h window is open and no tip exists.
  */
 import { Ionicons } from "@expo/vector-icons";
@@ -25,6 +26,7 @@ import {
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import { paymentRows } from "../../ride/money-math";
 import {
   formatClock,
   formatDateTime,
@@ -33,7 +35,12 @@ import {
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 import { TipSheet } from "../wallet/tip-sheet";
-import { FareBreakdown, RideMap, RouteColumn } from "./ride-parts";
+import {
+  FareBreakdown,
+  paymentRowLabel,
+  RideMap,
+  RouteColumn,
+} from "./ride-parts";
 
 export default function ReceiptScreen({ rideId }: { rideId: string }) {
   const { t, locale } = useLocale();
@@ -96,16 +103,13 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
     receipt.paymentStatus === "paid_wallet" ||
     receipt.paymentStatus === "paid_mixed";
 
-  // PAY-02 split (M8): the contract sends walletApplied and the combined
-  // cashDue (fare remainder + collected dues); the due line is derived.
+  // PAY-02 split (M8): wallet part, the fare's cash remainder and the
+  // itemized carried dues — the same rows as the ride-complete screen.
   const currency = receipt.fare.components.currency;
   const total = receipt.fare.components.total;
-  const walletApplied = receipt.walletApplied ?? 0;
-  const cashDue = receipt.cashDue ?? 0;
-  const fareCash = Math.min(cashDue, Math.max(0, total - walletApplied));
-  const carriedDue = Math.max(0, cashDue - fareCash);
+  const splitRows = paymentRows(receipt);
   const tipAmount = tipSent?.amount ?? receipt.tip ?? null;
-  const hasPaidBox = walletApplied > 0 || carriedDue > 0 || tipAmount !== null;
+  const hasPaidBox = splitRows.length > 0 || tipAmount !== null;
   const canTip =
     !!receipt.driver && tipAmount === null && withinTipWindow(completedAt);
   const money = (amount: number) => formatMoney(amount, currency, locale, t);
@@ -168,59 +172,37 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
             <AppText variant="secondary" weight={800}>
               {t("ride.howYouPaid")}
             </AppText>
-            {walletApplied > 0 ? (
-              <View
-                style={[styles.paidLine, { flexDirection: row }]}
-                testID="receipt-paid-wallet"
-              >
-                <Ionicons name="wallet-outline" size={16} color={colors.accent} />
-                <AppText variant="secondary" tone="secondary" style={styles.flex}>
-                  {t("ride.walletLine")}
-                </AppText>
-                <AppText variant="secondary" weight={700}>
-                  {money(walletApplied)}
-                </AppText>
-              </View>
-            ) : null}
-            {walletApplied > 0 && fareCash > 0 ? (
-              <View
-                style={[styles.paidLine, { flexDirection: row }]}
-                testID="receipt-paid-cash"
-              >
-                <AppText variant="secondary" tone="secondary" style={styles.flex}>
-                  {t("ride.cashRestLine")}
-                </AppText>
-                <AppText variant="secondary" weight={700}>
-                  {money(fareCash)}
-                </AppText>
-              </View>
-            ) : null}
-            {carriedDue > 0 ? (
-              <View
-                style={[styles.paidLine, styles.paidDivider, { flexDirection: row }]}
-                testID="receipt-paid-due"
-              >
-                <AppText variant="secondary" tone="secondary" style={styles.flex}>
-                  {t("ride.carriedFeeLine")}
-                </AppText>
-                <AppText variant="secondary" weight={700}>
-                  {money(carriedDue)}
-                </AppText>
-              </View>
-            ) : null}
-            {cashDue > 0 ? (
-              <View
-                style={[styles.paidLine, { flexDirection: row }]}
-                testID="receipt-paid-handed"
-              >
-                <AppText variant="secondary" weight={800} style={styles.flex}>
-                  {t("ride.cashHandedLine")}
-                </AppText>
-                <AppText variant="secondary" weight={800}>
-                  {money(cashDue)}
-                </AppText>
-              </View>
-            ) : null}
+            {splitRows.map((line, index) => {
+              const strong = line.kind === "handed";
+              const firstDue =
+                line.kind === "due" && splitRows[index - 1]?.kind !== "due";
+              return (
+                <View
+                  key={line.key}
+                  style={[
+                    styles.paidLine,
+                    firstDue && styles.paidDivider,
+                    { flexDirection: row },
+                  ]}
+                  testID={`receipt-paid-${line.key}`}
+                >
+                  {line.kind === "wallet" ? (
+                    <Ionicons name="wallet-outline" size={16} color={colors.accent} />
+                  ) : null}
+                  <AppText
+                    variant="secondary"
+                    tone={strong ? "default" : "secondary"}
+                    weight={strong ? 800 : 400}
+                    style={styles.flex}
+                  >
+                    {paymentRowLabel(line, t)}
+                  </AppText>
+                  <AppText variant="secondary" weight={strong ? 800 : 700}>
+                    {money(line.amount)}
+                  </AppText>
+                </View>
+              );
+            })}
             {tipAmount !== null ? (
               <View
                 style={[styles.paidLine, { flexDirection: row }]}
@@ -237,8 +219,15 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
             ) : null}
           </View>
         ) : null}
-        <View style={[styles.payment, { flexDirection: row }]}>
-          <Ionicons name="cash-outline" size={22} color={colors.text} />
+        <View
+          style={[styles.payment, { flexDirection: row }]}
+          testID="receipt-payment-row"
+        >
+          <Ionicons
+            name={receipt.paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"}
+            size={22}
+            color={colors.text}
+          />
           <AppText
             variant="bodyStrong"
             style={styles.flex}

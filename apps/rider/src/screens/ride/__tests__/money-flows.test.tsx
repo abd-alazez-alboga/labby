@@ -9,14 +9,25 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import React from "react";
 
 import { LocaleProvider } from "../../../i18n/locale-context";
 import { RegionProvider } from "../../../region/region-context";
 import { RideProvider } from "../../../ride/ride-context";
 import { mockApi, seedSignedInSession } from "../../../test-utils/mock-api";
-import { tipResponse, walletView } from "../../../test-utils/money-fixtures";
+import {
+  carriedDue,
+  DUE_ID,
+  tipResponse,
+  walletView,
+} from "../../../test-utils/money-fixtures";
 import {
   acceptedRide,
   components,
@@ -150,9 +161,10 @@ describe("wait charge on the driver-arrived sheet (PRC-03)", () => {
 
     const card = await screen.findByTestId("ride-wait-charge");
     expect(card).toHaveTextContent(/Waiting charge has started/);
-    // 3 full minutes × SYP 500/min, client-side preview between refreshes.
+    // 3.5 min × SYP 500/min prorated per second like the backend (a slow
+    // render may tick one more second: 211 s → 1,758.33).
     expect(screen.getByTestId("ride-wait-charge-amount")).toHaveTextContent(
-      "SYP 1,500",
+      /^SYP 1,75(0|8\.33)$/,
     );
     expect(card).toHaveTextContent(
       /Your 5 free minutes ended at .*\. Waiting now adds SYP 500 per minute to your fare\./,
@@ -165,9 +177,11 @@ describe("completed screen split + tip (PAY-02, UC-R-08)", () => {
   const completedAt = new Date(Date.now() - 5 * 60_000).toISOString();
   const completed = acceptedRide({
     state: "completed",
+    paymentMethod: "wallet",
     paymentStatus: "paid_mixed",
     walletApplied: 15000,
     cashDue: 24750,
+    carriedDues: [carriedDue()],
     driver: sampleDriver,
     timeline: {
       requestedAt: "2026-10-11T09:29:00Z",
@@ -208,9 +222,9 @@ describe("completed screen split + tip (PAY-02, UC-R-08)", () => {
     expect(screen.getByTestId("ride-paid-cash")).toHaveTextContent(
       "Cash · rest of the fareSYP 14,750",
     );
-    // 24,750 cash due − 14,750 fare remainder = 10,000 collected due.
-    expect(screen.getByTestId("ride-paid-due")).toHaveTextContent(
-      "Cancellation fee from an earlier rideSYP 10,000",
+    // The itemized cash due (carriedDues), never derived by subtraction.
+    expect(screen.getByTestId(`ride-paid-due-${DUE_ID}`)).toHaveTextContent(
+      "Cancellation fee from an earlier ride · to pay in cashSYP 10,000",
     );
     expect(screen.getByTestId("ride-paid-handed")).toHaveTextContent(
       "Cash handed to driverSYP 24,750",
@@ -266,9 +280,11 @@ describe("receipt split + tip (UC-R-07/08)", () => {
 
   function splitReceipt(overrides = {}) {
     return receiptFixture({
+      paymentMethod: "wallet",
       paymentStatus: "paid_mixed",
       walletApplied: 15000,
       cashDue: 24750,
+      carriedDues: [carriedDue()],
       timeline: {
         requestedAt: "2026-10-11T09:29:00Z",
         startedAt: "2026-10-11T09:35:00Z",
@@ -314,8 +330,8 @@ describe("receipt split + tip (UC-R-07/08)", () => {
     expect(screen.getByTestId("receipt-paid-cash")).toHaveTextContent(
       "Cash · rest of the fareSYP 14,750",
     );
-    expect(screen.getByTestId("receipt-paid-due")).toHaveTextContent(
-      "Cancellation fee from an earlier rideSYP 10,000",
+    expect(screen.getByTestId(`receipt-paid-due-${DUE_ID}`)).toHaveTextContent(
+      "Cancellation fee from an earlier ride · to pay in cashSYP 10,000",
     );
     expect(screen.getByTestId("receipt-paid-handed")).toHaveTextContent(
       "Cash handed to driverSYP 24,750",
@@ -323,6 +339,12 @@ describe("receipt split + tip (UC-R-07/08)", () => {
     expect(screen.getByTestId("receipt-payment")).toHaveTextContent(
       /Paid · wallet \+ cash/,
     );
+    // Wallet-method ride: the payment row carries the wallet icon.
+    expect(
+      within(screen.getByTestId("receipt-payment-row")).getByTestId(
+        "icon-wallet-outline",
+      ),
+    ).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByTestId("receipt-tip"));
     expect(await screen.findByTestId("tip-title")).toHaveTextContent(
@@ -388,5 +410,173 @@ describe("receipt split + tip (UC-R-07/08)", () => {
       /Paid in cash/,
     );
     expect(screen.queryByTestId("receipt-paid-box")).toBeNull();
+    expect(
+      within(screen.getByTestId("receipt-payment-row")).getByTestId(
+        "icon-cash-outline",
+      ),
+    ).toBeOnTheScreen();
+  });
+});
+
+describe("itemized carried dues with 2-dp amounts (W11)", () => {
+  const completedAt = new Date(Date.now() - 5 * 60_000).toISOString();
+
+  it("renders no phantom carried-fee line on a 2-dp mixed ride", async () => {
+    const mixed = acceptedRide({
+      state: "completed",
+      paymentMethod: "wallet",
+      paymentStatus: "pending",
+      walletApplied: 0.3,
+      cashDue: 9.8,
+      carriedDues: [],
+      tip: 1,
+      timeline: { requestedAt: "2026-10-11T09:29:00Z", completedAt },
+      fare: {
+        distanceMeters: 4200,
+        durationSeconds: 840,
+        components: components({ total: 10.1 }),
+      },
+    });
+    mockApi({
+      ...REGION_ROUTE,
+      "GET /api/v1/rides/active": { status: 204 },
+      [`GET /api/v1/rides/${RIDE_ID}`]: { status: 200, body: mixed },
+    });
+    await withProviders(<RideScreen rideId={RIDE_ID} />);
+
+    expect(await screen.findByTestId("ride-paid-wallet")).toHaveTextContent(
+      "WalletSYP 0.3",
+    );
+    expect(screen.getByTestId("ride-paid-cash")).toHaveTextContent(
+      "Cash · rest of the fareSYP 9.8",
+    );
+    expect(screen.getByTestId("ride-paid-handed")).toHaveTextContent(
+      "Cash handed to driverSYP 9.8",
+    );
+    expect(screen.queryByTestId(/^ride-paid-due/)).toBeNull();
+  });
+
+  const dues = [
+    carriedDue({ dueId: "due-cash", amount: 2.1, method: "cash", status: "earmarked" }),
+    carriedDue({ dueId: "due-wallet", amount: 1.55, method: "wallet" }),
+  ];
+  const duesMoney = {
+    paymentMethod: "wallet" as const,
+    paymentStatus: "pending" as const,
+    walletApplied: 4.1,
+    cashDue: 8.3, // 6.2 fare cash + 2.10 cash due
+    carriedDues: dues,
+  };
+  const duesFare = {
+    distanceMeters: 4200,
+    durationSeconds: 840,
+    components: components({ total: 10.3 }),
+  };
+  // Identical rows (and row conditions) on the ride view and the receipt.
+  const expectations: [string, string][] = [
+    ["wallet", "WalletSYP 4.1"],
+    ["cash", "Cash · rest of the fareSYP 6.2"],
+    ["due-due-cash", "Cancellation fee from an earlier ride · to pay in cashSYP 2.1"],
+    ["due-due-wallet", "Cancellation fee from an earlier ride · taken from walletSYP 1.55"],
+    ["handed", "Cash handed to driverSYP 8.3"],
+  ];
+  const ending = (text: string) =>
+    new RegExp(`${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+
+  it("labels wallet and cash carried dues by method on the ride view", async () => {
+    mockApi({
+      ...REGION_ROUTE,
+      "GET /api/v1/rides/active": { status: 204 },
+      [`GET /api/v1/rides/${RIDE_ID}`]: {
+        status: 200,
+        body: acceptedRide({
+          state: "completed",
+          ...duesMoney,
+          timeline: { requestedAt: "2026-10-11T09:29:00Z", completedAt },
+          fare: duesFare,
+        }),
+      },
+    });
+    await withProviders(<RideScreen rideId={RIDE_ID} />);
+
+    expect(await screen.findByText("Pay the rest in cash")).toBeOnTheScreen();
+    for (const [key, text] of expectations) {
+      expect(screen.getByTestId(`ride-paid-${key}`)).toHaveTextContent(text);
+    }
+  });
+
+  it("labels wallet and cash carried dues by method on the receipt", async () => {
+    mockApi({
+      ...REGION_ROUTE,
+      "GET /api/v1/rides/active": { status: 204 },
+      [`GET /api/v1/rides/${RIDE_ID}/receipt`]: {
+        status: 200,
+        body: receiptFixture({
+          ...duesMoney,
+          timeline: {
+            requestedAt: "2026-10-11T09:29:00Z",
+            startedAt: "2026-10-11T09:35:00Z",
+            completedAt,
+          },
+          fare: duesFare,
+        }),
+      },
+    });
+    await withProviders(<ReceiptScreen rideId={RIDE_ID} />);
+
+    expect(await screen.findByTestId("receipt-paid-box")).toBeOnTheScreen();
+    // (The receipt's wallet row also carries its icon.)
+    for (const [key, text] of expectations) {
+      expect(screen.getByTestId(`receipt-paid-${key}`)).toHaveTextContent(
+        ending(text),
+      );
+    }
+  });
+});
+
+describe("tipping during the ride (PAY-04, UC-R-08)", () => {
+  it("offers Tip <driver> on the in-progress sheet and hides it once tipped", async () => {
+    const inRide = acceptedRide({ state: "in_progress" });
+    const api = mockApi({
+      ...REGION_ROUTE,
+      "GET /api/v1/rides/active": { status: 200, body: inRide },
+      [`GET /api/v1/rides/${RIDE_ID}`]: { status: 200, body: inRide },
+      "GET /api/v1/wallet": { status: 200, body: walletView() },
+      [`POST /api/v1/rides/${RIDE_ID}/tip`]: {
+        status: 201,
+        body: tipResponse({ amount: 5000 }),
+      },
+    });
+    await withProviders(<RideScreen rideId={RIDE_ID} />);
+
+    const entry = await screen.findByTestId("ride-tip-in-progress");
+    expect(entry).toHaveTextContent("Tip Samer");
+    await fireEvent.press(entry);
+    expect(await screen.findByTestId("tip-window")).toHaveTextContent(
+      "You can tip during the ride and up to 24 hours after",
+    );
+    await fireEvent.press(screen.getByTestId("tip-send"));
+    await waitFor(() =>
+      expect(
+        api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/tip`),
+      ).toHaveLength(1),
+    );
+    expect(await screen.findByTestId("ride-tip-sent")).toHaveTextContent(
+      "Tip sent — thank you!",
+    );
+    expect(screen.queryByTestId("ride-tip-in-progress")).toBeNull();
+  });
+
+  it("hides the entry when the ride already carries a tip", async () => {
+    const tipped = acceptedRide({ state: "in_progress", tip: 2000 });
+    mockApi({
+      ...REGION_ROUTE,
+      "GET /api/v1/rides/active": { status: 200, body: tipped },
+      [`GET /api/v1/rides/${RIDE_ID}`]: { status: 200, body: tipped },
+    });
+    await withProviders(<RideScreen rideId={RIDE_ID} />);
+
+    expect(await screen.findByTestId("ride-in-progress")).toBeOnTheScreen();
+    expect(screen.queryByTestId("ride-tip-in-progress")).toBeNull();
   });
 });

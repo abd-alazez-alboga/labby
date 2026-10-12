@@ -461,6 +461,61 @@ describe("ride flow (UC-R-05…07)", () => {
     });
   });
 
+  it("words a cash ride's fee without a grace time as carried to the next ride", async () => {
+    mockApi({
+      [ACTIVE]: {
+        status: 200,
+        body: acceptedRide({ cancellationGraceEndsAt: null }),
+      },
+      [`GET /api/v1/rides/${RIDE_ID}/cancellation-quote`]: {
+        status: 200,
+        body: { free: false, fee: 2000, currency: "SYP", graceEndsAt: null },
+      },
+    });
+    await renderHome();
+    await fireEvent.press(await screen.findByTestId("ride-cancel"));
+
+    expect(await screen.findByTestId("cancel-quote-fee")).toHaveTextContent(
+      "A cancellation fee of SYP 2,000 applies — it will be added to your next ride.",
+    );
+  });
+
+  it.each([
+    [
+      "with",
+      "2026-10-08T09:31:20Z",
+      /^Your free window ended at .+\. A cancellation fee of SYP 2,000 applies — it will be taken from your wallet; anything your wallet can't cover is added to your next ride\.$/,
+    ],
+    [
+      "without",
+      null,
+      /^A cancellation fee of SYP 2,000 applies — it will be taken from your wallet; anything your wallet can't cover is added to your next ride\.$/,
+    ],
+  ])(
+    "words a wallet ride's fee as taken from the wallet (%s grace time)",
+    async (_variant, graceEndsAt, expected) => {
+      mockApi({
+        [ACTIVE]: {
+          status: 200,
+          body: acceptedRide({
+            paymentMethod: "wallet",
+            cancellationGraceEndsAt: graceEndsAt,
+          }),
+        },
+        [`GET /api/v1/rides/${RIDE_ID}/cancellation-quote`]: {
+          status: 200,
+          body: { free: false, fee: 2000, currency: "SYP", graceEndsAt: null },
+        },
+      });
+      await renderHome();
+      await fireEvent.press(await screen.findByTestId("ride-cancel"));
+
+      expect(await screen.findByTestId("cancel-quote-fee")).toHaveTextContent(
+        expected,
+      );
+    },
+  );
+
   it("keeps the ride when the rider changes their mind in the cancel sheet", async () => {
     const api = mockApi({
       [ACTIVE]: { status: 200, body: acceptedRide() },

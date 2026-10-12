@@ -116,16 +116,27 @@ export type TipErrorKey =
   | "notTippable"
   | "generic";
 
+/** The machine codes of the tip 409s (money-v1.yaml) → their copy. */
+const TIP_ERROR_CODES: Record<string, TipErrorKey> = {
+  tip_window_closed: "windowExpired",
+  already_tipped: "alreadyTipped",
+  not_tippable: "notTippable",
+  insufficient_balance: "insufficientBalance",
+};
+
 /**
- * Classifies a failed tip. The money contract answers 409 with DISTINCT
- * plain messages (no machine codes), so the client keys off a `code` when
- * one is present and otherwise off the message wording; anything
- * unrecognized falls back to the generic copy.
+ * Classifies a failed tip. The money contract answers 409 with a machine
+ * `code` (tip_window_closed / already_tipped / not_tippable /
+ * insufficient_balance); the client switches on it first and only falls
+ * back to the message wording for a 409 without a known code. Anything
+ * else gets the generic copy.
  */
 export function tipErrorKey(error: unknown): TipErrorKey {
   if (!(error instanceof ApiError) || error.status !== 409) return "generic";
-  const text = `${error.body?.code ?? ""} ${error.body?.message ?? ""}`;
-  if (/window|expired?/i.test(text)) return "windowExpired";
+  const code = error.body?.code;
+  if (code && code in TIP_ERROR_CODES) return TIP_ERROR_CODES[code];
+  const text = error.body?.message ?? "";
+  if (/window|closed|expired?/i.test(text)) return "windowExpired";
   if (/already/i.test(text)) return "alreadyTipped";
   if (/balance|insufficient/i.test(text)) return "insufficientBalance";
   return "notTippable";

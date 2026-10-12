@@ -1,7 +1,9 @@
 /**
  * Rider cancellation (UC-R-09, RIDE-07) — approved artboard RiderCancel:
  * before confirming, `GET /rides/{id}/cancellation-quote` says whether it is
- * free or which fee would be recorded; the rider picks a reason
+ * free or which fee would be recorded (worded by the ride's payment method:
+ * wallet rides pay it from the wallet, cash rides carry it to the next
+ * ride); the rider picks a reason
  * (`other` needs a note); "Keep my ride" is the primary action.
  */
 import React, { useEffect, useState } from "react";
@@ -135,17 +137,26 @@ export function CancelSheet({
                   testID="cancel-quote-free"
                 />
               ) : (
-                // M8 (approved artboard RiderCancelFee): past the grace the
-                // fee is carried — "added to your next ride" (rider dues).
+                // M8 (approved artboard RiderCancelFee): past the grace a
+                // cash ride's fee is carried — "added to your next ride"
+                // (rider dues); a wallet ride's fee is taken from the
+                // wallet now and only the uncovered rest is carried.
                 <Banner
                   tone="warning"
                   message={
-                    graceEnd
-                      ? t("cancel.feeCarried", {
-                          time: graceEnd,
-                          money: feeMoney ?? "",
-                        })
-                      : t("cancel.feeCarriedNoTime", { money: feeMoney ?? "" })
+                    ride.paymentMethod === "wallet"
+                      ? graceEnd
+                        ? t("cancel.feeWallet", {
+                            time: graceEnd,
+                            money: feeMoney ?? "",
+                          })
+                        : t("cancel.feeWalletNoTime", { money: feeMoney ?? "" })
+                      : graceEnd
+                        ? t("cancel.feeCarried", {
+                            time: graceEnd,
+                            money: feeMoney ?? "",
+                          })
+                        : t("cancel.feeCarriedNoTime", { money: feeMoney ?? "" })
                   }
                   testID="cancel-quote-fee"
                 />

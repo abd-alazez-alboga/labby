@@ -19,6 +19,7 @@ import { useLocale } from "../../i18n/locale-context";
 import type { GeoJsonLineString, LatLng } from "../../map/geo";
 import { LabbyMap } from "../../map/labby-map";
 import type { MapMarker } from "../../map/map-bridge";
+import type { PaymentRow } from "../../ride/money-math";
 import {
   fareLines,
   formatMoney,
@@ -221,6 +222,25 @@ export function ridePaymentLine(
   return wallet
     ? t("ride.serviceWallet", { service })
     : t("ride.serviceCash", { service });
+}
+
+/** The label of a "How you paid" row (ride-complete screen and receipt). */
+export function paymentRowLabel(
+  line: PaymentRow,
+  t: (key: string, options?: object) => string,
+): string {
+  switch (line.kind) {
+    case "wallet":
+      return t("ride.walletLine");
+    case "cash":
+      return t("ride.cashRestLine");
+    case "due":
+      return line.method === "wallet"
+        ? t("ride.carriedFeeWalletLine")
+        : t("ride.carriedFeeCashLine");
+    case "handed":
+      return t("ride.cashHandedLine");
+  }
 }
 
 /** "Economy · Cash" over "SYP 22,000 est." (approximate when flagged). */

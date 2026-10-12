@@ -3,6 +3,7 @@
  * the Damascus-realistic SYP mock config of the approved M8 artboards
  * (cancellation fee 10,000; wait 500/min; pickup 500/km).
  */
+import type { CarriedDue } from "../api/rides";
 import type {
   RiderDue,
   TipResponse,
@@ -29,6 +30,19 @@ export function riderDue(overrides: Partial<RiderDue> = {}): RiderDue {
     collectedRideId: null,
     createdAt: "2026-10-05T09:04:00Z",
     collectedAt: null,
+    ...overrides,
+  };
+}
+
+/** A due carried into a ride (rides-v1 `CarriedDue`). */
+export function carriedDue(overrides: Partial<CarriedDue> = {}): CarriedDue {
+  return {
+    dueId: DUE_ID,
+    sourceRideId: "88888888-8888-4888-8888-888888888888",
+    amount: 10000,
+    currency: "SYP",
+    method: "cash",
+    status: "collected",
     ...overrides,
   };
 }

@@ -22,11 +22,10 @@ export interface RegionServiceType {
 /**
  * The client-facing config of an ACTIVE region (contract `RegionConfig`).
  *
- * The M8 pricing fields below are OPTIONAL: the rider UI only needs them for
- * pre-charge disclosure (the wait-charge accrual notice, UC-R-05/PRC-03) and
- * tolerates their absence — the authoritative amounts always come from the
- * stored fare. `RegionConfig` in regions-v1.yaml does not list them yet
- * (flagged to the backend as an M8 contract gap); until it serves them the
+ * The M8 pricing fields `waitGraceMin` / `waitPerMinRate` (regions-v1.yaml
+ * `RegionConfig`, nullable) serve only pre-charge disclosure (the
+ * wait-charge accrual notice, UC-R-05/PRC-03); the authoritative amounts
+ * always come from the stored fare. When the rate is null or absent the
  * notice falls back to rate-less copy.
  */
 export interface RegionConfig {

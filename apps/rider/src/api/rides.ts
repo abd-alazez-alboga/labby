@@ -200,6 +200,23 @@ export interface FinalFare {
   components: FareComponents;
 }
 
+/**
+ * A cancellation fee carried into this ride (rides-v1 `CarriedDue`, M8):
+ * `wallet` = taken from the rider's wallet at completion (always
+ * `collected`); `cash` = collected via the driver — `earmarked` while the
+ * payment is pending, `collected` after cash-confirm. Always in the ride's
+ * currency.
+ */
+export interface CarriedDue {
+  dueId: string;
+  /** The cancelled ride the fee came from. */
+  sourceRideId: string;
+  amount: number;
+  currency: string;
+  method: PaymentMethod;
+  status: "earmarked" | "collected";
+}
+
 /** The rider view of a ride (`driver` set from acceptance on). */
 export interface Ride {
   id: string;
@@ -224,10 +241,12 @@ export interface Ride {
   cancellationFee?: number | null;
   fare?: FinalFare | null;
   paymentStatus?: PaymentStatus;
-  /** M8 (PAY-02): wallet part of the payment. */
+  /** M8 (PAY-02): wallet part of the FARE (null on cash-method rides). */
   walletApplied?: number | null;
-  /** M8 (PAY-02): cash remainder (+ collected dues), shown to both. */
+  /** M8 (PAY-02): cash part of the fare + every CASH carried due. */
   cashDue?: number | null;
+  /** M8: itemized carried dues (`[]` when none). */
+  carriedDues?: CarriedDue[];
   /** M8 (PAY-04): outside the fare total. */
   tip?: number | null;
   driverStream?: "ok" | "lost" | null;
@@ -286,10 +305,12 @@ export interface Receipt {
   fare: FinalFare;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
-  /** M8 (PAY-02): wallet part of the payment. */
+  /** M8 (PAY-02): wallet part of the FARE (null on cash-method rides). */
   walletApplied?: number | null;
-  /** M8 (PAY-02): cash remainder + collected dues. */
+  /** M8 (PAY-02): cash part of the fare + every CASH carried due. */
   cashDue?: number | null;
+  /** M8: itemized carried dues (`[]` when none). */
+  carriedDues: CarriedDue[];
   /** M8 (PAY-04): its own receipt line, outside the fare total. */
   tip?: number | null;
   driver?: DriverSummary | null;

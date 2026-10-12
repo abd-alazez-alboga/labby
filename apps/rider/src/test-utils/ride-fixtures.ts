@@ -80,6 +80,7 @@ export function ride(overrides: Partial<Ride> = {}): Ride {
     cancellationFee: null,
     fare: null,
     paymentStatus: null,
+    carriedDues: [],
     driverStream: null,
     driverPosition: null,
     etaSeconds: null,
@@ -211,6 +212,7 @@ export function receiptFixture(overrides: Partial<Receipt> = {}): Receipt {
     },
     paymentMethod: "cash",
     paymentStatus: "paid_cash",
+    carriedDues: [],
     driver: sampleDriver,
     route: {
       type: "LineString",

@@ -123,7 +123,9 @@ export const rideEn = {
     howYouPaid: "How you paid",
     walletLine: "Wallet",
     cashRestLine: "Cash · rest of the fare",
-    carriedFeeLine: "Cancellation fee from an earlier ride",
+    carriedFeeWalletLine:
+      "Cancellation fee from an earlier ride · taken from wallet",
+    carriedFeeCashLine: "Cancellation fee from an earlier ride · to pay in cash",
     cashHandedLine: "Cash handed to driver",
     tipLine: "Tip",
     unpaid: "Your driver marked this ride as unpaid",
@@ -146,6 +148,10 @@ export const rideEn = {
       "Your free window ended at {{time}}. A cancellation fee of {{money}} applies — it will be added to your next ride.",
     feeCarriedNoTime:
       "A cancellation fee of {{money}} applies — it will be added to your next ride.",
+    feeWallet:
+      "Your free window ended at {{time}}. A cancellation fee of {{money}} applies — it will be taken from your wallet; anything your wallet can't cover is added to your next ride.",
+    feeWalletNoTime:
+      "A cancellation fee of {{money}} applies — it will be taken from your wallet; anything your wallet can't cover is added to your next ride.",
     reasonLegend: "Why are you cancelling?",
     reasons: {
       changed_mind: "I changed my mind",
@@ -368,7 +374,8 @@ export const rideAr = {
     howYouPaid: "كيف دفعت",
     walletLine: "المحفظة",
     cashRestLine: "نقدًا · باقي الأجرة",
-    carriedFeeLine: "رسم إلغاء من رحلة سابقة",
+    carriedFeeWalletLine: "رسم إلغاء من رحلة سابقة · خُصم من المحفظة",
+    carriedFeeCashLine: "رسم إلغاء من رحلة سابقة · يُدفع نقدًا",
     cashHandedLine: "النقد المسلَّم للسائق",
     tipLine: "الإكرامية",
     unpaid: "سجّل سائقك هذه الرحلة كغير مدفوعة",
@@ -391,6 +398,10 @@ export const rideAr = {
       "انتهت فترة الإلغاء المجاني الساعة {{time}}. يُطبَّق رسم إلغاء قدره {{money}} — وسيُضاف إلى رحلتك القادمة.",
     feeCarriedNoTime:
       "يُطبَّق رسم إلغاء قدره {{money}} — وسيُضاف إلى رحلتك القادمة.",
+    feeWallet:
+      "انتهت فترة الإلغاء المجاني الساعة {{time}}. يُطبَّق رسم إلغاء قدره {{money}} — وسيُخصم من محفظتك، وما لا يغطيه رصيدك يُضاف إلى رحلتك القادمة.",
+    feeWalletNoTime:
+      "يُطبَّق رسم إلغاء قدره {{money}} — وسيُخصم من محفظتك، وما لا يغطيه رصيدك يُضاف إلى رحلتك القادمة.",
     reasonLegend: "لماذا تلغي الرحلة؟",
     reasons: {
       changed_mind: "غيّرت رأيي",

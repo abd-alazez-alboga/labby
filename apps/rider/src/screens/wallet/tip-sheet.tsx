@@ -1,6 +1,8 @@
 /**
  * Tip sheet (PAY-04, UC-R-08) — approved artboard RiderTip: suggested chips
- * (2,000 / 5,000 / 10,000) + a custom amount, the wallet balance line, the
+ * per currency (SYP 2,000 / 5,000 / 10,000; other currencies: custom amount
+ * only) + a custom amount (Western, Arabic-Indic or Eastern Arabic-Indic
+ * digits, grouping separators ignored, "." or "٫" decimal, max 2 dp), the wallet balance line, the
  * tip-window line, "100% goes to the driver", and a primary button naming
  * the amount. Wallet-only; one tip per ride. The contract's 409s (window
  * expired / already tipped / insufficient balance / not tippable) each get
@@ -25,8 +27,41 @@ import { useLocale } from "../../i18n/locale-context";
 import { formatDateTime, formatMoney } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 
-/** Suggested tip amounts (a client concern per money-v1.yaml). */
-export const SUGGESTED_TIPS = [2000, 5000, 10000] as const;
+/**
+ * Suggested tip amounts per currency (a client concern per money-v1.yaml).
+ * The middle chip starts selected; a currency missing here gets no chips —
+ * custom amount only.
+ */
+export const SUGGESTED_TIPS: Readonly<Record<string, readonly number[]>> = {
+  SYP: [2000, 5000, 10000],
+};
+
+/** The suggested chips for a currency (empty when it has none). */
+export function suggestedTips(currency: string): readonly number[] {
+  return SUGGESTED_TIPS[currency] ?? [];
+}
+
+/** Arabic-Indic (٠-٩) and Eastern Arabic-Indic (۰-۹) digits → 0-9. */
+function westernDigits(text: string): string {
+  return text.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (digit) => {
+    const code = digit.charCodeAt(0);
+    return String(code >= 0x06f0 ? code - 0x06f0 : code - 0x0660);
+  });
+}
+
+/**
+ * Parses a typed tip: any digit script, grouping separators ("," "٬" and
+ * spaces) ignored, "." or "٫" as the decimal mark, at most 2 decimals.
+ * Null when it is not a positive amount.
+ */
+export function parseTipAmount(text: string): number | null {
+  const normalized = westernDigits(text)
+    .replace(/[,\u066C\s\u00A0\u202F]/g, "")
+    .replace(/\u066B/g, ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
 
 function initial(name: string | null): string {
   return name?.trim().charAt(0).toUpperCase() || "?";
@@ -58,7 +93,10 @@ export function TipSheet({
   const { t, locale } = useLocale();
   const { row } = useDirection();
   const [balance, setBalance] = useState<number | null>(null);
-  const [selected, setSelected] = useState<number | null>(SUGGESTED_TIPS[1]);
+  const chips = suggestedTips(currency);
+  const [selected, setSelected] = useState<number | null>(
+    chips.length ? chips[Math.floor(chips.length / 2)] : null,
+  );
   const [custom, setCustom] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,13 +120,9 @@ export function TipSheet({
     };
   }, [visible, currency]);
 
-  const customAmount = custom.trim() ? Number(custom.replace(",", ".")) : null;
-  const amount =
-    customAmount !== null
-      ? Number.isFinite(customAmount) && customAmount > 0
-        ? customAmount
-        : null
-      : selected;
+  const hasCustom = custom.trim() !== "";
+  const customAmount = hasCustom ? parseTipAmount(custom) : null;
+  const amount = hasCustom ? customAmount : selected;
 
   const deadline = completedAt
     ? Date.parse(completedAt) + 24 * 60 * 60 * 1000
@@ -155,32 +189,34 @@ export function TipSheet({
             </View>
           </View>
 
-          <View style={[styles.chips, { flexDirection: row }]}>
-            {SUGGESTED_TIPS.map((value) => {
-              const isSelected = customAmount === null && selected === value;
-              return (
-                <Pressable
-                  key={value}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: isSelected }}
-                  onPress={() => {
-                    setSelected(value);
-                    setCustom("");
-                  }}
-                  style={[styles.chip, isSelected && styles.chipSelected]}
-                  testID={`tip-amount-${value}`}
-                >
-                  <AppText
-                    variant="bodyStrong"
-                    weight={800}
-                    tone={isSelected ? "onAccent" : "default"}
+          {chips.length ? (
+            <View style={[styles.chips, { flexDirection: row }]}>
+              {chips.map((value) => {
+                const isSelected = !hasCustom && selected === value;
+                return (
+                  <Pressable
+                    key={value}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: isSelected }}
+                    onPress={() => {
+                      setSelected(value);
+                      setCustom("");
+                    }}
+                    style={[styles.chip, isSelected && styles.chipSelected]}
+                    testID={`tip-amount-${value}`}
                   >
-                    {new Intl.NumberFormat(`${locale}-u-nu-latn`).format(value)}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <AppText
+                      variant="bodyStrong"
+                      weight={800}
+                      tone={isSelected ? "onAccent" : "default"}
+                    >
+                      {new Intl.NumberFormat(`${locale}-u-nu-latn`).format(value)}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           <TextField
             label={t("tip.customLabel", {
@@ -192,6 +228,7 @@ export function TipSheet({
             onChangeText={setCustom}
             keyboardType="numeric"
             placeholder="0"
+            error={hasCustom && customAmount === null ? t("tip.invalidAmount") : null}
             testID="tip-custom"
           />
 
