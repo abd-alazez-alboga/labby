@@ -1,0 +1,553 @@
+openapi: 3.1.0
+info:
+  title: Labby Comms & Safety API (M10 contract)
+  version: 0.1.0
+  description: >
+    Milestone M10: per-ride chat (CHAT-01..03), click-to-dial (CALL-01), trip sharing
+    (SHARE-01/02), SOS (SAFE-01/02) and the admin live ops map (ADM-03). Use cases UC-S-13..16,
+    UC-A-19/20. Schema: migration V15. Owner rulings 2026-10-13: a ride cancelled after
+    acceptance keeps its chat window for the same 24 h as a completion; one share link per user
+    per ride, no revoke; admin SOS alerting is web push + polling (no admin WebSocket).
+
+
+    **Chat window rules (CHAT-01) — the states every endpoint and WS frame below enforces:**
+
+    | Window state | When | Writes | Reads |
+    |---|---|---|---|
+    | `none` | ride before acceptance (requested/offering), or never accepted (no_driver_found, pre-acceptance cancel) | refused `chat_not_open` | 404 — no thread exists |
+    | `open` | acceptance → terminal + 24 h (terminal = completed_at or cancelled_at; driver-cancel included — the redispatched ride gets its own thread) | allowed | allowed |
+    | `read_only` | after terminal + 24 h | refused `chat_closed` | allowed (parties keep their history; admins per CHAT-03) |
+    | `reopened` | `reopened_until` in the future (set by an open M14 lost-item case) | allowed | allowed |
+
+    The thread is created lazily at acceptance; `closed_at` is stamped terminal + 24 h when the
+    ride ends. Clients never compute the window themselves — they read `windowState` from
+    `GET /rides/{rideId}/chat` and obey WS errors.
+
+
+    **Click-to-dial (CALL-01, ES-05).** No masking by design. The counterpart's real phone
+    number is served in `ChatThread.counterpart.phone` — only while the window is `open` or
+    `reopened` (null in `read_only`). The call itself happens in the OS dialer; nothing is
+    recorded.
+
+
+    **WebSocket chat frames — on the existing `/api/v1/realtime` socket (realtime-v1.yaml;
+    same auth, close codes and unknown-type tolerance).**
+
+    Client → server: `{"type":"chat.send","rideId","clientMsgId","kind":"text"|"quick_reply",
+    "body"?,"quickReplyCode"?}` — `clientMsgId` is a client-generated UUID, the dedup key: a
+    resend after a reconnect returns the ALREADY-stored message (unique per thread + sender,
+    V15 `uq_chat_messages_dedup`), never a duplicate.
+    `{"type":"chat.read","rideId","lastReadMessageId"}` records the read marker and relays a
+    `chat.read` frame to the counterpart.
+
+    Server → client: `{"type":"chat.message","rideId","messageId","clientMsgId"?,"senderRole",
+    "kind","body"?,"quickReplyCode"?,"sentAt"}` — fanned out to BOTH parties' sockets; the
+    sender recognizes its echo by `clientMsgId` (that echo is the delivery ack).
+    `{"type":"chat.read","rideId","readerRole","lastReadMessageId"}`.
+    Errors (socket stays open): `{"type":"error","code","message"}` with codes `chat_not_open`,
+    `chat_closed`, `not_in_ride` (sender is neither party), `invalid_message` (shape/length/
+    unknown or inactive quick-reply code).
+
+    Offline recipient (UC-S-13 E1): the message persists and is delivered as history on
+    reconnect; a push (below) is sent when the recipient has no live socket.
+
+
+    **Chat push (CHAT-02; ride-critical ruling from the M10 plan).** New message → outbox push
+    to the recipient, category `chat`, deep link `{screen: "chat", params: {rideId}}` (screen
+    catalog: realtime-v1.yaml). While the ride is ACTIVE the push is delivered even if the
+    recipient muted the `chat` category — in-ride chat is ride-critical (NTF-02's exception);
+    after the ride ends (the 24 h tail and reopened windows) the mute applies normally. The
+    center row is recorded either way (UC-S-25 A1).
+
+
+    **Trip sharing (SHARE-01/02).** `POST /rides/{rideId}/share-links` during an active
+    accepted ride returns `{token, url}`; the raw token (256-bit, URL-safe) is returned ONCE and
+    only its SHA-256 is stored. The public page data endpoint `GET /share/{token}` needs NO
+    authentication and serves exactly the SHARE-02 list — live position, driver first name +
+    photo, vehicle model/color/plate, ETA, status — by POLLING (`refreshSeconds`, default 5,
+    env `SHARE_REFRESH_SECONDS`); no anonymous WebSocket. The moment the ride is terminal the
+    endpoint answers 410 for ever (UC-S-15 E1); unknown tokens are 404, indistinguishable in
+    timing from dead ones.
+
+
+    **SOS (SAFE-01/02).** `POST /rides/{rideId}/sos` records the permanent event (append-only
+    facts, V15 trigger) and fans out the alert: outbox push category `safety` (never mutable,
+    V7) to every admin holding `support:handle` — and ONLY those admins — plus the red pin on
+    the live ops feed and the alert list below. The dialer side of SAFE-01 is entirely client:
+    the app opens `tel:` with the region's `emergencyNumber` from runtime config
+    (regions-v1.yaml) in parallel with this call. Acknowledging stamps the handling fields
+    (audited); the event itself can never be deleted or altered.
+
+
+    **Live ops map feed (ADM-03, UC-A-19).** `GET /admin/regions/{regionId}/live-ops` is one
+    polled snapshot per region: online driver dots (idle vs on-ride, from `driver_locations`),
+    active rides (current position + pickup/destination for the route line), the surge overlay
+    (same zone shape as the M9 surge state) and open SOS pins. `refreshSeconds` (default 5, env
+    `LIVEOPS_REFRESH_SECONDS`) paces the poll — demo scale, no admin WS. Click-throughs land on
+    the M7 `/admin/rides` detail and the driver detail.
+
+
+    **Permissions.** No new entries: chat visibility (CHAT-03) `support:view`; SOS list
+    `support:view`, acknowledge `support:handle` (alert push targets `support:handle`); live ops
+    feed `rides:view`. Rider/driver endpoints need only being a party to the ride.
+
+
+    Errors use the global ErrorResponse shape (status, message, code?, details?).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Chat
+  - name: Share
+  - name: Sos
+  - name: AdminComms
+  - name: AdminLiveOps
+
+paths:
+  /api/v1/rides/{rideId}/chat:
+    get:
+      tags: [Chat]
+      summary: The ride's chat thread — window state, counterpart, unread count (UC-S-13/14)
+      description: >
+        Parties only. 404 while the window state is `none` (no thread yet). `counterpart.phone`
+        is non-null only while writes are allowed (CALL-01 window).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/RideId' }]
+      responses:
+        '200':
+          description: The thread
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatThread' }
+        '403': { description: Not a party to this ride }
+        '404': { description: No thread — ride unknown to the caller or not accepted yet }
+  /api/v1/rides/{rideId}/chat/messages:
+    get:
+      tags: [Chat]
+      summary: Chat history page / reconnect backfill
+      description: >
+        Parties only (admins use the admin endpoint). `before` pages history backwards for
+        scrolling; `after` returns everything NEWER than a message id — the reconnect backfill
+        (paired with `uq_chat_messages_dedup`, it makes reconnection lossless and duplicate-free).
+        At most one of the two.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/RideId' }
+        - { name: before, in: query, description: 'Cursor: the `nextCursor` of the previous page', schema: { type: string } }
+        - { name: after, in: query, description: Backfill — all messages after this message id, oldest first, schema: { type: string, format: uuid } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatMessagePage' }
+        '400': { description: Both `before` and `after` given }
+        '403': { description: Not a party to this ride }
+        '404': { description: No thread }
+  /api/v1/rides/{rideId}/chat/read:
+    post:
+      tags: [Chat]
+      summary: Record the caller's read marker (REST fallback for the `chat.read` frame)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/RideId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lastReadMessageId]
+              properties:
+                lastReadMessageId: { type: string, format: uuid }
+      responses:
+        '204': { description: Marker stored (idempotent; an older id than the stored one is ignored) }
+        '403': { description: Not a party to this ride }
+        '404': { description: No thread, or the message is not in it }
+  /api/v1/chat/quick-replies:
+    get:
+      tags: [Chat]
+      summary: The localized one-tap quick-reply catalog (CHAT-02, NFR-U2)
+      description: >
+        Active entries for the caller's role (`audience` role or `both`), in `sortOrder`. Both
+        languages are served; the client renders its own, so a language switch re-renders
+        instantly. Cacheable per session.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/QuickReply' }
+  /api/v1/rides/{rideId}/share-links:
+    post:
+      tags: [Share]
+      summary: Create (or re-fetch) the caller's trip-share link (UC-S-15, SHARE-01)
+      description: >
+        Parties only, while the ride is active and accepted (accepted / driver_arrived /
+        in_progress — before acceptance there is nothing to show). One link per user per ride
+        (owner ruling): only the token's hash is stored, so the raw url exists exactly once —
+        in the 201. A repeat call is 409 `already_shared`; the app keeps the url from its first
+        call for the ride's lifetime (it dies with the ride anyway).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/RideId' }]
+      responses:
+        '201':
+          description: Link created — the ONLY time the raw token/url is served
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, createdAt]
+                properties:
+                  url: { type: string, description: 'Absolute public page url, `<PUBLIC_BASE_URL>/share/<token>`' }
+                  createdAt: { type: string, format: date-time }
+        '403': { description: Not a party to this ride }
+        '409': { description: 'code `ride_not_active` (no active accepted ride) or `already_shared` (this user already holds this ride''s link)' }
+  /api/v1/share/{token}:
+    get:
+      tags: [Share]
+      summary: Public share-page data — NO authentication (SHARE-02)
+      description: >
+        Serves exactly the SHARE-02 list and nothing more — no phone numbers, no rider identity,
+        no fare. The web page itself (T2) is a minimal server-rendered page polling this
+        endpoint every `refreshSeconds`.
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Live trip view
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharePage' }
+        '404': { description: Unknown token }
+        '410': { description: The ride ended or was cancelled — the link is permanently dead (UC-S-15 E1) }
+  /api/v1/rides/{rideId}/sos:
+    post:
+      tags: [Sos]
+      summary: Record an SOS event and alert support admins (UC-S-16, SAFE-01)
+      description: >
+        Parties only, during an active accepted ride (accepted / driver_arrived / in_progress).
+        Fired silently alongside the client-side dialer. `recordedAt` is the device moment,
+        clamped to server time when ahead (like ride traces). Repeat SOS taps create repeat
+        events — escalation is signal, never deduplicated.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/RideId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lat, lng, recordedAt]
+              properties:
+                lat: { type: number, minimum: -90, maximum: 90 }
+                lng: { type: number, minimum: -180, maximum: 180 }
+                recordedAt: { type: string, format: date-time }
+      responses:
+        '201':
+          description: Event recorded (permanent), alert fan-out queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SosEvent' }
+        '403': { description: Not a party to this ride }
+        '409': { description: 'code `ride_not_active`' }
+  /api/v1/admin/rides/{rideId}/chat:
+    get:
+      tags: [AdminComms]
+      summary: Full chat log of a ride, read-only (CHAT-03) — `support:view`
+      description: Audited. Quick replies are served with both texts, like the party endpoint.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/RideId' }
+        - { name: before, in: query, schema: { type: string } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: One page, plus the window facts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminChatLog' }
+        '403': { description: Missing `support:view` }
+        '404': { description: Ride unknown or no thread }
+  /api/v1/admin/sos-events:
+    get:
+      tags: [AdminComms]
+      summary: SOS alert list (UC-A-20) — `support:view`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [open, acknowledged, all], default: open } }
+        - { name: regionId, in: query, schema: { type: string, format: uuid } }
+        - { name: before, in: query, schema: { type: string } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminSosEvent' }
+                  nextCursor: { type: [string, 'null'] }
+        '403': { description: Missing `support:view` }
+  /api/v1/admin/sos-events/{sosEventId}/acknowledge:
+    post:
+      tags: [AdminComms]
+      summary: Acknowledge an SOS alert (stand-down) — `support:handle`
+      description: >
+        Stamps `acknowledgedBy`/`acknowledgedAt` and the optional note (the linked-ticket rail
+        is M14; the note is the stub). Audited. The event's facts stay immutable (SAFE-02);
+        acknowledging only clears the pin/alert.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: sosEventId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 2000 }
+      responses:
+        '200':
+          description: Acknowledged
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSosEvent' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown event }
+        '409': { description: 'code `already_acknowledged`' }
+  /api/v1/admin/regions/{regionId}/live-ops:
+    get:
+      tags: [AdminLiveOps]
+      summary: Live ops map snapshot for a region (ADM-03, UC-A-19) — `rides:view`
+      description: >
+        One polled snapshot: fresh online drivers (last sample within the realtime staleness
+        window), active rides, the surge overlay (M9 zone state) and open SOS pins. Poll every
+        `refreshSeconds`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The snapshot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveOps' }
+        '403': { description: Missing `rides:view` }
+        '404': { description: Unknown region }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    RideId:
+      name: rideId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    ChatWindowState:
+      type: string
+      enum: [open, read_only, reopened]
+      description: '`none` never reaches the wire — it is the 404 on the thread endpoints'
+    QuickReply:
+      type: object
+      required: [code, textEn, textAr]
+      properties:
+        code: { type: string }
+        textEn: { type: string }
+        textAr: { type: string }
+    ChatThread:
+      type: object
+      required: [rideId, windowState, openedAt, closedAt, unreadCount, counterpart]
+      properties:
+        rideId: { type: string, format: uuid }
+        windowState: { $ref: '#/components/schemas/ChatWindowState' }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: [string, 'null'], format: date-time, description: terminal + 24 h; null while the ride is live }
+        unreadCount: { type: integer, description: Messages after the caller's read marker }
+        lastReadMessageId: { type: [string, 'null'], format: uuid, description: The caller's own marker }
+        counterpartLastReadMessageId: { type: [string, 'null'], format: uuid }
+        counterpart:
+          type: object
+          required: [role, firstName, phone]
+          properties:
+            role: { type: string, enum: [rider, driver] }
+            firstName: { type: string }
+            photoUrl: { type: [string, 'null'], description: Expiring url (drivers only) }
+            phone: { type: [string, 'null'], description: CALL-01 — non-null only while writes are allowed }
+    ChatMessage:
+      type: object
+      required: [messageId, senderRole, kind, sentAt]
+      properties:
+        messageId: { type: string, format: uuid }
+        clientMsgId: { type: string, format: uuid, description: Echoed only to its sender }
+        senderRole: { type: string, enum: [rider, driver] }
+        kind: { type: string, enum: [text, quick_reply] }
+        body: { type: [string, 'null'], maxLength: 1000, description: text messages only }
+        quickReply: { oneOf: [{ $ref: '#/components/schemas/QuickReply' }, { type: 'null' }], description: quick replies only }
+        sentAt: { type: string, format: date-time }
+    ChatMessagePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          description: Oldest first within the page
+          items: { $ref: '#/components/schemas/ChatMessage' }
+        nextCursor: { type: [string, 'null'], description: For `before` paging; null when exhausted }
+    AdminChatLog:
+      type: object
+      required: [rideId, windowState, openedAt, closedAt, items, nextCursor]
+      properties:
+        rideId: { type: string, format: uuid }
+        windowState: { $ref: '#/components/schemas/ChatWindowState' }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: [string, 'null'], format: date-time }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ChatMessage' }
+        nextCursor: { type: [string, 'null'] }
+    SharePage:
+      type: object
+      description: EXACTLY the SHARE-02 list — nothing else is ever added here
+      required: [status, driverFirstName, vehicle, position, etaSeconds, refreshSeconds]
+      properties:
+        status: { type: string, enum: [accepted, driver_arrived, in_progress], description: Terminal states are the 410 }
+        driverFirstName: { type: string }
+        driverPhotoUrl: { type: [string, 'null'], description: Expiring url }
+        vehicle:
+          type: object
+          required: [model, color, plate]
+          properties:
+            model: { type: string }
+            color: { type: string }
+            plate: { type: string }
+        position:
+          oneOf:
+            - type: object
+              required: [lat, lng, recordedAt]
+              properties:
+                lat: { type: number }
+                lng: { type: number }
+                headingDeg: { type: [number, 'null'] }
+                recordedAt: { type: string, format: date-time }
+            - type: 'null'
+          description: The driver's latest position; null when stale/unknown
+        etaSeconds: { type: [integer, 'null'], description: To pickup before start, to destination after; null when unroutable }
+        refreshSeconds: { type: integer, description: Poll pace (SHARE_REFRESH_SECONDS, default 5) }
+    SosEvent:
+      type: object
+      required: [sosEventId, rideId, triggeredByRole, lat, lng, triggeredAt, createdAt]
+      properties:
+        sosEventId: { type: string, format: uuid }
+        rideId: { type: string, format: uuid }
+        triggeredByRole: { type: string, enum: [rider, driver] }
+        lat: { type: number }
+        lng: { type: number }
+        triggeredAt: { type: string, format: date-time, description: Device moment, clamped to server time }
+        createdAt: { type: string, format: date-time }
+    AdminSosEvent:
+      allOf:
+        - $ref: '#/components/schemas/SosEvent'
+        - type: object
+          required: [regionId, triggeredBy, acknowledged]
+          properties:
+            regionId: { type: string, format: uuid }
+            triggeredBy:
+              type: object
+              required: [userId, name, phone]
+              properties:
+                userId: { type: string, format: uuid }
+                name: { type: string }
+                phone: { type: string, description: UC-A-20 contact access — the list itself is permission-gated }
+            rideState: { type: string }
+            acknowledged:
+              oneOf:
+                - type: object
+                  required: [byUserId, byName, at]
+                  properties:
+                    byUserId: { type: string, format: uuid }
+                    byName: { type: string }
+                    at: { type: string, format: date-time }
+                    note: { type: [string, 'null'] }
+                - type: 'null'
+    LiveOps:
+      type: object
+      required: [regionId, serverTime, refreshSeconds, drivers, rides, surgeZones, sosEvents]
+      properties:
+        regionId: { type: string, format: uuid }
+        serverTime: { type: string, format: date-time }
+        refreshSeconds: { type: integer, description: Poll pace (LIVEOPS_REFRESH_SECONDS, default 5) }
+        drivers:
+          type: array
+          description: Online drivers with a FRESH position in this region
+          items:
+            type: object
+            required: [driverUserId, name, lat, lng, status]
+            properties:
+              driverUserId: { type: string, format: uuid }
+              name: { type: string }
+              lat: { type: number }
+              lng: { type: number }
+              headingDeg: { type: [number, 'null'] }
+              status: { type: string, enum: [idle, on_ride] }
+              rideId: { type: [string, 'null'], format: uuid, description: when on_ride }
+        rides:
+          type: array
+          description: Active rides (requested → in_progress) — the route line is pickup → stops → destination
+          items:
+            type: object
+            required: [rideId, state, pickup, destination, sosOpen]
+            properties:
+              rideId: { type: string, format: uuid }
+              state: { type: string }
+              pickup: { $ref: '#/components/schemas/LatLng' }
+              destination: { $ref: '#/components/schemas/LatLng' }
+              stops:
+                type: array
+                items: { $ref: '#/components/schemas/LatLng' }
+              driverUserId: { type: [string, 'null'], format: uuid }
+              sosOpen: { type: boolean, description: Red flag — an unacknowledged SOS exists }
+        surgeZones:
+          type: array
+          description: The M9 overlay — same zone shape as the admin surge state (regions-v1 SurgeZoneState)
+          items:
+            type: object
+            required: [id, name, polygon, multiplier, level]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              polygon: { $ref: '#/components/schemas/GeoJsonPolygon' }
+              multiplier: { type: number }
+              level: { type: integer }
+        sosEvents:
+          type: array
+          description: OPEN events only — the red pins
+          items: { $ref: '#/components/schemas/AdminSosEvent' }
+    LatLng:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+    GeoJsonPolygon:
+      type: object
+      description: GeoJSON Polygon, [lng, lat], SRID 4326, one closed outer ring (regions-v1.yaml)
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [Polygon] }
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              items: { type: number }

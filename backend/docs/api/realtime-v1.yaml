@@ -79,7 +79,8 @@ info:
     `not_driver`) without closing. (4) `{"type":"ping"}` → `{"type":"pong"}` keep-alive; the
     server closes idle sockets after 60 s without frames (close code 1000). (5) M7 adds server →
     client ride events (`ride.*`, `offer.*`, driver position relay — catalog in rides-v1.yaml)
-    on the same socket — clients
+    on the same socket, and M10 adds the chat frames (`chat.send`, `chat.message`, `chat.read` —
+    catalog in comms-v1.yaml) — clients
     must ignore unknown `type`s (the server likewise ignores client frames of unknown type after
     auth). Close codes: 4401 unauthorized/expired, 4400 malformed frame, 1001 server shutdown
     (reconnect with backoff).
@@ -347,7 +348,7 @@ components:
       type: object
       required: [screen]
       properties:
-        screen: { type: string, examples: [driver_application, driver_documents, driver_vehicles, notifications] }
+        screen: { type: string, examples: [driver_application, driver_documents, driver_vehicles, notifications, ride, chat] }
         params:
           type: object
           additionalProperties: { type: string }
