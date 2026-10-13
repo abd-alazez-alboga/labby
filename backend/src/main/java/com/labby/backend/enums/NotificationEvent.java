@@ -58,7 +58,19 @@ public enum NotificationEvent {
   /**
    * To the driver a settlement lifted back above the floor (UC-A-27). Params: balance, currency.
    */
-  DRIVER_BALANCE_UNBLOCKED("driver.balance_unblocked");
+  DRIVER_BALANCE_UNBLOCKED("driver.balance_unblocked"),
+  // M10 comms events (comms-v1.yaml).
+  /**
+   * To a chat recipient without a live socket (CHAT-02). Params: rideId, senderName, recipientRole
+   * (rider|driver), rideActive ("true" while the ride is active — the push then bypasses a muted
+   * chat category, NTF-02's ride-critical exception).
+   */
+  CHAT_MESSAGE("chat.message"),
+  /**
+   * To every admin holding {@code support:handle} when an SOS fires (SAFE-01; category safety —
+   * never muted). Params: rideId, role (rider|driver).
+   */
+  SOS_TRIGGERED("sos.triggered");
 
   private final String value;
 

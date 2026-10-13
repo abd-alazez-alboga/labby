@@ -38,6 +38,9 @@ public class NotificationRenderer {
   /** Deep-link screen: the driver's open offer (param {@code offerId}, M7). */
   public static final String SCREEN_RIDE_OFFER = "ride_offer";
 
+  /** Deep-link screen: a ride's chat thread (param {@code rideId}, M10). */
+  public static final String SCREEN_CHAT = "chat";
+
   private static final Set<String> EVENTS =
       Arrays.stream(NotificationEvent.values())
           .map(NotificationEvent::getValue)
@@ -308,7 +311,48 @@ public class NotificationRenderer {
               "عادت طلبات الرحلات",
               "شكراً لتسوية رصيدك. رصيدك الآن %s ويمكنك استقبال طلبات الرحلات من جديد."
                   .formatted(moneyAr(params, "balance")));
+      case CHAT_MESSAGE -> chatMessage(params);
+      case SOS_TRIGGERED -> sosTriggered(event, params);
     };
+  }
+
+  /**
+   * CHAT-02: the new-message push to its recipient's party app, deep-linked into the ride's chat.
+   * Message content never rides in the push — only who sent it.
+   */
+  private static Rendered chatMessage(Map<String, Object> params) {
+    String sender = text(params.get("senderName"));
+    boolean toDriver = "driver".equals(text(params.get("recipientRole")));
+    return new Rendered(
+        NotificationCategory.CHAT,
+        toDriver ? NotificationAudience.DRIVER : NotificationAudience.RIDER,
+        NotificationEvent.CHAT_MESSAGE.getValue(),
+        "New message",
+        "You have a new message from %s. Open the chat to reply.".formatted(sender),
+        "رسالة جديدة",
+        "لديك رسالة جديدة من %s. افتح المحادثة للرد.".formatted(sender),
+        SCREEN_CHAT,
+        Map.of("rideId", text(params.get("rideId"))));
+  }
+
+  /**
+   * SAFE-01: the SOS alert to support admins (category {@code safety} — never muted). The admin
+   * dashboard has no deep-link screen catalog, so a push tap opens the notification center.
+   */
+  private static Rendered sosTriggered(NotificationEvent event, Map<String, Object> params) {
+    boolean driver = "driver".equals(text(params.get("role")));
+    return new Rendered(
+        NotificationCategory.SAFETY,
+        NotificationAudience.ADMIN,
+        event.getValue(),
+        "SOS alert",
+        "A %s triggered SOS during a ride. Open the live ops map now."
+            .formatted(driver ? "driver" : "rider"),
+        "تنبيه استغاثة",
+        "أطلق %s إشارة استغاثة أثناء رحلة. افتح خريطة العمليات المباشرة الآن."
+            .formatted(driver ? "سائق" : "راكب"),
+        null,
+        Map.of());
   }
 
   /**

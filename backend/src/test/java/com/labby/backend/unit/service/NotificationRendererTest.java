@@ -40,6 +40,9 @@ class NotificationRendererTest {
       if (event.getValue().startsWith("wallet.") || event.getValue().startsWith("driver.balance")) {
         continue; // M8 money events: see shouldRenderMoneyEvents.
       }
+      if (event == NotificationEvent.CHAT_MESSAGE || event == NotificationEvent.SOS_TRIGGERED) {
+        continue; // M10 comms events: see shouldRenderCommsEvents.
+      }
       Map<String, Object> params =
           switch (event) {
             case DOCUMENT_EXPIRY_REMINDER -> REMINDER_PARAMS;
@@ -374,5 +377,51 @@ class NotificationRendererTest {
       assertThat(other.linkParams()).as("%s", params).isEmpty();
     }
     assertThat(renderer.render("ride.unknown_future_event", Map.of())).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "M10 comms: the chat push targets the recipient's party app with the chat deep link and no"
+          + " message content; the SOS alert is safety/admin with no link")
+  void shouldRenderCommsEvents() {
+    Rendered toDriver =
+        renderer
+            .render(
+                "chat.message",
+                Map.of(
+                    "rideId", "11111111-1111-1111-1111-111111111111",
+                    "senderName", "Rana",
+                    "recipientRole", "driver",
+                    "rideActive", "true"))
+            .orElseThrow();
+    assertThat(toDriver.category()).isEqualTo(NotificationCategory.CHAT);
+    assertThat(toDriver.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(toDriver.titleEn()).isEqualTo("New message");
+    assertThat(toDriver.titleAr()).isEqualTo("رسالة جديدة");
+    assertThat(toDriver.bodyEn()).contains("Rana");
+    assertThat(toDriver.bodyAr()).contains("Rana");
+    assertThat(toDriver.linkScreen()).isEqualTo("chat");
+    assertThat(toDriver.linkParams())
+        .containsEntry("rideId", "11111111-1111-1111-1111-111111111111");
+    Rendered toRider =
+        renderer
+            .render("chat.message", Map.of("senderName", "Omar", "recipientRole", "rider"))
+            .orElseThrow();
+    assertThat(toRider.audience()).isEqualTo(NotificationAudience.RIDER);
+
+    Rendered sos =
+        renderer
+            .render(
+                "sos.triggered",
+                Map.of("rideId", "11111111-1111-1111-1111-111111111111", "role", "rider"))
+            .orElseThrow();
+    assertThat(sos.category()).isEqualTo(NotificationCategory.SAFETY);
+    assertThat(sos.audience()).isEqualTo(NotificationAudience.ADMIN);
+    assertThat(sos.bodyEn()).contains("rider");
+    assertThat(sos.bodyAr()).contains("راكب");
+    assertThat(sos.linkScreen()).isNull();
+    Rendered sosDriver = renderer.render("sos.triggered", Map.of("role", "driver")).orElseThrow();
+    assertThat(sosDriver.bodyEn()).contains("driver");
+    assertThat(sosDriver.bodyAr()).contains("سائق");
   }
 }

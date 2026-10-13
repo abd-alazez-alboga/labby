@@ -6,7 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.config.RealtimeProperties;
 import com.labby.backend.config.TrackingProperties;
 import com.labby.backend.dto.LocationSampleDto;
+import com.labby.backend.exception.BusinessException;
 import com.labby.backend.security.JwtService;
+import com.labby.backend.service.ChatService;
 import com.labby.backend.service.DriverLocationService;
 import com.labby.backend.service.RealtimeSessionRegistry;
 import com.labby.backend.service.SessionService;
@@ -70,6 +72,7 @@ public class RealtimeSocketController extends TextWebSocketHandler
   private final JwtService jwtService;
   private final SessionService sessionService;
   private final DriverLocationService driverLocationService;
+  private final ChatService chatService;
   private final RealtimeSessionRegistry realtimeSessionRegistry;
   private final ObjectMapper objectMapper;
   private final Validator validator;
@@ -82,6 +85,7 @@ public class RealtimeSocketController extends TextWebSocketHandler
       JwtService jwtService,
       SessionService sessionService,
       DriverLocationService driverLocationService,
+      ChatService chatService,
       RealtimeSessionRegistry realtimeSessionRegistry,
       ObjectMapper objectMapper,
       Validator validator,
@@ -91,6 +95,7 @@ public class RealtimeSocketController extends TextWebSocketHandler
     this.jwtService = jwtService;
     this.sessionService = sessionService;
     this.driverLocationService = driverLocationService;
+    this.chatService = chatService;
     this.realtimeSessionRegistry = realtimeSessionRegistry;
     this.objectMapper = objectMapper;
     this.validator = validator;
@@ -169,6 +174,8 @@ public class RealtimeSocketController extends TextWebSocketHandler
     switch (type) {
       case "ping" -> send(state, Map.of("type", "pong"));
       case "location" -> location(state, frame);
+      case "chat.send" -> chatSend(state, frame);
+      case "chat.read" -> chatRead(state, frame);
       default -> log.debug("Ignoring realtime frame of unknown type {}", type);
     }
   }
@@ -254,6 +261,66 @@ public class RealtimeSocketController extends TextWebSocketHandler
       default -> {
         // Stored, or ignored as older than the current fix: no acknowledgement (fire-and-forget).
       }
+    }
+  }
+
+  /**
+   * The {@code chat.send} frame (comms-v1.yaml): validation, window and dedup live in the service;
+   * a refusal becomes an {@code error} frame with the contract's code, the socket stays open. The
+   * echo (and the counterpart's copy) arrives as a {@code chat.message} frame after commit.
+   */
+  private void chatSend(SocketState state, JsonNode frame) {
+    UUID rideId = uuid(frame, "rideId");
+    UUID clientMsgId = uuid(frame, "clientMsgId");
+    if (rideId == null || clientMsgId == null) {
+      error(state, "invalid_message", "rideId and clientMsgId must be UUIDs");
+      return;
+    }
+    try {
+      chatService.send(
+          state.userId,
+          new ChatService.SendRequest(
+              rideId,
+              clientMsgId,
+              frame.path("kind").isTextual() ? frame.get("kind").asText() : null,
+              frame.path("body").isTextual() ? frame.get("body").asText() : null,
+              frame.path("quickReplyCode").isTextual()
+                  ? frame.get("quickReplyCode").asText()
+                  : null));
+    } catch (BusinessException ex) {
+      error(state, ex.getCode() == null ? "invalid_message" : ex.getCode(), ex.getMessage());
+    } catch (RuntimeException ex) {
+      // A storage hiccup drops this send only; the client's resend deduplicates naturally.
+      log.warn("Chat send not stored: {}", ex.getClass().getSimpleName());
+    }
+  }
+
+  /** The {@code chat.read} frame: records the marker and relays it to the counterpart. */
+  private void chatRead(SocketState state, JsonNode frame) {
+    UUID rideId = uuid(frame, "rideId");
+    UUID lastReadMessageId = uuid(frame, "lastReadMessageId");
+    if (rideId == null || lastReadMessageId == null) {
+      error(state, "invalid_message", "rideId and lastReadMessageId must be UUIDs");
+      return;
+    }
+    try {
+      chatService.markRead(state.userId, rideId, lastReadMessageId);
+    } catch (BusinessException ex) {
+      error(state, ex.getCode() == null ? "invalid_message" : ex.getCode(), ex.getMessage());
+    } catch (RuntimeException ex) {
+      log.warn("Chat read not stored: {}", ex.getClass().getSimpleName());
+    }
+  }
+
+  private static UUID uuid(JsonNode frame, String field) {
+    JsonNode value = frame.path(field);
+    if (!value.isTextual()) {
+      return null;
+    }
+    try {
+      return UUID.fromString(value.asText());
+    } catch (IllegalArgumentException ex) {
+      return null;
     }
   }
 

@@ -65,6 +65,10 @@ public class SecurityConfig {
                         // WebSocket upgrade only: the socket authenticates in-protocol with its
                         // first frame (realtime-v1.yaml), never via the URL or headers.
                         "/api/v1/realtime",
+                        // Public trip sharing (SHARE-02): the unguessable token is the only
+                        // capability — the page and its data endpoint carry no authentication.
+                        "/api/v1/share/*",
+                        "/share/*",
                         "/actuator/health",
                         "/actuator/health/**",
                         "/swagger-ui.html",

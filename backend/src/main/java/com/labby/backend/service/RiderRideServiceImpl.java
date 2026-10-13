@@ -76,6 +76,7 @@ public class RiderRideServiceImpl implements RiderRideService {
   private final RideEvents rideEvents;
   private final RideLifecycle rideLifecycle;
   private final RideMoneyService rideMoneyService;
+  private final ChatService chatService;
   private final RideRepository rideRepository;
   private final FareRepository fareRepository;
   private final RegionRepository regionRepository;
@@ -189,6 +190,9 @@ public class RiderRideServiceImpl implements RiderRideService {
     ride.setCancellationReason(request.reason());
     ride.setCancellationNote(blankToNull(request.note()));
     ride = rideRepository.saveAndFlush(ride);
+    // CHAT-01 owner ruling: a cancellation after acceptance keeps the chat window for the same
+    // 24 h as a completion (no-op before acceptance — no thread exists yet).
+    chatService.closeThread(ride.getId(), now);
     // RIDE-07 collection (M8): wallet-method rides are debited now; any shortfall (and the whole
     // fee on cash-method rides) is carried as a pending due.
     if (ride.getCancellationFee() != null) {

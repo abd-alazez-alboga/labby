@@ -29,4 +29,20 @@ public interface RbacPermissionRepository extends JpaRepository<RbacPermission, 
               + " WHERE ra.user_id = :userId AND ra.role = 'admin' AND ra.state = 'active'",
       nativeQuery = true)
   List<String> findCodesForActiveAdmin(@Param("userId") UUID userId);
+
+  /**
+   * The accounts holding an ACTIVE admin role that grants the permission — the SOS alert fan-out
+   * target set (SAFE-01: every admin holding {@code support:handle}, and only those).
+   *
+   * @param code the {@code domain:action} permission code
+   * @return the admin account ids
+   */
+  @Query(
+      value =
+          "SELECT DISTINCT ra.user_id FROM role_assignments ra"
+              + " JOIN role_permissions rp ON rp.role_id = ra.admin_role_id"
+              + " JOIN permissions p ON p.permission_id = rp.permission_id"
+              + " WHERE p.code = :code AND ra.role = 'admin' AND ra.state = 'active'",
+      nativeQuery = true)
+  List<UUID> findActiveAdminIdsWithPermission(@Param("code") String code);
 }

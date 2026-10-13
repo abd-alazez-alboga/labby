@@ -150,6 +150,13 @@ labby:
     # online drivers) -> threshold step, capped; a manual override (UC-A-09) applies at the next
     # cycle. Spring cron (second minute hour day month weekday); "-" disables.
     cycle-cron: ${SURGE_CYCLE_CRON:0 */2 * * * *}
+  comms:
+    # M10 comms & safety (comms-v1.yaml). The public origin trip-share urls are built on
+    # (SHARE-01; no trailing slash), and the poll pace of the public share page and the admin
+    # live ops map (seconds).
+    public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
+    share-refresh-seconds: ${SHARE_REFRESH_SECONDS:5}
+    liveops-refresh-seconds: ${LIVEOPS_REFRESH_SECONDS:5}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

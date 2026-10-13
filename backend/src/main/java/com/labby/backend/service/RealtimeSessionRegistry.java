@@ -49,6 +49,17 @@ public class RealtimeSessionRegistry {
   }
 
   /**
+   * Whether the account has an open authenticated socket on this instance — the offline check
+   * behind the chat push (comms-v1.yaml "a push is sent when the recipient has no live socket").
+   *
+   * @param userId the account
+   * @return true when at least one local socket is open
+   */
+  public boolean hasOpenSocket(UUID userId) {
+    return sessions.getOrDefault(userId, Set.of()).stream().anyMatch(WebSocketSession::isOpen);
+  }
+
+  /**
    * Sends a serialized frame to every local socket of the accounts.
    *
    * @param userIds the recipients

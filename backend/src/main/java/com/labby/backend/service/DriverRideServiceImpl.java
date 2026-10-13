@@ -68,6 +68,7 @@ public class DriverRideServiceImpl implements DriverRideService {
 
   private final RideAccess rideAccess;
   private final RideAssembler rideAssembler;
+  private final ChatService chatService;
   private final RideEvents rideEvents;
   private final RideLifecycle rideLifecycle;
   private final FareCalculator fareCalculator;
@@ -118,6 +119,8 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setEtaSeconds(offer.getPickupEtaS());
     ride.setEtaRefreshedAt(now);
     ride = rideRepository.saveAndFlush(ride);
+    // CHAT-01: the ride's chat thread opens at acceptance (before that there is no counterpart).
+    chatService.openThread(ride, now);
     rideEvents.stateChanged(ride);
     rideEvents.push(
         ride.getRiderUserId(),
@@ -267,6 +270,8 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setState(RideState.COMPLETED);
     ride.setCompletedAt(now);
     ride.setPaymentStatus(PaymentStatus.PENDING);
+    // CHAT-01: the chat window survives the completion by 24 h.
+    chatService.closeThread(ride.getId(), now);
     // PAY-02 + COM-01 (M8): wallet application (may flip the status to paid_wallet), the fare
     // posting at the weekly rate, and every pending rider due carried along — one transaction.
     rideMoneyService.applyAtCompletion(ride, fare);
@@ -339,6 +344,9 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setCancellationReason(request.reason());
     ride.setCancellationNote(RiderRideServiceImpl.blankToNull(request.note()));
     ride = rideRepository.saveAndFlush(ride);
+    // CHAT-01 owner ruling: a post-acceptance cancellation keeps the same 24 h window; the
+    // redispatched ride gets its own thread at its own acceptance.
+    chatService.closeThread(ride.getId(), now);
     // RIDE-07 collection (M8): a no-show fee is collected like a rider-cancel fee.
     if (ride.getCancellationFee() != null) {
       rideMoneyService.collectCancellationFee(ride);

@@ -165,6 +165,10 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   List<Ride> findByStateIn(Collection<RideState> states);
 
+  /** A region's live rides for the live ops map (ADM-03). */
+  List<Ride> findByRegionIdAndStateInOrderByRequestedAtAsc(
+      UUID regionId, Collection<RideState> states);
+
   /** Completed trips per driver in a region inside a window (COM-02 weekly recalc). */
   @Query(
       """

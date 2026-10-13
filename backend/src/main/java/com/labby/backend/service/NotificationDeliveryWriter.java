@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.enums.ClientType;
 import com.labby.backend.enums.Language;
 import com.labby.backend.enums.NotificationAudience;
+import com.labby.backend.enums.NotificationCategory;
 import com.labby.backend.enums.PushStatus;
 import com.labby.backend.model.DeviceToken;
 import com.labby.backend.model.Notification;
@@ -124,7 +125,7 @@ public class NotificationDeliveryWriter {
           new Delivery(
               outboxId, notification.getId(), notification.getPushStatus(), List.of(), null));
     }
-    if (isMuted(notification)) {
+    if (isMuted(notification) && !isRideCriticalChat(notification, entry)) {
       return Optional.of(
           new Delivery(outboxId, notification.getId(), PushStatus.MUTED, List.of(), null));
     }
@@ -172,6 +173,18 @@ public class NotificationDeliveryWriter {
     notificationOutboxRepository
         .findById(delivery.outboxId())
         .ifPresent(entry -> entry.setDeliveredAt(clock.instant()));
+  }
+
+  /**
+   * CHAT-02's ride-critical ruling (M10): a chat push for a message sent while the ride was ACTIVE
+   * is delivered even when the recipient muted the {@code chat} category; after the ride ends (the
+   * 24 h tail and reopened windows) the mute applies normally.
+   */
+  private static boolean isRideCriticalChat(
+      Notification notification, NotificationOutboxEntry entry) {
+    return notification.getCategory() == NotificationCategory.CHAT
+        && entry.getParams() != null
+        && "true".equals(String.valueOf(entry.getParams().get("rideActive")));
   }
 
   private boolean isMuted(Notification notification) {
