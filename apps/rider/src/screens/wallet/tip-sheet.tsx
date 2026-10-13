@@ -76,6 +76,7 @@ export function TipSheet({
   completedAt,
   rideLine,
   onTipped,
+  onAlreadyTipped,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -89,6 +90,12 @@ export function TipSheet({
   rideLine?: string | null;
   /** Called with the applied tip; the caller updates its own view. */
   onTipped: (tip: TipResponse) => void;
+  /**
+   * Called (and the sheet closes) on a 409 `already_tipped` — the ride was
+   * tipped elsewhere, so the caller hides its entry. Without it the sheet
+   * shows the already-tipped message like the other 409s.
+   */
+  onAlreadyTipped?: () => void;
 }) {
   const { t, locale } = useLocale();
   const { row } = useDirection();
@@ -144,7 +151,13 @@ export function TipSheet({
       onTipped(tip);
       onClose();
     } catch (failure) {
-      setError(t(`tip.errors.${tipErrorKey(failure)}`));
+      const key = tipErrorKey(failure);
+      if (key === "alreadyTipped" && onAlreadyTipped) {
+        onAlreadyTipped();
+        onClose();
+        return;
+      }
+      setError(t(`tip.errors.${key}`));
     } finally {
       setBusy(false);
     }

@@ -120,7 +120,31 @@ beforeEach(async () => {
   grantLocation();
 });
 
+/** A fixed "now" for the clock-dependent wait-charge amount (R-W5). */
+const FROZEN_NOW = Date.parse("2026-10-11T09:40:00Z");
+/** Everything but Date stays real, so only the clock is frozen. */
+const REAL_TIMER_APIS: FakeableAPI[] = [
+  "cancelAnimationFrame",
+  "cancelIdleCallback",
+  "clearImmediate",
+  "clearInterval",
+  "clearTimeout",
+  "hrtime",
+  "nextTick",
+  "performance",
+  "queueMicrotask",
+  "requestAnimationFrame",
+  "requestIdleCallback",
+  "setImmediate",
+  "setInterval",
+  "setTimeout",
+];
+
 describe("wait charge on the driver-arrived sheet (PRC-03)", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it("shows the free countdown while the grace is running", async () => {
     const arrived = acceptedRide({
       state: "driver_arrived",
@@ -139,7 +163,10 @@ describe("wait charge on the driver-arrived sheet (PRC-03)", () => {
   });
 
   it("shows the accruing charge once the grace ended (rate from region config)", async () => {
-    const graceEnded = new Date(Date.now() - 210_000); // 3.5 min ago
+    // Freeze the clock (Date only — the real timers keep driving the render
+    // and waitFor) so the per-second proration is deterministic.
+    jest.useFakeTimers({ now: FROZEN_NOW, doNotFake: REAL_TIMER_APIS });
+    const graceEnded = new Date(FROZEN_NOW - 210_000); // 3.5 min ago
     const arrived = acceptedRide({
       state: "driver_arrived",
       waitGraceEndsAt: graceEnded.toISOString(),
@@ -161,10 +188,9 @@ describe("wait charge on the driver-arrived sheet (PRC-03)", () => {
 
     const card = await screen.findByTestId("ride-wait-charge");
     expect(card).toHaveTextContent(/Waiting charge has started/);
-    // 3.5 min × SYP 500/min prorated per second like the backend (a slow
-    // render may tick one more second: 211 s → 1,758.33).
+    // 3.5 min × SYP 500/min, prorated per second like the backend.
     expect(screen.getByTestId("ride-wait-charge-amount")).toHaveTextContent(
-      /^SYP 1,75(0|8\.33)$/,
+      /^SYP 1,750$/,
     );
     expect(card).toHaveTextContent(
       /Your 5 free minutes ended at .*\. Waiting now adds SYP 500 per minute to your fare\./,
@@ -565,6 +591,42 @@ describe("tipping during the ride (PAY-04, UC-R-08)", () => {
       "Tip sent — thank you!",
     );
     expect(screen.queryByTestId("ride-tip-in-progress")).toBeNull();
+  });
+
+  it("hides the entry and closes the sheet on a 409 already_tipped", async () => {
+    const inRide = acceptedRide({ state: "in_progress" });
+    const api = mockApi({
+      ...REGION_ROUTE,
+      "GET /api/v1/rides/active": { status: 200, body: inRide },
+      [`GET /api/v1/rides/${RIDE_ID}`]: { status: 200, body: inRide },
+      "GET /api/v1/wallet": { status: 200, body: walletView() },
+      // RideMoneyServiceImpl.tip's exact code/message pair.
+      [`POST /api/v1/rides/${RIDE_ID}/tip`]: {
+        status: 409,
+        body: {
+          status: 409,
+          code: "already_tipped",
+          message: "This ride already has a tip",
+        },
+      },
+    });
+    await withProviders(<RideScreen rideId={RIDE_ID} />);
+
+    await fireEvent.press(await screen.findByTestId("ride-tip-in-progress"));
+    await screen.findByTestId("tip-balance");
+    await fireEvent.press(screen.getByTestId("tip-send"));
+    await waitFor(() =>
+      expect(
+        api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/tip`),
+      ).toHaveLength(1),
+    );
+    expect(await screen.findByTestId("ride-tip-already")).toHaveTextContent(
+      "You already tipped for this ride.",
+    );
+    expect(screen.queryByTestId("tip-sheet")).toBeNull();
+    expect(screen.queryByTestId("tip-error")).toBeNull();
+    expect(screen.queryByTestId("ride-tip-in-progress")).toBeNull();
+    expect(screen.queryByTestId("ride-tip-sent")).toBeNull();
   });
 
   it("hides the entry when the ride already carries a tip", async () => {

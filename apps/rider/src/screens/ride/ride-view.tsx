@@ -117,6 +117,8 @@ export function RideView({
   const [retryError, setRetryError] = useState<string | null>(null);
   const [tipOpen, setTipOpen] = useState(false);
   const [tipSent, setTipSent] = useState<TipResponse | null>(null);
+  // A 409 already_tipped: the ride carries a tip this view hasn't seen yet.
+  const [alreadyTipped, setAlreadyTipped] = useState(false);
   const region = useOptionalRegion();
 
   const driver = ride.driver ?? null;
@@ -282,7 +284,10 @@ export function RideView({
     redispatching || (finding && !!ride.redispatchOfRideId);
 
   const inRideTip =
-    ride.state === "in_progress" && !!driver && tipAmount === null;
+    ride.state === "in_progress" &&
+    !!driver &&
+    tipAmount === null &&
+    !alreadyTipped;
 
   let sheet: React.ReactNode;
 
@@ -595,6 +600,13 @@ export function RideView({
         {tipSent ? (
           <Banner tone="success" message={t("tip.sent")} testID="ride-tip-sent" />
         ) : null}
+        {alreadyTipped && tipAmount === null ? (
+          <Banner
+            tone="neutral"
+            message={t("tip.errors.alreadyTipped")}
+            testID="ride-tip-already"
+          />
+        ) : null}
         <EstimateFooter ride={ride} metered />
       </BottomSheet>
     );
@@ -701,6 +713,7 @@ export function RideView({
               driverName={driver?.firstName ?? null}
               completedAt={null}
               onTipped={setTipSent}
+              onAlreadyTipped={() => setAlreadyTipped(true)}
             />
           ) : null}
         </>
