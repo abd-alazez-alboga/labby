@@ -8,6 +8,13 @@
  *    estimates, flagged approximate when the route is a straight-line
  *    fallback), surge / pickup-fee notes, payment = Cash (M7), and the
  *    one primary action "Choose <type>" that books.
+ * Surge (M9, PRC-02, UC-R-04 A2 — approved artboards RiderSurgeChoose(+Ar)
+ * and RiderSurgeChanged): while the estimate's `surgeActive` the choose
+ * step explains the multiplier (banner, per-option "1.5×", locked-rate note,
+ * "Choose <type> · 1.5×"). Booking always sends the shown multiplier as
+ * `expectedSurgeMultiplier`; a 409 `surge_changed` re-fetches the estimate
+ * and opens the price-changed sheet instead of booking a price the rider
+ * never saw.
  * After a successful booking the screen closes and the home map shows the
  * dispatch state from the ride facade. Errors are explained by their
  * contract code.
@@ -21,6 +28,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   estimateRide,
   type EstimateResponse,
+  rideErrorCode,
+  rideErrorNumber,
   listSavedLocations,
   type PaymentMethod,
   type Place,
@@ -45,11 +54,13 @@ import {
   formatKm,
   formatMinutes,
   formatMoney,
+  formatSurge,
   serviceName,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 import { RideMap } from "./ride-parts";
 import { type PlannedRoute, RoutePlanner } from "./route-planner";
+import { type SurgeChange, SurgeChangedSheet } from "./surge-changed-sheet";
 
 /** "Cool · Quiet · No pref." — the comfort preferences shown in booking. */
 export function comfortSummary(
@@ -107,6 +118,46 @@ function MatchingLine({
         {t("booking.change")}
       </AppText>
     </Pressable>
+  );
+}
+
+/**
+ * UC-R-04 A2 explanation (approved artboard RiderSurgeChoose): accent chip
+ * with the trend icon + multiplier, "High demand in <zone>" and why.
+ */
+function SurgeBanner({ estimate }: { estimate: EstimateResponse }) {
+  const { t, locale } = useLocale();
+  const { row } = useDirection();
+  const multiplier = formatSurge(estimate.surgeMultiplier, locale);
+  return (
+    <View style={[styles.surge, { flexDirection: row }]} testID="booking-surge">
+      <View style={[styles.surgeChip, { flexDirection: row }]}>
+        <Ionicons name="trending-up" size={14} color={colors.onAccent} />
+        <AppText
+          variant="label"
+          weight={800}
+          tone="onAccent"
+          testID="booking-surge-chip"
+        >
+          {multiplier}
+        </AppText>
+      </View>
+      <View style={styles.surgeText}>
+        <AppText variant="bodyStrong" weight={800} testID="booking-surge-title">
+          {estimate.surgeZoneName
+            ? t("booking.surgeTitle", { zone: estimate.surgeZoneName })
+            : t("booking.surgeTitleNearby")}
+        </AppText>
+        <AppText
+          variant="caption"
+          tone="secondary"
+          weight={400}
+          testID="booking-surge-body"
+        >
+          {t("booking.surgeBody", { multiplier })}
+        </AppText>
+      </View>
+    </View>
   );
 }
 
@@ -205,6 +256,8 @@ export default function BookingScreen({
   const [selected, setSelected] = useState<string | null>(null);
   const [bookError, setBookError] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
+  // 409 surge_changed: the price-changed sheet (null = closed).
+  const [surgeChange, setSurgeChange] = useState<SurgeChange | null>(null);
   const [presetDestination, setPresetDestination] = useState<Place | null>(
     null,
   );
@@ -278,8 +331,63 @@ export default function BookingScreen({
     [estimate, selected],
   );
 
-  const book = async () => {
+  /**
+   * 409 surge_changed: nothing was booked. Re-fetch the estimate so the
+   * options and the sheet show the new prices; the sheet compares the
+   * selected service's old and new estimate. If the re-fetch fails the
+   * sheet still offers the multiplier the backend reported.
+   */
+  const onSurgeChanged = async (
+    shown: EstimateResponse,
+    reported: number | null,
+  ) => {
     if (!planned || !option) return;
+    const serviceTypeId = option.serviceTypeId;
+    let refreshed: EstimateResponse | null = null;
+    try {
+      refreshed = await estimateRide(planned);
+    } catch {
+      refreshed = null;
+    }
+    const next = refreshed?.surgeMultiplier ?? reported;
+    if (next === null) {
+      setBookError(t("booking.errors.generic"));
+      return;
+    }
+    const nextOption =
+      refreshed?.options.find((item) => item.serviceTypeId === serviceTypeId) ??
+      null;
+    if (refreshed && !nextOption) {
+      // The chosen service is gone from the refreshed options: never let
+      // "Confirm" book a different one — back to the (refreshed) list.
+      setEstimate(refreshed);
+      setSelected(refreshed.options[0]?.serviceTypeId ?? null);
+      setSurgeChange(null);
+      setBookError(t("booking.errors.service_type_unavailable"));
+      return;
+    }
+    if (refreshed) {
+      setEstimate(refreshed);
+      setSelected(serviceTypeId);
+    }
+    setSurgeChange({
+      previous: shown.surgeMultiplier,
+      next,
+      zone: refreshed?.surgeZoneName ?? shown.surgeZoneName ?? null,
+      serviceName: serviceName(option, locale),
+      currency: option.estimate.components.currency,
+      previousTotal: option.estimate.components.total,
+      nextTotal: nextOption ? nextOption.estimate.components.total : null,
+    });
+  };
+
+  /**
+   * Books the selected option, always sending the multiplier the rider is
+   * looking at (PRC-02) — the estimate's, or the price-changed sheet's.
+   */
+  const book = async (expectedSurgeMultiplier?: number) => {
+    if (!planned || !option || !estimate) return;
+    const shown = estimate;
     setBooking(true);
     setBookError(null);
     try {
@@ -289,10 +397,24 @@ export default function BookingScreen({
         stops: planned.stops,
         serviceTypeId: option.serviceTypeId,
         paymentMethod,
+        expectedSurgeMultiplier:
+          expectedSurgeMultiplier ?? shown.surgeMultiplier,
       });
+      setSurgeChange(null);
       router.back();
     } catch (error) {
-      setBookError(rideErrorMessage(error, t));
+      if (rideErrorCode(error) === "surge_changed") {
+        const reported = rideErrorNumber(error, "surgeMultiplier");
+        await onSurgeChanged(
+          expectedSurgeMultiplier !== undefined
+            ? { ...shown, surgeMultiplier: expectedSurgeMultiplier }
+            : shown,
+          reported,
+        );
+      } else {
+        setSurgeChange(null);
+        setBookError(rideErrorMessage(error, t));
+      }
     } finally {
       setBooking(false);
     }
@@ -327,6 +449,9 @@ export default function BookingScreen({
   const approximate =
     estimate.route.approximate ||
     estimate.options.some((item) => item.estimate.approximate);
+  // UC-R-04 A2: surge is shown + explained only while active (> 1.0).
+  const surge = estimate.surgeActive && estimate.surgeMultiplier > 1;
+  const surgeText = surge ? formatSurge(estimate.surgeMultiplier, locale) : "";
 
   return (
     <MapScreen
@@ -355,6 +480,7 @@ export default function BookingScreen({
             {t("booking.chooseTitle")}
           </AppText>
           <ScrollView contentContainerStyle={styles.options}>
+            {surge ? <SurgeBanner estimate={estimate} /> : null}
             {estimate.options.length === 0 ? (
               <AppText variant="secondary" tone="muted" testID="booking-no-options">
                 {t("booking.noOptions")}
@@ -393,40 +519,50 @@ export default function BookingScreen({
                       })}
                     </AppText>
                   </View>
-                  <AppText
-                    variant="bodyStrong"
-                    weight={800}
-                    testID={`booking-price-${item.serviceTypeId}`}
-                  >
-                    {t("booking.estimateSuffix", {
-                      money: formatMoney(
-                        components.total,
-                        components.currency,
-                        locale,
-                        t,
-                      ),
-                    })}
-                  </AppText>
+                  <View style={styles.price}>
+                    <AppText
+                      variant="bodyStrong"
+                      weight={800}
+                      testID={`booking-price-${item.serviceTypeId}`}
+                    >
+                      {t("booking.estimateSuffix", {
+                        money: formatMoney(
+                          components.total,
+                          components.currency,
+                          locale,
+                          t,
+                        ),
+                      })}
+                    </AppText>
+                    {surge ? (
+                      <AppText
+                        variant="caption"
+                        weight={700}
+                        tone="accent"
+                        testID={`booking-surge-${item.serviceTypeId}`}
+                      >
+                        {surgeText}
+                      </AppText>
+                    ) : null}
+                  </View>
                 </Pressable>
               );
             })}
-            <AppText variant="caption" tone="muted" weight={400}>
-              {t("booking.estimateNote")}
+            <AppText
+              variant="caption"
+              tone="muted"
+              weight={400}
+              testID="booking-estimate-note"
+            >
+              {surge
+                ? t("booking.estimateNoteSurge", { multiplier: surgeText })
+                : t("booking.estimateNote")}
             </AppText>
             {approximate ? (
               <Banner
                 tone="warning"
                 message={t("booking.approximate")}
                 testID="booking-approximate"
-              />
-            ) : null}
-            {estimate.surgeMultiplier > 1 ? (
-              <Banner
-                tone="warning"
-                message={t("booking.surge", {
-                  multiplier: estimate.surgeMultiplier,
-                })}
-                testID="booking-surge"
               />
             ) : null}
             {estimate.pickupDistanceMode === "accept_distant_fee" &&
@@ -496,13 +632,28 @@ export default function BookingScreen({
             ) : null}
           </View>
           <PrimaryButton
-            label={t("booking.choose", {
-              name: option ? serviceName(option, locale) : "",
-            })}
+            label={
+              surge
+                ? t("booking.chooseSurge", {
+                    name: option ? serviceName(option, locale) : "",
+                    multiplier: surgeText,
+                  })
+                : t("booking.choose", {
+                    name: option ? serviceName(option, locale) : "",
+                  })
+            }
             onPress={() => void book()}
             disabled={!option}
-            loading={booking}
+            loading={booking && !surgeChange}
             testID="booking-confirm"
+          />
+          <SurgeChangedSheet
+            change={surgeChange}
+            confirming={booking}
+            onConfirm={() => {
+              if (surgeChange) void book(surgeChange.next);
+            }}
+            onBack={() => setSurgeChange(null)}
           />
         </BottomSheet>
       }
@@ -528,6 +679,30 @@ const styles = StyleSheet.create({
   },
   optionSelected: {
     borderColor: colors.text,
+  },
+  price: {
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  surge: {
+    alignItems: "flex-start",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: colors.accentTint,
+  },
+  surgeChip: {
+    height: 28,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    gap: 4,
+  },
+  surgeText: {
+    flex: 1,
+    gap: 2,
   },
   carWell: {
     width: 64,

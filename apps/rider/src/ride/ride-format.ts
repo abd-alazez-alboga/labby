@@ -74,6 +74,16 @@ export function formatSignedMoney(
   return locale === "ar" ? money : `${sign}${money}`;
 }
 
+/**
+ * A surge multiplier as "1.5×" / "1.25×" / "2.0×" — one or two decimals as
+ * needed, Western digits; in Arabic the whole figure sits in an LTR isolate
+ * so "×" stays after the number inside RTL text (PRC-02).
+ */
+export function formatSurge(multiplier: number, locale: AppLocale): string {
+  const text = `${formatNumber(multiplier, locale, { min: 1, max: 2 })}×`;
+  return locale === "ar" ? `\u2066${text}\u2069` : text;
+}
+
 /** Kilometres with one decimal ("4.2"). */
 export function formatKm(meters: number, locale: AppLocale): string {
   return formatNumber(meters / 1000, locale, { min: 1, max: 1 });
@@ -202,10 +212,7 @@ export function fareLines(
     lines.push({
       key: "surge",
       label: t("fare.surge", {
-        multiplier: formatNumber(components.surgeMultiplier, locale, {
-          min: 1,
-          max: 2,
-        }),
+        multiplier: formatSurge(components.surgeMultiplier, locale),
       }),
       amount: components.surgeAmount,
     });

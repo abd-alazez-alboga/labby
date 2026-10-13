@@ -38,6 +38,29 @@ export interface BridgeMarker {
   position: LeafletLatLng;
 }
 
+/**
+ * A demand-heatmap zone (M9-T2): its ring, the drawn tier (1..3, see
+ * heatmap/levels.ts) and the multiplier chip at `labelAt`.
+ */
+export interface BridgeZone {
+  id: string;
+  ring: LeafletLatLng[];
+  tier: 1 | 2 | 3;
+  label: string;
+  labelAt: LeafletLatLng;
+}
+
+/** The look of one heatmap tier, already resolved to colours. */
+export interface BridgeZoneStyle {
+  fill: string;
+  fillOpacity: number;
+  stroke: string;
+  strokeOpacity: number;
+  dashed: boolean;
+  chipBackground: string;
+  chipText: string;
+}
+
 /** Everything the page draws, already in Leaflet order. */
 export interface MapViewState {
   center: LeafletLatLng;
@@ -45,6 +68,8 @@ export interface MapViewState {
   markers: BridgeMarker[];
   route: LeafletLatLng[] | null;
   followMe: boolean;
+  /** Heatmap zones, drawn under the route and markers. */
+  zones?: BridgeZone[];
 }
 
 export interface MapPageOptions {
@@ -60,6 +85,8 @@ export interface MapPageOptions {
     route: string;
     background: string;
   };
+  /** Heatmap tier looks, keyed "1".."3" (only maps that draw zones). */
+  zoneStyles?: Record<string, BridgeZoneStyle>;
 }
 
 export type MapMessage =
@@ -98,6 +125,7 @@ export function buildMapPage(
     attribution: escapeHtmlText(options.attribution),
     attributionPosition: options.rtl ? "bottomleft" : "bottomright",
     colors: options.colors,
+    zoneStyles: options.zoneStyles ?? {},
   };
   return `<!DOCTYPE html>
 <html>
@@ -127,6 +155,7 @@ function labbyPost(message){
   tiles.on('tileerror', function(){ if (tilesOk) { tilesOk = false; labbyPost({type:'tiles', ok:false}); } });
   tiles.on('tileload', function(){ if (!tilesOk) { tilesOk = true; labbyPost({type:'tiles', ok:true}); } });
   tiles.addTo(map);
+  var zoneLayer = L.layerGroup().addTo(map);
   var markerLayer = L.layerGroup().addTo(map);
   var routeLayer = null;
   var following = !!state.followMe;
@@ -139,7 +168,31 @@ function labbyPost(message){
     }
     return null;
   }
+  function drawZones(zones){
+    zoneLayer.clearLayers();
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      var look = config.zoneStyles[String(z.tier)];
+      if (!look || !z.ring || z.ring.length < 3) continue;
+      L.polygon(z.ring, {
+        color: look.stroke, opacity: look.strokeOpacity, weight: 2,
+        dashArray: look.dashed ? '6 4' : null,
+        fillColor: look.fill, fillOpacity: look.fillOpacity,
+        interactive: false
+      }).addTo(zoneLayer);
+      var chip = document.createElement('span');
+      chip.setAttribute('dir', 'ltr');
+      chip.textContent = z.label;
+      chip.style.cssText = 'display:inline-block;white-space:nowrap;font:800 14px/18px sans-serif;padding:4px 10px;border-radius:12px;transform:translate(-50%,-50%);'
+        + 'background:' + look.chipBackground + ';color:' + look.chipText + ';';
+      L.marker(z.labelAt, {
+        icon: L.divIcon({ html: chip, className: '', iconSize: [0, 0] }),
+        interactive: false, keyboard: false
+      }).addTo(zoneLayer);
+    }
+  }
   function draw(s){
+    drawZones(s.zones || []);
     markerLayer.clearLayers();
     for (var i = 0; i < s.markers.length; i++) {
       var m = s.markers[i];

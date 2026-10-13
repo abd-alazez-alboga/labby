@@ -41,7 +41,30 @@ export const rideEn = {
     estimateSuffix: "{{money}} est.",
     cash: "Cash",
     choose: "Choose {{name}}",
-    surge: "Busy time: fares ×{{multiplier}}",
+    surgeTitle: "High demand in {{zone}}",
+    surgeTitleNearby: "High demand nearby",
+    surgeBody:
+      "More riders than drivers nearby, so fares are {{multiplier}} right now. The rate is locked when you book.",
+    estimateNoteSurge:
+      "Estimated fares — the final fare is metered on the actual route at the locked {{multiplier}} rate.",
+    chooseSurge: "Choose {{name}} · {{multiplier}}",
+    surgeChanged: {
+      titleUp: "The price just went up",
+      titleDown: "The price just went down",
+      bodyUp:
+        "Demand in {{zone}} rose while you were choosing. Fares are now {{next}} instead of {{previous}}. Nothing was booked yet.",
+      bodyUpNearby:
+        "Demand nearby rose while you were choosing. Fares are now {{next}} instead of {{previous}}. Nothing was booked yet.",
+      bodyDown:
+        "Demand in {{zone}} dropped while you were choosing. Fares are now {{next}} instead of {{previous}}. Nothing was booked yet.",
+      bodyDownNearby:
+        "Demand nearby dropped while you were choosing. Fares are now {{next}} instead of {{previous}}. Nothing was booked yet.",
+      before: "{{name}} · before",
+      now: "{{name}} · now",
+      lockNote: "Estimate. The {{multiplier}} rate is locked once you confirm.",
+      confirm: "Confirm at {{multiplier}}",
+      back: "Back to options",
+    },
     distantFeeDisclosure:
       "You accept distant drivers: beyond {{km}} km a pickup fee of {{perKm}}/km is added. It shows on your receipt.",
     payingWallet: "Paying with wallet",
@@ -173,7 +196,7 @@ export const rideEn = {
     distance: "Distance · {{km}} km",
     time: "Time · {{minutes}} min",
     surcharge: "Time surcharge +{{percent}}%",
-    surge: "Surge ×{{multiplier}}",
+    surge: "Surge {{multiplier}}",
     wait: "Waiting time",
     pickupFee: "Pickup fee",
     minimum: "Minimum fare adjustment",
@@ -296,7 +319,30 @@ export const rideAr = {
     estimateSuffix: "{{money}} تقديريًا",
     cash: "نقدًا",
     choose: "اختر {{name}}",
-    surge: "وقت ازدحام: الأسعار ×{{multiplier}}",
+    surgeTitle: "طلب مرتفع في {{zone}}",
+    surgeTitleNearby: "طلب مرتفع بالقرب منك",
+    surgeBody:
+      "عدد الركاب أكبر من عدد السائقين القريبين، لذلك الأجرة الآن {{multiplier}}. يُثبَّت السعر لحظة الحجز.",
+    estimateNoteSurge:
+      "أجور تقديرية — تُحسب الأجرة النهائية حسب المسار الفعلي بسعر {{multiplier}} المثبَّت.",
+    chooseSurge: "اختر {{name}} · {{multiplier}}",
+    surgeChanged: {
+      titleUp: "ارتفع السعر للتو",
+      titleDown: "انخفض السعر للتو",
+      bodyUp:
+        "ارتفع الطلب في {{zone}} أثناء اختيارك. الأجرة الآن {{next}} بدلًا من {{previous}}. لم يُحجز أي شيء بعد.",
+      bodyUpNearby:
+        "ارتفع الطلب بالقرب منك أثناء اختيارك. الأجرة الآن {{next}} بدلًا من {{previous}}. لم يُحجز أي شيء بعد.",
+      bodyDown:
+        "انخفض الطلب في {{zone}} أثناء اختيارك. الأجرة الآن {{next}} بدلًا من {{previous}}. لم يُحجز أي شيء بعد.",
+      bodyDownNearby:
+        "انخفض الطلب بالقرب منك أثناء اختيارك. الأجرة الآن {{next}} بدلًا من {{previous}}. لم يُحجز أي شيء بعد.",
+      before: "{{name}} · قبل",
+      now: "{{name}} · الآن",
+      lockNote: "سعر تقديري. يُثبَّت سعر {{multiplier}} عند التأكيد.",
+      confirm: "تأكيد بسعر {{multiplier}}",
+      back: "العودة إلى الخيارات",
+    },
     distantFeeDisclosure:
       "أنت تقبل السائقين البعيدين: بعد {{km}} كم يُضاف رسم وصول قدره {{perKm}} لكل كم. سيظهر على إيصالك.",
     payingWallet: "الدفع من المحفظة",
@@ -423,7 +469,7 @@ export const rideAr = {
     distance: "المسافة · {{km}} كم",
     time: "الوقت · {{minutes}} دقيقة",
     surcharge: "رسم إضافي حسب الوقت +{{percent}}٪",
-    surge: "معامل الطلب ×{{multiplier}}",
+    surge: "معامل الطلب {{multiplier}}",
     wait: "وقت الانتظار",
     pickupFee: "رسم الوصول",
     minimum: "تعديل الحد الأدنى للأجرة",

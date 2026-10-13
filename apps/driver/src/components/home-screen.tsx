@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -12,6 +12,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ApiStatus } from "./api-status";
 import {
+  HeatmapSheetSection,
+  HeatmapToggle,
+} from "./heatmap/heatmap-sheet";
+import {
   AvailabilityGoButton,
   AvailabilitySheet,
 } from "./availability/availability-sheet";
@@ -22,6 +26,9 @@ import { RideNoticeBanner } from "./ride/ride-parts";
 import { RideScreen } from "./ride/ride-screen";
 import { FloorBlockedCard, FloorWarningBanner } from "./money/floor";
 import { TripEarningsScreen } from "./money/trip-earnings-screen";
+import type { BridgeZone } from "../map/leaflet-bridge";
+import { useOptionalHeatmap } from "../heatmap/HeatmapProvider";
+import { mapZones } from "../heatmap/levels";
 import { takeReturnRoute } from "../i18n/direction-reload";
 import { useLocale } from "../i18n/LocaleProvider";
 import { useOptionalDriverMoney } from "../money/DriverMoneyProvider";
@@ -52,9 +59,12 @@ const FAB_ROW = 48 + spacing.sm;
 function HomeMap({
   ctx,
   bottom,
+  zones,
 }: {
   ctx: AvailabilityContextValue | null;
   bottom: number;
+  /** M9-T2: the demand heatmap layer (empty while it is off). */
+  zones: BridgeZone[];
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -87,6 +97,7 @@ function HomeMap({
       <OsmMap
         center={position}
         markers={[{ id: "self", kind: "self", position }]}
+        zones={zones}
         followMe
         fill
         overlayTop={insets.top + FAB_ROW + spacing.sm}
@@ -198,6 +209,14 @@ export function HomeScreen() {
   // refreshed with the availability data. Blocked stops offers, not GO.
   const money = useOptionalDriverMoney();
   const floorBlocked = money?.floor === "blocked";
+  // M9-T2 (DRV-09, UC-D-14): the demand heatmap while online, toggle on.
+  const heat = useOptionalHeatmap();
+  const { language, flipRows } = useLocale();
+  const heatmap = heat?.heatmap ?? null;
+  const zones = useMemo(
+    () => (heatmap ? mapZones(t, heatmap.zones, language) : []),
+    [t, heatmap, language],
+  );
 
   if (rides && (rides.offer || rides.ride)) {
     return <RideScreen ctx={rides} />;
@@ -212,7 +231,9 @@ export function HomeScreen() {
   return (
     <MapScreen
       testID="home-screen"
-      map={<HomeMap ctx={availability} bottom={sheetHeight} />}
+      map={
+        <HomeMap ctx={availability} bottom={sheetHeight} zones={zones} />
+      }
       top={
         <>
           <MapFab
@@ -221,7 +242,10 @@ export function HomeScreen() {
             onPress={() => router.push("/settings")}
             testID="settings-link"
           />
-          <NotificationsBell />
+          <View style={[styles.fabGroup, flipRows && styles.rowReverse]}>
+            <NotificationsBell />
+            <HeatmapToggle ctx={heat} />
+          </View>
         </>
       }
       bottom={
@@ -267,6 +291,14 @@ export function HomeScreen() {
                 floorBlocked={floorBlocked}
               />
               {regionBlocked ? <RegionBlocked region={regionBlocked} /> : null}
+              {heatmap ? (
+                <HeatmapSheetSection
+                  heatmap={heatmap}
+                  regionName={
+                    region?.status === "resolved" ? region.config?.name : null
+                  }
+                />
+              ) : null}
               <ApiStatus />
             </BottomSheet>
           </View>
@@ -288,4 +320,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.ms,
   },
   rowReverse: { flexDirection: "row-reverse" },
+  fabGroup: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });

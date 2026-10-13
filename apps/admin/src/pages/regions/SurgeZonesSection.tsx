@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import { ApiError } from '../../api/client';
 import {
@@ -165,7 +166,12 @@ export function SurgeZonesSection({
 
   return (
     <section className="card panel">
-      <h2 className="panel__title">{t('surgeZones.title')}</h2>
+      <div className="section__head">
+        <h2 className="panel__title">{t('surgeZones.title')}</h2>
+        <Link className="btn btn--small" to={`/regions/${regionId}/surge`}>
+          {t('surgeZones.liveLink')}
+        </Link>
+      </div>
       <p className="panel__hint">{t('surgeZones.hint')}</p>
 
       {pageError ? (

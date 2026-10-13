@@ -118,7 +118,12 @@ export interface ServiceTypeEstimate {
 export interface EstimateResponse {
   regionId: string;
   currency: string;
+  /** The pickup zone's current multiplier (1.0 outside every zone); booking locks it (PRC-02). */
   surgeMultiplier: number;
+  /** `surgeMultiplier > 1.0` — show + explain (UC-R-04 A2). */
+  surgeActive: boolean;
+  /** The zone the surge comes from; null without surge. */
+  surgeZoneName: string | null;
   surchargePercent: number;
   route: {
     distanceMeters: number;
@@ -332,6 +337,14 @@ export function rideErrorDetail(error: unknown, key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/** A numeric `details` entry of a coded ride error (e.g. `surgeMultiplier`). */
+export function rideErrorNumber(error: unknown, key: string): number | null {
+  if (!(error instanceof ApiError)) return null;
+  const value = error.body?.details?.[key];
+  const parsed = typeof value === "string" ? Number(value) : value;
+  return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null;
+}
+
 // ------------------------------------------------------------- endpoints
 
 const RIDER = "/api/v1/rider";
@@ -405,13 +418,22 @@ export function estimateRide(route: RouteInput): Promise<EstimateResponse> {
   });
 }
 
-/** `POST /rides` — the ride starts `requested`. */
-export function bookRide(
-  request: RouteInput & {
-    serviceTypeId: string;
-    paymentMethod: PaymentMethod;
-  },
-): Promise<Ride> {
+/** The `POST /rides` payload (rides-v1 `BookRideRequest`). */
+export type BookRideRequest = RouteInput & {
+  serviceTypeId: string;
+  paymentMethod: PaymentMethod;
+  /**
+   * The multiplier the rider was shown (`EstimateResponse.surgeMultiplier`);
+   * a mismatch with the current value → 409 `surge_changed` (PRC-02).
+   */
+  expectedSurgeMultiplier?: number | null;
+};
+
+/**
+ * `POST /rides` — the ride starts `requested`. 409 `surge_changed` with
+ * `details.surgeMultiplier` when the expected multiplier is stale.
+ */
+export function bookRide(request: BookRideRequest): Promise<Ride> {
   return apiFetch<Ride>(RIDES, {
     method: "POST",
     auth: true,

@@ -382,7 +382,8 @@
       "conflict": "Not allowed: the zone name is already used in this region, or the polygon lies outside the region boundary.",
       "validation": "The request was rejected — check the values and try again.",
       "generic": "Something went wrong. Please try again."
-    }
+    },
+    "liveLink": "Live surge"
   },
   "review": {
     "working": "Working…",
@@ -942,6 +943,77 @@
       "successOk": "Settlement recorded — new balance {{balance}}.",
       "successResumed": "Settlement recorded — new balance {{balance}}. Above the floor again: ride offers resume and the driver is notified.",
       "successBlocked": "Settlement recorded — new balance {{balance}}. Still at or below the floor — offers stay paused."
+    }
+  },
+  "surgeLive": {
+    "title": "Surge zones",
+    "breadcrumbLabel": "Breadcrumb",
+    "breadcrumbSurge": "Surge",
+    "regionFallback": "Region",
+    "liveChip": "Live",
+    "cycleOffChip": "Automatic cycle off",
+    "retry": "Try again",
+    "zonesTitle": "Zones",
+    "empty": "This region has no surge zones yet. Draw them on the region page.",
+    "tiles": {
+      "surging": "Zones surging",
+      "ofTotal": "of {{total}}",
+      "nextCycle": "Next cycle",
+      "off": "Off",
+      "lastRun": "Last run {{time}}",
+      "neverRun": "No cycle has run yet",
+      "regionCap": "Region cap",
+      "noCap": "None"
+    },
+    "columns": {
+      "zone": "Zone",
+      "now": "Now",
+      "automatic": "Automatic",
+      "demandSupply": "Requests / free drivers",
+      "override": "Manual override"
+    },
+    "demandSupply": "{{demand}} / {{supply}}",
+    "overrideAutomatic": "Automatic",
+    "overrideSetAt": "· set {{time}}",
+    "appliesAt": "applies at {{time}}",
+    "appliesNextCycle": "applies at the next cycle",
+    "footnoteSteps": "Automatic steps: {{steps}}, capped at the zone and region cap. Drivers below the balance floor or without an active vehicle don't count as free.",
+    "footnoteGeneric": "Automatic steps: the multiplier rises with the number of requests per free driver, following each zone's threshold steps, capped at the zone and region cap. Drivers below the balance floor or without an active vehicle don't count as free.",
+    "stepFirst": "{{ratio}}+ requests per free driver → {{multiplier}}",
+    "stepNext": "{{ratio}}+ → {{multiplier}}",
+    "stepSeparator": ", ",
+    "panel": {
+      "label": "Surge override for {{zone}}",
+      "summary": "Now {{now}} · automatic {{automatic}} · cap {{cap}}",
+      "summaryUncapped": "Now {{now}} · automatic {{automatic}} · no cap",
+      "inputLabel": "Manual multiplier",
+      "inputHint": "Between 1.0× and the {{cap}} cap",
+      "inputHintUncapped": "1.0× or more, up to 2 decimals",
+      "pendingTitle": "Pending",
+      "pendingSet": "{{multiplier}} takes effect at the next cycle ({{time}}) and stays until you reset it. Rides already booked keep their locked rate.",
+      "pendingSetNoTime": "{{multiplier}} takes effect at the next cycle and stays until you reset it. Rides already booked keep their locked rate.",
+      "pendingReset": "Automatic pricing resumes at the next cycle ({{time}}). Rides already booked keep their locked rate.",
+      "pendingResetNoTime": "Automatic pricing resumes at the next cycle. Rides already booked keep their locked rate.",
+      "set": "Set override",
+      "update": "Update override",
+      "reset": "Reset to automatic",
+      "auditNote": "Overrides and resets are audit-logged. Needs the Edit pricing permission.",
+      "overrideLabel": "Manual override:",
+      "readOnlyNote": "View only — changing the override needs the Edit pricing permission."
+    },
+    "errors": {
+      "format": "Enter a multiplier like 1.5, with at most 2 decimals.",
+      "range": "Enter a multiplier between 1.0× and the {{cap}} cap.",
+      "rangeUncapped": "Enter a multiplier of 1.0× or more.",
+      "aboveCap": "The override can't exceed this zone's {{cap}} cap.",
+      "rejected": "The server rejected the multiplier. Check it and try again.",
+      "forbidden": "Your role doesn't allow changing surge.",
+      "notFound": "This zone no longer exists. Refresh the page.",
+      "network": "Can't reach the server, so the change may not have been saved. Check your connection and try again.",
+      "server": "The server ran into a problem and the change was not saved. Try again in a moment.",
+      "regionNotFound": "Region not found.",
+      "loadFailed": "Couldn't load the live surge state.",
+      "refreshFailed": "Couldn't refresh the live surge state — showing the last known values. Retrying automatically."
     }
   }
 }

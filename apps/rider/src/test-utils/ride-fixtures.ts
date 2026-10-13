@@ -116,6 +116,8 @@ export function estimateResponse(
     regionId: "44444444-4444-4444-8444-444444444444",
     currency: "SYP",
     surgeMultiplier: 1,
+    surgeActive: false,
+    surgeZoneName: null,
     surchargePercent: 0,
     route: {
       distanceMeters: 4200,
@@ -157,6 +159,30 @@ export function estimateResponse(
     pickupFeeRule: null,
     ...overrides,
   };
+}
+
+/**
+ * An estimate under surge (PRC-02): every option's components carry the
+ * multiplier and their totals scale with it (base totals 22,000 / 33,000).
+ */
+export function surgeEstimate(
+  multiplier: number,
+  zone: string | null = "Mazzeh",
+): EstimateResponse {
+  const base = estimateResponse({
+    surgeMultiplier: multiplier,
+    surgeActive: multiplier > 1,
+    surgeZoneName: multiplier > 1 ? zone : null,
+  });
+  for (const option of base.options) {
+    const total = option.estimate.components.total;
+    option.estimate.components = components({
+      surgeMultiplier: multiplier,
+      surgeAmount: Math.round(total * (multiplier - 1)),
+      total: Math.round(total * multiplier),
+    });
+  }
+  return base;
 }
 
 export function preferencesFixture(

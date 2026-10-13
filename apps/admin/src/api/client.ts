@@ -13,21 +13,41 @@ export class ApiError extends Error {
     message?: string,
     /** The `message` of the backend's error body (ErrorResponse), when it sent one. */
     public readonly serverMessage?: string,
+    /** The machine `code` of a domain error (ErrorResponse.code), e.g. `override_above_cap`. */
+    public readonly code?: string,
+    /** The domain error's `details` (ErrorResponse.details), e.g. `{ cap: 2 }`. */
+    public readonly details?: Readonly<Record<string, unknown>>,
   ) {
     super(message ?? `API request to ${url} failed with HTTP ${status}`);
     this.name = 'ApiError';
   }
 }
 
-/** Best-effort read of the backend ErrorResponse `message`; never throws. */
-async function readServerMessage(response: Response): Promise<string | undefined> {
+interface ErrorBody {
+  message?: string;
+  code?: string;
+  details?: Record<string, unknown>;
+}
+
+/** Best-effort read of the backend ErrorResponse (`message`, `code`, `details`); never throws. */
+async function readErrorBody(response: Response): Promise<ErrorBody> {
   try {
-    const body = (await response.json()) as { message?: unknown } | null;
-    return typeof body?.message === 'string' && body.message.trim() !== ''
-      ? body.message
-      : undefined;
+    const body = (await response.json()) as {
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+    } | null;
+    return {
+      message:
+        typeof body?.message === 'string' && body.message.trim() !== '' ? body.message : undefined,
+      code: typeof body?.code === 'string' ? body.code : undefined,
+      details:
+        typeof body?.details === 'object' && body.details !== null && !Array.isArray(body.details)
+          ? (body.details as Record<string, unknown>)
+          : undefined,
+    };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -53,7 +73,8 @@ export function createApiClient(config: RuntimeConfig): ApiClient {
     });
 
     if (!response.ok) {
-      throw new ApiError(response.status, url, undefined, await readServerMessage(response));
+      const body = await readErrorBody(response);
+      throw new ApiError(response.status, url, undefined, body.message, body.code, body.details);
     }
     if (response.status === 204) {
       return undefined as T;

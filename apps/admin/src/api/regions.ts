@@ -293,3 +293,61 @@ export function updateSurgeZone(
 export function deleteSurgeZone(client: ApiClient, surgeZoneId: string): Promise<void> {
   return client.delete<void>(`/api/v1/admin/surge-zones/${surgeZoneId}`);
 }
+
+/* ---------- Live surge (M9, UC-A-09) ---------- */
+
+/** One zone's live surge state, as of the last surge cycle (PRC-02). */
+export interface SurgeZoneState {
+  id: string;
+  name: string;
+  polygon: GeoJsonPolygon;
+  /** What pricing reads now: the override when applied, else the computed step. */
+  currentMultiplier: number;
+  /** The capped step the last cycle reached. */
+  computedMultiplier: number;
+  /** Manual override; null = automatic. */
+  overrideMultiplier: number | null;
+  overrideSetAt: string | null;
+  /** The last override change (set or reset) lands at the next cycle. */
+  overridePending: boolean;
+  /** Open requests in the zone at the last cycle. */
+  demandCount: number;
+  /** Idle online drivers in the zone at the last cycle. */
+  supplyCount: number;
+  /** The last cycle; null before the first. */
+  computedAt: string | null;
+}
+
+export interface SurgeState {
+  regionId: string;
+  surgeCap: number | null;
+  /** When the next cycle runs; null when the cycle is disabled. */
+  nextCycleAt: string | null;
+  /** Name-sorted. */
+  zones: SurgeZoneState[];
+}
+
+/** GET /admin/regions/{regionId}/surge-state — requires pricing:view. */
+export function getSurgeState(client: ApiClient, regionId: string): Promise<SurgeState> {
+  return client.get<SurgeState>(`/api/v1/admin/regions/${regionId}/surge-state`);
+}
+
+/**
+ * PUT /admin/surge-zones/{surgeZoneId}/override — requires pricing:edit;
+ * 1.00 ≤ multiplier ≤ the zone's effective cap, at most 2 decimals; takes
+ * effect at the next cycle. 400 code `override_above_cap` carries `details.cap`.
+ */
+export function setSurgeOverride(
+  client: ApiClient,
+  surgeZoneId: string,
+  multiplier: number,
+): Promise<SurgeZone> {
+  return client.put<SurgeZone>(`/api/v1/admin/surge-zones/${surgeZoneId}/override`, {
+    multiplier,
+  });
+}
+
+/** DELETE /admin/surge-zones/{surgeZoneId}/override — requires pricing:edit; next cycle. */
+export function resetSurgeOverride(client: ApiClient, surgeZoneId: string): Promise<void> {
+  return client.delete<void>(`/api/v1/admin/surge-zones/${surgeZoneId}/override`);
+}

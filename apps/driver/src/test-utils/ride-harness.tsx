@@ -7,6 +7,7 @@ import { View } from "react-native";
 import { AuthProvider } from "../auth/AuthProvider";
 import { HomeScreen } from "../components/home-screen";
 import { NotificationCenterScreen } from "../components/notifications/notification-center-screen";
+import { HeatmapProvider } from "../heatmap/HeatmapProvider";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { DriverMoneyProvider } from "../money/DriverMoneyProvider";
 import { PushBridge } from "../notifications/PushBridge";
@@ -27,6 +28,7 @@ export const OPEN_OFFER = "GET /api/v1/driver/offers/open";
 export const ACTIVE_RIDE = "GET /api/v1/driver/rides/active";
 export const AVAILABILITY = "GET /api/v1/driver/availability";
 export const SET_AVAILABILITY = "PUT /api/v1/driver/availability";
+export const HEATMAP = "GET /api/v1/driver/heatmap";
 
 export const NONE: MockResponse = { status: 204 };
 
@@ -89,11 +91,21 @@ export function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
   };
 }
 
-function Layout({ language, money }: { language: "en" | "ar"; money: boolean }) {
+function Layout({
+  language,
+  money,
+  heatmap,
+}: {
+  language: "en" | "ar";
+  money: boolean;
+  heatmap: boolean;
+}) {
   const { Slot } = jest.requireActual("expo-router");
+  const slot = <Slot />;
   const app = (
     <DriverRideProvider>
-      <Slot />
+      {/* M9: opt-in — the provider fetches /driver/heatmap while online. */}
+      {heatmap ? <HeatmapProvider>{slot}</HeatmapProvider> : slot}
       <PushBridge />
     </DriverRideProvider>
   );
@@ -117,6 +129,8 @@ export async function renderDriverApp(
     initialUrl?: string;
     /** Mounts the DriverMoneyProvider (M8) — mock GET /driver/balance. */
     money?: boolean;
+    /** Mounts the HeatmapProvider (M9) — mock GET /driver/heatmap. */
+    heatmap?: boolean;
   } = {},
 ): Promise<ContractFetch> {
   await seedSession(driverUser());
@@ -124,7 +138,13 @@ export async function renderDriverApp(
   const language = options.language ?? "en";
   renderRouter(
     {
-      _layout: () => <Layout language={language} money={!!options.money} />,
+      _layout: () => (
+        <Layout
+          language={language}
+          money={!!options.money}
+          heatmap={!!options.heatmap}
+        />
+      ),
       index: () => <HomeScreen />,
       notifications: () => <NotificationCenterScreen />,
       settings: () => <View testID="settings-route" />,

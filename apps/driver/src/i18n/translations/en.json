@@ -722,5 +722,22 @@
     "seeWeek": "See this week's earnings",
     "pending": "Loading this ride's earnings…",
     "missing": "This ride's earnings aren't ready yet. Try again in a moment."
+  },
+  "heatmap": {
+    "show": "Show demand heatmap",
+    "hide": "Hide demand heatmap",
+    "title": "Demand near you",
+    "updatedNext": "Updated {{updated}} · next update {{next}}",
+    "updated": "Updated {{updated}}",
+    "nextUpdate": "Next update {{next}}",
+    "level": {
+      "busy": "Busy",
+      "veryBusy": "Very busy",
+      "highest": "Highest"
+    },
+    "multiplier": "{{value}}×",
+    "multiplierRange": "{{low}}–{{high}}×",
+    "calm": "No busy areas right now.",
+    "explain": "Shaded areas have more ride requests than free drivers, so fares there are higher. Moving there is your choice."
   }
 }

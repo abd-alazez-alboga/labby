@@ -28,7 +28,13 @@ import {
   parseMapMessage,
   RECENTER_SCRIPT,
 } from "../../map/leaflet-bridge";
-import type { MapMarkerKind, MapViewState } from "../../map/leaflet-bridge";
+import type {
+  BridgeZone,
+  BridgeZoneStyle,
+  MapMarkerKind,
+  MapViewState,
+} from "../../map/leaflet-bridge";
+import { HEAT_TIER_STYLES, HEAT_TIERS } from "../../heatmap/levels";
 import { colors, radius, shadows, spacing } from "../../theme/tokens";
 import { AppText } from "../ui";
 
@@ -45,6 +51,8 @@ export interface OsmMapProps {
   markers?: MapMarker[];
   /** Contract GeoJSON LineString ([lng, lat]) — e.g. a routing result. */
   route?: GeoJsonLineString | null;
+  /** Demand-heatmap zones (M9-T2), already resolved by `heatmapZones`. */
+  zones?: BridgeZone[];
   /** Keep the `self` marker centered as it moves (until the user pans). */
   followMe?: boolean;
   height?: number;
@@ -73,7 +81,26 @@ function toViewState(props: OsmMapProps): MapViewState {
     })),
     route: props.route ? lineStringToLatLngs(props.route) : null,
     followMe: !!props.followMe,
+    zones: props.zones ?? [],
   };
+}
+
+/** The heatmap tier looks for the page (one table: heatmap/levels.ts). */
+function zoneStyles(): Record<string, BridgeZoneStyle> {
+  const styles: Record<string, BridgeZoneStyle> = {};
+  for (const tier of HEAT_TIERS) {
+    const look = HEAT_TIER_STYLES[tier];
+    styles[String(tier)] = {
+      fill: colors.accent,
+      fillOpacity: look.fillOpacity,
+      stroke: colors.accent,
+      strokeOpacity: look.strokeOpacity,
+      dashed: look.dashed,
+      chipBackground: look.chipBackground,
+      chipText: look.chipText,
+    };
+  }
+  return styles;
 }
 
 function formatPoint(point: LatLng): string {
@@ -121,6 +148,7 @@ export function OsmMap(props: OsmMapProps) {
           route: colors.accent,
           background: colors.surfaceMap,
         },
+        zoneStyles: zoneStyles(),
       },
       latestState.current,
     );

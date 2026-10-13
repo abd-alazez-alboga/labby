@@ -16,12 +16,13 @@ import {
 } from "@testing-library/react-native";
 import React from "react";
 
-import { LocaleProvider } from "../../../i18n/locale-context";
+import { LANGUAGE_STORAGE_KEY, LocaleProvider } from "../../../i18n/locale-context";
 import { RideProvider } from "../../../ride/ride-context";
 import { mockApi, seedSignedInSession } from "../../../test-utils/mock-api";
 import { renderWithProviders } from "../../../test-utils/render";
 import {
   acceptedRide,
+  components,
   FakeSocket,
   fakeSocketFactory,
   preferencesFixture,
@@ -230,6 +231,44 @@ describe("receipt (UC-R-07 step 4, PRC-04)", () => {
     expect(screen.getByTestId("receipt-route-dropoff")).toHaveTextContent("Umayyad Square");
     await fireEvent.press(screen.getByTestId("receipt-back"));
     expect(mockBack).toHaveBeenCalled();
+  });
+
+  // M9 (PRC-02/PRC-04): the multiplier locked at booking is its own line.
+  const surgedReceipt = () =>
+    receiptFixture({
+      fare: {
+        distanceMeters: 4200,
+        durationSeconds: 840,
+        components: components({
+          surgeMultiplier: 1.5,
+          surgeAmount: 10900,
+          total: 32700,
+        }),
+      },
+    });
+
+  it("shows the locked surge multiplier as its own line", async () => {
+    mockApi({
+      "GET /api/v1/rides/active": { status: 204 },
+      [`GET /api/v1/rides/${RIDE_ID}/receipt`]: { status: 200, body: surgedReceipt() },
+    });
+    await withProviders(<ReceiptScreen rideId={RIDE_ID} />);
+    expect(await screen.findByTestId("receipt-fare-surge")).toHaveTextContent(
+      "Surge 1.5×SYP 10,900",
+    );
+    expect(screen.getByTestId("receipt-fare-total")).toHaveTextContent("TotalSYP 32,700");
+  });
+
+  it("shows the surge line in Arabic with Western digits", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    mockApi({
+      "GET /api/v1/rides/active": { status: 204 },
+      [`GET /api/v1/rides/${RIDE_ID}/receipt`]: { status: 200, body: surgedReceipt() },
+    });
+    await withProviders(<ReceiptScreen rideId={RIDE_ID} />);
+    const line = await screen.findByTestId("receipt-fare-surge");
+    expect(line).toHaveTextContent("معامل الطلب ⁦1.5×⁩⁦10,900⁩ ل.س");
+    expect(line).not.toHaveTextContent(/[٠-٩]/);
   });
 });
 

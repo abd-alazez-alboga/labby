@@ -34,17 +34,16 @@ import React, {
 import { refreshAccessToken } from "../api/http-client";
 import {
   bookRide,
+  type BookRideRequest,
   cancelRide,
   changeRideRoute,
   getActiveRide,
   getRide,
   isLiveRide,
-  type PaymentMethod,
   type Place,
   type Ride,
   type RiderCancelReason,
   retryRide,
-  type RouteInput,
 } from "../api/rides";
 import {
   addTokensChangedListener,
@@ -72,12 +71,7 @@ export interface ActiveRideValue {
   /** TRK-04: `lost` while the driver's stream is stale. */
   driverStream: "ok" | "lost" | null;
   socketStatus: SocketStatus;
-  book: (
-    request: RouteInput & {
-      serviceTypeId: string;
-      paymentMethod: PaymentMethod;
-    },
-  ) => Promise<Ride>;
+  book: (request: BookRideRequest) => Promise<Ride>;
   retry: () => Promise<Ride>;
   cancel: (reason: RiderCancelReason, note?: string) => Promise<Ride>;
   changeRoute: (route: { destination: Place; stops: Place[] }) => Promise<Ride>;

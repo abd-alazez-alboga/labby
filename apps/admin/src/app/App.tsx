@@ -16,6 +16,7 @@ const RolesPage = lazy(() => import('../pages/RolesPage'));
 const AuditLogPage = lazy(() => import('../pages/AuditLogPage'));
 const RegionsPage = lazy(() => import('../pages/RegionsPage'));
 const RegionDetailPage = lazy(() => import('../pages/RegionDetailPage'));
+const RegionSurgePage = lazy(() => import('../pages/RegionSurgePage'));
 const DriverApplicationsPage = lazy(() => import('../pages/DriverApplicationsPage'));
 const DriverApplicationDetailPage = lazy(() => import('../pages/DriverApplicationDetailPage'));
 const VehicleReviewsPage = lazy(() => import('../pages/VehicleReviewsPage'));
@@ -91,6 +92,19 @@ export function App() {
                     <Suspense fallback={<div className="loading" />}>
                       <RequirePermission permission="regions:view">
                         <RegionDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* UC-A-09 live surge lives under Regions; its data is pricing:view. */}
+                <Route
+                  path="regions/:regionId/surge"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="regions:view">
+                        <RequirePermission permission="pricing:view">
+                          <RegionSurgePage />
+                        </RequirePermission>
                       </RequirePermission>
                     </Suspense>
                   }

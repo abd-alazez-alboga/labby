@@ -173,12 +173,16 @@ describe("booking (UC-R-04)", () => {
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
       serviceTypeId: COMFORT_ID,
       paymentMethod: "cash",
+      // PRC-02: the shown multiplier is always sent, also without surge.
+      expectedSurgeMultiplier: 1,
     });
   });
 
   it("flags an approximate estimate (E2) and shows surge and the distant-fee rule", async () => {
     const approximate = estimateResponse({
       surgeMultiplier: 1.5,
+      surgeActive: true,
+      surgeZoneName: "Mazzeh",
       pickupDistanceMode: "accept_distant_fee",
       pickupFeeRule: { thresholdKm: 10, perKm: 500 },
     });
@@ -194,8 +198,8 @@ describe("booking (UC-R-04)", () => {
     expect(await screen.findByTestId("booking-approximate")).toHaveTextContent(
       /Approximate estimate/,
     );
-    expect(screen.getByTestId("booking-surge")).toHaveTextContent(
-      "Busy time: fares ×1.5",
+    expect(screen.getByTestId("booking-surge-title")).toHaveTextContent(
+      "High demand in Mazzeh",
     );
     // M8 disclosure card (approved artboard RiderWalletShort).
     expect(screen.getByTestId("booking-pickup-fee-disclosure")).toHaveTextContent(

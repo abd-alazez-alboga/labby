@@ -65,6 +65,7 @@ export function MapScreen({
 /**
  * 48 px round white floating button with an optional accent count badge.
  * `plain` is the same control on a white screen: `surface-fill`, no shadow.
+ * `selected` makes it an on/off toggle: accent ground + white icon while on.
  */
 export function MapFab({
   icon,
@@ -73,6 +74,7 @@ export function MapFab({
   badge,
   badgeTestID,
   variant = "floating",
+  selected,
   testID,
 }: {
   icon: IconName;
@@ -82,6 +84,8 @@ export function MapFab({
   /** A count (shown, capped at 99+) or `true` for a plain dot. */
   badge?: number | boolean;
   badgeTestID?: string;
+  /** Set for a toggle FAB: its on/off state. */
+  selected?: boolean;
   testID?: string;
 }) {
   const showBadge = badge === true || (typeof badge === "number" && badge > 0);
@@ -91,15 +95,17 @@ export function MapFab({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={selected === undefined ? undefined : { selected }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.fab,
         variant === "plain" && styles.fabPlain,
+        selected && styles.fabSelected,
         pressed && styles.fabPressed,
       ]}
       testID={testID}
     >
-      <Icon name={icon} />
+      <Icon name={icon} color={selected ? colors.onAccent : colors.text} />
       {showBadge ? (
         <View
           style={[styles.badge, count ? styles.badgeCount : styles.badgeDot]}
@@ -227,6 +233,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
+  fabSelected: { backgroundColor: colors.accent },
   fabPressed: { opacity: 0.7 },
   badge: {
     position: "absolute",

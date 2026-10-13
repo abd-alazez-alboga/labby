@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "../auth/AuthProvider";
 import { loadStoredSession, updateSessionUser } from "../auth/session";
 import { initI18n } from "../i18n";
 import type { Language } from "../i18n";
+import { HeatmapProvider } from "../heatmap/HeatmapProvider";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { DriverMoneyProvider } from "../money/DriverMoneyProvider";
 import { PushBridge } from "../notifications/PushBridge";
@@ -178,8 +179,11 @@ export default function RootLayout() {
             <DriverMoneyProvider>
               {/* Open offer + active ride facade on the same socket (M7-T4). */}
               <DriverRideProvider>
-                <StatusBar style="dark" />
-                <AppStack />
+                {/* Demand heatmap, refreshed once per surge cycle (M9-T2). */}
+                <HeatmapProvider>
+                  <StatusBar style="dark" />
+                  <AppStack />
+                </HeatmapProvider>
                 {/* Push registration + notification-tap deep links (M6-T4). */}
                 <PushBridge />
               </DriverRideProvider>
