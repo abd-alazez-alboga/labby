@@ -54,7 +54,7 @@ class TipIntegrationTest extends AbstractMoneyIntegrationTest {
   }
 
   @Test
-  @DisplayName("PAY-04: tipping is allowed during the ride (in_progress)")
+  @DisplayName("PAY-04: tipping is allowed during the ride (in_progress) and shows at once")
   void shouldTipDuringRide() {
     Account rider = rider();
     Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
@@ -65,7 +65,15 @@ class TipIntegrationTest extends AbstractMoneyIntegrationTest {
 
     ok(tip(rider, rideId, "1.25"), HttpStatus.CREATED);
     assertThat(walletBalance(rider.userId())).isEqualByComparingTo("3.75");
+    // M8 re-audit R-W2: the in-progress view already reports the tip, not the (unknown) split.
+    JsonNode inRide = riderRide(rider, rideId);
+    assertThat(inRide.get("state").asText()).isEqualTo("in_progress");
+    assertThat(inRide.get("tip").decimalValue()).isEqualByComparingTo("1.25");
+    assertThat(inRide.get("walletApplied").isNull()).isTrue();
+    assertThat(inRide.get("cashDue").isNull()).isTrue();
+    assertThat(inRide.get("carriedDues")).isEmpty();
     ok(driverAction(driver, rideId, "complete"), HttpStatus.OK);
+    assertThat(riderRide(rider, rideId).get("tip").decimalValue()).isEqualByComparingTo("1.25");
     assertLedgerInvariants();
   }
 

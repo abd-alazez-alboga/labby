@@ -7,6 +7,7 @@ import com.labby.backend.enums.NotificationCategory;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.service.NotificationRenderer;
 import com.labby.backend.service.NotificationRenderer.Rendered;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -209,6 +210,107 @@ class NotificationRendererTest {
     Rendered largeRendered = renderer.render("ride.completed", large).orElseThrow();
     assertThat(largeRendered.bodyEn()).contains("SYP 750,000", "SYP 250,000", "SYP 500,000");
     assertThat(largeRendered.bodyAr()).contains("750,000 ل.س", "500,000 ل.س");
+  }
+
+  @Test
+  @DisplayName("M8 re-audit R-W1: the completion push itemizes carried fees in every branch")
+  void shouldItemizeCarriedFeesInTheCompletionPush() {
+    // Fully wallet-paid, without and with carried fees taken from the wallet.
+    Rendered walletOnly = completed(Map.of("total", "4.25", "method", "wallet"));
+    assertThat(walletOnly.bodyEn())
+        .isEqualTo("Your fare is SYP 4.25. It was paid from your wallet.");
+    assertThat(walletOnly.bodyAr()).isEqualTo("أجرة رحلتك 4.25 ل.س. تم دفعها من محفظتك.");
+    Rendered walletWithFees =
+        completed(Map.of("total", "4.25", "method", "wallet", "carriedWallet", "2.00"));
+    assertThat(walletWithFees.bodyEn())
+        .isEqualTo(
+            "Your fare is SYP 4.25. It was paid from your wallet, together with SYP 2 in carried"
+                + " cancellation fees.");
+    assertThat(walletWithFees.bodyAr())
+        .isEqualTo(
+            "أجرة رحلتك 4.25 ل.س. تم دفعها من محفظتك مع 2 ل.س من رسوم الإلغاء المستحقة عليك.");
+
+    // Wallet covered the fare, the fee is earmarked for cash.
+    Rendered feeInCash =
+        completed(
+            Map.of(
+                "total", "1.50",
+                "method", "wallet",
+                "walletApplied", "1.50",
+                "cashDue", "2.00",
+                "carriedCash", "2.00"));
+    assertThat(feeInCash.bodyEn())
+        .isEqualTo(
+            "Your fare is SYP 1.50. Your wallet covered SYP 1.50 — please pay your driver SYP 2 in"
+                + " cash (includes SYP 2 in carried cancellation fees).");
+    assertThat(feeInCash.bodyAr())
+        .isEqualTo(
+            "أجرة رحلتك 1.50 ل.س. غطت محفظتك 1.50 ل.س، يرجى دفع 2 ل.س للسائق نقداً (تشمل 2 ل.س"
+                + " من رسوم الإلغاء المستحقة عليك).");
+
+    // Short wallet + cash fee, plus a fee the wallet did pay.
+    Rendered mixed =
+        completed(
+            Map.of(
+                "total", "4.25",
+                "method", "wallet",
+                "walletApplied", "3.00",
+                "cashDue", "3.25",
+                "carriedCash", "2.00",
+                "carriedWallet", "1.00"));
+    assertThat(mixed.bodyEn())
+        .isEqualTo(
+            "Your fare is SYP 4.25. Your wallet covered SYP 3 — please pay your driver SYP 3.25 in"
+                + " cash (includes SYP 2 in carried cancellation fees). Your wallet also paid SYP 1"
+                + " in carried cancellation fees.");
+    assertThat(mixed.bodyAr())
+        .isEqualTo(
+            "أجرة رحلتك 4.25 ل.س. غطت محفظتك 3 ل.س، يرجى دفع 3.25 ل.س للسائق نقداً (تشمل 2 ل.س"
+                + " من رسوم الإلغاء المستحقة عليك). ودفعت محفظتك أيضاً 1 ل.س من رسوم الإلغاء"
+                + " المستحقة عليك.");
+
+    // Short wallet without carried fees: unchanged copy.
+    Rendered shortWallet =
+        completed(
+            Map.of(
+                "total", "4.25", "method", "wallet", "walletApplied", "3.00", "cashDue", "1.25"));
+    assertThat(shortWallet.bodyEn())
+        .isEqualTo(
+            "Your fare is SYP 4.25. Your wallet covered SYP 3 — please pay your driver SYP 1.25 in"
+                + " cash.");
+    assertThat(shortWallet.bodyAr())
+        .isEqualTo("أجرة رحلتك 4.25 ل.س. غطت محفظتك 3 ل.س، يرجى دفع 1.25 ل.س للسائق نقداً.");
+
+    // Cash ride, with and without a carried fee.
+    Rendered cashWithFee =
+        completed(Map.of("total", "4.25", "method", "cash", "cashDue", "6.25", "carriedCash", "2"));
+    assertThat(cashWithFee.bodyEn())
+        .isEqualTo(
+            "Your fare is SYP 4.25. Please pay your driver SYP 6.25 in cash (includes SYP 2 in"
+                + " carried cancellation fees).");
+    assertThat(cashWithFee.bodyAr())
+        .isEqualTo(
+            "أجرة رحلتك 4.25 ل.س. يرجى دفع 6.25 ل.س للسائق نقداً (تشمل 2 ل.س من رسوم الإلغاء"
+                + " المستحقة عليك).");
+    Rendered cashOnly = completed(Map.of("total", "4.25", "method", "cash"));
+    assertThat(cashOnly.bodyEn())
+        .isEqualTo("Your fare is SYP 4.25. Please pay your driver in cash.");
+    assertThat(cashOnly.bodyAr()).isEqualTo("أجرة رحلتك 4.25 ل.س. يرجى الدفع للسائق نقداً.");
+
+    for (Rendered rendered :
+        List.of(walletOnly, walletWithFees, feeInCash, mixed, shortWallet, cashWithFee, cashOnly)) {
+      for (String text : new String[] {rendered.bodyEn(), rendered.bodyAr()}) {
+        assertThat(text).doesNotContain("%s", "{", "}", "null", "التحقق");
+        assertThat(text.toLowerCase(Locale.ROOT)).doesNotContain("verification", "verify");
+      }
+    }
+  }
+
+  private Rendered completed(Map<String, Object> params) {
+    Map<String, Object> all = new HashMap<>(params);
+    all.put("rideId", "r");
+    all.put("currency", "SYP");
+    return renderer.render("ride.completed", all).orElseThrow();
   }
 
   @Test

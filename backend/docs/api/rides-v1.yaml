@@ -985,7 +985,12 @@ components:
             released (mark-unpaid) due is not listed. Rider view, driver views (active, detail,
             completion response) and the admin ride detail.
           items: { $ref: '#/components/schemas/CarriedDue' }
-        tip: { type: [number, 'null'], description: 'M8 (PAY-04): outside the fare total' }
+        tip:
+          type: [number, 'null']
+          description: >
+            M8 (PAY-04): outside the fare total. Reported whenever the ride has a tip, whatever
+            its payment status: a tip given during `in_progress` already shows (walletApplied /
+            cashDue stay null and carriedDues `[]` until completion). null when none.
         driverStream: { type: [string, 'null'], enum: [ok, lost, null], description: 'TRK-04, accepted..in_progress' }
         driverPosition:
           description: Latest known driver position (rider view, accepted..in_progress)

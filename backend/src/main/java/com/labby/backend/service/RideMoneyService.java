@@ -71,12 +71,12 @@ public interface RideMoneyService {
   TipResponseDto tip(UUID riderUserId, UUID rideId, BigDecimal amount);
 
   /**
-   * The wallet/cash split, carried dues and tip of a completed ride for its views (rides-v1
-   * walletApplied / cashDue / carriedDues / tip).
+   * The wallet/cash split and carried dues of a completed ride, and the tip of any ride, for its
+   * views (rides-v1 walletApplied / cashDue / carriedDues / tip).
    *
    * @param ride the ride
    * @param fareTotal the stored fare total, or null when none exists
-   * @return the split (all-null before completion)
+   * @return the split (all-null before completion, except a tip given while in progress)
    */
   RideMoney rideMoney(Ride ride, BigDecimal fareTotal);
 

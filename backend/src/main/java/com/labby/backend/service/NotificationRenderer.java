@@ -313,26 +313,62 @@ public class NotificationRenderer {
 
   /**
    * PAY-02: the completion push says how the fare was (or is to be) paid — fully from the wallet,
-   * wallet + cash remainder, or cash (with carried fees added to the cash when dues were
-   * collected).
+   * wallet + cash remainder, or cash — and itemizes the carried cancellation fees (M8 re-audit
+   * R-W1): {@code carriedWallet} taken from the wallet, {@code carriedCash} included in the cash.
    */
   private static Rendered completed(NotificationEvent event, Map<String, Object> params) {
     String cashDue = text(params.get("cashDue"));
     boolean wallet = "wallet".equals(text(params.get("method")));
+    boolean carriedWallet = !text(params.get("carriedWallet")).isEmpty();
+    boolean carriedCash = !text(params.get("carriedCash")).isEmpty();
     String totalEn = moneyEn(params, "total");
     String totalAr = moneyAr(params, "total");
     String bodyEn;
     String bodyAr;
     if (wallet && cashDue.isEmpty()) {
-      bodyEn = "Your fare is %s. It was paid from your wallet.".formatted(totalEn);
-      bodyAr = "أجرة رحلتك %s. تم دفعها من محفظتك.".formatted(totalAr);
+      bodyEn =
+          carriedWallet
+              ? ("Your fare is %s. It was paid from your wallet, together with %s in carried"
+                      + " cancellation fees.")
+                  .formatted(totalEn, moneyEn(params, "carriedWallet"))
+              : "Your fare is %s. It was paid from your wallet.".formatted(totalEn);
+      bodyAr =
+          carriedWallet
+              ? "أجرة رحلتك %s. تم دفعها من محفظتك مع %s من رسوم الإلغاء المستحقة عليك."
+                  .formatted(totalAr, moneyAr(params, "carriedWallet"))
+              : "أجرة رحلتك %s. تم دفعها من محفظتك.".formatted(totalAr);
     } else if (wallet) {
       bodyEn =
-          "Your fare is %s. Your wallet covered %s — please pay your driver %s in cash."
-              .formatted(totalEn, moneyEn(params, "walletApplied"), moneyEn(params, "cashDue"));
+          "Your fare is %s. Your wallet covered %s — please pay your driver %s in cash"
+                  .formatted(totalEn, moneyEn(params, "walletApplied"), moneyEn(params, "cashDue"))
+              + (carriedCash
+                  ? " (includes %s in carried cancellation fees)"
+                      .formatted(moneyEn(params, "carriedCash"))
+                  : "")
+              + "."
+              + (carriedWallet
+                  ? " Your wallet also paid %s in carried cancellation fees."
+                      .formatted(moneyEn(params, "carriedWallet"))
+                  : "");
       bodyAr =
-          "أجرة رحلتك %s. غطت محفظتك %s، يرجى دفع %s للسائق نقداً."
-              .formatted(totalAr, moneyAr(params, "walletApplied"), moneyAr(params, "cashDue"));
+          "أجرة رحلتك %s. غطت محفظتك %s، يرجى دفع %s للسائق نقداً"
+                  .formatted(totalAr, moneyAr(params, "walletApplied"), moneyAr(params, "cashDue"))
+              + (carriedCash
+                  ? " (تشمل %s من رسوم الإلغاء المستحقة عليك)"
+                      .formatted(moneyAr(params, "carriedCash"))
+                  : "")
+              + "."
+              + (carriedWallet
+                  ? " ودفعت محفظتك أيضاً %s من رسوم الإلغاء المستحقة عليك."
+                      .formatted(moneyAr(params, "carriedWallet"))
+                  : "");
+    } else if (carriedCash) {
+      bodyEn =
+          "Your fare is %s. Please pay your driver %s in cash (includes %s in carried cancellation fees)."
+              .formatted(totalEn, moneyEn(params, "cashDue"), moneyEn(params, "carriedCash"));
+      bodyAr =
+          "أجرة رحلتك %s. يرجى دفع %s للسائق نقداً (تشمل %s من رسوم الإلغاء المستحقة عليك)."
+              .formatted(totalAr, moneyAr(params, "cashDue"), moneyAr(params, "carriedCash"));
     } else if (!cashDue.isEmpty()) {
       bodyEn =
           "Your fare is %s. With your carried fees, please pay your driver %s in cash."

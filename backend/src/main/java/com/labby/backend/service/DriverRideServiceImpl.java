@@ -2,6 +2,7 @@ package com.labby.backend.service;
 
 import com.labby.backend.config.RideProperties;
 import com.labby.backend.config.TrackingProperties;
+import com.labby.backend.dto.CarriedDueDto;
 import com.labby.backend.dto.DriverCancelRequestDto;
 import com.labby.backend.dto.FareComponentsDto;
 import com.labby.backend.dto.RideDto;
@@ -30,6 +31,7 @@ import com.labby.backend.repository.RideTraceRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.RideAssembler.Audience;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -282,6 +284,9 @@ public class DriverRideServiceImpl implements DriverRideService {
     if (money.cashDue() != null) {
       pushParams.put("cashDue", money.cashDue().toPlainString());
     }
+    // M8 re-audit R-W1: the carried cancellation fees, itemized by how they are paid.
+    putCarried(pushParams, "carriedWallet", money, CarriedDueDto.METHOD_WALLET);
+    putCarried(pushParams, "carriedCash", money, CarriedDueDto.METHOD_CASH);
     rideEvents.push(ride.getRiderUserId(), NotificationEvent.RIDE_COMPLETED, pushParams);
     rideLifecycle.releaseDriver(userId, now);
     return rideAssembler.view(ride, Audience.DRIVER);
@@ -448,6 +453,19 @@ public class DriverRideServiceImpl implements DriverRideService {
         .map(User::getName)
         .map(RideAssembler::firstName)
         .orElse("");
+  }
+
+  /** Puts the total of the ride's carried dues paid by {@code method}, when there are any. */
+  private static void putCarried(
+      Map<String, Object> params, String key, RideMoneyService.RideMoney money, String method) {
+    BigDecimal total =
+        money.carriedDues().stream()
+            .filter(due -> method.equals(due.method()))
+            .map(CarriedDueDto::amount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    if (total.signum() > 0) {
+      params.put(key, total.toPlainString());
+    }
   }
 
   private static ConflictException offerClosed() {

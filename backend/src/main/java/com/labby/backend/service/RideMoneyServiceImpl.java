@@ -306,9 +306,6 @@ public class RideMoneyServiceImpl implements RideMoneyService {
   @Override
   @Transactional(readOnly = true)
   public RideMoney rideMoney(Ride ride, BigDecimal fareTotal) {
-    if (ride.getPaymentStatus() == null || fareTotal == null) {
-      return RideMoney.NONE;
-    }
     BigDecimal walletApplied = BigDecimal.ZERO;
     BigDecimal tip = BigDecimal.ZERO;
     for (WalletTransaction transaction : walletTransactionRepository.findByRideId(ride.getId())) {
@@ -317,6 +314,10 @@ public class RideMoneyServiceImpl implements RideMoneyService {
       } else if (transaction.getType() == WalletTransactionType.TIP) {
         tip = tip.add(transaction.getAmount().negate());
       }
+    }
+    if (ride.getPaymentStatus() == null || fareTotal == null) {
+      // M8 re-audit R-W2: an in-progress ride's tip is reported; the split is not (yet).
+      return tip.signum() > 0 ? new RideMoney(null, null, List.of(), tip) : RideMoney.NONE;
     }
     List<CarriedDueDto> carriedDues = carriedDues(ride.getId());
     BigDecimal cashDues =
