@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import type { SurgeState, SurgeZone } from '../api/regions';
 import i18n from '../i18n/i18n';
-import { formatClock } from '../pages/surge';
+import { formatClock, toSurgeOverlay } from '../pages/surge';
 import { COMPLETE_REGION, ZONE_POLYGON, stubRegionRoutes } from './region-fixtures';
 import {
   adminUser,
@@ -46,6 +46,8 @@ function zoneState(
     demandCount: 0,
     supplyCount: 3,
     computedAt: COMPUTED_AT,
+    level: 0,
+    effectiveCap: 2,
     ...values,
   };
 }
@@ -67,6 +69,7 @@ const SURGE_STATE: SurgeState = {
     zoneState('z-mazzeh', 'Mazzeh', {
       currentMultiplier: 2,
       computedMultiplier: 2,
+      level: 3,
       demandCount: 11,
       supplyCount: 2,
     }),
@@ -75,6 +78,7 @@ const SURGE_STATE: SurgeState = {
       computedMultiplier: 1.2,
       overrideMultiplier: 1.5,
       overrideSetAt: SET_AT,
+      level: 2,
       demandCount: 5,
       supplyCount: 2,
     }),
@@ -197,6 +201,60 @@ describe('region surge page (UC-A-09)', () => {
     );
   });
 
+  it("judges 'max' by the zone's own cap, the same in the table and the overlay", async () => {
+    // Old City: its own cap 1.5 is below the region cap 2.0, and it sits at 1.5.
+    const capped: SurgeState = {
+      ...SURGE_STATE,
+      zones: SURGE_STATE.zones.map((zone) =>
+        zone.id === 'z-old' ? { ...zone, effectiveCap: 1.5 } : zone,
+      ),
+    };
+    stubSurge(PRICING_EDITOR, { state: () => capped });
+    renderShell();
+
+    const table = await zonesTable();
+    const row = within(table).getAllByRole('row')[4];
+    expect(row.querySelector('.surge-now')).toHaveClass('surge-now--max');
+    expect(toSurgeOverlay(capped).find((zone) => zone.id === 'z-old')).toMatchObject({
+      level: 2,
+      band: 'max',
+      strength: 1,
+    });
+    // The override panel checks against the same effective cap.
+    await userEvent.setup().click(within(table).getByRole('button', { name: 'Old City' }));
+    expect(plain(within(panel()).getByText(/^Now/).textContent)).toBe(
+      'Now 1.5× · automatic 1.2× · cap 1.5×',
+    );
+  });
+
+  it("shows 'Not updating' instead of 'Live' while refreshes fail", async () => {
+    let reads = 0;
+    stubSurge(PRICING_EDITOR, {
+      extra: (method, path) => {
+        if (method === 'GET' && path === STATE_PATH) {
+          reads += 1;
+          return reads === 1 ? jsonResponse(200, SURGE_STATE) : jsonResponse(500, {});
+        }
+        if (method === 'DELETE' && path.endsWith('/override')) {
+          return emptyResponse(204);
+        }
+        return null;
+      },
+    });
+    renderShell();
+    const user = userEvent.setup();
+    const table = await zonesTable();
+    expect(screen.getByText('Live')).toBeInTheDocument();
+
+    // The override change refetches; that read fails.
+    await user.click(within(table).getByRole('button', { name: 'Old City' }));
+    await user.click(within(panel()).getByRole('button', { name: 'Reset to automatic' }));
+
+    expect(await screen.findByText('Not updating')).toBeInTheDocument();
+    expect(screen.queryByText('Live')).toBeNull();
+    expect(screen.getByText(/refresh/i, { selector: '.banner' })).toBeInTheDocument();
+  });
+
   it('falls back to the generic footnote when zones use different steps', async () => {
     stubSurge(PRICING_EDITOR, {
       zones: () =>
@@ -312,7 +370,7 @@ describe('region surge page (UC-A-09)', () => {
 
   it('shows the backend cap when the override is above it (400 override_above_cap)', async () => {
     stubSurge(PRICING_EDITOR, {
-      // Zone caps unknown client-side: only the region cap (2.0×) is checked here.
+      // The client checks the state's effective cap (2.0×); the backend's 400 wins.
       zones: () => jsonResponse(500, {}),
       extra: (method, path) =>
         method === 'PUT' && path.endsWith('/override')

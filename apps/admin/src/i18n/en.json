@@ -347,7 +347,7 @@
   },
   "surgeZones": {
     "title": "Surge zones",
-    "hint": "Zones go live with the next surge cycle once multipliers are computed (M9); outside every zone the multiplier is always 1.0×.",
+    "hint": "Zones apply from the next surge cycle (every 2 minutes); outside every zone the multiplier is 1.0×.",
     "add": "Add surge zone",
     "createTitle": "New surge zone",
     "editTitle": "Edit surge zone: {{name}}",
@@ -952,6 +952,7 @@
     "regionFallback": "Region",
     "liveChip": "Live",
     "cycleOffChip": "Automatic cycle off",
+    "notUpdatingChip": "Not updating",
     "retry": "Try again",
     "zonesTitle": "Zones",
     "empty": "This region has no surge zones yet. Draw them on the region page.",

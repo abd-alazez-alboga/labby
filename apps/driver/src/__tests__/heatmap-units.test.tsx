@@ -14,10 +14,13 @@ import type { AppStateStatus } from "react-native";
 import type { Heatmap, HeatmapZone } from "../api/heatmap";
 import { clearSession } from "../auth/session";
 import {
+  cyclePeriod,
   HEATMAP_FALLBACK_MS,
-  HEATMAP_MAX_DELAY_MS,
+  HEATMAP_STALE_RETRY_MS,
   HeatmapProvider,
+  INITIAL_REFRESH_TRACK,
   nextRefreshDelay,
+  planNextRead,
   useOptionalHeatmap,
 } from "../heatmap/HeatmapProvider";
 import type { HeatmapContextValue } from "../heatmap/HeatmapProvider";
@@ -93,26 +96,65 @@ function heatmapFixture(overrides: Partial<Heatmap> = {}): Heatmap {
 
 const ok = (body: unknown): MockResponse => ({ status: 200, body });
 
-describe("refresh schedule (nextRefreshDelay)", () => {
+const iso = (offset: number) => new Date(NOW + offset).toISOString();
+
+describe("refresh schedule (nextRefreshDelay, planNextRead)", () => {
   it("reads a few seconds after the next cycle", () => {
-    expect(
-      nextRefreshDelay(new Date(NOW + 60_000).toISOString(), NOW),
-    ).toBe(65_000);
+    expect(nextRefreshDelay(iso(60_000), iso(-60_000), NOW)).toBe(65_000);
   });
 
-  it("falls back to 120 s when the cycle time is null, past or unreadable", () => {
-    expect(nextRefreshDelay(null, NOW)).toBe(HEATMAP_FALLBACK_MS);
+  it("falls back to 120 s when the cycle time is null or unreadable", () => {
+    expect(nextRefreshDelay(null, iso(0), NOW)).toBe(HEATMAP_FALLBACK_MS);
     expect(HEATMAP_FALLBACK_MS).toBe(120_000);
-    expect(nextRefreshDelay(new Date(NOW - 1).toISOString(), NOW)).toBe(
+    expect(nextRefreshDelay("not a date", iso(0), NOW)).toBe(
       HEATMAP_FALLBACK_MS,
     );
-    expect(nextRefreshDelay("not a date", NOW)).toBe(HEATMAP_FALLBACK_MS);
   });
 
-  it("never waits longer than the cap (device clock far behind)", () => {
-    expect(
-      nextRefreshDelay(new Date(NOW + 3_600_000).toISOString(), NOW),
-    ).toBe(HEATMAP_MAX_DELAY_MS);
+  it("takes the period from server timestamps, else 120 s", () => {
+    expect(cyclePeriod(iso(0), iso(120_000))).toBe(120_000);
+    expect(cyclePeriod(null, iso(120_000))).toBe(HEATMAP_FALLBACK_MS);
+    expect(cyclePeriod(iso(0), iso(0))).toBe(HEATMAP_FALLBACK_MS);
+  });
+
+  it("clamps to [1 s, one period + grace] whatever the device clock says", () => {
+    // Device clock 10 min behind the server: one period + grace, not 10 min.
+    expect(nextRefreshDelay(iso(720_000), iso(600_000), NOW)).toBe(125_000);
+    // Device clock ahead (cycle time already past): read again soon.
+    expect(nextRefreshDelay(iso(-60_000), iso(-180_000), NOW)).toBe(1_000);
+  });
+
+  it("retries in 15 s while the awaited cycle has not written, for one period at most", () => {
+    const fresh = planNextRead(
+      { computedAt: iso(0), nextCycleAt: iso(60_000) },
+      INITIAL_REFRESH_TRACK,
+      NOW,
+    );
+    expect(fresh.delay).toBe(65_000);
+    expect(fresh.track).toEqual({ awaited: iso(60_000), period: 60_000, retries: 0 });
+
+    // The cycle at +60 s has not written: computedAt is still the old one.
+    const stale = { computedAt: iso(0), nextCycleAt: iso(120_000) };
+    let track = fresh.track;
+    for (let i = 1; i <= 4; i += 1) {
+      const plan = planNextRead(stale, track, NOW + 65_000);
+      expect(plan.delay).toBe(HEATMAP_STALE_RETRY_MS);
+      track = plan.track;
+    }
+    // A period's worth of retries spent: back to the normal schedule.
+    expect(planNextRead(stale, track, NOW + 125_000).delay).toBe(
+      HEATMAP_STALE_RETRY_MS,
+    );
+    expect(planNextRead(stale, track, NOW + 65_000).delay).toBe(60_000);
+
+    // The cycle lands: fresh again.
+    const landed = planNextRead(
+      { computedAt: iso(120_300), nextCycleAt: iso(180_000) },
+      track,
+      NOW + 125_000,
+    );
+    expect(landed.track).toEqual({ awaited: iso(180_000), period: 59_700, retries: 0 });
+    expect(landed.delay).toBe(60_000);
   });
 });
 
@@ -167,7 +209,7 @@ describe("HeatmapProvider polling", () => {
         ok(heatmapFixture()),
         ok(
           heatmapFixture({
-            computedAt: new Date(NOW + 60_000).toISOString(),
+            computedAt: new Date(NOW + 60_200).toISOString(),
             nextCycleAt: new Date(NOW + 180_000).toISOString(),
             zones: [zone({ level: 3, multiplier: 2 })],
           }),
@@ -191,6 +233,63 @@ describe("HeatmapProvider polling", () => {
     expect(contract.requestsTo(HEATMAP)).toHaveLength(2);
     await advance(1_000);
     expect(contract.requestsTo(HEATMAP)).toHaveLength(3);
+  });
+
+  it("a device clock 10 min behind still reads within one period + grace", async () => {
+    // Server time is NOW + 10 min: the cycle ran at +600 s, the next at +720 s.
+    const contract = installContractFetch({
+      [HEATMAP]: [
+        ok(heatmapFixture({ computedAt: iso(600_000), nextCycleAt: iso(720_000) })),
+        ok(
+          heatmapFixture({
+            computedAt: iso(720_200),
+            nextCycleAt: iso(840_000),
+            zones: [zone({ level: 3, multiplier: 2 })],
+          }),
+        ),
+      ],
+    });
+    mount();
+    await act(async () => {});
+    await advance(124_000);
+    expect(contract.requestsTo(HEATMAP)).toHaveLength(1);
+    await advance(1_000); // 120 s period + 5 s grace
+    expect(contract.requestsTo(HEATMAP)).toHaveLength(2);
+    expect(latest?.heatmap?.zones[0].level).toBe(3);
+  });
+
+  it("a slow cycle (computedAt not advanced) is retried after 15 s", async () => {
+    const contract = installContractFetch({
+      [HEATMAP]: [
+        ok(heatmapFixture()),
+        // Read at +65 s: the +60 s cycle has not written yet.
+        ok(heatmapFixture({ nextCycleAt: iso(120_000) })),
+        ok(
+          heatmapFixture({
+            computedAt: iso(60_500),
+            nextCycleAt: iso(120_000),
+            zones: [zone({ level: 3, multiplier: 2 })],
+          }),
+        ),
+      ],
+    });
+    mount();
+    await act(async () => {});
+    await advance(65_000);
+    expect(contract.requestsTo(HEATMAP)).toHaveLength(2);
+    expect(latest?.heatmap?.zones[0].level).toBe(2);
+
+    await advance(14_000);
+    expect(contract.requestsTo(HEATMAP)).toHaveLength(2);
+    await advance(1_000);
+    expect(contract.requestsTo(HEATMAP)).toHaveLength(3);
+    expect(latest?.heatmap?.zones[0].level).toBe(3);
+
+    // Fresh again: the next read is at the following cycle (+120 s) + grace.
+    await advance(44_000);
+    expect(contract.requestsTo(HEATMAP)).toHaveLength(3);
+    await advance(1_000);
+    expect(contract.requestsTo(HEATMAP)).toHaveLength(4);
   });
 
   it("falls back to 120 s when nextCycleAt is null", async () => {
@@ -451,5 +550,115 @@ describe("levels → tiers, looks and labels", () => {
     expect(html).toContain("L.polygon(");
     expect(html).toContain("chip.setAttribute('dir', 'ltr')");
     expect(applyStateScript(state)).toContain('"label":"1.2×"');
+  });
+  it("the page redraws zones only when the zones payload changed", () => {
+    const bridgeZone = {
+      id: "z",
+      tier: 1 as const,
+      label: "1.2×",
+      ring: [
+        [33, 36],
+        [33, 37],
+        [34, 37],
+      ] as [number, number][],
+      labelAt: [33.3, 36.6] as [number, number],
+    };
+    const state = {
+      center: [33.5, 36.3] as [number, number],
+      zoom: 14,
+      markers: [
+        { id: "self", kind: "self" as const, position: [33.5, 36.3] as [number, number] },
+      ],
+      route: null,
+      followMe: false,
+      zones: [bridgeZone],
+    };
+    const html = buildMapPage(
+      {
+        tileUrl: "x",
+        attribution: "y",
+        rtl: false,
+        colors: {
+          self: "#59128A",
+          selfBorder: "#FFFFFF",
+          point: "#141018",
+          route: "#59128A",
+          background: "#ECE9F0",
+        },
+        zoneStyles: {
+          "1": {
+            fill: "#59128A",
+            fillOpacity: 0.12,
+            stroke: "#59128A",
+            strokeOpacity: 0.55,
+            dashed: true,
+            chipBackground: "#FFFFFF",
+            chipText: "#463C58",
+          },
+        },
+      },
+      state,
+    );
+    // Run the page's map script against a stub Leaflet.
+    const script = html.slice(
+      html.lastIndexOf("<script>") + "<script>".length,
+      html.lastIndexOf("</script>"),
+    );
+    const layers: { clearLayers: jest.Mock }[] = [];
+    const addable = () => ({ addTo: () => addable(), on: () => undefined });
+    const L = {
+      map: () => ({
+        on: () => undefined,
+        setView: () => undefined,
+        panTo: () => undefined,
+        removeLayer: () => undefined,
+      }),
+      control: { attribution: () => addable() },
+      tileLayer: () => addable(),
+      layerGroup: () => {
+        const layer = { clearLayers: jest.fn() };
+        layers.push(layer);
+        return { addTo: () => layer };
+      },
+      polygon: jest.fn(() => addable()),
+      marker: () => addable(),
+      circleMarker: () => addable(),
+      polyline: () => addable(),
+      divIcon: () => ({}),
+    };
+    const fakeWindow: {
+      labbyMap?: { apply: (next: unknown) => void };
+    } = {};
+    const fakeDocument = {
+      createElement: () => ({ setAttribute: () => undefined, style: {} }),
+    };
+    const labbyPost = () => undefined;
+    new Function("L", "window", "document", "labbyPost", script)(
+      L,
+      fakeWindow,
+      fakeDocument,
+      labbyPost,
+    );
+    const [zoneLayer, markerLayer] = layers;
+    expect(L.polygon).toHaveBeenCalledTimes(1);
+
+    // A marker-only update (same zones, new object): zones untouched.
+    const apply = (next: unknown) =>
+      fakeWindow.labbyMap?.apply(JSON.parse(applyStateScript(next as typeof state)
+        .replace(/^window\.labbyMap && window\.labbyMap\.apply\(/, "")
+        .replace(/\); true;$/, "")));
+    apply({
+      ...state,
+      markers: [{ id: "self", kind: "self", position: [33.6, 36.4] }],
+      zones: [{ ...bridgeZone }],
+    });
+    expect(markerLayer.clearLayers).toHaveBeenCalledTimes(2);
+    expect(zoneLayer.clearLayers).toHaveBeenCalledTimes(1);
+    expect(L.polygon).toHaveBeenCalledTimes(1);
+
+    // A new cycle's zones: redrawn once.
+    apply({ ...state, zones: [{ ...bridgeZone, tier: 1, label: "1.3×" }] });
+    expect(zoneLayer.clearLayers).toHaveBeenCalledTimes(2);
+    expect(L.polygon).toHaveBeenCalledTimes(2);
   });
 });

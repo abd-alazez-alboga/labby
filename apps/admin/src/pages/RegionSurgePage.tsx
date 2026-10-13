@@ -2,24 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
-import {
-  getRegion,
-  listSurgeZones,
-  type SurgeZone,
-  type SurgeZoneState,
-  type ThresholdStep,
-} from '../api/regions';
+import { getRegion, listSurgeZones, type SurgeZone, type ThresholdStep } from '../api/regions';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { DataTable, KpiRow, KpiTile, PageHeader, ReviewLayout, StatusChip } from '../ui';
 import { formatNumber } from './money/money-format';
 import {
-  effectiveCap,
   formatClock,
   formatMultiplier,
   formatSince,
   isolateLtr,
-  surgeLevel,
+  latestComputedAt,
+  surgeBand,
   useSurgeState,
 } from './surge';
 import { SurgeOverridePanel } from './surge/SurgeOverridePanel';
@@ -37,19 +31,6 @@ function sharedSteps(zones: SurgeZone[] | null): ThresholdStep[] | null {
     return null;
   }
   return [...zones[0].thresholdSteps].sort((a, b) => a.ratio - b.ratio);
-}
-
-/** The latest cycle any zone reports (zones of one region run in the same cycle). */
-function lastRun(zones: SurgeZoneState[]): string | null {
-  const times = zones
-    .map((zone) => zone.computedAt)
-    .filter((value): value is string => value !== null);
-  if (times.length === 0) {
-    return null;
-  }
-  return times.reduce((latest, value) =>
-    new Date(value).getTime() > new Date(latest).getTime() ? value : latest,
-  );
 }
 
 /**
@@ -73,7 +54,7 @@ export default function RegionSurgePage() {
   const [zoneConfig, setZoneConfig] = useState<SurgeZone[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Context only (breadcrumb name, per-zone caps, threshold steps): a failure
+  // Context only (breadcrumb name, threshold steps): a failure
   // here never blocks the live state.
   useEffect(() => {
     if (!regionId) {
@@ -92,8 +73,6 @@ export default function RegionSurgePage() {
   }, [apiClient, regionId]);
 
   const zones = useMemo(() => state?.zones ?? [], [state]);
-  const capOf = (zoneId: string): number | null =>
-    effectiveCap(zoneConfig?.find((zone) => zone.id === zoneId)?.multiplierCap, state?.surgeCap);
   const selected = zones.find((zone) => zone.id === selectedId) ?? zones[0] ?? null;
   const steps = sharedSteps(zoneConfig);
   const x = (value: number) => isolateLtr(formatMultiplier(value, language));
@@ -131,7 +110,7 @@ export default function RegionSurgePage() {
   }
 
   const surging = zones.filter((zone) => zone.currentMultiplier > 1).length;
-  const lastRunAt = lastRun(zones);
+  const lastRunAt = latestComputedAt(zones);
 
   const footnote = steps
     ? t('surgeLive.footnoteSteps', {
@@ -152,7 +131,10 @@ export default function RegionSurgePage() {
       <PageHeader
         title={t('surgeLive.title')}
         meta={
-          state.nextCycleAt ? (
+          error ? (
+            // Refreshes are failing: the state shown may be stale.
+            <StatusChip tone="neutral">{t('surgeLive.notUpdatingChip')}</StatusChip>
+          ) : state.nextCycleAt ? (
             <StatusChip tone="success">{t('surgeLive.liveChip')}</StatusChip>
           ) : (
             <StatusChip tone="neutral">{t('surgeLive.cycleOffChip')}</StatusChip>
@@ -172,7 +154,7 @@ export default function RegionSurgePage() {
             <SurgeOverridePanel
               key={selected.id}
               zone={selected}
-              cap={capOf(selected.id)}
+              cap={selected.effectiveCap}
               nextCycleAt={state.nextCycleAt}
               canEdit={canEdit}
               onChanged={refresh}
@@ -248,10 +230,7 @@ export default function RegionSurgePage() {
                     </button>
                   </td>
                   <td>
-                    <SurgeNowChip
-                      value={zone.currentMultiplier}
-                      level={surgeLevel(zone.currentMultiplier, capOf(zone.id))}
-                    />
+                    <SurgeNowChip value={zone.currentMultiplier} band={surgeBand(zone)} />
                   </td>
                   <td className="table__muted">
                     <Multiplier value={zone.computedMultiplier} />

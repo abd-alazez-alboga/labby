@@ -37,8 +37,9 @@ function mapZoneError(error: unknown): string {
  * UC-A-08: surge zones drawn on the region map, each with its demand/supply
  * threshold steps (PRC-02) and an optional per-zone multiplier cap. The
  * polygon must lie within the region boundary — the backend's 409 is
- * surfaced as the conflict message. Multipliers are computed in M9; the
- * override column only displays state set there (UC-A-09). Viewing needs
+ * surfaced as the conflict message. Multipliers are computed by the surge
+ * cycle; the override column only displays the state set on the live surge
+ * page (UC-A-09). Viewing needs
  * pricing:view; mutations additionally need pricing:edit.
  */
 export function SurgeZonesSection({

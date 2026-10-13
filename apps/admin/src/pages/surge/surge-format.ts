@@ -50,18 +50,6 @@ export function formatSince(value: string, language: string, now: Date = new Dat
   });
 }
 
-/**
- * A zone's effective cap: the lower of its own cap and the region cap, when
- * set (the same rule the backend applies to computed values and overrides).
- */
-export function effectiveCap(
-  zoneCap: number | null | undefined,
-  regionCap: number | null | undefined,
-): number | null {
-  const caps = [zoneCap, regionCap].filter((cap): cap is number => cap != null);
-  return caps.length === 0 ? null : Math.min(...caps);
-}
-
 const MULTIPLIER = /^\d+(\.\d{1,2})?$/;
 
 export type MultiplierParse = { value: number } | { error: 'format' | 'range' };

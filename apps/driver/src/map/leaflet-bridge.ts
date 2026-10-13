@@ -168,7 +168,13 @@ function labbyPost(message){
     }
     return null;
   }
+  // Zones change once per surge cycle, while markers move every update:
+  // redraw them only when their payload changed.
+  var drawnZones = null;
   function drawZones(zones){
+    var key = JSON.stringify(zones);
+    if (key === drawnZones) return;
+    drawnZones = key;
     zoneLayer.clearLayers();
     for (var i = 0; i < zones.length; i++) {
       var z = zones[i];

@@ -150,7 +150,7 @@ export interface SurgeZone {
   polygon: GeoJsonPolygon;
   thresholdSteps: ThresholdStep[];
   multiplierCap?: number | null;
-  /** Manual override (UC-A-09, set in M9); null = automatic. */
+  /** Manual override (UC-A-09, set on the live surge page); null = automatic. */
   overrideMultiplier?: number | null;
   overrideSetAt?: string | null;
 }
@@ -316,6 +316,13 @@ export interface SurgeZoneState {
   supplyCount: number;
   /** The last cycle; null before the first. */
   computedAt: string | null;
+  /**
+   * 0 = no surge; n = the n-th threshold step reached — the driver heatmap's
+   * scale. Any multiplier above 1.00 is at least 1.
+   */
+  level: number;
+  /** The lower of the zone cap and the region cap; null when neither is set. */
+  effectiveCap: number | null;
 }
 
 export interface SurgeState {
