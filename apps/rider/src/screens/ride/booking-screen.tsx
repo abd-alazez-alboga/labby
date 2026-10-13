@@ -258,6 +258,9 @@ export default function BookingScreen({
   const [booking, setBooking] = useState(false);
   // 409 surge_changed: the price-changed sheet (null = closed).
   const [surgeChange, setSurgeChange] = useState<SurgeChange | null>(null);
+  // The estimate re-fetch behind the open sheet failed: the options still
+  // show the old prices, so "Back to options" drops them (re-request).
+  const [pricesStale, setPricesStale] = useState(false);
   const [presetDestination, setPresetDestination] = useState<Place | null>(
     null,
   );
@@ -335,7 +338,8 @@ export default function BookingScreen({
    * 409 surge_changed: nothing was booked. Re-fetch the estimate so the
    * options and the sheet show the new prices; the sheet compares the
    * selected service's old and new estimate. If the re-fetch fails the
-   * sheet still offers the multiplier the backend reported.
+   * sheet still offers the multiplier the backend reported, and going back
+   * returns to the planner so prices are requested again.
    */
   const onSurgeChanged = async (
     shown: EstimateResponse,
@@ -370,6 +374,7 @@ export default function BookingScreen({
       setEstimate(refreshed);
       setSelected(serviceTypeId);
     }
+    setPricesStale(refreshed === null);
     setSurgeChange({
       previous: shown.surgeMultiplier,
       next,
@@ -653,7 +658,13 @@ export default function BookingScreen({
             onConfirm={() => {
               if (surgeChange) void book(surgeChange.next);
             }}
-            onBack={() => setSurgeChange(null)}
+            onBack={() => {
+              setSurgeChange(null);
+              if (pricesStale) {
+                setPricesStale(false);
+                setEstimate(null);
+              }
+            }}
           />
         </BottomSheet>
       }

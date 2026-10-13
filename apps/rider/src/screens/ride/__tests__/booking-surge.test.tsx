@@ -388,6 +388,132 @@ describe("price changed at booking (409 surge_changed)", () => {
   });
 });
 
+const SERVER_ERROR = {
+  status: 500,
+  body: { status: 500, error: "Internal Server Error", message: "Boom" },
+};
+
+describe("price changed — defensive branches", () => {
+  beforeEach(() => setUp());
+
+  it("offers the reported multiplier when the re-fetch fails, without a comparison", async () => {
+    const api = mockApi({
+      ...BASE_ROUTES,
+      [ESTIMATE]: [{ status: 200, body: surgeEstimate(1.5) }, SERVER_ERROR],
+      [BOOK]: [surgeChanged(2), { status: 201, body: ride({ surgeMultiplier: 2 }) }],
+    });
+    await renderBooking();
+    await planToWork();
+    await fireEvent.press(await screen.findByTestId("booking-confirm"));
+
+    expect(await screen.findByTestId("surge-changed-sheet")).toBeOnTheScreen();
+    expect(api.callsTo("POST", "/api/v1/rides/estimate")).toHaveLength(2);
+    expect(screen.getByTestId("surge-changed-chip")).toHaveTextContent(/2\.0×$/);
+    expect(screen.getByTestId("surge-changed-body")).toHaveTextContent(
+      "Demand in Mazzeh rose while you were choosing. Fares are now 2.0× instead of 1.5×. Nothing was booked yet.",
+    );
+    expect(screen.queryByTestId("surge-changed-compare")).toBeNull();
+    expect(screen.getByTestId("surge-changed-confirm")).toHaveTextContent(
+      "Confirm at 2.0×",
+    );
+
+    await fireEvent.press(screen.getByTestId("surge-changed-confirm"));
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+    expect(api.callsTo("POST", "/api/v1/rides")[1].body).toEqual(
+      expect.objectContaining({
+        serviceTypeId: ECONOMY_ID,
+        expectedSurgeMultiplier: 2,
+      }),
+    );
+  });
+
+  it("drops the stale prices on back after a failed re-fetch so they are requested again", async () => {
+    const api = mockApi({
+      ...BASE_ROUTES,
+      [ESTIMATE]: [
+        { status: 200, body: surgeEstimate(1.5) },
+        SERVER_ERROR,
+        { status: 200, body: surgeEstimate(2) },
+      ],
+      [BOOK]: surgeChanged(2),
+    });
+    await renderBooking();
+    await planToWork();
+    await fireEvent.press(await screen.findByTestId("booking-confirm"));
+    await fireEvent.press(await screen.findByTestId("surge-changed-back"));
+
+    // Back on the planner (same trip), not on the 1.5× options.
+    expect(await screen.findByTestId("booking-submit")).toBeOnTheScreen();
+    expect(screen.queryByTestId("booking-choose")).toBeNull();
+    expect(screen.queryByTestId("surge-changed-sheet")).toBeNull();
+
+    await fireEvent.press(screen.getByTestId("booking-submit"));
+    expect(await screen.findByTestId("booking-surge-chip")).toHaveTextContent("2.0×");
+    expect(screen.getByTestId(`booking-price-${ECONOMY_ID}`)).toHaveTextContent(
+      "SYP 44,000 est.",
+    );
+    expect(api.callsTo("POST", "/api/v1/rides/estimate")).toHaveLength(3);
+    expect(api.callsTo("POST", "/api/v1/rides")).toHaveLength(1);
+  });
+
+  it("returns to the refreshed options when the selected service is gone", async () => {
+    const withoutComfort = surgeEstimate(2);
+    withoutComfort.options = withoutComfort.options.filter(
+      (item) => item.serviceTypeId !== COMFORT_ID,
+    );
+    const api = mockApi({
+      ...BASE_ROUTES,
+      [ESTIMATE]: [
+        { status: 200, body: surgeEstimate(1.5) },
+        { status: 200, body: withoutComfort },
+      ],
+      [BOOK]: surgeChanged(2),
+    });
+    await renderBooking();
+    await planToWork();
+    await fireEvent.press(await screen.findByTestId(`booking-option-${COMFORT_ID}`));
+    await fireEvent.press(screen.getByTestId("booking-confirm"));
+
+    expect(await screen.findByTestId("booking-error")).toHaveTextContent(
+      "This service isn't available here right now. Choose another one.",
+    );
+    expect(screen.queryByTestId("surge-changed-sheet")).toBeNull();
+    expect(screen.queryByTestId(`booking-option-${COMFORT_ID}`)).toBeNull();
+    expect(screen.getByTestId("booking-confirm")).toHaveTextContent(
+      "Choose Economy · 2.0×",
+    );
+    expect(api.callsTo("POST", "/api/v1/rides")).toHaveLength(1);
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it("closes the sheet and explains a non-surge error from its confirm", async () => {
+    mockApi({
+      ...BASE_ROUTES,
+      [ESTIMATE]: [
+        { status: 200, body: surgeEstimate(1.5) },
+        { status: 200, body: surgeEstimate(2) },
+      ],
+      [BOOK]: [
+        surgeChanged(2),
+        {
+          status: 409,
+          body: { status: 409, message: "Active", code: "active_ride_exists" },
+        },
+      ],
+    });
+    await renderBooking();
+    await planToWork();
+    await fireEvent.press(await screen.findByTestId("booking-confirm"));
+    await fireEvent.press(await screen.findByTestId("surge-changed-confirm"));
+
+    expect(await screen.findByTestId("booking-error")).toHaveTextContent(
+      "You already have an active ride.",
+    );
+    expect(screen.queryByTestId("surge-changed-sheet")).toBeNull();
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+});
+
 describe("surge in Arabic (RTL)", () => {
   beforeEach(() => setUp("ar"));
 

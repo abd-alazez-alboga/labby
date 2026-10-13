@@ -488,11 +488,20 @@ export function changeRideRoute(
   });
 }
 
-/** `POST /rides/{id}/retry` — a NEW ride for a `no_driver_found` one. */
-export function retryRide(rideId: string): Promise<Ride> {
+/**
+ * `POST /rides/{id}/retry` — a NEW ride for a `no_driver_found` one, locked
+ * at `expectedSurgeMultiplier` (PRC-02). 409 `surge_changed` with
+ * `details.surgeMultiplier` when the zone's multiplier moved; nothing is
+ * created then.
+ */
+export function retryRide(
+  rideId: string,
+  expectedSurgeMultiplier: number,
+): Promise<Ride> {
   return apiFetch<Ride>(rideUrl(rideId, "/retry"), {
     method: "POST",
     auth: true,
+    body: json({ expectedSurgeMultiplier }),
   });
 }
 

@@ -3,7 +3,10 @@
  * - requested / offering            RiderFinding ("Finding your driver")
  * - cancelled_by_driver, re-dispatched → the same sheet, "Finding you
  *   another driver" (no rider action: the facade follows the new ride)
- * - no_driver_found                 RiderNoDriver (one-tap retry, edit trip)
+ * - no_driver_found                 RiderNoDriver (one-tap retry, edit trip);
+ *   the retry expects the ride's locked multiplier and a 409
+ *   `surge_changed` opens the price-changed sheet (RiderSurgeChanged,
+ *   PRC-02) instead of locking a surge the rider never saw
  * - accepted                        RiderDriverOnWay (driver, plate, ETA,
  *   live position) — Call / Message / Share trip / Safety are M10 and
  *   hidden; the cancel action takes the Safety button's place
@@ -23,7 +26,13 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { RIDER_CANCELLABLE_STATES, type Ride } from "../../api/rides";
+import {
+  estimateRide,
+  RIDER_CANCELLABLE_STATES,
+  type Ride,
+  rideErrorCode,
+  rideErrorNumber,
+} from "../../api/rides";
 import { type TipResponse, withinTipWindow } from "../../api/wallet";
 import {
   AppText,
@@ -55,6 +64,7 @@ import {
 import { colors, radius, spacing } from "../../theme/tokens";
 import { TipSheet } from "../wallet/tip-sheet";
 import { CancelSheet } from "./cancel-sheet";
+import { type SurgeChange, SurgeChangedSheet } from "./surge-changed-sheet";
 import {
   DriverCard,
   EstimateFooter,
@@ -115,6 +125,8 @@ export function RideView({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  // Retry answered 409 surge_changed: the price-changed sheet (null = closed).
+  const [surgeChange, setSurgeChange] = useState<SurgeChange | null>(null);
   const [tipOpen, setTipOpen] = useState(false);
   const [tipSent, setTipSent] = useState<TipResponse | null>(null);
   // A 409 already_tipped: the ride carries a tip this view hasn't seen yet.
@@ -135,6 +147,81 @@ export function RideView({
     (ride.state === "accepted" ||
       ride.state === "driver_arrived" ||
       ride.state === "in_progress");
+
+  /**
+   * 409 surge_changed on retry: nothing was created. The sheet compares the
+   * total the rider was last shown with a fresh estimate of the same trip
+   * and service; without one (estimate failed, service gone, or the zone
+   * moved again) the comparison is hidden and only the multiplier shown.
+   */
+  const onRetrySurgeChanged = async (
+    previous: number,
+    previousTotal: number | null,
+    reported: number | null,
+  ) => {
+    if (reported === null) {
+      setSurgeChange(null);
+      setRetryError(t("booking.errors.generic"));
+      return;
+    }
+    let nextTotal: number | null = null;
+    let zone: string | null = null;
+    try {
+      const refreshed = await estimateRide({
+        pickup: ride.pickup,
+        destination: ride.destination,
+        stops: ride.stops,
+      });
+      zone = refreshed.surgeZoneName;
+      if (refreshed.surgeMultiplier === reported) {
+        nextTotal =
+          refreshed.options.find(
+            (item) => item.serviceTypeId === ride.serviceTypeId,
+          )?.estimate.components.total ?? null;
+      }
+    } catch {
+      nextTotal = null;
+    }
+    setSurgeChange({
+      previous,
+      next: reported,
+      zone,
+      serviceName: name,
+      currency: ride.estimate.components.currency,
+      previousTotal,
+      nextTotal,
+    });
+  };
+
+  /**
+   * "Try again" (no sheet) expects the ride's locked multiplier; "Confirm"
+   * on the sheet expects the multiplier it shows (PRC-02).
+   */
+  const retry = async (change: SurgeChange | null) => {
+    const expected = change ? change.next : ride.surgeMultiplier;
+    const shownTotal = change
+      ? change.nextTotal
+      : ride.estimate.components.total;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      await facade.retry(expected);
+      setSurgeChange(null);
+    } catch (error) {
+      if (rideErrorCode(error) === "surge_changed") {
+        await onRetrySurgeChanged(
+          expected,
+          shownTotal,
+          rideErrorNumber(error, "surgeMultiplier"),
+        );
+      } else {
+        setSurgeChange(null);
+        setRetryError(rideErrorMessage(error, t));
+      }
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   const openCancel = () => setCancelOpen(true);
   const done = () => {
@@ -385,19 +472,20 @@ export function RideView({
           />
           <PrimaryButton
             label={t("ride.tryAgain")}
-            loading={retrying}
-            onPress={() => {
-              setRetrying(true);
-              setRetryError(null);
-              facade
-                .retry()
-                .catch((error) => setRetryError(rideErrorMessage(error, t)))
-                .finally(() => setRetrying(false));
-            }}
+            loading={retrying && !surgeChange}
+            onPress={() => void retry(null)}
             style={styles.flex2}
             testID="ride-retry"
           />
         </View>
+        <SurgeChangedSheet
+          change={surgeChange}
+          confirming={retrying}
+          onConfirm={() => {
+            if (surgeChange) void retry(surgeChange);
+          }}
+          onBack={() => setSurgeChange(null)}
+        />
       </BottomSheet>
     );
   } else if (ride.state === "accepted" && driver) {

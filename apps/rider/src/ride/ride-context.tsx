@@ -72,7 +72,11 @@ export interface ActiveRideValue {
   driverStream: "ok" | "lost" | null;
   socketStatus: SocketStatus;
   book: (request: BookRideRequest) => Promise<Ride>;
-  retry: () => Promise<Ride>;
+  /**
+   * A new ride for the `no_driver_found` one, expecting
+   * `expectedSurgeMultiplier` (default: the shown ride's locked multiplier).
+   */
+  retry: (expectedSurgeMultiplier?: number) => Promise<Ride>;
   cancel: (reason: RiderCancelReason, note?: string) => Promise<Ride>;
   changeRoute: (route: { destination: Place; stops: Place[] }) => Promise<Ride>;
   /** Opens a ride by id (push tap) — becomes the ride on screen. */
@@ -256,13 +260,19 @@ export function RideProvider({
     [apply],
   );
 
-  const retry = useCallback(async () => {
-    const shown = current.current;
-    if (!shown) throw new Error("No ride to retry");
-    const next = await retryRide(shown.id);
-    apply(next, true);
-    return next;
-  }, [apply]);
+  const retry = useCallback<ActiveRideValue["retry"]>(
+    async (expectedSurgeMultiplier) => {
+      const shown = current.current;
+      if (!shown) throw new Error("No ride to retry");
+      const next = await retryRide(
+        shown.id,
+        expectedSurgeMultiplier ?? shown.surgeMultiplier,
+      );
+      apply(next, true);
+      return next;
+    },
+    [apply],
+  );
 
   const cancel = useCallback<ActiveRideValue["cancel"]>(
     async (reason, note) => {

@@ -3,7 +3,8 @@
  * screen against contract-shaped mocks: GET /rides/active resync, rider
  * realtime frames on a fake socket, and every state's sheet — finding,
  * accepted, arrived (countdown), in progress, completed (stored fare),
- * no driver found + retry, driver cancel → automatic follow of the
+ * no driver found + retry (expecting the locked surge; 409 surge_changed
+ * → the price-changed sheet), driver cancel → automatic follow of the
  * re-dispatched ride, rider no-show fee, rider cancel free vs fee, the
  * connection-lost banner and reconnect resync.
  */
@@ -28,6 +29,7 @@ import {
   RIDE_ID,
   ride,
   sampleDriver,
+  surgeEstimate,
 } from "../../../test-utils/ride-fixtures";
 import HomeScreen from "../../home-screen";
 
@@ -280,9 +282,176 @@ describe("ride flow (UC-R-05…07)", () => {
     );
     await fireEvent.press(screen.getByTestId("ride-retry"));
     expect(await screen.findByText("Finding your driver")).toBeOnTheScreen();
+    // PRC-02: every retry expects the multiplier the ride was locked at.
     expect(
-      api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/retry`),
-    ).toHaveLength(2);
+      api
+        .callsTo("POST", `/api/v1/rides/${RIDE_ID}/retry`)
+        .map((call) => call.body),
+    ).toEqual([{ expectedSurgeMultiplier: 1 }, { expectedSurgeMultiplier: 1 }]);
+  });
+
+  describe("retry when the surge moved (PRC-02, 409 surge_changed)", () => {
+    const RETRY = `POST /api/v1/rides/${RIDE_ID}/retry`;
+    const ESTIMATE = "POST /api/v1/rides/estimate";
+    /** A no-driver ride that was locked (and estimated) at 1.5×. */
+    const surgedRide = (overrides = {}) =>
+      ride({
+        surgeMultiplier: 1.5,
+        estimate: {
+          distanceMeters: 4200,
+          durationSeconds: 720,
+          approximate: false,
+          components: components({
+            surgeMultiplier: 1.5,
+            surgeAmount: 11000,
+            total: 33000,
+          }),
+        },
+        ...overrides,
+      });
+    /** The backend's ErrorResponse for 409 surge_changed. */
+    const surgeChanged = (current: number) => ({
+      status: 409,
+      body: {
+        timestamp: "2026-10-13T10:00:00Z",
+        status: 409,
+        error: "Conflict",
+        message: "The surge multiplier has changed; please review the new price",
+        code: "surge_changed",
+        details: { surgeMultiplier: current },
+      },
+    });
+
+    async function noDriverFound() {
+      const socket = await connect();
+      await send(socket, {
+        type: "ride.state",
+        ride: surgedRide({ state: "no_driver_found" }),
+      });
+      expect(await screen.findByText("No driver available")).toBeOnTheScreen();
+      expect(screen.getByText(/SYP 33,000/)).toBeOnTheScreen();
+    }
+
+    function retryBodies(api: ReturnType<typeof mockApi>) {
+      return api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/retry`).map(
+        (call) => (call.body as { expectedSurgeMultiplier: number })
+          .expectedSurgeMultiplier,
+      );
+    }
+
+    it("shows the price-changed sheet and confirms at the new multiplier", async () => {
+      const api = mockApi({
+        [ACTIVE]: { status: 200, body: surgedRide({ state: "offering" }) },
+        [ESTIMATE]: { status: 200, body: surgeEstimate(2) },
+        [RETRY]: [
+          surgeChanged(2),
+          {
+            status: 201,
+            body: ride({ id: NEW_RIDE_ID, retryOfRideId: RIDE_ID, surgeMultiplier: 2 }),
+          },
+        ],
+      });
+      await renderHome();
+      await noDriverFound();
+
+      await fireEvent.press(screen.getByTestId("ride-retry"));
+      expect(await screen.findByTestId("surge-changed-sheet")).toBeOnTheScreen();
+      expect(retryBodies(api)).toEqual([1.5]);
+      // The same trip is re-estimated for the comparison.
+      expect(api.callsTo("POST", "/api/v1/rides/estimate")[0].body).toEqual({
+        pickup: ride().pickup,
+        destination: ride().destination,
+        stops: [],
+      });
+      expect(screen.getByTestId("surge-changed-title")).toHaveTextContent(
+        "The price just went up",
+      );
+      expect(screen.getByTestId("surge-changed-body")).toHaveTextContent(
+        /Fares are now 2\.0× instead of 1\.5×\./,
+      );
+      expect(screen.getByText("Economy · before")).toBeOnTheScreen();
+      expect(screen.getByTestId("surge-changed-before")).toHaveTextContent("SYP 33,000");
+      expect(screen.getByTestId("surge-changed-now")).toHaveTextContent("SYP 44,000");
+      expect(screen.getByTestId("surge-changed-confirm")).toHaveTextContent(
+        "Confirm at 2.0×",
+      );
+      expect(screen.queryByTestId("ride-retry-error")).toBeNull();
+
+      await fireEvent.press(screen.getByTestId("surge-changed-confirm"));
+      expect(await screen.findByText("Finding your driver")).toBeOnTheScreen();
+      expect(screen.queryByTestId("surge-changed-sheet")).toBeNull();
+      expect(retryBodies(api)).toEqual([1.5, 2]);
+    });
+
+    it("repeats the sheet with the newer value on a second 409", async () => {
+      const api = mockApi({
+        [ACTIVE]: { status: 200, body: surgedRide({ state: "offering" }) },
+        [ESTIMATE]: [
+          { status: 200, body: surgeEstimate(2) },
+          { status: 200, body: surgeEstimate(2.5) },
+        ],
+        [RETRY]: [
+          surgeChanged(2),
+          surgeChanged(2.5),
+          {
+            status: 201,
+            body: ride({ id: NEW_RIDE_ID, retryOfRideId: RIDE_ID, surgeMultiplier: 2.5 }),
+          },
+        ],
+      });
+      await renderHome();
+      await noDriverFound();
+
+      await fireEvent.press(screen.getByTestId("ride-retry"));
+      await fireEvent.press(await screen.findByTestId("surge-changed-confirm"));
+      await waitFor(() =>
+        expect(screen.getByTestId("surge-changed-confirm")).toHaveTextContent(
+          "Confirm at 2.5×",
+        ),
+      );
+      expect(screen.getByTestId("surge-changed-body")).toHaveTextContent(
+        /Fares are now 2\.5× instead of 2\.0×\./,
+      );
+      expect(screen.getByTestId("surge-changed-before")).toHaveTextContent("SYP 44,000");
+      expect(screen.getByTestId("surge-changed-now")).toHaveTextContent("SYP 55,000");
+
+      await fireEvent.press(screen.getByTestId("surge-changed-confirm"));
+      expect(await screen.findByText("Finding your driver")).toBeOnTheScreen();
+      expect(retryBodies(api)).toEqual([1.5, 2, 2.5]);
+    });
+
+    it("goes back to the no-driver screen, hiding the comparison when the re-estimate fails", async () => {
+      const api = mockApi({
+        [ACTIVE]: { status: 200, body: surgedRide({ state: "offering" }) },
+        [ESTIMATE]: {
+          status: 500,
+          body: { status: 500, error: "Internal Server Error", message: "Boom" },
+        },
+        [RETRY]: surgeChanged(2),
+      });
+      await renderHome();
+      await noDriverFound();
+
+      await fireEvent.press(screen.getByTestId("ride-retry"));
+      expect(await screen.findByTestId("surge-changed-sheet")).toBeOnTheScreen();
+      expect(screen.queryByTestId("surge-changed-compare")).toBeNull();
+      // No zone without an estimate: the "nearby" wording.
+      expect(screen.getByTestId("surge-changed-body")).toHaveTextContent(
+        "Demand nearby rose while you were choosing. Fares are now 2.0× instead of 1.5×. Nothing was booked yet.",
+      );
+      expect(screen.getByTestId("surge-changed-confirm")).toHaveTextContent(
+        "Confirm at 2.0×",
+      );
+
+      await fireEvent.press(screen.getByTestId("surge-changed-back"));
+      await waitFor(() =>
+        expect(screen.queryByTestId("surge-changed-sheet")).toBeNull(),
+      );
+      expect(screen.getByTestId("ride-no-driver")).toBeOnTheScreen();
+      expect(screen.getByText("No driver available")).toBeOnTheScreen();
+      expect(screen.queryByTestId("ride-retry-error")).toBeNull();
+      expect(retryBodies(api)).toEqual([1.5]);
+    });
   });
 
   it("closes a no-driver ride back to Where to?", async () => {
