@@ -14,6 +14,7 @@ import { todayIso } from "../onboarding/dates";
 import { stepAnchor, weekStartIso } from "../money/periods";
 import {
   BALANCE,
+  balanceEntryFixture,
   balanceViewFixture,
   blockedBalanceView,
   commissionFixture,
@@ -30,6 +31,8 @@ import { renderMoneyScreens } from "../test-utils/money-harness";
 import { NON_WESTERN_DIGITS, simulateArabicIndicIcu } from "../test-utils/intl";
 import { screen } from "../test-utils/ride-harness";
 import type { MockResponse } from "../test-utils/contract";
+import * as regionModule from "../region/RegionProvider";
+import type { RegionContextValue } from "../region/RegionProvider";
 
 const ok = (body: unknown): MockResponse => ({ status: 200, body });
 const WEEK_NOW = () => summaryRoute("weekly", todayIso());
@@ -42,6 +45,34 @@ function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
     ),
     [BALANCE]: ok(balanceViewFixture()),
   };
+}
+
+/** Two currencies: the operating SYP entry and a USD one. */
+function twoCurrencyView(syp: "ok" | "blocked", usd: "ok" | "blocked") {
+  return balanceViewFixture({
+    balances: [
+      balanceEntryFixture({
+        currency: "USD",
+        balance: usd === "blocked" ? -60 : -10,
+        floor: -50,
+        status: usd,
+      }),
+      balanceEntryFixture({
+        balance: syp === "blocked" ? -520000 : -50000,
+        status: syp,
+      }),
+    ],
+  });
+}
+
+/** Resolves the operating region to SYP for the money facade. */
+function resolveRegionSyp() {
+  return jest.spyOn(regionModule, "useOptionalRegion").mockReturnValue({
+    status: "resolved",
+    config: { currency: "SYP" } as RegionContextValue["config"],
+    retry: () => {},
+    openLocationSettings: () => {},
+  });
 }
 
 describe("earnings screen (UC-D-15)", () => {
@@ -324,6 +355,32 @@ describe("earnings screen (UC-D-15)", () => {
     expect(chip).toHaveTextContent("−SYP 520,000", { exact: false });
     fireEvent.press(screen.getByTestId("earnings-balance-link"));
     expect(await screen.findByTestId("balance-screen")).toBeTruthy();
+  });
+
+  it("flags no floor for a non-operating currency while the region is unresolved (R-W4)", async () => {
+    await renderMoneyScreens(
+      { ...baseRoutes(), [BALANCE]: ok(twoCurrencyView("ok", "blocked")) },
+      { initialUrl: "/earnings" },
+    );
+    expect(
+      await screen.findByTestId("earnings-balance-amount"),
+    ).toHaveTextContent("USD 60", { exact: false });
+    expect(screen.queryByTestId("earnings-balance-chip")).toBeNull();
+  });
+
+  it("flags the operating currency's blocked floor (R-W4)", async () => {
+    const spy = resolveRegionSyp();
+    try {
+      await renderMoneyScreens(
+        { ...baseRoutes(), [BALANCE]: ok(twoCurrencyView("blocked", "ok")) },
+        { initialUrl: "/earnings" },
+      );
+      expect(
+        await screen.findByTestId("earnings-balance-chip"),
+      ).toHaveTextContent("−SYP 520,000", { exact: false });
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("renders in Arabic with Western digits and ل.س", async () => {

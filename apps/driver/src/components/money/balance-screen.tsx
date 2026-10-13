@@ -152,7 +152,11 @@ export function BalanceScreen() {
 
   const view = money?.balance ?? null;
   // The operating currency leads (W16); other currencies list below it.
-  const main = money?.alert ?? money?.entry ?? view?.balances[0] ?? null;
+  // Only the operating entry or the server-driven alert carries floor UI —
+  // the balances[0] fallback (region unresolved) is a neutral amount.
+  const floorEntry = money?.alert ?? money?.entry ?? null;
+  const main = floorEntry ?? view?.balances[0] ?? null;
+  const floorStatus = floorEntry?.status ?? "ok";
   const others = view?.balances.filter((entry) => entry !== main) ?? [];
   const debt = !!main && main.balance < 0;
 
@@ -201,8 +205,12 @@ export function BalanceScreen() {
         />
       ))}
 
-      {main?.status === "blocked" ? <FloorBlockedCard entry={main} /> : null}
-      {main?.status === "warning" ? <FloorWarningBanner entry={main} /> : null}
+      {floorEntry && floorStatus === "blocked" ? (
+        <FloorBlockedCard entry={floorEntry} />
+      ) : null}
+      {floorEntry && floorStatus === "warning" ? (
+        <FloorWarningBanner entry={floorEntry} />
+      ) : null}
 
       <AppText variant="rowTitle" weight="800" style={styles.heading}>
         {t("balance.activity")}
@@ -251,7 +259,7 @@ export function BalanceScreen() {
       ) : null}
 
       {showSteps ? <SettleSteps testID="balance-settle-steps" /> : null}
-      {main?.status !== "blocked" ? (
+      {floorStatus !== "blocked" ? (
         <OutlineButton
           title={t("balance.howToSettle")}
           onPress={() => setShowSteps((previous) => !previous)}

@@ -384,8 +384,11 @@ export function EarningsScreen() {
       : localRange(period, anchor);
   const nextDisabled = samePeriod(period, anchor, todayIso());
   const commission = money?.balance?.commission ?? null;
-  const balanceEntry =
-    money?.alert ?? money?.entry ?? money?.balance?.balances[0] ?? null;
+  // Floor status UI only for the operating entry or the server-driven
+  // alert; the balances[0] fallback (region unresolved) stays neutral.
+  const floorEntry = money?.alert ?? money?.entry ?? null;
+  const balanceEntry = floorEntry ?? money?.balance?.balances[0] ?? null;
+  const floorStatus = floorEntry?.status ?? "ok";
 
   return (
     <Screen testID="earnings-screen">
@@ -439,14 +442,14 @@ export function EarningsScreen() {
           title={t("balance.title")}
           chevron
           trailing={
-            balanceEntry.status !== "ok" ? (
+            floorStatus !== "ok" ? (
               <StatusChip
                 label={formatSignedMoney(
                   balanceEntry.balance,
                   balanceEntry.currency,
                   language,
                 )}
-                tone={balanceEntry.status === "blocked" ? "danger" : "warning"}
+                tone={floorStatus === "blocked" ? "danger" : "warning"}
                 testID="earnings-balance-chip"
               />
             ) : (

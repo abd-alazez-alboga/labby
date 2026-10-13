@@ -46,7 +46,9 @@ type Load =
  * UC-D-15 — the per-trip earnings breakdown shown after the payment of a
  * completed ride settles (artboard "Driver Trip earnings"): the dark
  * collected/credited card, fare / commission / tip lines, the signed
- * balance change, the running balance, and the cash-debt explainer. The
+ * balance change (net minus any collected cash carried fee, passed on to
+ * the earlier ride's driver), the running balance, and the cash-debt
+ * explainer. The
  * itemization comes from `GET /driver/earnings` (COM-01) — never computed.
  */
 export function TripEarningsScreen({
@@ -109,6 +111,14 @@ export function TripEarningsScreen({
   const cashDues = cash
     ? (ride.carriedDues ?? []).filter((due) => due.method === "cash")
     : [];
+  // At cash-confirm the backend posts a `due_collection` debit (−fee) on
+  // this ride for every COLLECTED cash due — the fee is passed on to the
+  // earlier ride's driver — which `TripEarning.net` leaves out. Summed in
+  // integer minor units.
+  const passedOnMinor = cashDues
+    .filter((due) => due.status === "collected")
+    .reduce((sum, due) => sum + Math.round(due.amount * 100), 0);
+  const passedOn = passedOnMinor / 100;
   const cardAmount = cash
     ? (ride.cashDue ?? fareTotal)
     : (earning ? earning.net : null);
@@ -199,6 +209,13 @@ export function TripEarningsScreen({
                   testID={`earning-line-carried-${due.dueId}`}
                 />
               ))}
+              {passedOnMinor > 0 ? (
+                <FareLine
+                  label={t("tripEarnings.carriedPassedOn")}
+                  value={formatSignedMoney(-passedOn, currency, language)}
+                  testID="earning-line-carried-passed-on"
+                />
+              ) : null}
               <FareLine
                 label={t("tripEarnings.commission", {
                   rate: isolateDigits(
@@ -228,7 +245,12 @@ export function TripEarningsScreen({
               <View style={styles.netLine}>
                 <FareLine
                   label={t("tripEarnings.balanceChange")}
-                  value={formatSignedMoney(earning.net, currency, language, { alwaysSign: true })}
+                  value={formatSignedMoney(
+                    (Math.round(earning.net * 100) - passedOnMinor) / 100,
+                    currency,
+                    language,
+                    { alwaysSign: true },
+                  )}
                   testID="earning-line-net"
                 />
               </View>

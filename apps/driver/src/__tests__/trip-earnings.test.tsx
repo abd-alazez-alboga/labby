@@ -332,7 +332,7 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
             carriedDues: [{ ...due, status: "collected" }],
           }),
         ),
-        [EARNINGS]: ok(earningPage([tripEarningFixture()])),
+        [EARNINGS]: ok(earningPage([tripEarningFixture({ tip: null, net: -7000 })])),
         [BALANCE]: ok(balanceViewFixture()),
       },
       { money: true },
@@ -362,6 +362,47 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     expect(
       await screen.findByTestId(`earning-line-carried-${due.dueId}`),
     ).toHaveTextContent("Carried fee from an earlier rideSYP 10,000");
+    // R-W3: the collected cash fee is debited on this ride (due_collection)
+    // and passed on — the balance change is −commission −fee.
+    expect(
+      screen.getByTestId("earning-line-carried-passed-on"),
+    ).toHaveTextContent("Carried fee passed on to the earlier ride's driver−SYP 10,000");
+    expect(screen.getByTestId("earning-line-net")).toHaveTextContent(
+      "Balance change−SYP 17,000",
+    );
+  });
+
+  it("a wallet-taken carried fee is never debited on the driver's ride (R-W3)", async () => {
+    const walletDue = {
+      dueId: "d0000000-0000-4000-8000-000000000004",
+      sourceRideId: "5b1d3f0e-1111-4c4c-9a9a-0000000000cc",
+      amount: 10000,
+      currency: "SYP",
+      method: "wallet" as const,
+      status: "collected" as const,
+    };
+    const contract = await renderDriverApp(
+      {
+        [ACTIVE_RIDE]: ok(completedRide({ carriedDues: [walletDue] })),
+        [CASH]: ok(
+          completedRide({ paymentStatus: "paid_cash", carriedDues: [walletDue] }),
+        ),
+        [EARNINGS]: ok(earningPage([tripEarningFixture({ tip: null, net: -7000 })])),
+        [BALANCE]: ok(balanceViewFixture()),
+      },
+      { money: true },
+    );
+    await goLive();
+    await waitForResync(contract);
+    fireEvent.press(await screen.findByTestId("cash-received"));
+
+    expect(await screen.findByTestId("earning-line-net")).toHaveTextContent(
+      "Balance change−SYP 7,000",
+    );
+    expect(screen.queryByTestId("earning-line-carried-passed-on")).toBeNull();
+    expect(
+      screen.queryByTestId(`earning-line-carried-${walletDue.dueId}`),
+    ).toBeNull();
   });
 
   it("wallet covered the whole fare but a cash fee is owed: collect just the fee (rides-v1 B)", async () => {
@@ -433,6 +474,10 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     expect(
       screen.queryByTestId(`earning-line-carried-${walletDue.dueId}`),
     ).toBeNull();
+    // Only the collected CASH fee is passed on; the wallet one never is.
+    expect(
+      screen.getByTestId("earning-line-carried-passed-on"),
+    ).toHaveTextContent("−SYP 5,000", { exact: false });
   });
 
   it("keeps Western digits on Complete and the breakdown where plain 'ar' would not (W18)", async () => {

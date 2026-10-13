@@ -713,6 +713,7 @@
     "commission": "Commission · {{rate}}",
     "tipFrom": "Tip from {{name}} · all yours",
     "fee": "Cancellation fee · all yours",
+    "carriedPassedOn": "Carried fee passed on to the earlier ride's driver",
     "balanceChange": "Balance change",
     "balanceNow": "Balance now",
     "cashExplainer": "On cash rides you keep the fare and owe Labby the commission. It adds up as debt on your balance and is settled at the office.",

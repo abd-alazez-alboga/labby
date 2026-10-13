@@ -26,6 +26,8 @@ import { renderMoneyScreens } from "../test-utils/money-harness";
 import { NON_WESTERN_DIGITS, simulateArabicIndicIcu } from "../test-utils/intl";
 import { screen } from "../test-utils/ride-harness";
 import { colors } from "../theme/tokens";
+import * as regionModule from "../region/RegionProvider";
+import type { RegionContextValue } from "../region/RegionProvider";
 import type { MockResponse } from "../test-utils/contract";
 
 const ok = (body: unknown): MockResponse => ({ status: 200, body });
@@ -41,6 +43,34 @@ function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
       ]),
     ),
   };
+}
+
+/** Two currencies: the operating SYP entry and a USD one. */
+function twoCurrencyView(syp: "ok" | "blocked", usd: "ok" | "blocked") {
+  return balanceViewFixture({
+    balances: [
+      balanceEntryFixture({
+        currency: "USD",
+        balance: usd === "blocked" ? -60 : -10,
+        floor: -50,
+        status: usd,
+      }),
+      balanceEntryFixture({
+        balance: syp === "blocked" ? -520000 : -50000,
+        status: syp,
+      }),
+    ],
+  });
+}
+
+/** Resolves the operating region to SYP for the money facade. */
+function resolveRegionSyp() {
+  return jest.spyOn(regionModule, "useOptionalRegion").mockReturnValue({
+    status: "resolved",
+    config: { currency: "SYP" } as RegionContextValue["config"],
+    retry: () => {},
+    openLocationSettings: () => {},
+  });
 }
 
 describe("balance screen (UC-D-16)", () => {
@@ -130,6 +160,42 @@ describe("balance screen (UC-D-16)", () => {
     // The card never links to itself and carries the steps already.
     expect(screen.queryByTestId("floor-blocked-see-balance")).toBeNull();
     expect(screen.queryByTestId("balance-how-to-settle")).toBeNull();
+  });
+
+  it("never shows floor UI for a non-operating currency while the region is unresolved (R-W4)", async () => {
+    await renderMoneyScreens(
+      { ...baseRoutes(), [BALANCE]: ok(twoCurrencyView("ok", "blocked")) },
+      { initialUrl: "/balance" },
+    );
+    // The balances[0] fallback (USD) shows as a neutral amount.
+    expect(await screen.findByTestId("balance-amount")).toHaveTextContent(
+      "USD 60",
+      { exact: false },
+    );
+    expect(screen.queryByTestId("floor-blocked")).toBeNull();
+    expect(screen.queryByTestId("floor-warning")).toBeNull();
+    expect(screen.getByTestId("balance-how-to-settle")).toBeTruthy();
+  });
+
+  it("shows the red card for the operating currency's blocked floor (R-W4)", async () => {
+    const spy = resolveRegionSyp();
+    try {
+      await renderMoneyScreens(
+        { ...baseRoutes(), [BALANCE]: ok(twoCurrencyView("blocked", "ok")) },
+        { initialUrl: "/balance" },
+      );
+      expect(await screen.findByTestId("floor-blocked")).toHaveTextContent(
+        "SYP 520,000",
+        { exact: false },
+      );
+      expect(screen.getByTestId("balance-amount")).toHaveTextContent(
+        "SYP 520,000",
+        { exact: false },
+      );
+      expect(screen.getByTestId("balance-entry-USD")).toBeTruthy();
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("derives the typed recent activity from the per-trip itemization", async () => {
