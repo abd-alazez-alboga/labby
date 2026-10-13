@@ -145,6 +145,11 @@ labby:
     # completion computes a missing week rate itself, so the job only pre-warms the rows.
     floor-warning-margin: ${MONEY_FLOOR_WARNING_MARGIN:10}
     commission-recalc-cron: ${MONEY_COMMISSION_RECALC_CRON:0 10 0 * * MON}
+  surge:
+    # PRC-02 surge cycle: every zone of an active region gets demand (open requests) / supply (idle
+    # online drivers) -> threshold step, capped; a manual override (UC-A-09) applies at the next
+    # cycle. Spring cron (second minute hour day month weekday); "-" disables.
+    cycle-cron: ${SURGE_CYCLE_CRON:0 */2 * * * *}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

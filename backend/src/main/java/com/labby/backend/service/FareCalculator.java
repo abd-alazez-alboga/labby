@@ -19,7 +19,8 @@ import org.springframework.stereotype.Component;
  * <ol>
  *   <li>base + per-km × km + per-min × min (each component rounded half-up to 2 decimals);
  *   <li>surcharge = percent × that subtotal;
- *   <li>surge uplift = (subtotal + surcharge) × (multiplier − 1) — 0 until M9;
+ *   <li>surge uplift = (subtotal + surcharge) × (multiplier − 1), the pickup-zone multiplier locked
+ *       at request (PRC-02);
  *   <li>wait charge + pickup-distance fee (M8, computed by {@code RideExtrasCalculator}; 0 in
  *       estimates) — discounts stay 0 until M13;
  *   <li>minimum-fare top-up so the total never falls below the service type's minimum.

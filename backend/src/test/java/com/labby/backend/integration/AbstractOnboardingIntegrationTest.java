@@ -79,6 +79,7 @@ abstract class AbstractOnboardingIntegrationTest extends AbstractAuthIntegration
     jdbcTemplate.update("DELETE FROM driver_application_events");
     jdbcTemplate.update("DELETE FROM driver_profiles");
     jdbcTemplate.update("DELETE FROM service_types");
+    jdbcTemplate.update("DELETE FROM surge_zones");
     jdbcTemplate.update("DELETE FROM regions");
     // Custom (non-system) RBAC roles some tests create, with their holders.
     jdbcTemplate.update(

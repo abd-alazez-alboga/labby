@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * An admin-drawn surge zone (PRC-02, UC-A-08). Override fields belong to the UC-A-09 flow (M9) and
- * stay null until then.
+ * An admin-drawn surge zone (PRC-02, UC-A-08). The override fields reflect the UC-A-09 manual
+ * override (null = automatic); the live multipliers are in the region's surge state.
  */
 public record SurgeZoneDto(
     UUID id,

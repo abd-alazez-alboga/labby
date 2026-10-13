@@ -6,8 +6,8 @@ info:
     Contract-first spec for milestone M4. The admin UI (M4-T3) and the apps (M4-T4) build
     against this document; the backend (M4-T2) must implement it exactly — on conflict after
     T2 lands, the implementation is the truth. SRS: ADM-01, PRC-01 (config side), PRC-02
-    (zones/thresholds config; the multiplier cycle is M9), PRC-03 (config side), SD-01;
-    UC-A-05..08 (UC-A-09's override endpoint arrives with M9). Geometry: polygons travel as
+    (zones/thresholds config; amended at M9-T1 with the surge cycle state, the manual override
+    and the live surge state), PRC-03 (config side), SD-01; UC-A-05..09. Geometry: polygons travel as
     GeoJSON (lng,lat coordinate order, SRID 4326) and are stored in PostGIS. A region is a
     DRAFT until its mandatory bundle is complete; activation with missing config -> 409
     (UC-A-05 E1). Config edits apply to NEW rides only (UC-A-06) — nothing here mutates
@@ -303,7 +303,8 @@ paths:
       x-required-permission: 'pricing:edit'
       description: >
         The polygon must lie within the region's boundary (M4-T2 rule) -> otherwise 409.
-        Zones go live with the next surge cycle once M9 computes multipliers.
+        A new zone surges from the next surge cycle on (its multiplier is 1.0 until then).
+        Editing a zone never touches its override nor its cycle state.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -354,6 +355,74 @@ paths:
       responses:
         '204': { description: Deleted }
         '404': { description: Unknown surgeZoneId }
+
+  /api/v1/admin/surge-zones/{surgeZoneId}/override:
+    put:
+      tags: [SurgeZones]
+      summary: Set a zone's manual multiplier (UC-A-09)
+      x-required-permission: 'pricing:edit'
+      description: >
+        1.00 <= multiplier <= the zone's effective cap (the lower of the zone's multiplierCap
+        and the region's surgeCap, when set), at most 2 decimals. Takes effect at the NEXT surge
+        cycle (until then `overridePending` is true in the surge state) and wins over the
+        computed value until reset. Audited `surge_zone.override_set` (before/after
+        `overrideMultiplier`).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: surgeZoneId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurgeOverrideRequest' }
+      responses:
+        '200':
+          description: The zone, override set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurgeZone' }
+        '400': { description: 'Validation (below 1.00, more than 2 decimals) or code `override_above_cap` (`details.cap`)' }
+        '404': { description: Unknown surgeZoneId }
+    delete:
+      tags: [SurgeZones]
+      summary: Reset a zone to automatic (UC-A-09)
+      x-required-permission: 'pricing:edit'
+      description: >
+        Takes effect at the NEXT surge cycle. Audited `surge_zone.override_reset`; resetting a
+        zone that has no override changes nothing (no audit row).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: surgeZoneId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Reset (or already automatic) }
+        '404': { description: Unknown surgeZoneId }
+
+  /api/v1/admin/regions/{regionId}/surge-state:
+    get:
+      tags: [SurgeZones]
+      summary: A region's live surge state (UC-A-09, PRC-02)
+      x-required-permission: 'pricing:view'
+      description: >
+        **Surge cycle (PRC-02).** Every `SURGE_CYCLE_CRON` (default every 2 minutes), for every
+        zone of an ACTIVE region: demand = open requests (`requested` / `offering`) whose pickup
+        the polygon covers; supply = idle online drivers whose latest position it covers, by the
+        dispatch rules (rides-v1: approved, online, account + driver role active, fresh stream,
+        no open offer, no assigned ride) and not blocked by the balance floor (COM-03). Rule:
+        demand 0 -> 1.0; demand > 0 with supply 0 -> the top step; otherwise the highest step
+        whose `ratio` demand/supply reaches (inclusive) — none -> 1.0; capped at the lower of
+        zone cap and region cap. `currentMultiplier` (what pricing reads) = the override when set,
+        else the computed value. Zones of draft regions keep their last state. Each zone is
+        processed under a row lock, so several instances may run the cycle.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Cap, next cycle and every zone's state, name-sorted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurgeState' }
+        '404': { description: Unknown regionId }
 
   /api/v1/regions/resolve:
     get:
@@ -641,8 +710,44 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ThresholdStep' }
         multiplierCap: { type: [number, 'null'], minimum: 1, description: Per-zone cap; the region cap also applies }
-        overrideMultiplier: { type: [number, 'null'], description: Manual override (UC-A-09, set in M9); null = automatic }
+        overrideMultiplier: { type: [number, 'null'], description: Manual override (UC-A-09); null = automatic }
         overrideSetAt: { type: [string, 'null'], format: date-time }
+    SurgeOverrideRequest:
+      type: object
+      required: [multiplier]
+      properties:
+        multiplier: { type: number, minimum: 1, description: "At most 2 decimals; <= the zone's effective cap" }
+    SurgeState:
+      type: object
+      required: [regionId, surgeCap, nextCycleAt, zones]
+      properties:
+        regionId: { type: string, format: uuid }
+        surgeCap: { type: [number, 'null'], description: Region-wide cap (PRC-02) }
+        nextCycleAt: { type: [string, 'null'], format: date-time, description: When the next cycle runs; null when the cycle is disabled }
+        zones:
+          type: array
+          items: { $ref: '#/components/schemas/SurgeZoneState' }
+    SurgeZoneState:
+      type: object
+      required: [id, name, polygon, currentMultiplier, computedMultiplier, overrideMultiplier,
+                 overrideSetAt, overridePending, demandCount, supplyCount, computedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        polygon: { $ref: '#/components/schemas/GeoJsonPolygon' }
+        currentMultiplier: { type: number, description: What pricing reads now (as of the last cycle) }
+        computedMultiplier: { type: number, description: The capped step the last cycle reached }
+        overrideMultiplier: { type: [number, 'null'], description: null = automatic }
+        overrideSetAt: { type: [string, 'null'], format: date-time }
+        overridePending:
+          type: boolean
+          description: >
+            The last override change is not applied yet: an override is set but
+            currentMultiplier differs from it, or it was reset but currentMultiplier differs from
+            computedMultiplier. Clears at the next cycle.
+        demandCount: { type: integer, description: Open requests in the zone at the last cycle }
+        supplyCount: { type: integer, description: Idle online drivers in the zone at the last cycle }
+        computedAt: { type: [string, 'null'], format: date-time, description: The last cycle; null before the first }
     SurgeZoneUpsertRequest:
       type: object
       required: [name, polygon, thresholdSteps]

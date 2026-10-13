@@ -91,7 +91,8 @@ public class RiderRideServiceImpl implements RiderRideService {
     ridePricing.checkRoute(region, request.destination(), request.stops());
     RouteDto route = ridePricing.route(request.pickup(), request.stops(), request.destination());
     BigDecimal surcharge = ridePricing.surchargeNow(region);
-    BigDecimal surge = RidePricing.NO_SURGE;
+    RidePricing.PickupSurge pickupSurge = ridePricing.surgeAt(region, request.pickup());
+    BigDecimal surge = pickupSurge.multiplier();
     List<ServiceTypeEstimateDto> options =
         serviceTypeRepository.findByRegionIdAndEnabledTrueOrderByNameEnAsc(region.getId()).stream()
             .map(
@@ -108,6 +109,8 @@ public class RiderRideServiceImpl implements RiderRideService {
         region.getId(),
         region.getCurrency(),
         surge,
+        pickupSurge.active(),
+        pickupSurge.zoneName(),
         surcharge,
         new RouteSummaryDto(
             route.distanceMeters(),
@@ -244,7 +247,8 @@ public class RiderRideServiceImpl implements RiderRideService {
             rideAssembler.place(previous.getDestination(), previous.getDestinationLabel()),
             rideAssembler.stops(previous.getStops()),
             previous.getServiceTypeId(),
-            previous.getPaymentMethod());
+            previous.getPaymentMethod(),
+            null);
     Ride ride = createRide(userId, request, previous.getId());
     rideEvents.stateChanged(ride);
     return rideAssembler.view(ride, Audience.RIDER);
@@ -282,7 +286,11 @@ public class RiderRideServiceImpl implements RiderRideService {
         rideLifecycle.inRideLine(ride.getId()));
   }
 
-  /** Validates, prices and stores a new {@code requested} ride (booking and retry). */
+  /**
+   * Validates, prices and stores a new {@code requested} ride (booking and retry) with the pickup
+   * zone's current surge LOCKED on it (PRC-02); a retry has no expectation and re-locks the value
+   * of the moment (it is a new request, RIDE-08).
+   */
   private Ride createRide(UUID userId, BookRideRequestDto request, UUID retryOfRideId) {
     rideAccess.requireActiveRider(userId);
     Region region = ridePricing.regionOf(request.pickup());
@@ -302,7 +310,14 @@ public class RiderRideServiceImpl implements RiderRideService {
       throw activeRideExists();
     }
     BigDecimal surcharge = ridePricing.surchargeNow(region);
-    BigDecimal surge = RidePricing.NO_SURGE;
+    BigDecimal surge = ridePricing.surgeAt(region, request.pickup()).multiplier();
+    if (request.expectedSurgeMultiplier() != null
+        && request.expectedSurgeMultiplier().compareTo(surge) != 0) {
+      // PRC-02: never lock a multiplier the rider was not shown — re-confirm at the new value.
+      throw new ConflictException("The surge multiplier has changed; please review the new price")
+          .withCode("surge_changed")
+          .withDetail("surgeMultiplier", surge);
+    }
     RouteDto route = ridePricing.route(request.pickup(), request.stops(), request.destination());
     EstimateDto estimate =
         ridePricing.estimate(serviceType, region.getCurrency(), route, surcharge, surge);

@@ -23,9 +23,11 @@ import com.labby.backend.model.SurgeZone;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.SurgeZoneRepository;
 import com.labby.backend.service.AuditService;
+import com.labby.backend.service.SurgeCalculator;
 import com.labby.backend.service.SurgeZoneServiceImpl;
 import com.labby.backend.util.GeoJson;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,7 +57,12 @@ class SurgeZoneServiceImplTest {
   void setUp() {
     service =
         new SurgeZoneServiceImpl(
-            surgeZoneRepository, regionRepository, auditService, new ObjectMapper());
+            surgeZoneRepository,
+            regionRepository,
+            auditService,
+            new ObjectMapper(),
+            new SurgeCalculator(),
+            Clock.systemUTC());
   }
 
   private static GeoJsonPolygonDto geoSquare(

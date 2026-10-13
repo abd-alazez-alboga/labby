@@ -2,10 +2,12 @@ package com.labby.backend.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.labby.backend.dto.SurgeOverrideRequestDto;
 import com.labby.backend.dto.SurgeZoneDto;
 import com.labby.backend.dto.SurgeZoneUpsertRequestDto;
 import com.labby.backend.dto.ThresholdStepDto;
 import com.labby.backend.exception.ConflictException;
+import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Region;
@@ -13,6 +15,9 @@ import com.labby.backend.model.SurgeZone;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.SurgeZoneRepository;
 import com.labby.backend.util.GeoJson;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,7 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Surge-zone CRUD per UC-A-08: zones belong to exactly one region and must lie within its boundary
- * (ST_Covers); the override fields stay untouched until M9. Every mutation is audited (RBAC-05).
+ * (ST_Covers). The config upsert never touches the override or the cycle state (read-only on the
+ * entity); the UC-A-09 override is written by its own targeted update and only reaches pricing at
+ * the next surge cycle. Every mutation is audited (RBAC-05).
  */
 @Service
 @RequiredArgsConstructor
@@ -37,6 +44,8 @@ public class SurgeZoneServiceImpl implements SurgeZoneService {
   private final RegionRepository regionRepository;
   private final AuditService auditService;
   private final ObjectMapper objectMapper;
+  private final SurgeCalculator surgeCalculator;
+  private final Clock clock;
 
   @Override
   @Transactional(readOnly = true)
@@ -110,6 +119,50 @@ public class SurgeZoneServiceImpl implements SurgeZoneService {
         null);
   }
 
+  @Override
+  @Transactional
+  public SurgeZoneDto setOverride(
+      UUID actorUserId, UUID surgeZoneId, SurgeOverrideRequestDto request) {
+    SurgeZone zone = requireZone(surgeZoneId);
+    Region region = requireRegion(zone.getRegionId());
+    BigDecimal cap = surgeCalculator.effectiveCap(zone.getMultiplierCap(), region.getSurgeCap());
+    if (cap != null && request.multiplier().compareTo(cap) > 0) {
+      throw new InvalidRequestException(
+              "The override may not exceed the zone's surge cap of " + cap.toPlainString())
+          .withCode("override_above_cap")
+          .withDetail("cap", cap);
+    }
+    Map<String, Object> before = overrideSnapshot(zone.getOverrideMultiplier());
+    Instant now = clock.instant();
+    surgeZoneRepository.setOverride(surgeZoneId, request.multiplier(), actorUserId, now);
+    auditService.record(
+        actorUserId,
+        "surge_zone.override_set",
+        TARGET_TYPE_SURGE_ZONE,
+        surgeZoneId.toString(),
+        before,
+        overrideSnapshot(request.multiplier()));
+    return toDto(requireZone(surgeZoneId));
+  }
+
+  @Override
+  @Transactional
+  public void resetOverride(UUID actorUserId, UUID surgeZoneId) {
+    SurgeZone zone = requireZone(surgeZoneId);
+    if (zone.getOverrideMultiplier() == null) {
+      return;
+    }
+    Map<String, Object> before = overrideSnapshot(zone.getOverrideMultiplier());
+    surgeZoneRepository.clearOverride(surgeZoneId);
+    auditService.record(
+        actorUserId,
+        "surge_zone.override_reset",
+        TARGET_TYPE_SURGE_ZONE,
+        surgeZoneId.toString(),
+        before,
+        overrideSnapshot(null));
+  }
+
   private Region requireRegion(UUID regionId) {
     return regionRepository
         .findById(regionId)
@@ -154,6 +207,13 @@ public class SurgeZoneServiceImpl implements SurgeZoneService {
         zone.getMultiplierCap(),
         zone.getOverrideMultiplier(),
         zone.getOverrideSetAt() == null ? null : zone.getOverrideSetAt().atOffset(ZoneOffset.UTC));
+  }
+
+  /** UC-A-09 audit snapshot: the override (null = automatic). */
+  private static Map<String, Object> overrideSnapshot(BigDecimal overrideMultiplier) {
+    Map<String, Object> snapshot = new LinkedHashMap<>();
+    snapshot.put("overrideMultiplier", overrideMultiplier);
+    return snapshot;
   }
 
   /** Readable audit snapshot: the polygon in compact form (RBAC-05). */

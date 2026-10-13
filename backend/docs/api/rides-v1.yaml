@@ -10,7 +10,7 @@ info:
     (base/km/min/minimum, surcharge windows), PRC-04, RIDE-07 grace logic, USR-03 rider extras;
     UC-R-01..07/09, UC-D-06..10, UC-A-18. Out of M7: wallet and mixed payment, wait-time and
     pickup-distance CHARGES (computed as 0 until M8), cancellation-fee COLLECTION (M8), surge
-    values (multiplier fixed 1.0 until M9), promos (M8+), chat/dial/SOS (M10), ratings (M11).
+    values (the pickup zone's live multiplier since M9, PRC-02), promos (M8+), chat/dial/SOS (M10), ratings (M11).
 
 
     **State machine (RIDE-02).** `requested → offering → accepted → driver_arrived →
@@ -64,7 +64,10 @@ info:
     same region (422 `outside_region`); service type enabled in that region (422
     `service_type_unavailable`); payment method `cash` or — from M8 — `wallet` (payment
     application rules: money-v1.yaml); no other active ride (E4 → 409
-    `active_ride_exists`). The estimate is recomputed server-side at booking — the client's
+    `active_ride_exists`); when `expectedSurgeMultiplier` is sent and differs from the pickup
+    zone's current multiplier → 409 `surge_changed` with `details.surgeMultiplier` = the current
+    value (re-confirm, then book again; omitted = lock whatever is current). The estimate is
+    recomputed server-side at booking — the client's
     figure is never trusted — and stored with the ride; an `approximate` route (OSRM down,
     NFR-A3) is allowed and flagged.
 
@@ -74,11 +77,19 @@ info:
     window covering the request moment in the region's `timeZone`; start inclusive, end
     exclusive; overnight windows span midnight and belong to the day they start on; start = end
     covers that whole day; overlapping windows → HIGHEST percent, never summed), + surge uplift
-    = (subtotal + surcharge) × (multiplier − 1) (1.0 until M9, so 0), floored at the service
+    = (subtotal + surcharge) × (multiplier − 1), floored at the service
     type's `minimumFare` (the top-up is its own component). Money is rounded half-up to 2 decimals per component.
     Wait/pickup-fee components are 0 in M7. For `accept_distant_fee` riders the response
     carries the pickup-fee rule (threshold + per-km) so the app can show the potential range
     (UC-R-04 A3).
+
+
+    **Surge (PRC-02, M9).** The multiplier is the HIGHEST current multiplier among the zones
+    covering the pickup (1.0 outside every zone), as stored by the last surge cycle (every 2 min,
+    `SURGE_CYCLE_CRON`; regions-v1.yaml). Estimate and booking read the same stored value, so the
+    rider is shown exactly what gets locked; `surgeActive` / `surgeZoneName` drive the UC-R-04 A2
+    explanation. The value LOCKED on the ride at booking never changes afterwards — later cycles,
+    destination changes and driver re-dispatch keep it, and the final fare applies it.
 
 
     **Dispatch (RIDE-03).** Eligible candidates: driver role active, application approved,
@@ -329,7 +340,10 @@ paths:
               schema: { $ref: '#/components/schemas/Ride' }
         '400': { description: Validation }
         '403': { description: 'Rider role suspended (E3) — code `rider_suspended`, `details.suspensionReason`' }
-        '409': { description: 'code `active_ride_exists` (E4)' }
+        '409':
+          description: >
+            code `active_ride_exists` (E4) | `surge_changed` (`expectedSurgeMultiplier` no longer
+            matches; `details.surgeMultiplier` = the current value, PRC-02)
         '422':
           description: >
             code `outside_region` | `service_type_unavailable` | `too_many_stops` |
@@ -783,6 +797,13 @@ components:
           properties:
             serviceTypeId: { type: string, format: uuid }
             paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+            expectedSurgeMultiplier:
+              type: [number, 'null']
+              minimum: 1
+              description: >
+                Optional: the multiplier the rider was shown (EstimateResponse.surgeMultiplier).
+                A mismatch with the current value → 409 `surge_changed`; omitted → the current
+                value is locked (PRC-02)
     RouteChangeRequest:
       type: object
       required: [destination]
@@ -797,7 +818,8 @@ components:
       description: >
         Money components (region currency, 2 decimals). total = baseFare + distanceFare +
         timeFare + surchargeAmount + surgeAmount + waitFare + pickupFee + minimumFareAdjustment −
-        discount. waitFare / pickupFee / discount are 0 in M7; surgeMultiplier 1.0 until M9.
+        discount. waitFare / pickupFee / discount are 0 in M7; surgeMultiplier is the value locked at
+        request (PRC-02).
       required: [currency, baseFare, distanceFare, timeFare, surchargePercent, surchargeAmount,
                  surgeMultiplier, surgeAmount, waitFare, pickupFee, minimumFareAdjustment,
                  discount, total]
@@ -834,11 +856,14 @@ components:
         estimate: { $ref: '#/components/schemas/Estimate' }
     EstimateResponse:
       type: object
-      required: [regionId, currency, surgeMultiplier, surchargePercent, route, options, pickupDistanceMode]
+      required: [regionId, currency, surgeMultiplier, surgeActive, surgeZoneName, surchargePercent, route,
+                 options, pickupDistanceMode]
       properties:
         regionId: { type: string, format: uuid }
         currency: { type: string }
-        surgeMultiplier: { type: number, description: 'Shown + explained when > 1.0 (UC-R-04 A2); 1.0 until M9' }
+        surgeMultiplier: { type: number, description: "The pickup zone's current multiplier (1.0 outside every zone); booking locks this value" }
+        surgeActive: { type: boolean, description: 'surgeMultiplier > 1.0 — show + explain (UC-R-04 A2)' }
+        surgeZoneName: { type: [string, 'null'], description: 'The zone the surge comes from; null without surge' }
         surchargePercent: { type: number, description: Active time-window surcharge (0 = none) }
         route:
           type: object

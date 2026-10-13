@@ -25,9 +25,10 @@ import org.hibernate.type.SqlTypes;
 import org.locationtech.jts.geom.Polygon;
 
 /**
- * An admin-drawn surge zone inside one region (PRC-02, UC-A-08). Threshold steps are ordered {@code
- * [{ratio, multiplier}, …]}; the multiplier cycle itself is M9. Override fields exist for the
- * UC-A-09 manual-override flow (also M9) and stay null until then.
+ * An admin-drawn surge zone inside one region (PRC-02, UC-A-08). Threshold steps are {@code
+ * [{ratio, multiplier}, …]}. The UC-A-09 override and the cycle state (V14) are read-only here: the
+ * override endpoints and the surge cycle write them with targeted updates, so saving the zone
+ * config can never revert an override or a computed multiplier.
  */
 @Entity
 @Table(name = "surge_zones")
@@ -59,14 +60,32 @@ public class SurgeZone {
   @Column(name = "multiplier_cap")
   private BigDecimal multiplierCap;
 
-  @Column(name = "override_multiplier")
+  @Column(name = "override_multiplier", insertable = false, updatable = false)
   private BigDecimal overrideMultiplier;
 
-  @Column(name = "override_set_by")
+  @Column(name = "override_set_by", insertable = false, updatable = false)
   private UUID overrideSetBy;
 
-  @Column(name = "override_set_at")
+  @Column(name = "override_set_at", insertable = false, updatable = false)
   private Instant overrideSetAt;
+
+  /** What pricing reads: the override when set, else the computed value (as of the last cycle). */
+  @Column(name = "current_multiplier", insertable = false, updatable = false)
+  private BigDecimal currentMultiplier;
+
+  /** The capped threshold step the last cycle reached. */
+  @Column(name = "computed_multiplier", insertable = false, updatable = false)
+  private BigDecimal computedMultiplier;
+
+  @Column(name = "demand_count", insertable = false, updatable = false)
+  private Integer demandCount;
+
+  @Column(name = "supply_count", insertable = false, updatable = false)
+  private Integer supplyCount;
+
+  /** The last cycle's moment; null until the zone's first cycle. */
+  @Column(name = "computed_at", insertable = false, updatable = false)
+  private Instant computedAt;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;

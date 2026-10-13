@@ -8,13 +8,16 @@ import com.labby.backend.dto.RouteDto;
 import com.labby.backend.exception.BusinessRuleViolationException;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.SurgeZone;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.SurchargeWindowRepository;
+import com.labby.backend.repository.SurgeZoneRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -23,7 +26,9 @@ import org.springframework.stereotype.Component;
  * The booking-side pricing glue (RIDE-01, PRC-01): resolves the pickup's region, keeps the whole
  * route inside it, routes pickup → stops → destination through the {@link RoutingProvider} (an
  * unreachable router yields an {@code approximate} straight-line route, NFR-A3) and prices it with
- * the {@link FareCalculator}.
+ * the {@link FareCalculator}. Surge is the pickup zone's current multiplier as of the last surge
+ * cycle (PRC-02); estimate and booking read the same stored value, so the rider is shown exactly
+ * what gets locked.
  */
 @Component
 @RequiredArgsConstructor
@@ -32,11 +37,9 @@ public class RidePricing {
   /** RIDE-01: at most three intermediate stops. */
   public static final int MAX_STOPS = 3;
 
-  /** The surge multiplier until M9 computes zone values (PRC-02). */
-  public static final BigDecimal NO_SURGE = BigDecimal.ONE;
-
   private final RegionRepository regionRepository;
   private final SurchargeWindowRepository surchargeWindowRepository;
+  private final SurgeZoneRepository surgeZoneRepository;
   private final RoutingProvider routingProvider;
   private final FareCalculator fareCalculator;
   private final Clock clock;
@@ -124,6 +127,27 @@ public class RidePricing {
   }
 
   /**
+   * The surge in force at the pickup (PRC-02): the HIGHEST current multiplier among the region's
+   * zones covering it (overlapping zones never sum; a tie goes to the first zone by name); outside
+   * every zone 1.00.
+   *
+   * @param region the pickup's region
+   * @param pickup the pickup
+   * @return the multiplier, and the winning zone's name while it surges
+   */
+  public PickupSurge surgeAt(Region region, PlaceDto pickup) {
+    return surgeZoneRepository
+        .findZonesCovering(region.getId(), pickup.lat(), pickup.lng())
+        .stream()
+        .max(
+            Comparator.comparing(SurgeZone::getCurrentMultiplier)
+                .thenComparing(SurgeZone::getName, Comparator.reverseOrder()))
+        .filter(zone -> zone.getCurrentMultiplier().compareTo(BigDecimal.ONE) > 0)
+        .map(zone -> new PickupSurge(zone.getCurrentMultiplier(), zone.getName()))
+        .orElse(new PickupSurge(SurgeCalculator.NO_SURGE, null));
+  }
+
+  /**
    * Prices a route for a service type.
    *
    * @param serviceType the service type
@@ -149,5 +173,23 @@ public class RidePricing {
             surgeMultiplier);
     return new EstimateDto(
         route.distanceMeters(), route.durationSeconds(), route.approximate(), components);
+  }
+
+  /**
+   * The surge at a pickup.
+   *
+   * @param multiplier the multiplier (1.00 = none)
+   * @param zoneName the zone it comes from, or null without surge
+   */
+  public record PickupSurge(BigDecimal multiplier, String zoneName) {
+
+    /**
+     * Whether surge applies (UC-R-04 A2).
+     *
+     * @return true above 1.00
+     */
+    public boolean active() {
+      return multiplier.compareTo(BigDecimal.ONE) > 0;
+    }
   }
 }

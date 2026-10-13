@@ -1,5 +1,6 @@
 package com.labby.backend.service;
 
+import com.labby.backend.dto.SurgeOverrideRequestDto;
 import com.labby.backend.dto.SurgeZoneDto;
 import com.labby.backend.dto.SurgeZoneUpsertRequestDto;
 import java.util.List;
@@ -7,8 +8,8 @@ import java.util.UUID;
 
 /**
  * A region's admin-drawn surge zones (PRC-02, UC-A-08): the polygon must lie within the region's
- * boundary, names are unique per region. The multiplier cycle and the UC-A-09 override arrive with
- * M9. Every mutation is audited (RBAC-05, actions {@code surge_zone.*}).
+ * boundary, names are unique per region; plus the UC-A-09 manual override, which the surge cycle
+ * applies at its next run. Every mutation is audited (RBAC-05, actions {@code surge_zone.*}).
  */
 public interface SurgeZoneService {
 
@@ -49,4 +50,25 @@ public interface SurgeZoneService {
    * @param surgeZoneId the zone
    */
   void deleteSurgeZone(UUID actorUserId, UUID surgeZoneId);
+
+  /**
+   * Sets a manual multiplier on a zone (UC-A-09). It must not exceed the zone's effective cap (the
+   * lower of zone cap and region cap, when set) → 400 otherwise. Pricing picks it up at the next
+   * surge cycle.
+   *
+   * @param actorUserId the acting admin
+   * @param surgeZoneId the zone
+   * @param request the multiplier
+   * @return the zone, override set
+   */
+  SurgeZoneDto setOverride(UUID actorUserId, UUID surgeZoneId, SurgeOverrideRequestDto request);
+
+  /**
+   * Resets a zone to automatic (UC-A-09), effective at the next surge cycle. Resetting a zone
+   * without an override changes nothing.
+   *
+   * @param actorUserId the acting admin
+   * @param surgeZoneId the zone
+   */
+  void resetOverride(UUID actorUserId, UUID surgeZoneId);
 }

@@ -1,8 +1,11 @@
 package com.labby.backend.controller;
 
+import com.labby.backend.dto.SurgeOverrideRequestDto;
+import com.labby.backend.dto.SurgeStateDto;
 import com.labby.backend.dto.SurgeZoneDto;
 import com.labby.backend.dto.SurgeZoneUpsertRequestDto;
 import com.labby.backend.security.SecurityUtils;
+import com.labby.backend.service.SurgeService;
 import com.labby.backend.service.SurgeZoneService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,8 +26,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Admin surge-zone endpoints per the M4 contract (backend/docs/api/regions-v1.yaml);
- * pricing-flavored, so gated by {@code pricing:*} (RBAC-03).
+ * Admin surge-zone endpoints per backend/docs/api/regions-v1.yaml: zone config (M4), the UC-A-09
+ * manual override and the live surge state (M9); pricing-flavored, so gated by {@code pricing:*}
+ * (RBAC-03).
  */
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -33,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SurgeZonesController {
 
   private final SurgeZoneService surgeZoneService;
+  private final SurgeService surgeService;
 
   /**
    * Lists a region's surge zones.
@@ -91,5 +96,48 @@ public class SurgeZonesController {
   public ResponseEntity<Void> deleteSurgeZone(@PathVariable UUID surgeZoneId) {
     surgeZoneService.deleteSurgeZone(SecurityUtils.currentUserId(), surgeZoneId);
     return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * Sets a zone's manual multiplier (UC-A-09); effective at the next surge cycle.
+   *
+   * @param surgeZoneId the zone
+   * @param request the multiplier (1.00 .. the zone's effective cap)
+   * @return 200 with the zone
+   */
+  @PutMapping("/surge-zones/{surgeZoneId}/override")
+  @PreAuthorize("hasAuthority('pricing:edit')")
+  @Operation(summary = "Override a zone's surge multiplier (UC-A-09)")
+  public ResponseEntity<SurgeZoneDto> setOverride(
+      @PathVariable UUID surgeZoneId, @Valid @RequestBody SurgeOverrideRequestDto request) {
+    return ResponseEntity.ok(
+        surgeZoneService.setOverride(SecurityUtils.currentUserId(), surgeZoneId, request));
+  }
+
+  /**
+   * Resets a zone to automatic (UC-A-09); effective at the next surge cycle.
+   *
+   * @param surgeZoneId the zone
+   * @return 204
+   */
+  @DeleteMapping("/surge-zones/{surgeZoneId}/override")
+  @PreAuthorize("hasAuthority('pricing:edit')")
+  @Operation(summary = "Reset a zone's surge to automatic (UC-A-09)")
+  public ResponseEntity<Void> resetOverride(@PathVariable UUID surgeZoneId) {
+    surgeZoneService.resetOverride(SecurityUtils.currentUserId(), surgeZoneId);
+    return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * A region's live surge state (UC-A-09): multipliers, override state, last cycle's counts.
+   *
+   * @param regionId the region
+   * @return 200 with the state
+   */
+  @GetMapping("/regions/{regionId}/surge-state")
+  @PreAuthorize("hasAuthority('pricing:view')")
+  @Operation(summary = "A region's live surge state")
+  public ResponseEntity<SurgeStateDto> surgeState(@PathVariable UUID regionId) {
+    return ResponseEntity.ok(surgeService.surgeState(regionId));
   }
 }

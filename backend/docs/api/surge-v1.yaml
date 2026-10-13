@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: Labby Surge API (M9 contract)
+  version: 0.1.0
+  description: >
+    The driver-facing side of milestone M9 (DRV-09, UC-D-14): the demand heatmap. The admin side
+    of surge (zone config, the UC-A-09 override, the live surge state and the cycle rules) lives
+    in regions-v1.yaml; the rider side (estimate `surgeActive` / `surgeZoneName`, booking
+    `expectedSurgeMultiplier` + 409 `surge_changed`, the lock at request) in rides-v1.yaml.
+    Schema: migration V14. SRS: PRC-02, DRV-09.
+
+
+    **Refresh.** The heatmap reflects the last surge cycle (`SURGE_CYCLE_CRON`, default every 2
+    minutes). `computedAt` is that cycle; `nextCycleAt` is when the next one runs (null when the
+    cycle is disabled) — the app refreshes then. The values are exactly the ones pricing uses.
+
+
+    **Levels.** Each zone carries its current multiplier and a `level`: 0 = no surge, n = the
+    n-th threshold step (in ratio order) whose multiplier the current value reaches — a manual
+    override maps onto the same scale. Raw demand/supply counts are admin-only and never part of
+    this payload. Errors use the global ErrorResponse shape (status, message, code?, details?).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: DriverHeatmap
+
+paths:
+  /api/v1/driver/heatmap:
+    get:
+      tags: [DriverHeatmap]
+      summary: Demand heatmap of the driver's operating region (UC-D-14)
+      description: >
+        The operating region is the active region covering the driver's latest position, else
+        the region of their last ride (as for the balance floor, money-v1.yaml).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The region's zones with their live levels
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Heatmap' }
+        '403': { description: Not an approved driver }
+        '404': { description: 'code `no_operating_region` — never located and never rode' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    GeoJsonPolygon:
+      type: object
+      description: GeoJSON Polygon, [lng, lat], SRID 4326, one closed outer ring (regions-v1.yaml)
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [Polygon] }
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              items: { type: number }
+    Heatmap:
+      type: object
+      required: [regionId, computedAt, nextCycleAt, zones]
+      properties:
+        regionId: { type: string, format: uuid }
+        computedAt: { type: [string, 'null'], format: date-time, description: The latest cycle; null before the first }
+        nextCycleAt: { type: [string, 'null'], format: date-time, description: When to refresh; null when the cycle is disabled }
+        zones:
+          type: array
+          items: { $ref: '#/components/schemas/HeatmapZone' }
+    HeatmapZone:
+      type: object
+      required: [id, name, polygon, multiplier, level]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        polygon: { $ref: '#/components/schemas/GeoJsonPolygon' }
+        multiplier: { type: number, description: The current multiplier (what pricing uses) }
+        level: { type: integer, minimum: 0, description: '0 = no surge; n = the n-th threshold step reached' }
