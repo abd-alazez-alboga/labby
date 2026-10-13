@@ -325,3 +325,118 @@ Owner rulings 2026-10-12:
 **Gates on the combined tree:** backend 385 · rider 284 · driver 323 · admin 229, all green. Run one at a time: four parallel suites time out on the laptop.
 
 **Next:** `/labby-review` re-audit of the fix range.
+
+---
+
+# Re-audit — M8 fix range (`00ad16b..053e0c9`)
+_4 commits (c79e890, 0045355, af65ca1, 053e0c9) · reviewed 2026-10-13 · three independent re-audit agents (backend · rider · driver+admin)_
+
+## Summary
+Every finding of the original audit is resolved, except one part of W6: the completion push still doesn't itemize carried fees (N1 below). The fixes introduce **no Critical and no High defects**. Contracts and client types agree (`carriedDues` never null, `cashDue` null when no cash is owed, `method wallet|cash`, `status earmarked|collected`).
+
+The re-audit finds **5 new Warnings**. Each one is small, and two touch money shown to drivers and riders.
+
+**Verdict:** Pass with comments
+**Findings:** Critical 0 · High 0 · Warning 5 · Info 5 (+5 nitpicks) · Praise 5
+
+## Resolution of the original findings
+| Finding | Status |
+|---|---|
+| H1 – H5 | Resolved |
+| W1 – W5, W7 – W20 | Resolved |
+| W6 | Partial: views, receipt, driver Complete and Trip earnings are itemized; the completion push is not (R-W1) |
+| I1 – I4 | Resolved |
+
+## Milestone acceptance criteria
+| Criterion | Status | Evidence |
+|---|---|---|
+| Every monetary event lands as an immutable, typed, linked ledger entry; balances equal their ledger sums | Met | Earmark model (V13): no ledger line until cash is confirmed. Currency-isolated dues. `MoneyConcurrencyIntegrationTest` (invariants + `balance_after` chain replay). `MoneyBackfillMigrationIntegrationTest`. T6 sweep. |
+| Floor blocking and settlement provably work on a controlled clock | Met | `FloorIntegrationTest`, `MoneySimulatorIntegrationTest` |
+| All extras charge exactly per region config and appear itemized everywhere | Met with comments | Non-default region tests (W9). `carriedDues` on views, receipt and driver screens. Push itemization: R-W1. Driver Trip earnings balance line: R-W3. |
+| Tracker updated; review audit passed | Pending | Owner decision on R-W1 – R-W5 |
+
+## Warning
+- **R-W1: The completion push doesn't mention carried fees in its wallet branches.**
+  - **Category:** srs-conformance
+  - **Certainty:** High
+  - **Location:** `backend/src/main/java/com/labby/backend/service/NotificationRenderer.java:319-347`; `DriverRideServiceImpl.java:273-283`
+  - **Rationale:** "Your wallet covered SYP 1.50 — please pay your driver SYP 2 in cash" gives no hint that the 2 is a carried cancellation fee.
+  - **Fix:** pass a `carriedTotal` param and add carried-fee copy, which needs owner proofread.
+- **R-W2: The in-ride "Tip {name}" button reappears after a remount.** The backend reports no `tip` while `paymentStatus` is null (`in_progress`).
+  - **Category:** integration
+  - **Certainty:** High
+  - **Location:** `backend/.../RideMoneyServiceImpl.java:309-311` (`rideMoney` returns NONE); `apps/rider/src/screens/ride/ride-view.tsx:284-285`
+  - **Rationale:** The rider fixture `in_progress` + `tip` is a shape the backend never sends. Tapping the button again gets a 409 `already_tipped`.
+  - **Fix:** report an existing TIP transaction regardless of payment status (rides-v1 note + backend test); the client also hides the button on `already_tipped`.
+- **R-W3: Driver Trip earnings "Balance change" leaves out the carried-fee debit.**
+  - **Category:** correctness
+  - **Certainty:** High
+  - **Location:** `apps/driver/src/components/money/trip-earnings-screen.tsx:192-200`, `:228-233`
+  - **Rationale:** At cash-confirm the backend posts `due_collection` (−fee) on the collecting ride, but `TripEarning.net` excludes it. The screen itemizes the fee right above a balance change that ignores it, so "Balance now" disagrees.
+  - **Fix:** balance change = `net − Σ(collected cash carried dues)`, plus a matching debit line ("passed on to the earlier ride's driver"). Client-only; the ride already carries `carriedDues`.
+- **R-W4: The driver Balance and Earnings screens can show the red "offers paused" card for a non-operating currency.**
+  - **Category:** correctness
+  - **Certainty:** Medium
+  - **Location:** `apps/driver/src/components/money/balance-screen.tsx:155`, `:204-205`; `earnings-screen.tsx:387-388`
+  - **Rationale:** `main = alert ?? entry ?? balances[0]`. When the region is unresolved, `balances[0]` (judged against the default −50 floor) can be `blocked`, which contradicts the W16 ruling.
+  - **Fix:** show the blocked/warning UI only for the operating entry or the server `alert`, show the fallback as a neutral amount, and add a two-currency test.
+- **R-W5: The rider wait-charge test depends on the real clock.**
+  - **Category:** tests
+  - **Certainty:** Medium
+  - **Location:** `apps/rider/src/screens/ride/__tests__/money-flows.test.tsx:142`, `:164-168`
+  - **Rationale:** The amount is now prorated per second, and the regex tolerates only about 1 s of render time.
+  - **Fix:** fake timers (`setSystemTime`), or a range assertion.
+
+## Info (max 5)
+1. **`RiderDueRepository.findCarriedBy` filters on unindexed `collected_ride_id`** (`RiderDueRepository.java:39-42`). It runs on every completed-ride view and WebSocket frame. Add a partial index in the next migration.
+2. **`WalletService.balance(userId, currency)` is now unused in production** (`WalletService.java:101-108`).
+3. **Missing regression tests:** nothing covers the W2 two-completion cross-due race or the V13 `ck_rider_dues_collecting` CHECK.
+4. **`CarriedDueDto` uses raw String `method`/`status`** where `enums/` would fit (PROJECT-STRUCTURE §Enums). `carriedDues` is "never null" but missing from the rides-v1 `required` lists.
+5. **Arabic dual "أكمل رحلتان" is not accusative** (`apps/driver/src/i18n/ar.json:660`). It is only reachable when `weeklyTripsAbove` = 1.
+
++5 more nitpicks — ask to see them:
+- the double balance read on a balance push;
+- two requests when the ledger page opens;
+- a debit row titled "Ride earnings";
+- a lexical timestamp compare in the admin due tile;
+- the generic error on a 3-decimal tip and a stale `PaymentStatus` comment in the rider app.
+
+## What's good
+- **Earmark model:** `collecting_ride_id` with a CHECK, plus full-or-nothing `debitIfCovered` that never poisons the completion transaction. This removes the whole H3 class without counter-entries.
+- **Lock discipline:** wallet → dues → driver balances (sorted). This order is verified on every path, and `insertIfAbsent` handles first rows.
+- **Concurrency and backfill tests:** the concurrency test is order-independent and replays each chain; the backfill test is a real migrate-11 → seed → migrate-12 test.
+- **Shared rider money math:** `money-math.ts`, in minor units, renders identical rows on the ride view and receipt.
+- **Driver W16 and W18:** W16 follows the ruling with a server-authoritative fallback. `test-utils/intl.ts` makes the W18 digit tests actually discriminating.
+
+## Test run results
+- **CI** run 38306234936 on `053e0c9`: success (backend, rider, driver, admin).
+- **Local gates on the combined tree:** backend 385 · rider 284 · driver 323 · admin 229, all green. The client suites were run one at a time; run in parallel with the backend they time out on the laptop.
+- **Re-audit agents re-ran:** rider 284/284, driver 323/323, admin 229/229, all on the first run.
+
+---
+
+# Targeted re-check — R-W1..R-W5 (`053e0c9..6aba407`)
+_3 commits (c66c3ac backend · 0aa5358 rider · 6aba407 driver) · reviewed 2026-10-13 · independent re-check agent_
+
+**Verdict:** Pass. All five Warnings are resolved, and the three commits introduce no new Critical, High or Warning defects. M8 is **review_passed** with review baseline `6aba407`.
+
+| Finding | Status |
+|---|---|
+| R-W1: completion push itemizes carried fees | Resolved. Every branch is covered and unchanged when there are no fees; tests check the exact EN/AR text. Owner proofread the copy on 2026-10-13. |
+| R-W2: in-ride tip reported / button hidden | Resolved. The backend reports a tip whenever one exists; the rider app handles the 409 `already_tipped`. |
+| R-W3: driver "Balance change" includes the carried-fee debit | Resolved. Uses integer minor units and adds a matching debit line. |
+| R-W4: floor UI only for the operating currency | Resolved. The tests catch the old behaviour. |
+| R-W5: deterministic wait-charge test | Resolved. `Date` is frozen and the amount checked exactly. |
+
+**Backlog (Info, non-blocking):**
+- From the re-check:
+  - an extra wallet-transaction lookup on every unfinished-ride view;
+  - an unreachable "With your carried fees" push branch (`NotificationRenderer.java:373-378`);
+  - no end-to-end test of the completion-push params.
+- From the re-audit:
+  - Info 1–5: the `collected_ride_id` index, unused `WalletService.balance`, W2/V13 regression tests, `CarriedDueDto` enums and `required` lists, the Arabic dual.
+  - Nitpicks.
+
+**Gates:**
+- Local, run sequentially: backend 386 · rider 285 · driver 328 · admin 229.
+- CI run 38374728981 on `6aba407`: success on all four jobs.
