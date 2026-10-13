@@ -185,3 +185,36 @@ None.
 **Gates on the combined tree, run sequentially:** backend 417 · rider 302 · driver 356 · admin 256, all green.
 
 **Next:** a `/labby-review` re-audit of the fix range.
+
+---
+
+# Re-audit — M9 fix range (`76aa51b..e0c3038`)
+_3 commits (e7c0202 backend · e59ddfe rider · e0c3038 driver + admin) · reviewed 2026-10-13 · two independent re-audit agents (backend · clients)_
+
+**Verdict:** Pass. Every finding of the audit is resolved in the live code, with tests: H1, W1–W9, Info 1–5 and the `details.cap` nitpick. The fixes introduce no Critical, High or Warning defects. The contracts (rides-v1 `RetryRideRequest`, regions-v1 `SurgeZoneState.level`/`effectiveCap`, surge-v1 "any surge ≥ level 1") match the DTOs and all three clients. M9 is **review_passed**, and the review baseline is `e0c3038`.
+
+| Finding | Status |
+|---|---|
+| H1 retry locks an unseen surge | Resolved (backend: the previous lock or the body value is the expectation, 409 `surge_changed`; rider: the approved sheet on the no-driver screen) |
+| W1 level 0 while surging | Resolved |
+| W2 admin levels | Resolved (backend `level` + `effectiveCap`; the admin table, overlay and panel all use them) |
+| W3 client refresh timing | Resolved (clamped to one server-derived period, with a capped 15 s slow-cycle retry) |
+| W4 multi-instance repeats | Resolved (skip-this-cycle when the cron is enabled; see the N1 note) |
+| W5 concurrent test cannot fail | Resolved (`CycleResult`, exact assertions in `SurgeCycleIntegrationTest`) |
+| W6 / W7 rider fallback + tests | Resolved |
+| W8 "Not updating" chip / W9 hint wording | Resolved (owner text, EN + AR) |
+| Info 1–5, `details.cap` | Resolved |
+
+**Backlog (Info, non-blocking):**
+- **N1:** a cycle starting more than half a period late makes the next fire skip every zone, leaving up to about 1.5 periods between updates. Fix: base `cycleStart` on the cron slot actually in progress.
+- **N2:** the non-active-region reset runs outside the per-zone try/catch.
+- A device clock running ahead turns early reads into bounded 15 s retries.
+- An admin manual refresh during the retry window drops the retry.
+- `pricesStale` can outlive the sheet after a non-surge confirm error, costing one extra round trip.
+- The nitpicks from the audit remain: admin polling in a background tab, the driver sheet's region name, the scrim colour token, the icon's accessibility label, the `book()` in-flight guard, and older admin tests timing out under load (this time `surge-zones.test.tsx` once, which passed on re-run).
+- **Open wording:** the reused price-changed sheet on the no-driver screen says "…while you were choosing…" and "Back to options".
+
+**Gates:**
+- **Local, run sequentially:** backend 417, rider 302, driver 356, admin 256. The admin passed on a re-run after one load timeout.
+- **CI** run 38404350018 on `e0c3038`: success on all four jobs.
+- **Scoped backend re-run:** `SurgeIntegrationTest` 10/10, `SurgeCalculatorTest` 17/17, `SurgeCycleIntegrationTest` 2/2.
