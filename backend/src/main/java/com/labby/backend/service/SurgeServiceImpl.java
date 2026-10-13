@@ -55,26 +55,37 @@ public class SurgeServiceImpl implements SurgeService {
   private final Clock clock;
 
   @Override
-  public int recompute() {
+  public CycleResult recompute() {
     Instant now = clock.instant();
     Instant freshAfter = now.minusSeconds(trackingProperties.staleAfterSeconds());
+    // Null when the cron is disabled: tests drive the cycle on their own clock, never skipped.
+    Instant cycleStart = surgeCalculator.cycleStart(surgeProperties.cycleCron(), now);
+    transactionTemplate.executeWithoutResult(
+        status -> surgeZoneRepository.resetInNonActiveRegions(SurgeCalculator.NO_SURGE));
     int processed = 0;
+    int skipped = 0;
+    int failed = 0;
     for (UUID surgeZoneId : surgeZoneRepository.findIdsInActiveRegions()) {
       try {
         if (Boolean.TRUE.equals(
-            transactionTemplate.execute(status -> recomputeZone(surgeZoneId, now, freshAfter)))) {
+            transactionTemplate.execute(
+                status -> recomputeZone(surgeZoneId, now, freshAfter, cycleStart)))) {
           processed++;
+        } else {
+          skipped++;
         }
       } catch (RuntimeException ex) {
-        log.warn("Surge cycle failed for zone {}: {}", surgeZoneId, ex.getClass().getSimpleName());
+        failed++;
+        log.warn("Surge cycle failed for zone {}", surgeZoneId, ex);
       }
     }
-    return processed;
+    return new CycleResult(processed, skipped, failed);
   }
 
-  private boolean recomputeZone(UUID surgeZoneId, Instant now, Instant freshAfter) {
+  private boolean recomputeZone(
+      UUID surgeZoneId, Instant now, Instant freshAfter, Instant cycleStart) {
     Optional<SurgeZone> locked = surgeZoneRepository.lockIfFree(surgeZoneId);
-    if (locked.isEmpty()) {
+    if (locked.isEmpty() || computedInThisCycle(locked.get(), cycleStart)) {
       return false;
     }
     SurgeZone zone = locked.get();
@@ -153,6 +164,13 @@ public class SurgeServiceImpl implements SurgeService {
             .toList());
   }
 
+  /** Another instance already computed the zone in this cycle (NFR-P4: no double work). */
+  private static boolean computedInThisCycle(SurgeZone zone, Instant cycleStart) {
+    return cycleStart != null
+        && zone.getComputedAt() != null
+        && !zone.getComputedAt().isBefore(cycleStart);
+  }
+
   private SurgeZoneStateDto state(SurgeZone zone, Region region) {
     BigDecimal current = zone.getCurrentMultiplier();
     // Not applied yet: a set override (as the cycle will apply it, clamped to the cap) the cycle
@@ -174,6 +192,8 @@ public class SurgeServiceImpl implements SurgeService {
         zone.getOverrideMultiplier(),
         utc(zone.getOverrideSetAt()),
         pending,
+        surgeCalculator.level(steps(zone), current),
+        surgeCalculator.effectiveCap(zone.getMultiplierCap(), region.getSurgeCap()),
         zone.getDemandCount(),
         zone.getSupplyCount(),
         utc(zone.getComputedAt()));

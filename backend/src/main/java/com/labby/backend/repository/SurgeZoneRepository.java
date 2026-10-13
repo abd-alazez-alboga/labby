@@ -64,8 +64,8 @@ public interface SurgeZoneRepository extends JpaRepository<SurgeZone, UUID> {
       @Param("regionId") UUID regionId, @Param("boundaryWkt") String boundaryWkt);
 
   /**
-   * The zones of every ACTIVE region — the surge cycle's work list (zones of draft regions keep
-   * their last state).
+   * The zones of every ACTIVE region — the surge cycle's work list (zones of other regions are
+   * reset to no surge, see {@link #resetInNonActiveRegions}).
    *
    * @return the zone ids
    */
@@ -78,6 +78,29 @@ public interface SurgeZoneRepository extends JpaRepository<SurgeZone, UUID> {
           """,
       nativeQuery = true)
   List<UUID> findIdsInActiveRegions();
+
+  /**
+   * Resets the zones of every NON-active region to no surge with zero counts, so a reactivated
+   * region never prices a stale surge before its first cycle. Overrides and {@code computed_at} are
+   * kept; zones already at rest are not rewritten.
+   *
+   * @param noSurge the no-surge multiplier (1.00)
+   * @return rows updated
+   */
+  @Modifying
+  @Query(
+      value =
+          """
+          UPDATE surge_zones z
+          SET computed_multiplier = :noSurge, current_multiplier = :noSurge,
+              demand_count = 0, supply_count = 0
+          FROM regions g
+          WHERE g.region_id = z.region_id AND g.state <> 'active'
+            AND (z.computed_multiplier <> :noSurge OR z.current_multiplier <> :noSurge
+                 OR z.demand_count <> 0 OR z.supply_count <> 0)
+          """,
+      nativeQuery = true)
+  int resetInNonActiveRegions(@Param("noSurge") BigDecimal noSurge);
 
   /**
    * The zone locked for one surge cycle, skipped when another instance holds it (NFR-P4) or its

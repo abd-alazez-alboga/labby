@@ -3,6 +3,7 @@ package com.labby.backend.service;
 import com.labby.backend.dto.ThresholdStepDto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -107,7 +108,8 @@ public class SurgeCalculator {
   /**
    * The heatmap level of a multiplier (DRV-09): 0 = no surge, else n = the 1-based position (in
    * ratio order) of the highest step whose multiplier the current value reaches — so an override
-   * maps onto the zone's own scale too.
+   * maps onto the zone's own scale too. Any surge is at least level 1, so a value below the first
+   * step (a cap or an override under it) never shows calm while riders pay surge.
    *
    * @param steps the zone's threshold steps (any order)
    * @param current the zone's current multiplier
@@ -124,7 +126,7 @@ public class SurgeCalculator {
         level = i + 1;
       }
     }
-    return level;
+    return Math.max(level, 1);
   }
 
   /**
@@ -141,6 +143,25 @@ public class SurgeCalculator {
     ZonedDateTime next =
         CronExpression.parse(cron).next(ZonedDateTime.ofInstant(after, ZoneId.systemDefault()));
     return next == null ? null : next.toInstant();
+  }
+
+  /**
+   * Where the current cycle began, for skipping zones another instance already computed in it
+   * (NFR-P4): half a cycle period before {@code now}, the period being the gap between the cron's
+   * next two fire times.
+   *
+   * @param cron the Spring cron, or "-" when disabled
+   * @param now the moment the cycle runs
+   * @return the cycle start, or null when the cron is disabled (no skipping: only tests then call
+   *     the cycle, on their own clock)
+   */
+  public Instant cycleStart(String cron, Instant now) {
+    Instant first = nextFire(cron, now);
+    Instant second = first == null ? null : nextFire(cron, first);
+    if (second == null) {
+      return null;
+    }
+    return now.minus(Duration.between(first, second).dividedBy(2));
   }
 
   private static List<ThresholdStepDto> ordered(List<ThresholdStepDto> steps) {

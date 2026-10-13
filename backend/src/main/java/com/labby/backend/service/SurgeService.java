@@ -12,14 +12,17 @@ import java.util.UUID;
 public interface SurgeService {
 
   /**
-   * One surge cycle (run by {@link SurgeCycleJob}). Each zone is computed in its own transaction
-   * under a SKIP LOCKED row lock, so concurrent instances never process the same zone at once; the
-   * result depends only on the live inputs, so re-running is harmless. Zones of draft regions keep
-   * their last state.
+   * One surge cycle (run by {@link SurgeCycleJob}). Zones of non-active regions are first reset to
+   * no surge (counts 0, override kept), so a reactivated region never prices a stale surge. Each
+   * active zone is then computed in its own transaction under a SKIP LOCKED row lock, so concurrent
+   * instances never process the same zone at once; with the cycle cron enabled a zone another
+   * instance already computed in this cycle (since half a period ago) is skipped too (NFR-P4). The
+   * result depends only on the live inputs, so re-running is harmless; one failing zone never stops
+   * the others.
    *
-   * @return how many zones this run processed
+   * @return what this run did
    */
-  int recompute();
+  CycleResult recompute();
 
   /**
    * A region's live surge state for the admin (UC-A-09): cap, next cycle, per-zone multipliers,
@@ -39,4 +42,13 @@ public interface SurgeService {
    * @return the heatmap
    */
   HeatmapDto heatmap(UUID driverUserId);
+
+  /**
+   * One cycle run's outcome.
+   *
+   * @param processed zones this run computed
+   * @param skipped zones locked by another run or already computed in this cycle
+   * @param failed zones whose computation threw (logged; the next cycle retries them)
+   */
+  record CycleResult(int processed, int skipped, int failed) {}
 }

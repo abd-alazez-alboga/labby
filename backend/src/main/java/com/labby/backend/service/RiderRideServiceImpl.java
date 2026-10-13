@@ -235,7 +235,7 @@ public class RiderRideServiceImpl implements RiderRideService {
   }
 
   @Override
-  public RideDto retry(UUID userId, UUID rideId) {
+  public RideDto retry(UUID userId, UUID rideId, BigDecimal expectedSurgeMultiplier) {
     rideAccess.requireRider(userId);
     Ride previous = owned(userId, rideId);
     if (previous.getState() != RideState.NO_DRIVER_FOUND) {
@@ -248,7 +248,10 @@ public class RiderRideServiceImpl implements RiderRideService {
             rideAssembler.stops(previous.getStops()),
             previous.getServiceTypeId(),
             previous.getPaymentMethod(),
-            null);
+            // PRC-02: never lock an unseen surge — the rider saw the old lock, or confirmed anew.
+            expectedSurgeMultiplier != null
+                ? expectedSurgeMultiplier
+                : previous.getSurgeMultiplier());
     Ride ride = createRide(userId, request, previous.getId());
     rideEvents.stateChanged(ride);
     return rideAssembler.view(ride, Audience.RIDER);
@@ -288,8 +291,8 @@ public class RiderRideServiceImpl implements RiderRideService {
 
   /**
    * Validates, prices and stores a new {@code requested} ride (booking and retry) with the pickup
-   * zone's current surge LOCKED on it (PRC-02); a retry has no expectation and re-locks the value
-   * of the moment (it is a new request, RIDE-08).
+   * zone's current surge LOCKED on it (PRC-02); a retry is re-priced at the moment (it is a new
+   * request, RIDE-08) but expects the surge the rider saw, like a booking.
    */
   private Ride createRide(UUID userId, BookRideRequestDto request, UUID retryOfRideId) {
     rideAccess.requireActiveRider(userId);

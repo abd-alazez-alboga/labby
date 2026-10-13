@@ -6,15 +6,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.service.SurgeService;
 import com.labby.backend.util.RbacIds;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,9 +21,10 @@ import org.springframework.scheduling.config.ScheduledTaskHolder;
  * M9-T1 acceptance (PRC-02, DRV-09, UC-A-09, UC-D-14): the surge cycle counts open requests vs idle
  * online drivers per zone by the dispatch rules (stale, busy, open-offer, offline and floor-blocked
  * drivers excluded), maps the ratio to the capped step, wins overlapping zones by the highest
- * value, applies an override (and its reset) at the next cycle only, and is idempotent and safe to
- * run concurrently; bookings lock the value the rider was shown (409 {@code surge_changed}
- * otherwise) and the lock survives cycles, re-dispatch and completion.
+ * value, applies an override (and its reset) at the next cycle only, resets draft regions' zones,
+ * and is idempotent (concurrency: {@link SurgeCycleIntegrationTest}); the admin state carries the
+ * heatmap's level and the effective cap; bookings and retries lock the value the rider was shown
+ * (409 {@code surge_changed} otherwise) and the lock survives cycles, re-dispatch and completion.
  */
 class SurgeIntegrationTest extends AbstractRideIntegrationTest {
 
@@ -171,7 +167,7 @@ class SurgeIntegrationTest extends AbstractRideIntegrationTest {
     outside.put("destination", place(33.57, 36.37));
     ok(tryBook(outsider, outside), HttpStatus.CREATED); // demand outside the zone
 
-    assertThat(surgeService.recompute()).isEqualTo(1);
+    assertThat(surgeService.recompute()).isEqualTo(new SurgeService.CycleResult(1, 0, 0));
 
     // Demand 2 (offering + requested) / supply 1 (only the idle driver) = 2.00 → the 1.2 step.
     JsonNode state = zoneState("Center");
@@ -181,6 +177,8 @@ class SurgeIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(state.get("computedMultiplier").decimalValue()).isEqualByComparingTo("1.20");
     assertThat(state.get("currentMultiplier").decimalValue()).isEqualByComparingTo("1.20");
     assertThat(state.get("overridePending").asBoolean()).isFalse();
+    assertThat(state.get("level").asInt()).isEqualTo(1); // the heatmap's level below
+    assertThat(state.get("effectiveCap").decimalValue()).isEqualByComparingTo("2.00");
     assertThat(state.get("computedAt").isNull()).isFalse();
     assertThat(surgeState().get("surgeCap").decimalValue()).isEqualByComparingTo("2.00");
     assertThat(surgeState().get("nextCycleAt").isNull()).isTrue(); // the cycle cron is "-"
@@ -229,10 +227,15 @@ class SurgeIntegrationTest extends AbstractRideIntegrationTest {
     book(rider()); // demand 1, no driver at all
 
     surgeService.recompute();
-    assertThat(zoneState("Center").get("currentMultiplier").decimalValue())
+    JsonNode center = zoneState("Center");
+    assertThat(center.get("currentMultiplier").decimalValue())
         .isEqualByComparingTo("1.30"); // top step 2.0, zone cap 1.30
-    assertThat(zoneState("Inner").get("currentMultiplier").decimalValue())
-        .isEqualByComparingTo("1.10");
+    assertThat(center.get("effectiveCap").decimalValue()).isEqualByComparingTo("1.30");
+    assertThat(center.get("level").asInt()).isEqualTo(1); // 1.2 reached, 1.5 not
+    JsonNode inner = zoneState("Inner");
+    assertThat(inner.get("currentMultiplier").decimalValue()).isEqualByComparingTo("1.10");
+    assertThat(inner.get("effectiveCap").decimalValue()).isEqualByComparingTo("2.00");
+    assertThat(inner.get("level").asInt()).isEqualTo(1);
     JsonNode quote = estimate(rider(), PICKUP_LAT, PICKUP_LNG);
     assertThat(quote.get("surgeMultiplier").decimalValue()).isEqualByComparingTo("1.30");
     assertThat(quote.get("surgeZoneName").asText()).isEqualTo("Center");
@@ -244,13 +247,58 @@ class SurgeIntegrationTest extends AbstractRideIntegrationTest {
     surgeService.recompute();
     assertThat(zoneState("Center").get("computedMultiplier").decimalValue())
         .isEqualByComparingTo("1.40");
+    assertThat(zoneState("Center").get("effectiveCap").decimalValue()).isEqualByComparingTo("1.40");
+    assertThat(zoneState("Center").get("level").asInt()).isEqualTo(1);
 
-    // Zones of a draft region are left as they are.
+    // Zones of a draft region are reset to no surge (counts 0) and keep their override, so a
+    // reactivated region never prices a stale surge (owner-approved M9 audit I4; this used to
+    // assert that draft zones keep their last state).
+    ok(override(centerId, 1.3, admin), HttpStatus.OK);
     jdbcTemplate.update("UPDATE regions SET state = 'draft' WHERE region_id = ?", regionId);
-    jdbcTemplate.update("UPDATE regions SET surge_cap = 2.00 WHERE region_id = ?", regionId);
-    assertThat(surgeService.recompute()).isZero();
-    assertThat(zoneState("Center").get("computedMultiplier").decimalValue())
-        .isEqualByComparingTo("1.40");
+    assertThat(surgeService.recompute().processed()).isZero();
+    for (String name : List.of("Center", "Inner")) {
+      JsonNode reset = zoneState(name);
+      assertThat(reset.get("computedMultiplier").decimalValue()).isEqualByComparingTo("1.00");
+      assertThat(reset.get("currentMultiplier").decimalValue()).isEqualByComparingTo("1.00");
+      assertThat(reset.get("demandCount").asInt()).isZero();
+      assertThat(reset.get("supplyCount").asInt()).isZero();
+      assertThat(reset.get("level").asInt()).isZero();
+    }
+    assertThat(zoneState("Center").get("overrideMultiplier").decimalValue())
+        .isEqualByComparingTo("1.30");
+    jdbcTemplate.update("UPDATE regions SET state = 'active' WHERE region_id = ?", regionId);
+    assertThat(estimate(rider(), PICKUP_LAT, PICKUP_LNG).get("surgeMultiplier").decimalValue())
+        .isEqualByComparingTo("1.00"); // reactivated: no stale surge before the cycle
+    surgeService.recompute();
+    assertThat(zoneState("Center").get("currentMultiplier").decimalValue())
+        .isEqualByComparingTo("1.30"); // the kept override applies at the next cycle
+  }
+
+  @Test
+  @DisplayName("DRV-09: any surge is at least level 1 (cap or override below the first step)")
+  void shouldShowLevelOneBelowTheFirstStep() {
+    zone("Center", CENTER, defaultSteps(), 1.1); // the cap sits below the first step (1.2)
+    UUID outerId = zone("Outer", square(36.36, 33.56, 36.39, 33.59), defaultSteps(), null);
+    Account driver = driverAt(OUT_LAT, OUT_LNG); // supply in Outer only
+    book(rider()); // Center: demand 1, no supply → top step 2.0, capped at 1.10
+    ok(override(outerId, 1.1, admin), HttpStatus.OK); // below the first step too
+
+    surgeService.recompute();
+    JsonNode center = zoneState("Center");
+    assertThat(center.get("currentMultiplier").decimalValue()).isEqualByComparingTo("1.10");
+    assertThat(center.get("effectiveCap").decimalValue()).isEqualByComparingTo("1.10");
+    assertThat(center.get("level").asInt()).isEqualTo(1);
+    JsonNode outer = zoneState("Outer");
+    assertThat(outer.get("currentMultiplier").decimalValue()).isEqualByComparingTo("1.10");
+    assertThat(outer.get("computedMultiplier").decimalValue()).isEqualByComparingTo("1.00");
+    assertThat(outer.get("level").asInt()).isEqualTo(1);
+
+    JsonNode heatmap = ok(get("/api/v1/driver/heatmap", driver.token()), HttpStatus.OK);
+    assertThat(heatmap.get("zones")).hasSize(2);
+    for (JsonNode heat : heatmap.get("zones")) {
+      assertThat(heat.get("multiplier").decimalValue()).isEqualByComparingTo("1.10");
+      assertThat(heat.get("level").asInt()).as(heat.get("name").asText()).isEqualTo(1);
+    }
   }
 
   @Test
@@ -339,6 +387,8 @@ class SurgeIntegrationTest extends AbstractRideIntegrationTest {
     ResponseEntity<JsonNode> aboveCap = override(centerId, 1.9, admin);
     assertThat(aboveCap.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(code(aboveCap)).isEqualTo("override_above_cap");
+    assertThat(aboveCap.getBody().get("details").get("cap").decimalValue())
+        .isEqualByComparingTo("1.80");
     assertThat(override(centerId, 0.99, admin).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(override(centerId, 1.234, admin).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     ok(override(centerId, 1.8, admin), HttpStatus.OK); // exactly the cap
@@ -370,6 +420,12 @@ class SurgeIntegrationTest extends AbstractRideIntegrationTest {
     surgeService.recompute();
     Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
     Account rider = rider();
+
+    // Like every multiplier, the expectation is ≥ 1.00 with at most 2 decimals.
+    assertThat(tryBook(rider, bookingExpecting("0.50")).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(tryBook(rider, bookingExpecting("1.505")).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
 
     ResponseEntity<JsonNode> changed = tryBook(rider, bookingExpecting("1.20"));
     assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -425,42 +481,64 @@ class SurgeIntegrationTest extends AbstractRideIntegrationTest {
   }
 
   @Test
-  @DisplayName("NFR-P4: concurrent cycles never fail and leave a consistent state")
-  void shouldRunConcurrentCyclesSafely() throws Exception {
+  @DisplayName("RIDE-08 / PRC-02: retry expects the surge the rider saw (409 surge_changed)")
+  void shouldNotLockAnUnseenSurgeOnRetry() {
     centerZone();
-    zone("Outer", square(36.36, 33.56, 36.39, 33.59), defaultSteps(), null);
-    book(rider()); // demand 1, no supply → Center at the top step 2.00
+    surgeService.recompute(); // Center at 1.00
+    Account rider = rider();
+    UUID rideId = book(rider);
+    dispatch(); // no driver at all
+    assertThat(stateOf(rideId)).isEqualTo("no_driver_found");
 
-    ExecutorService executor = Executors.newFixedThreadPool(2);
-    try {
-      CountDownLatch start = new CountDownLatch(1);
-      List<Future<Integer>> runs = new ArrayList<>();
-      for (int i = 0; i < 2; i++) {
-        runs.add(
-            executor.submit(
-                () -> {
-                  start.await();
-                  return surgeService.recompute();
-                }));
-      }
-      start.countDown();
-      int processed = 0;
-      for (Future<Integer> run : runs) {
-        processed += run.get();
-      }
-      assertThat(processed).isGreaterThanOrEqualTo(1);
-    } finally {
-      executor.shutdownNow();
-    }
-    surgeService.recompute(); // whatever the race skipped, one more cycle completes it
+    // The zone rises before the rider taps "Try again": demand without supply → the top step.
+    book(rider());
+    surgeService.recompute();
     assertThat(zoneState("Center").get("currentMultiplier").decimalValue())
         .isEqualByComparingTo("2.00");
-    assertThat(zoneState("Outer").get("currentMultiplier").decimalValue())
-        .isEqualByComparingTo("1.00");
+
+    String retry = "/api/v1/rides/" + rideId + "/retry";
+    ResponseEntity<JsonNode> changed = post(retry, null, rider.token());
+    assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(code(changed)).isEqualTo("surge_changed");
+    assertThat(changed.getBody().get("details").get("surgeMultiplier").decimalValue())
+        .isEqualByComparingTo("2.00");
+    assertThat(ridesOf(rider)).isEqualTo(1); // no ride created
+    ResponseEntity<JsonNode> stale =
+        post(retry, Map.of("expectedSurgeMultiplier", new BigDecimal("1.00")), rider.token());
+    assertThat(code(stale)).isEqualTo("surge_changed");
     assertThat(
-            jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM surge_zones WHERE computed_at IS NULL", Integer.class))
-        .isZero();
+            post(retry, Map.of("expectedSurgeMultiplier", new BigDecimal("0.5")), rider.token())
+                .getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(ridesOf(rider)).isEqualTo(1);
+
+    // Confirmed at the new value: locked at it.
+    UUID retried =
+        bookedId(
+            post(retry, Map.of("expectedSurgeMultiplier", new BigDecimal("2.0")), rider.token()));
+    assertThat(lockedSurge(retried)).isEqualByComparingTo("2.00");
+    assertThat(riderRide(rider, retried).get("retryOfRideId").asText())
+        .isEqualTo(rideId.toString());
+  }
+
+  @Test
+  @DisplayName("RIDE-08 / PRC-02: retry without a body re-locks the unchanged previous surge")
+  void shouldRetryAtThePreviousSurgeWhenUnchanged() {
+    UUID centerId = centerZone();
+    ok(override(centerId, 1.5, admin), HttpStatus.OK);
+    surgeService.recompute();
+    Account rider = rider();
+    UUID rideId = bookedId(tryBook(rider, bookingExpecting("1.50")));
+    dispatch();
+    assertThat(stateOf(rideId)).isEqualTo("no_driver_found");
+
+    UUID retried = bookedId(post("/api/v1/rides/" + rideId + "/retry", null, rider.token()));
+    assertThat(lockedSurge(retried)).isEqualByComparingTo("1.50");
+  }
+
+  private int ridesOf(Account rider) {
+    return jdbcTemplate.queryForObject(
+        "SELECT count(*) FROM rides WHERE rider_user_id = ?", Integer.class, rider.userId());
   }
 
   @Test

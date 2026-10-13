@@ -363,7 +363,7 @@ paths:
       x-required-permission: 'pricing:edit'
       description: >
         1.00 <= multiplier <= the zone's effective cap (the lower of the zone's multiplierCap
-        and the region's surgeCap, when set), at most 2 decimals. Takes effect at the NEXT surge
+        and the region's surgeCap, when set; 99.99 when neither is set), at most 2 decimals. Takes effect at the NEXT surge
         cycle (until then `overridePending` is true in the surge state) and wins over the
         computed value until reset. Audited `surge_zone.override_set` (before/after
         `overrideMultiplier`).
@@ -406,13 +406,17 @@ paths:
         **Surge cycle (PRC-02).** Every `SURGE_CYCLE_CRON` (default every 2 minutes), for every
         zone of an ACTIVE region: demand = open requests (`requested` / `offering`) whose pickup
         the polygon covers; supply = idle online drivers whose latest position it covers, by the
-        dispatch rules (rides-v1: approved, online, account + driver role active, fresh stream,
-        no open offer, no assigned ride) and not blocked by the balance floor (COM-03). Rule:
+        dispatch rules (rides-v1: approved, online, account + driver role active, an active
+        vehicle, fresh stream, no open offer, no assigned ride) and not blocked by the balance
+        floor (COM-03). Rule:
         demand 0 -> 1.0; demand > 0 with supply 0 -> the top step; otherwise the highest step
         whose `ratio` demand/supply reaches (inclusive) — none -> 1.0; capped at the lower of
         zone cap and region cap. `currentMultiplier` (what pricing reads) = the override when set,
-        else the computed value. Zones of draft regions keep their last state. Each zone is
-        processed under a row lock, so several instances may run the cycle.
+        else the computed value. Each cycle first resets the zones of draft regions to 1.0 with
+        zero counts (their override is kept), so a reactivated region never prices a stale surge.
+        Each zone is processed under a row lock, so several instances may run the cycle; with the
+        cron enabled, a zone already computed in the current cycle (within half a period) is
+        skipped, so extra instances do no double work.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -716,7 +720,11 @@ components:
       type: object
       required: [multiplier]
       properties:
-        multiplier: { type: number, minimum: 1, description: "At most 2 decimals; <= the zone's effective cap" }
+        multiplier:
+          type: number
+          minimum: 1
+          maximum: 99.99
+          description: "At most 2 decimals; <= the zone's effective cap (99.99 when uncapped)"
     SurgeState:
       type: object
       required: [regionId, surgeCap, nextCycleAt, zones]
@@ -730,7 +738,8 @@ components:
     SurgeZoneState:
       type: object
       required: [id, name, polygon, currentMultiplier, computedMultiplier, overrideMultiplier,
-                 overrideSetAt, overridePending, demandCount, supplyCount, computedAt]
+                 overrideSetAt, overridePending, level, effectiveCap, demandCount, supplyCount,
+                 computedAt]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -743,8 +752,18 @@ components:
           type: boolean
           description: >
             The last override change is not applied yet: an override is set but
-            currentMultiplier differs from it, or it was reset but currentMultiplier differs from
-            computedMultiplier. Clears at the next cycle.
+            currentMultiplier differs from it as the cycle applies it (clamped to effectiveCap),
+            or it was reset but currentMultiplier differs from computedMultiplier. Clears at the
+            next cycle.
+        level:
+          type: integer
+          minimum: 0
+          description: >
+            The driver heatmap's level of currentMultiplier (surge-v1 HeatmapZone.level): 0 = no
+            surge, n = the n-th threshold step reached, any surge at least 1
+        effectiveCap:
+          type: [number, 'null']
+          description: The binding cap, the lower of the zone's multiplierCap and the region's surgeCap; null = uncapped
         demandCount: { type: integer, description: Open requests in the zone at the last cycle }
         supplyCount: { type: integer, description: Idle online drivers in the zone at the last cycle }
         computedAt: { type: [string, 'null'], format: date-time, description: The last cycle; null before the first }

@@ -17,7 +17,9 @@ info:
 
     **Levels.** Each zone carries its current multiplier and a `level`: 0 = no surge, n = the
     n-th threshold step (in ratio order) whose multiplier the current value reaches — a manual
-    override maps onto the same scale. Raw demand/supply counts are admin-only and never part of
+    override maps onto the same scale — and any surge (current > 1.00) is at least level 1, even
+    below the first step's multiplier (a cap or an override under it). The admin surge state
+    (regions-v1 SurgeZoneState.level) carries the same level. Raw demand/supply counts are admin-only and never part of
     this payload. Errors use the global ErrorResponse shape (status, message, code?, details?).
 servers:
   - url: http://localhost:8080
@@ -77,4 +79,4 @@ components:
         name: { type: string }
         polygon: { $ref: '#/components/schemas/GeoJsonPolygon' }
         multiplier: { type: number, description: The current multiplier (what pricing uses) }
-        level: { type: integer, minimum: 0, description: '0 = no surge; n = the n-th threshold step reached' }
+        level: { type: integer, minimum: 0, description: '0 = no surge; n = the n-th threshold step reached; any surge is at least 1' }

@@ -4,6 +4,7 @@ import com.labby.backend.dto.BookRideRequestDto;
 import com.labby.backend.dto.CancellationQuoteDto;
 import com.labby.backend.dto.EstimateResponseDto;
 import com.labby.backend.dto.ReceiptDto;
+import com.labby.backend.dto.RetryRideRequestDto;
 import com.labby.backend.dto.RideDto;
 import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.dto.RiderCancelRequestDto;
@@ -170,13 +171,21 @@ public class RiderRidesController {
    * Retries a no_driver_found ride.
    *
    * @param rideId the ride
-   * @return 201 with the new ride
+   * @param request optional: the surge multiplier the rider was shown (omitted body or value = the
+   *     previous ride's locked multiplier)
+   * @return 201 with the new ride; 409 {@code surge_changed} when the zone's surge moved
    */
   @PostMapping("/{rideId}/retry")
   @Operation(summary = "One-tap retry (RIDE-08)")
-  public ResponseEntity<RideDto> retry(@PathVariable UUID rideId) {
+  public ResponseEntity<RideDto> retry(
+      @PathVariable UUID rideId,
+      @Valid @RequestBody(required = false) RetryRideRequestDto request) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(riderRideService.retry(SecurityUtils.currentUserId(), rideId));
+        .body(
+            riderRideService.retry(
+                SecurityUtils.currentUserId(),
+                rideId,
+                request == null ? null : request.expectedSurgeMultiplier()));
   }
 
   /**

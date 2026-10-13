@@ -131,8 +131,11 @@ info:
 
 
     **Retry (RIDE-08).** `POST /rides/{id}/retry` on a `no_driver_found` ride creates a NEW ride
-    with the same inputs (`retryOfRideId` set); the estimate and surcharge are re-priced at the
-    moment of retry (it is a new request).
+    with the same inputs (`retryOfRideId` set); the estimate, surcharge and surge are re-priced
+    at the moment of retry (it is a new request), but the surge must match what the rider saw
+    (PRC-02): the optional body's `expectedSurgeMultiplier`, else the previous ride's locked
+    multiplier. A mismatch → 409 `surge_changed` with `details.surgeMultiplier` = the current
+    value and no ride is created; the rider re-confirms and retries with that value.
 
 
     **In-ride route changes (RIDE-05, UC-R-06).** In `accepted`, `driver_arrived` and
@@ -456,15 +459,29 @@ paths:
     post:
       tags: [RiderRides]
       summary: One-tap retry of a `no_driver_found` ride (RIDE-08) — creates a NEW ride
+      description: >
+        Re-priced at the moment of retry, but the surge must match what the rider saw (PRC-02):
+        `expectedSurgeMultiplier` when sent, else the previous ride's locked multiplier. The body
+        is optional.
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RetryRideRequest' }
       responses:
         '201':
           description: The new ride (`retryOfRideId` = the old one), re-priced now
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Ride' }
+        '400': { description: 'Validation (`expectedSurgeMultiplier` below 1.00 or more than 2 decimals)' }
         '404': { description: Not this rider's ride }
-        '409': { description: 'Not `no_driver_found`, or code `active_ride_exists`' }
+        '409':
+          description: >
+            Not `no_driver_found`, or code `active_ride_exists` | `surge_changed` (the pickup
+            zone's surge differs from the expectation; `details.surgeMultiplier` = the current
+            value, PRC-02)
         '422': { description: Same booking validation as POST /rides }
 
   /api/v1/rides/{rideId}/receipt:
@@ -800,10 +817,22 @@ components:
             expectedSurgeMultiplier:
               type: [number, 'null']
               minimum: 1
+              maximum: 99.99
               description: >
-                Optional: the multiplier the rider was shown (EstimateResponse.surgeMultiplier).
-                A mismatch with the current value → 409 `surge_changed`; omitted → the current
-                value is locked (PRC-02)
+                Optional: the multiplier the rider was shown (EstimateResponse.surgeMultiplier),
+                at most 2 decimals (400 otherwise). A mismatch with the current value → 409
+                `surge_changed`; omitted → the current value is locked (PRC-02)
+    RetryRideRequest:
+      type: object
+      properties:
+        expectedSurgeMultiplier:
+          type: [number, 'null']
+          minimum: 1
+          maximum: 99.99
+          description: >
+            Optional: the multiplier the rider confirmed (after a 409 `surge_changed`, its
+            `details.surgeMultiplier`), at most 2 decimals; omitted → the previous ride's locked
+            multiplier is expected (PRC-02)
     RouteChangeRequest:
       type: object
       required: [destination]

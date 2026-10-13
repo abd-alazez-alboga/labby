@@ -112,7 +112,9 @@ class SurgeCalculatorTest {
   @DisplayName("DRV-09: level = highest step whose multiplier the current value reaches")
   void shouldMapMultiplierToLevel() {
     assertThat(calculator.level(DEFAULT_STEPS, new BigDecimal("1.00"))).isZero();
-    assertThat(calculator.level(DEFAULT_STEPS, new BigDecimal("1.10"))).isZero();
+    // Any surge is at least level 1, even below the first step (owner-approved M9 audit W1).
+    assertThat(calculator.level(DEFAULT_STEPS, new BigDecimal("1.01"))).isEqualTo(1);
+    assertThat(calculator.level(DEFAULT_STEPS, new BigDecimal("1.10"))).isEqualTo(1);
     assertThat(calculator.level(DEFAULT_STEPS, new BigDecimal("1.20"))).isEqualTo(1);
     assertThat(calculator.level(DEFAULT_STEPS, new BigDecimal("1.70"))).isEqualTo(2);
     assertThat(calculator.level(DEFAULT_STEPS, new BigDecimal("2.00"))).isEqualTo(3);
@@ -126,5 +128,17 @@ class SurgeCalculatorTest {
     assertThat(calculator.nextFire("0 */2 * * * *", now))
         .isEqualTo(Instant.parse("2026-10-13T10:02:00Z"));
     assertThat(calculator.nextFire("-", now)).isNull();
+  }
+
+  @Test
+  @DisplayName("NFR-P4: the cycle starts half a period back; a disabled cron skips nothing")
+  void shouldComputeCycleStart() {
+    Instant now = Instant.parse("2026-10-13T10:02:03Z");
+    assertThat(calculator.cycleStart("0 */2 * * * *", now))
+        .isEqualTo(Instant.parse("2026-10-13T10:01:03Z"));
+    assertThat(calculator.cycleStart("0 */10 * * * *", now))
+        .isEqualTo(Instant.parse("2026-10-13T09:57:03Z"));
+    assertThat(calculator.cycleStart("-", now)).isNull();
+    assertThat(calculator.cycleStart(null, now)).isNull();
   }
 }

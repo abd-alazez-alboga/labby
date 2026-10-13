@@ -9,6 +9,7 @@ import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.dto.RiderCancelRequestDto;
 import com.labby.backend.dto.RouteChangeRequestDto;
 import com.labby.backend.dto.RouteInputDto;
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -91,13 +92,17 @@ public interface RiderRideService {
   RideDto changeRoute(UUID userId, UUID rideId, RouteChangeRequestDto request);
 
   /**
-   * One-tap retry of a {@code no_driver_found} ride (RIDE-08): a new, re-priced ride.
+   * One-tap retry of a {@code no_driver_found} ride (RIDE-08): a new, re-priced ride. The surge
+   * must still be the one the rider saw (PRC-02): when the pickup zone's current multiplier differs
+   * from the expectation → 409 {@code surge_changed} with {@code details.surgeMultiplier}.
    *
    * @param userId the rider
    * @param rideId the ride that found no driver
+   * @param expectedSurgeMultiplier the multiplier the rider confirmed, or null = the previous
+   *     ride's locked multiplier
    * @return the new ride
    */
-  RideDto retry(UUID userId, UUID rideId);
+  RideDto retry(UUID userId, UUID rideId, BigDecimal expectedSurgeMultiplier);
 
   /**
    * Receipt of a completed ride (UC-R-07), from stored components.
