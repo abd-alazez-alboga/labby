@@ -5,9 +5,12 @@ import React from "react";
 import { View } from "react-native";
 
 import { AuthProvider } from "../auth/AuthProvider";
+import { ChatProvider } from "../chat/ChatProvider";
+import { ChatScreen } from "../components/chat/chat-screen";
 import { HomeScreen } from "../components/home-screen";
 import { NotificationCenterScreen } from "../components/notifications/notification-center-screen";
 import { HeatmapProvider } from "../heatmap/HeatmapProvider";
+import { RegionProvider } from "../region/RegionProvider";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { DriverMoneyProvider } from "../money/DriverMoneyProvider";
 import { PushBridge } from "../notifications/PushBridge";
@@ -34,19 +37,39 @@ export const NONE: MockResponse = { status: 204 };
 
 type WatchCallback = (position: Location.LocationObject) => void;
 const locationMock = Location as jest.Mocked<typeof Location>;
-let watchCallback: WatchCallback | null = null;
+/** Every position watch (streamer + optional region watch) gets each fix. */
+let watchCallbacks: WatchCallback[] = [];
 
-export function mockLocationGranted() {
-  watchCallback = null;
+export function mockLocationGranted(position = { lat: 33.5, lng: 36.28 }) {
+  watchCallbacks = [];
   locationMock.requestForegroundPermissionsAsync.mockResolvedValue({
     granted: true,
     status: "granted" as Location.PermissionStatus,
     canAskAgain: true,
     expires: "never",
   });
+  locationMock.getForegroundPermissionsAsync.mockResolvedValue({
+    granted: true,
+    status: "granted" as Location.PermissionStatus,
+    canAskAgain: true,
+    expires: "never",
+  });
+  // Region resolution (opt-in RegionProvider) reads one fix at boot.
+  locationMock.getCurrentPositionAsync.mockResolvedValue({
+    coords: {
+      latitude: position.lat,
+      longitude: position.lng,
+      altitude: null,
+      accuracy: 5,
+      altitudeAccuracy: null,
+      heading: 0,
+      speed: 0,
+    },
+    timestamp: Date.now(),
+  } as Location.LocationObject);
   locationMock.watchPositionAsync.mockImplementation(
     async (_options, callback) => {
-      watchCallback = callback as WatchCallback;
+      watchCallbacks.push(callback as WatchCallback);
       return { remove: jest.fn() } as unknown as Location.LocationSubscription;
     },
   );
@@ -54,18 +77,20 @@ export function mockLocationGranted() {
 
 export function emitPosition(lat: number, lng: number) {
   act(() => {
-    watchCallback?.({
-      coords: {
-        latitude: lat,
-        longitude: lng,
-        altitude: null,
-        accuracy: 5,
-        altitudeAccuracy: null,
-        heading: 0,
-        speed: 0,
-      },
-      timestamp: Date.now(),
-    });
+    for (const callback of [...watchCallbacks]) {
+      callback({
+        coords: {
+          latitude: lat,
+          longitude: lng,
+          altitude: null,
+          accuracy: 5,
+          altitudeAccuracy: null,
+          heading: 0,
+          speed: 0,
+        },
+        timestamp: Date.now(),
+      });
+    }
   });
 }
 
@@ -95,27 +120,46 @@ function Layout({
   language,
   money,
   heatmap,
+  chat,
+  region,
 }: {
   language: "en" | "ar";
   money: boolean;
   heatmap: boolean;
+  chat: boolean;
+  region: boolean;
 }) {
   const { Slot } = jest.requireActual("expo-router");
   const slot = <Slot />;
+  const withHeatmap = heatmap ? <HeatmapProvider>{slot}</HeatmapProvider> : slot;
   const app = (
     <DriverRideProvider>
-      {/* M9: opt-in — the provider fetches /driver/heatmap while online. */}
-      {heatmap ? <HeatmapProvider>{slot}</HeatmapProvider> : slot}
-      <PushBridge />
+      {/* M10: opt-in — the provider fetches /chat/quick-replies + the thread. */}
+      {chat ? (
+        <ChatProvider>
+          {withHeatmap}
+          <PushBridge />
+        </ChatProvider>
+      ) : (
+        <>
+          {withHeatmap}
+          <PushBridge />
+        </>
+      )}
     </DriverRideProvider>
   );
+  const withMoney = money ? <DriverMoneyProvider>{app}</DriverMoneyProvider> : app;
   return (
     <LocaleProvider initialLanguage={language}>
       <AuthProvider>
-        <AvailabilityProvider>
-          {/* M8: opt-in — the provider fetches /driver/balance on mount. */}
-          {money ? <DriverMoneyProvider>{app}</DriverMoneyProvider> : app}
-        </AvailabilityProvider>
+        {/* M4: opt-in — the provider resolves GET /regions/resolve from GPS. */}
+        {region ? (
+          <RegionProvider>
+            <AvailabilityProvider>{withMoney}</AvailabilityProvider>
+          </RegionProvider>
+        ) : (
+          <AvailabilityProvider>{withMoney}</AvailabilityProvider>
+        )}
       </AuthProvider>
     </LocaleProvider>
   );
@@ -131,6 +175,10 @@ export async function renderDriverApp(
     money?: boolean;
     /** Mounts the HeatmapProvider (M9) — mock GET /driver/heatmap. */
     heatmap?: boolean;
+    /** Mounts the ChatProvider (M10) — mock GET /chat/quick-replies (+ thread). */
+    chat?: boolean;
+    /** Mounts the RegionProvider (M4) — mock GET /regions/resolve + GPS. */
+    region?: boolean;
   } = {},
 ): Promise<ContractFetch> {
   await seedSession(driverUser());
@@ -143,9 +191,12 @@ export async function renderDriverApp(
           language={language}
           money={!!options.money}
           heatmap={!!options.heatmap}
+          chat={!!options.chat}
+          region={!!options.region}
         />
       ),
       index: () => <HomeScreen />,
+      chat: () => <ChatScreen />,
       notifications: () => <NotificationCenterScreen />,
       settings: () => <View testID="settings-route" />,
       earnings: () => <View testID="earnings-route" />,
@@ -161,7 +212,7 @@ export async function goLive(position = { lat: 33.49, lng: 36.27 }) {
   await waitFor(() => expect(MockSocket.instances.length).toBeGreaterThan(0));
   const socket = MockSocket.latest();
   act(() => socket.open());
-  await waitFor(() => expect(watchCallback).not.toBeNull());
+  await waitFor(() => expect(watchCallbacks.length).toBeGreaterThan(0));
   emitPosition(position.lat, position.lng);
   act(() => socket.ready());
   return socket;

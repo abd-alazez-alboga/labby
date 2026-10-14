@@ -2,8 +2,10 @@
  * Translations for the Labby rider app (EN + AR).
  * Keys are nested per screen, mirroring the admin app's i18n layout.
  * The M7 ride slice lives in ride-translations.ts, the M8 money slice in
- * money-translations.ts — both are merged in here.
+ * money-translations.ts, the M10 comms & safety slice in
+ * comms-translations.ts — all merged in here.
  */
+import { commsAr, commsEn } from "./comms-translations";
 import { moneyAr, moneyEn } from "./money-translations";
 import { rideAr, rideEn } from "./ride-translations";
 
@@ -11,6 +13,7 @@ export const translations = {
   en: {
     ...rideEn,
     ...moneyEn,
+    ...commsEn,
     common: {
       appName: "Labby",
       back: "Back",
@@ -276,6 +279,7 @@ export const translations = {
   ar: {
     ...rideAr,
     ...moneyAr,
+    ...commsAr,
     common: {
       appName: "لبي",
       back: "رجوع",

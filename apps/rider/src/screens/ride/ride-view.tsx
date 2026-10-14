@@ -8,8 +8,8 @@
  *   `surge_changed` opens the price-changed sheet (RiderSurgeChanged,
  *   PRC-02) instead of locking a surge the rider never saw
  * - accepted                        RiderDriverOnWay (driver, plate, ETA,
- *   live position) — Call / Message / Share trip / Safety are M10 and
- *   hidden; the cancel action takes the Safety button's place
+ *   live position) — the M10 safety actions (chat / call / share trip +
+ *   the SOS pill, RiderSafetyActions) are live on accepted…in_progress
  * - driver_arrived                  RiderArrived (free-waiting countdown)
  * - in_progress                     RiderInRide (stops, change destination /
  *   add stop, no cancel — UC-R-09 E1; "Tip <driver>" until tipped, PAY-04)
@@ -64,6 +64,7 @@ import {
 import { colors, radius, spacing } from "../../theme/tokens";
 import { TipSheet } from "../wallet/tip-sheet";
 import { CancelSheet } from "./cancel-sheet";
+import { SafetyActionsRow, SosConfirmSheet, SosPill } from "./safety-actions";
 import { type SurgeChange, SurgeChangedSheet } from "./surge-changed-sheet";
 import {
   DriverCard,
@@ -123,6 +124,7 @@ export function RideView({
       : null,
   );
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [sosOpen, setSosOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   // Retry answered 409 surge_changed: the price-changed sheet (null = closed).
@@ -370,6 +372,13 @@ export function RideView({
   const followingRedispatch =
     redispatching || (finding && !!ride.redispatchOfRideId);
 
+  // Accepted → in progress: the driver dot on the map and the M10 safety
+  // actions (chat / call / share row + the SOS pill) are live.
+  const showDriver =
+    ride.state === "accepted" ||
+    ride.state === "driver_arrived" ||
+    ride.state === "in_progress";
+
   const inRideTip =
     ride.state === "in_progress" &&
     !!driver &&
@@ -502,6 +511,7 @@ export function RideView({
           ) : null}
         </View>
         <DriverCard driver={driver} />
+        <SafetyActionsRow ride={ride} />
         <EstimateFooter
           ride={ride}
           trailing={
@@ -610,6 +620,7 @@ export function RideView({
           </View>
         ) : null}
         <DriverCard driver={driver} />
+        <SafetyActionsRow ride={ride} />
         <EstimateFooter
           ride={ride}
           trailing={
@@ -655,6 +666,7 @@ export function RideView({
             {details.join(" · ")}
           </AppText>
         ) : null}
+        <SafetyActionsRow ride={ride} />
         <RouteColumn
           pickup={ride.pickup}
           stops={ride.stops}
@@ -744,11 +756,6 @@ export function RideView({
     );
   }
 
-  const showDriver =
-    ride.state === "accepted" ||
-    ride.state === "driver_arrived" ||
-    ride.state === "in_progress";
-
   return (
     <MapScreen
       testID="ride-view"
@@ -761,8 +768,17 @@ export function RideView({
             driver={showDriver ? facade.driverPosition : null}
             noticeTop={top + FLOATING_CLEARANCE}
           />
+          {showDriver ? (
+            <SosPill onPress={() => setSosOpen(true)} top={top + spacing.sm} />
+          ) : null}
           {lost ? (
-            <View style={[styles.lostBanner, { top: top + spacing.sm }]}>
+            <View
+              style={[
+                styles.lostBanner,
+                // Below the SOS pill on the safety states.
+                { top: top + spacing.sm + (showDriver ? 56 : 0) },
+              ]}
+            >
               <Banner
                 tone="warning"
                 message={t("ride.connectionLost")}
@@ -790,6 +806,13 @@ export function RideView({
               ride={ride}
               visible={cancelOpen}
               onClose={() => setCancelOpen(false)}
+            />
+          ) : null}
+          {showDriver && sosOpen ? (
+            <SosConfirmSheet
+              ride={ride}
+              visible={sosOpen}
+              onClose={() => setSosOpen(false)}
             />
           ) : null}
           {inRideTip ? (

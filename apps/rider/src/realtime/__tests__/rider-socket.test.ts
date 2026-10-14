@@ -86,6 +86,100 @@ describe("realtime protocol", () => {
   });
 });
 
+describe("chat frames (comms-v1.yaml)", () => {
+  it("parses chat.message / chat.read without an `as` and rejects malformed ones", () => {
+    expect(
+      parseServerFrame(
+        JSON.stringify({
+          type: "chat.message",
+          rideId: "r-1",
+          messageId: "m-1",
+          clientMsgId: "c-1",
+          senderRole: "rider",
+          kind: "quick_reply",
+          quickReplyCode: "rider_coming",
+          sentAt: "2026-10-13T09:30:00Z",
+        }),
+      ),
+    ).toEqual({
+      type: "chat",
+      event: {
+        type: "chat.message",
+        rideId: "r-1",
+        messageId: "m-1",
+        clientMsgId: "c-1",
+        senderRole: "rider",
+        kind: "quick_reply",
+        body: null,
+        quickReplyCode: "rider_coming",
+        sentAt: "2026-10-13T09:30:00Z",
+      },
+    });
+    expect(
+      parseServerFrame(
+        JSON.stringify({
+          type: "chat.read",
+          rideId: "r-1",
+          readerRole: "driver",
+          lastReadMessageId: "m-1",
+        }),
+      ),
+    ).toEqual({
+      type: "chat",
+      event: {
+        type: "chat.read",
+        rideId: "r-1",
+        readerRole: "driver",
+        lastReadMessageId: "m-1",
+      },
+    });
+    expect(
+      parseServerFrame(JSON.stringify({ type: "chat.message", rideId: "r-1" })),
+    ).toEqual({ type: "ignored" });
+    expect(parseServerFrame(JSON.stringify({ type: "chat.future" }))).toEqual({
+      type: "ignored",
+    });
+  });
+
+  it("relays chat + error frames and sends chat frames only once authenticated", async () => {
+    jest.useFakeTimers();
+    FakeSocket.reset();
+    const onChatEvent = jest.fn();
+    const onError = jest.fn();
+    const { client } = setup({ onChatEvent, onError });
+    const frame = {
+      type: "chat.send" as const,
+      rideId: "r-1",
+      clientMsgId: "c-1",
+      kind: "text" as const,
+      body: "hi",
+    };
+    client.start();
+    await flush();
+    const socket = FakeSocket.latest();
+    socket.open();
+    await flush();
+    // Open but not yet `ready`: refused, the caller resends after ready.
+    expect(client.sendChatFrame(frame)).toBe(false);
+    socket.receive({ type: "ready" });
+    expect(client.sendChatFrame(frame)).toBe(true);
+    expect(socket.sent.at(-1)).toEqual(frame);
+    socket.receive({
+      type: "chat.read",
+      rideId: "r-1",
+      readerRole: "driver",
+      lastReadMessageId: "m-1",
+    });
+    expect(onChatEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "chat.read", lastReadMessageId: "m-1" }),
+    );
+    socket.receive({ type: "error", code: "chat_closed", message: "closed" });
+    expect(onError).toHaveBeenCalledWith("chat_closed");
+    client.stop();
+    jest.useRealTimers();
+  });
+});
+
 describe("RiderSocket", () => {
   beforeEach(() => {
     jest.useFakeTimers();

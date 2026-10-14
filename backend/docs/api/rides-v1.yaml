@@ -1258,7 +1258,7 @@ components:
         ride: { $ref: '#/components/schemas/Ride' }
         riderUserId: { type: string, format: uuid }
         riderName: { type: string }
-        riderPhone: { type: string }
+        riderPhone: { type: [string, 'null'], description: 'Contact access (UC-A-20, owner 2026-10-14) — null unless the caller holds `support:handle`; same for driverPhone' }
         driverUserId: { type: [string, 'null'], format: uuid }
         driverName: { type: [string, 'null'] }
         driverPhone: { type: [string, 'null'] }

@@ -51,13 +51,28 @@ import {
 } from "../auth/session-store";
 import { getAppConfig } from "../config/app-config";
 import type { LatLng } from "../map/geo";
-import { realtimeUrl, type RideEvent } from "../realtime/protocol";
+import {
+  type ChatClientFrame,
+  type ChatServerEvent,
+  realtimeUrl,
+  type RideEvent,
+} from "../realtime/protocol";
 import {
   RiderSocket,
   type SocketFactory,
   type SocketLike,
   type SocketStatus,
 } from "../realtime/rider-socket";
+
+/**
+ * What chat consumers (M10) see of the socket: the server chat frames, the
+ * non-closing error frames (window refusals) and every (re)connect `ready`
+ * — the moment to backfill history and resend pending messages.
+ */
+export type ChatFeedEvent =
+  | ChatServerEvent
+  | { type: "chat.error"; code: string }
+  | { type: "chat.ready" };
 
 export interface ActiveRideValue {
   /** The ride on screen: live, or just ended (until dismissed). */
@@ -84,6 +99,10 @@ export interface ActiveRideValue {
   /** Forgets an ended ride (Done / close). */
   dismiss: () => void;
   resync: () => Promise<void>;
+  /** Sends a chat frame on the live socket; false ⇒ resend after `chat.ready`. */
+  sendChatFrame: (frame: ChatClientFrame) => boolean;
+  /** Chat frames + socket readiness for the chat slice (M10). */
+  subscribeChat: (listener: (event: ChatFeedEvent) => void) => () => void;
 }
 
 const RideContext = createContext<ActiveRideValue | undefined>(undefined);
@@ -232,6 +251,28 @@ export function RideProvider({
     [apply],
   );
 
+  // M10 chat: the socket's chat feed, relayed to the chat slice.
+  const chatListeners = useRef(new Set<(event: ChatFeedEvent) => void>());
+  const socketRef = useRef<RiderSocket | null>(null);
+
+  const emitChat = useCallback((event: ChatFeedEvent) => {
+    for (const listener of chatListeners.current) listener(event);
+  }, []);
+
+  const subscribeChat = useCallback(
+    (listener: (event: ChatFeedEvent) => void) => {
+      chatListeners.current.add(listener);
+      return () => {
+        chatListeners.current.delete(listener);
+      };
+    },
+    [],
+  );
+
+  const sendChatFrame = useCallback((frame: ChatClientFrame): boolean => {
+    return socketRef.current?.sendChatFrame(frame) ?? false;
+  }, []);
+
   // Socket + first resync for the signed-in lifetime of the provider.
   useEffect(() => {
     const socket = new RiderSocket({
@@ -240,16 +281,25 @@ export function RideProvider({
       getAccessToken: storedAccessToken,
       subscribeTokens: addTokensChangedListener,
       refreshSession: refreshAccessToken,
-      onReady: () => void resync(),
+      onReady: () => {
+        void resync();
+        emitChat({ type: "chat.ready" });
+      },
       onEvent,
+      onChatEvent: emitChat,
+      onError: (code) => emitChat({ type: "chat.error", code }),
       onStatus: (status) => {
         if (mounted.current) setSocketStatus(status);
       },
     });
+    socketRef.current = socket;
     void resync();
     socket.start();
-    return () => socket.stop();
-  }, [socketFactory, resync, onEvent]);
+    return () => {
+      socketRef.current = null;
+      socket.stop();
+    };
+  }, [socketFactory, resync, onEvent, emitChat]);
 
   const book = useCallback<ActiveRideValue["book"]>(
     async (request) => {
@@ -328,6 +378,8 @@ export function RideProvider({
       track,
       dismiss,
       resync,
+      sendChatFrame,
+      subscribeChat,
     }),
     [
       ride,
@@ -343,6 +395,8 @@ export function RideProvider({
       track,
       dismiss,
       resync,
+      sendChatFrame,
+      subscribeChat,
     ],
   );
 

@@ -723,6 +723,37 @@
     "pending": "Loading this ride's earnings…",
     "missing": "This ride's earnings aren't ready yet. Try again in a moment."
   },
+  "chat": {
+    "title": "Chat",
+    "contextPickup": "Pickup · {{place}}",
+    "contextDropOff": "Drop-off · {{place}}",
+    "quickRepliesLabel": "One tap — sends right away",
+    "inputPlaceholder": "Message {{name}}…",
+    "inputLabel": "Message",
+    "send": "Send",
+    "call": "Call {{name}}",
+    "sending": "Sending…",
+    "seen": "Seen",
+    "empty": "No messages yet.",
+    "readOnly": "This ride has ended. The conversation is view-only.",
+    "noThread": "There's no conversation for this ride."
+  },
+  "safety": {
+    "chat": "Chat",
+    "call": "Call",
+    "share": "Share trip",
+    "share_unavailable": "This ride's share link was already created on another device.",
+    "share_error": "Couldn't get the share link. Try again.",
+    "sos": "SOS",
+    "sosLabel": "Emergency SOS",
+    "sosTitle": "Emergency SOS",
+    "sosBody": "Your phone will call {{number}}, the emergency number for {{region}}. Labby support is alerted instantly with your ride and live location.",
+    "sosBodyNoNumber": "Labby support is alerted instantly with your ride and live location.",
+    "sosConfirm": "Call {{number}} — support alerted",
+    "sosConfirmNoNumber": "Alert Labby support",
+    "sosCancel": "Cancel",
+    "sosFootnote": "The alert reaches support even if the call doesn't connect."
+  },
   "heatmap": {
     "show": "Show demand heatmap",
     "hide": "Hide demand heatmap",

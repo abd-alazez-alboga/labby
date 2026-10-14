@@ -23,7 +23,23 @@ export const CLOSE_SERVER_SHUTDOWN = 1001;
 export const CLOSE_MALFORMED = 4400;
 export const CLOSE_UNAUTHORIZED = 4401;
 
-export type ClientFrame = { type: "auth"; token: string } | { type: "ping" };
+/** M10 chat frames the rider sends (comms-v1.yaml "WebSocket chat frames"). */
+export type ChatClientFrame =
+  | {
+      type: "chat.send";
+      rideId: string;
+      /** Client-generated UUID — the dedup key (a resend is never duplicated). */
+      clientMsgId: string;
+      kind: "text" | "quick_reply";
+      body?: string;
+      quickReplyCode?: string;
+    }
+  | { type: "chat.read"; rideId: string; lastReadMessageId: string };
+
+export type ClientFrame =
+  | { type: "auth"; token: string }
+  | { type: "ping" }
+  | ChatClientFrame;
 
 /** The ride events addressed to the rider (`"as": "rider"`). */
 export type RideEvent =
@@ -40,11 +56,36 @@ export type RideEvent =
     }
   | { type: "ride.connection"; rideId: string; driverStream: "ok" | "lost" };
 
+/**
+ * The chat frames the server fans out (comms-v1.yaml). They are addressed
+ * per user (no `as` audience field): the sender's echo carries `clientMsgId`
+ * — that echo is the delivery ack.
+ */
+export type ChatServerEvent =
+  | {
+      type: "chat.message";
+      rideId: string;
+      messageId: string;
+      clientMsgId: string | null;
+      senderRole: "rider" | "driver";
+      kind: "text" | "quick_reply";
+      body: string | null;
+      quickReplyCode: string | null;
+      sentAt: string;
+    }
+  | {
+      type: "chat.read";
+      rideId: string;
+      readerRole: "rider" | "driver";
+      lastReadMessageId: string;
+    };
+
 export type ServerFrame =
   | { type: "ready"; userId?: string }
   | { type: "pong" }
   | { type: "error"; code: string }
   | { type: "ride"; event: RideEvent }
+  | { type: "chat"; event: ChatServerEvent }
   /** Unknown types and frames for another audience — ignored. */
   | { type: "ignored" };
 
@@ -101,10 +142,62 @@ function parseRideEvent(frame: Record<string, unknown>): RideEvent | null {
   }
 }
 
+function chatRole(value: unknown): "rider" | "driver" | null {
+  return value === "rider" || value === "driver" ? value : null;
+}
+
+function parseChatEvent(frame: Record<string, unknown>): ChatServerEvent | null {
+  if (typeof frame.rideId !== "string") return null;
+  switch (frame.type) {
+    case "chat.message": {
+      const senderRole = chatRole(frame.senderRole);
+      const kind =
+        frame.kind === "text" || frame.kind === "quick_reply"
+          ? frame.kind
+          : null;
+      if (
+        typeof frame.messageId !== "string" ||
+        !senderRole ||
+        !kind ||
+        typeof frame.sentAt !== "string"
+      ) {
+        return null;
+      }
+      return {
+        type: "chat.message",
+        rideId: frame.rideId,
+        messageId: frame.messageId,
+        clientMsgId:
+          typeof frame.clientMsgId === "string" ? frame.clientMsgId : null,
+        senderRole,
+        kind,
+        body: typeof frame.body === "string" ? frame.body : null,
+        quickReplyCode:
+          typeof frame.quickReplyCode === "string" ? frame.quickReplyCode : null,
+        sentAt: frame.sentAt,
+      };
+    }
+    case "chat.read": {
+      const readerRole = chatRole(frame.readerRole);
+      if (!readerRole || typeof frame.lastReadMessageId !== "string")
+        return null;
+      return {
+        type: "chat.read",
+        rideId: frame.rideId,
+        readerRole,
+        lastReadMessageId: frame.lastReadMessageId,
+      };
+    }
+    default:
+      return null;
+  }
+}
+
 /**
  * Parses a server text frame; never throws. Ride frames whose `as` is not
  * `"rider"` belong to the driver app (one account can hold both roles with
- * both apps connected) and are ignored, like unknown types.
+ * both apps connected) and are ignored, like unknown types. Chat frames are
+ * addressed per user and carry no `as` (comms-v1.yaml).
  */
 export function parseServerFrame(data: unknown): ServerFrame | null {
   if (typeof data !== "string") return null;
@@ -130,6 +223,10 @@ export function parseServerFrame(data: unknown): ServerFrame | null {
         code: typeof frame.code === "string" ? frame.code : "unknown",
       };
     default: {
+      if (typeof frame.type === "string" && frame.type.startsWith("chat.")) {
+        const chatEvent = parseChatEvent(frame);
+        return chatEvent ? { type: "chat", event: chatEvent } : { type: "ignored" };
+      }
       if (frame.as !== "rider") return { type: "ignored" };
       const event = parseRideEvent(frame);
       return event ? { type: "ride", event } : { type: "ignored" };

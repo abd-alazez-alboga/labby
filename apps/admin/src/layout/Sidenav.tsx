@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 
 import { usePermissions } from '../auth/usePermissions';
+import { useSosAlerts } from '../sos/SosAlertsProvider';
 import { ApiStatus } from './ApiStatus';
 import { BrandMark } from './BrandMark';
 
@@ -19,6 +20,7 @@ function linkClass({ isActive }: { isActive: boolean }): string {
 export function Sidenav() {
   const { t } = useTranslation();
   const { can } = usePermissions();
+  const { openCount } = useSosAlerts();
   const showAdminGroup = can('admins:view') || can('roles:view') || can('audit:view');
 
   return (
@@ -31,6 +33,21 @@ export function Sidenav() {
         <NavLink to="/" end className={linkClass}>
           {t('nav.dashboard')}
         </NavLink>
+        {can('rides:view') ? (
+          <>
+            <NavLink to="/live-ops" className={linkClass}>
+              {t('nav.liveMap')}
+              {openCount !== null && openCount > 0 ? (
+                <span className="sidenav__alert-badge" aria-label={t('nav.openSosAlerts')}>
+                  {openCount}
+                </span>
+              ) : null}
+            </NavLink>
+            <NavLink to="/rides" className={linkClass}>
+              {t('nav.rides')}
+            </NavLink>
+          </>
+        ) : null}
         {can('wallets:view') ? (
           <NavLink to="/users" className={linkClass}>
             {t('nav.users')}

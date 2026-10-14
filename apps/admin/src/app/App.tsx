@@ -29,6 +29,9 @@ const UsersPage = lazy(() => import('../pages/UsersPage'));
 const UserWalletPage = lazy(() => import('../pages/UserWalletPage'));
 const DriverLedgersPage = lazy(() => import('../pages/DriverLedgersPage'));
 const DriverLedgerPage = lazy(() => import('../pages/DriverLedgerPage'));
+const LiveOpsPage = lazy(() => import('../pages/LiveOpsPage'));
+const RidesPage = lazy(() => import('../pages/RidesPage'));
+const RideDetailPage = lazy(() => import('../pages/RideDetailPage'));
 
 export function App() {
   return (
@@ -56,6 +59,36 @@ export function App() {
                   }
                 />
                 {/* Permissioned routes: guard + page share the backend's code. */}
+                <Route
+                  path="live-ops"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="rides:view">
+                        <LiveOpsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="rides"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="rides:view">
+                        <RidesPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="rides/:rideId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="rides:view">
+                        <RideDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
                 <Route
                   path="admins"
                   element={

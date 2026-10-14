@@ -2,6 +2,7 @@ import { Redirect, Stack } from "expo-router";
 import React from "react";
 
 import { useAuth } from "../../auth/auth-context";
+import { ChatProvider } from "../../chat/chat-context";
 import { useLocale } from "../../i18n/locale-context";
 import { ScreenHeader } from "../../components/ui";
 import { NotificationsProvider } from "../../notifications/notifications-context";
@@ -29,6 +30,7 @@ export default function AppLayout() {
   return (
     <RegionProvider>
       <RideProvider>
+      <ChatProvider>
       <NotificationsProvider>
         <Stack
           screenOptions={{
@@ -82,6 +84,8 @@ export default function AppLayout() {
           <Stack.Screen name="booking" options={{ headerShown: false }} />
           <Stack.Screen name="change-route" options={{ headerShown: false }} />
           <Stack.Screen name="ride/[rideId]" options={{ headerShown: false }} />
+          {/* M10: the in-ride chat draws its own thread header. */}
+          <Stack.Screen name="chat/[rideId]" options={{ headerShown: false }} />
           <Stack.Screen
             name="receipt/[rideId]"
             options={{ headerShown: false }}
@@ -99,6 +103,7 @@ export default function AppLayout() {
           />
         </Stack>
       </NotificationsProvider>
+      </ChatProvider>
       </RideProvider>
     </RegionProvider>
   );

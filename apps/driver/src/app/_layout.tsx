@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { getMyProfile } from "../api/auth";
 import { AuthProvider, useAuth } from "../auth/AuthProvider";
+import { ChatProvider } from "../chat/ChatProvider";
 import { loadStoredSession, updateSessionUser } from "../auth/session";
 import { initI18n } from "../i18n";
 import type { Language } from "../i18n";
@@ -96,6 +97,8 @@ function AppStack() {
           name="vehicle-switch"
           options={{ title: t("onboarding.switch.title") }}
         />
+        {/* Per-ride chat (M10, UC-S-13/14). */}
+        <Stack.Screen name="chat" options={{ title: t("chat.title") }} />
       </Stack.Protected>
 
       {/* The driver gate: signed in, but no active driver role (M2-T4). */}
@@ -179,13 +182,16 @@ export default function RootLayout() {
             <DriverMoneyProvider>
               {/* Open offer + active ride facade on the same socket (M7-T4). */}
               <DriverRideProvider>
-                {/* Demand heatmap, refreshed once per surge cycle (M9-T2). */}
-                <HeatmapProvider>
-                  <StatusBar style="dark" />
-                  <AppStack />
-                </HeatmapProvider>
-                {/* Push registration + notification-tap deep links (M6-T4). */}
-                <PushBridge />
+                {/* Per-ride chat thread on the same socket (M10-T3). */}
+                <ChatProvider>
+                  {/* Demand heatmap, refreshed once per surge cycle (M9-T2). */}
+                  <HeatmapProvider>
+                    <StatusBar style="dark" />
+                    <AppStack />
+                  </HeatmapProvider>
+                  {/* Push registration + notification-tap deep links (M6-T4). */}
+                  <PushBridge />
+                </ChatProvider>
               </DriverRideProvider>
             </DriverMoneyProvider>
           </AvailabilityProvider>

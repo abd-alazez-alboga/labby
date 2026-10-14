@@ -4,6 +4,9 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "liveMap": "Live map",
+    "rides": "Rides",
+    "openSosAlerts": "Open SOS alerts",
     "users": "Users",
     "regions": "Regions",
     "driverApplications": "Driver applications",
@@ -1015,6 +1018,206 @@
       "regionNotFound": "Region not found.",
       "loadFailed": "Couldn't load the live surge state.",
       "refreshFailed": "Couldn't refresh the live surge state — showing the last known values. Retrying automatically."
+    }
+  },
+  "sos": {
+    "toastTitle": "SOS alert",
+    "toastBody": "{{name}} triggered SOS at {{time}}. Open the live map now.",
+    "toastOpen": "Open live map"
+  },
+  "liveOps": {
+    "title": "Live map",
+    "liveChip": "Live · every {{seconds}} s",
+    "regionLabel": "Region",
+    "surgeToggle": "Surge overlay",
+    "mapLabel": "Live operations map",
+    "banner": {
+      "title": "SOS — ride {{ride}} · {{name}} · {{time}}",
+      "byRider": "Triggered by the rider",
+      "byDriver": "Triggered by the driver",
+      "focus": "Focus on map"
+    },
+    "legend": {
+      "label": "Map legend",
+      "idle": "Idle driver",
+      "onRide": "On a ride",
+      "surge": "Surge zone",
+      "sos": "SOS"
+    },
+    "counts": {
+      "title": "On the map",
+      "onlineDrivers": "Online drivers",
+      "driversValue": "{{total}} · {{onRides}} on rides",
+      "activeRides": "Active rides",
+      "zonesSurging": "Zones surging",
+      "zonesValue": "{{surging}} of {{total}}",
+      "hint": "Click a driver, ride or pin to open its detail. Needs the View rides permission; SOS handling needs Handle support."
+    },
+    "sos": {
+      "title": "SOS alerts",
+      "filterLabel": "Alert status",
+      "status": {
+        "open": "Open",
+        "acknowledged": "Acknowledged",
+        "all": "All"
+      },
+      "empty": {
+        "open": "No open SOS alerts.",
+        "acknowledged": "No acknowledged SOS alerts yet.",
+        "all": "No SOS alerts yet."
+      },
+      "loadFailed": "Couldn't load the SOS alerts.",
+      "openChip": "OPEN",
+      "acknowledgedChip": "Acknowledged",
+      "triggeredByRider": "Rider {{name}} triggered SOS on the ride.",
+      "triggeredByDriver": "Driver {{name}} triggered SOS on the ride.",
+      "openRide": "Open ride",
+      "noteLabel": "Stand-down note",
+      "notePlaceholder": "What happened, actions taken…",
+      "acknowledge": "Acknowledge",
+      "acknowledging": "Acknowledging…",
+      "acknowledgeFailed": "Couldn't acknowledge the alert. It may already be acknowledged — refresh the list.",
+      "needsHandle": "Acknowledging needs the Handle support permission.",
+      "stoodDownBy": "Stood down by {{name}} · {{time}}"
+    },
+    "errors": {
+      "regionsFailed": "Couldn't load the regions list.",
+      "noRegions": "No regions exist yet. Create one under Regions.",
+      "loadFailed": "Couldn't load the live snapshot.",
+      "refreshFailed": "Couldn't refresh the live snapshot — showing the last known positions. Retrying automatically."
+    }
+  },
+  "rides": {
+    "title": "Rides",
+    "subtitle": "Search and inspect every ride.",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Ride ID, user ID, or exact phone (+9639…)",
+    "searchHint": "Paste a ride or user ID to jump straight to it; a phone must match exactly in international format.",
+    "search": "Search",
+    "regionLabel": "Region",
+    "allRegions": "All regions",
+    "dayLabel": "On day",
+    "filterLabel": "Ride state",
+    "chips": {
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_driver": "No driver",
+      "sos": "SOS"
+    },
+    "count": "{{total}} rides",
+    "empty": "No rides match these filters.",
+    "emptySos": "No rides with an open SOS alert.",
+    "sosFlag": "Open SOS",
+    "routeFallback": "Map point",
+    "fareEstimate": "{{amount}} est.",
+    "fareFee": "{{amount}} fee",
+    "columns": {
+      "ride": "Ride",
+      "when": "When",
+      "rider": "Rider",
+      "driver": "Driver",
+      "route": "Route",
+      "state": "State",
+      "fare": "Fare"
+    },
+    "errors": {
+      "loadFailed": "Couldn't load the rides."
+    }
+  },
+  "rideDetail": {
+    "title": "Ride {{ref}}",
+    "sosOpenChip": "SOS open · {{time}}",
+    "sosBanner": "SOS by {{name}} · {{time}} — alert still open",
+    "sosBannerHint": "Acknowledge it from the live map's SOS panel once stood down.",
+    "openLiveMap": "Open live map",
+    "parties": {
+      "rider": "rider {{name}}",
+      "driver": "driver {{name}}",
+      "phonesNeedHandle": "phones on this page need the Handle support permission"
+    },
+    "payment": {
+      "cash": "Cash",
+      "wallet": "Wallet"
+    },
+    "timelineTitle": "Timeline",
+    "timeline": {
+      "requested": "Requested",
+      "requestedDetail": "Estimate {{estimate}} · surge {{surge}}",
+      "offering": "Finding a driver",
+      "accepted": "Accepted",
+      "acceptedBy": "Accepted — {{name}}",
+      "acceptedDetail": "Offer {{sequence}} · pickup {{distance}} km away",
+      "driver_arrived": "Driver arrived",
+      "started": "Started",
+      "completed": "Completed",
+      "cancelledByRider": "Cancelled by rider",
+      "cancelledByDriver": "Cancelled by driver",
+      "cancellationFee": "Fee {{amount}}",
+      "no_driver_found": "No driver found",
+      "sosByRider": "SOS by rider",
+      "sosByDriver": "SOS by driver",
+      "sosPermanent": "Alert open · the event is permanent",
+      "sosAcknowledged": "Stood down by {{name}} · {{time}}"
+    },
+    "cancellationReason": {
+      "changed_mind": "Rider changed their mind",
+      "driver_too_far": "Driver too far",
+      "wrong_pickup": "Wrong pickup point",
+      "rider_no_show": "Rider no-show",
+      "vehicle_issue": "Vehicle issue",
+      "unsafe_pickup": "Unsafe pickup",
+      "other": "Other"
+    },
+    "offersTitle": "Offers trail",
+    "offers": {
+      "empty": "No offers were made.",
+      "entry": "{{name}} · {{distance}} km",
+      "accepted": "Accepted · {{time}}",
+      "declined": "Declined · {{time}}",
+      "timeout": "Timed out · {{time}}",
+      "withdrawn": "Withdrawn · {{time}}",
+      "open": "Open"
+    },
+    "fareTitle": "Fare",
+    "fare": {
+      "base": "Base fare",
+      "distance": "Distance",
+      "time": "Time",
+      "surcharge": "Time surcharge",
+      "surge": "Surge uplift",
+      "wait": "Wait time",
+      "pickupFee": "Pickup fee",
+      "minimum": "Minimum fare top-up",
+      "discount": "Discount",
+      "total": "Final fare",
+      "estimateTotal": "Estimate (metered)",
+      "tip": "Tip"
+    },
+    "paymentStatus": {
+      "pending": "Payment pending",
+      "paid_cash": "Paid in cash",
+      "paid_wallet": "Paid from the wallet",
+      "paid_mixed": "Paid wallet + cash",
+      "unpaid": "Marked unpaid"
+    },
+    "traceLabel": "GPS trace",
+    "traceCaption": "GPS trace — dashed to pickup, solid in ride.",
+    "traceCaptionSos": "GPS trace · SOS at {{time}}",
+    "noTrace": "No GPS points were recorded for this ride.",
+    "chat": {
+      "title": "Chat log",
+      "readOnly": "Read-only · View support permission",
+      "noThread": "No chat — the ride was never accepted.",
+      "empty": "No messages were sent.",
+      "loadFailed": "Couldn't load the chat log.",
+      "loadEarlier": "Load earlier messages",
+      "driverFallback": "Driver"
+    },
+    "errors": {
+      "notFound": "No ride with this ID.",
+      "loadFailed": "Couldn't load the ride."
     }
   }
 }

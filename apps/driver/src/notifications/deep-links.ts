@@ -11,7 +11,8 @@ import type { DeepLink } from "../api/realtime-types";
  * (params: `documentType?`), `driver_vehicles`, `notifications`; M7 adds
  * `ride` (params `rideId`) and `ride_offer` (params `offerId`) — both open
  * the home route, which IS the ride flow, after the ride facade resynced
- * (`DriverRideContextValue.openLink`). Unknown screens open the
+ * (`DriverRideContextValue.openLink`); M10 adds `chat` (params `rideId`),
+ * which opens the ride's chat thread. Unknown screens open the
  * notification center.
  *
  * The target respects the driver gate (the stacks are guarded): an
@@ -46,6 +47,13 @@ export function hrefForLink(
     case "ride":
     case "ride_offer":
       return context.isDriver ? "/" : NOTIFICATIONS_HREF;
+    case "chat": {
+      // M10 (UC-S-13): a chat push opens the ride's thread directly.
+      const rideId = link.params?.rideId;
+      return context.isDriver && rideId
+        ? { pathname: "/chat", params: { rideId } }
+        : NOTIFICATIONS_HREF;
+    }
     case "notifications":
     default:
       return NOTIFICATIONS_HREF;

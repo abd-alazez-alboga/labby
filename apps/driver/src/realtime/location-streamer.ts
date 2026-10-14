@@ -147,6 +147,18 @@ export class LocationStreamer {
     return this.buffer;
   }
 
+  /**
+   * Sends an arbitrary client frame on the authenticated socket (M10: the
+   * chat facade's `chat.send` / `chat.read` ride along the one socket).
+   * Returns false while the socket is down or not yet `ready` — the caller
+   * queues and resends after the next `onConnected` (dedup by clientMsgId
+   * makes resending safe).
+   */
+  sendFrame(frame: Record<string, unknown>): boolean {
+    if (!this.authenticated) return false;
+    return this.send(frame as unknown as ClientFrame);
+  }
+
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -285,8 +297,16 @@ export class LocationStreamer {
       case "error":
         if (frame.code === "not_online" || frame.code === "not_driver") {
           this.deps.onRejected?.(frame.code);
+        } else if (frame.code !== "invalid_sample") {
+          // invalid_sample: the sample is dropped server-side; nothing to
+          // retry. Every OTHER error code belongs to another consumer on
+          // this socket (M10's chat frames) — hand it on raw.
+          this.deps.onEvent?.({
+            type: "error",
+            code: frame.code,
+            ...(frame.message !== undefined ? { message: frame.message } : {}),
+          });
         }
-        // invalid_sample: the sample is dropped server-side; nothing to retry.
         break;
       case "pong":
         // Liveness handled above.

@@ -25,6 +25,11 @@ const CATALOG: Record<string, RouteBuilder> = {
     params.rideId
       ? (`/ride/${encodeURIComponent(params.rideId)}` as Href)
       : NOTIFICATION_CENTER_HREF,
+  // M10 (comms-v1.yaml "Chat push"): the ride's chat thread.
+  chat: (params) =>
+    params.rideId
+      ? (`/chat/${encodeURIComponent(params.rideId)}` as Href)
+      : NOTIFICATION_CENTER_HREF,
 };
 
 export function resolveDeepLink(link: DeepLink | null | undefined): Href {

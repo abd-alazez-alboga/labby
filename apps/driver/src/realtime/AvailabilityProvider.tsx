@@ -99,6 +99,12 @@ export interface AvailabilityContextValue {
   openSettings: () => void;
   /** Ride / offer events and (re)connects of the realtime socket; returns the unsubscribe. */
   subscribeRealtime: (listener: RealtimeListener) => () => void;
+  /**
+   * Sends a client frame on the live socket (M10: `chat.send` / `chat.read`
+   * ride along the one socket). false while the socket is down — callers
+   * queue and resend on the next `connected` event.
+   */
+  sendRealtime: (frame: Record<string, unknown>) => boolean;
 }
 
 const AvailabilityContext = createContext<AvailabilityContextValue | null>(
@@ -150,6 +156,12 @@ export function AvailabilityProvider({
       realtimeListeners.current.delete(listener);
     };
   }, []);
+  const streamerRef = useRef<LocationStreamer | null>(null);
+  const sendRealtime = useCallback(
+    (frame: Record<string, unknown>) =>
+      streamerRef.current?.sendFrame(frame) ?? false,
+    [],
+  );
   const activeRef = useRef(active);
   activeRef.current = active;
   const dataRef = useRef<DriverAvailability | null>(null);
@@ -333,9 +345,11 @@ export function AvailabilityProvider({
         if (mounted.current) emitRealtime({ kind: "frame", frame });
       },
     });
+    streamerRef.current = streamer;
     void streamer.start();
     return () => {
       if (healthTimer) clearTimeout(healthTimer);
+      if (streamerRef.current === streamer) streamerRef.current = null;
       streamer.stop();
       if (mounted.current) {
         setStream("idle");
@@ -394,6 +408,7 @@ export function AvailabilityProvider({
       reload,
       openSettings,
       subscribeRealtime,
+      sendRealtime,
     }),
     [
       load,
@@ -410,6 +425,7 @@ export function AvailabilityProvider({
       reload,
       openSettings,
       subscribeRealtime,
+      sendRealtime,
     ],
   );
 

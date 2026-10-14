@@ -112,7 +112,9 @@ describe("ride flow (UC-R-05…07)", () => {
     await send(socket, { type: "ride.state", ride: ride({ state: "offering" }) });
     expect(screen.getByText("Finding your driver")).toBeOnTheScreen();
 
-    // Accepted: driver, vehicle, plate, ETA — no M10 actions, no rating.
+    // Accepted: driver, vehicle, plate, ETA, no rating. M10 safety actions
+    // are live: Share trip + SOS always; Chat/Call need a thread (no
+    // ChatProvider here — covered in safety-actions.test).
     await send(socket, { type: "ride.state", ride: acceptedRide() });
     expect(await screen.findByText("Meet at pickup")).toBeOnTheScreen();
     expect(screen.getByTestId("ride-eta")).toHaveTextContent("4 min");
@@ -121,9 +123,10 @@ describe("ride flow (UC-R-05…07)", () => {
       "Silver Hyundai Accent",
     );
     expect(screen.getByTestId("driver-plate")).toHaveTextContent("دمشق 502345");
-    for (const hidden of ["Call", "Message", "Share trip", "Safety"]) {
-      expect(screen.queryByText(hidden)).toBeNull();
-    }
+    expect(screen.getByTestId("safety-share")).toBeOnTheScreen();
+    expect(screen.getByTestId("ride-sos")).toBeOnTheScreen();
+    expect(screen.queryByTestId("safety-chat")).toBeNull();
+    expect(screen.queryByTestId("safety-call")).toBeNull();
     expect(screen.queryByText(/★/)).toBeNull();
     // The map page shows the driver once it is ready (state injection).
     await act(async () => {

@@ -32,6 +32,20 @@ describe("resolveDeepLink", () => {
     ).toBe(false);
   });
 
+  it("maps chat {rideId} to the chat screen (comms-v1.yaml chat push)", () => {
+    expect(resolveDeepLink({ screen: "chat", params: { rideId: "9b7c" } })).toBe(
+      "/chat/9b7c",
+    );
+    expect(resolveDeepLink({ screen: "chat" })).toBe(NOTIFICATION_CENTER_HREF);
+    expect(
+      parsePushPayload({
+        notificationId: "n-9",
+        screen: "chat",
+        params: '{"rideId":"r-9"}',
+      }).link,
+    ).toEqual({ screen: "chat", params: { rideId: "r-9" } });
+  });
+
   it("maps a missing link to the center", () => {
     expect(resolveDeepLink(null)).toBe("/notifications");
     expect(resolveDeepLink(undefined)).toBe("/notifications");

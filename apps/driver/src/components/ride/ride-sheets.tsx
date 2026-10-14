@@ -35,6 +35,7 @@ import {
   StreamLostBanner,
   comfortLabels,
 } from "./ride-parts";
+import { SafetyRow } from "./safety-actions";
 
 /**
  * The bottom sheets of the active-ride map screens (design canvas "To
@@ -108,6 +109,9 @@ export function ToPickupSheet({
       {ride.rider ? (
         <ComfortChips comfort={ride.rider.comfort} testID="rider-comfort" />
       ) : null}
+
+      {/* M10 (UC-S-13..15): Chat / Call / Share trip. */}
+      <SafetyRow ride={ride} />
 
       {ride.driverStream === "lost" ? <StreamLostBanner /> : null}
 
@@ -269,6 +273,9 @@ export function AtPickupSheet({
         </View>
       </View>
 
+      {/* M10 (UC-S-13..15): Chat / Call / Share trip. */}
+      <SafetyRow ride={ride} />
+
       {ride.driverStream === "lost" ? <StreamLostBanner /> : null}
       <ActionError error={error} />
 
@@ -377,6 +384,9 @@ export function InRideSheet({
           {t("ride.inRide.routeChanged")}
         </AppText>
       ) : null}
+
+      {/* M10 (UC-S-13..15): Chat / Call / Share trip. */}
+      <SafetyRow ride={ride} />
 
       <AppText variant="secondary" color={colors.textSecondary}>
         {t("ride.inRide.metered", {

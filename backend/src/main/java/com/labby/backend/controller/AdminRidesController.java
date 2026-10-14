@@ -14,6 +14,7 @@ import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -81,15 +82,22 @@ public class AdminRidesController {
   }
 
   /**
-   * The full truth of one ride.
+   * The full truth of one ride. Party phones are contact access (UC-A-20): served only to admins
+   * holding {@code support:handle}, null for everyone else.
    *
    * @param rideId the ride
+   * @param authentication the caller
    * @return 200 with the detail
    */
   @GetMapping("/{rideId}")
   @PreAuthorize("hasAuthority('rides:view')")
   @Operation(summary = "Timeline, trace, offers trail, fare (UC-A-18)")
-  public ResponseEntity<AdminRideDetailDto> detail(@PathVariable UUID rideId) {
-    return ResponseEntity.ok(adminRideService.detail(rideId));
+  public ResponseEntity<AdminRideDetailDto> detail(
+      @PathVariable UUID rideId, Authentication authentication) {
+    AdminRideDetailDto detail = adminRideService.detail(rideId);
+    boolean contactAccess =
+        authentication.getAuthorities().stream()
+            .anyMatch(authority -> "support:handle".equals(authority.getAuthority()));
+    return ResponseEntity.ok(contactAccess ? detail : detail.withoutPhones());
   }
 }

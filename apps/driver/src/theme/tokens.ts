@@ -43,6 +43,11 @@ export const colors = {
   dangerBg: "#FEF3F2",
   online: "#12B76A", // the online status dot only
 
+  // Functional safety red (owner-approved 2026-10-13, M10 canvas) — the
+  // SOS pill / confirm ONLY; never an accent anywhere else.
+  sos: "#D92D20",
+  sosBg: "#FEE4E2",
+
   // Shadow ink (rgba(20,16,24,…) in the spec)
   shadow: "#141018",
 

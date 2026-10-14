@@ -27,6 +27,7 @@ import { CancelSheet } from "./cancel-sheet";
 import { CompleteScreen } from "./complete-screen";
 import { OfferCard } from "./offer-card";
 import { InstructionCard, OnlinePill } from "./ride-parts";
+import { SosConfirmSheet, SosPill } from "./safety-actions";
 import {
   AtPickupSheet,
   InRideSheet,
@@ -107,6 +108,7 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
   const [cancel, setCancel] = useState<{
     reason: DriverCancelReason | null;
   } | null>(null);
+  const [sosOpen, setSosOpen] = useState(false);
   const ride = ctx.ride;
   const rideId = ride?.id ?? null;
   const rideState = ride?.state ?? null;
@@ -115,6 +117,11 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
   useEffect(() => {
     setCancel(null);
   }, [rideId, rideState]);
+
+  // The SOS sheet belongs to one ride (phase changes keep it up).
+  useEffect(() => {
+    setSosOpen(false);
+  }, [rideId]);
 
   const position = availability?.position ?? null;
   const route = useRideRoute(ride, position);
@@ -219,7 +226,13 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
             route={route}
             bottom={sheetHeight}
           />}
-        top={top ? <View style={styles.topCard}>{top}</View> : null}
+        top={
+          <View style={styles.topCard}>
+            {top}
+            {/* M10 (UC-S-16): the floating red SOS pill on every phase. */}
+            <SosPill onPress={() => setSosOpen(true)} />
+          </View>
+        }
         bottom={
           <View
             onLayout={(event) =>
@@ -235,6 +248,9 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
           </View>
         }
       />
+      {sosOpen ? (
+        <SosConfirmSheet ride={ride} onClose={() => setSosOpen(false)} />
+      ) : null}
       {cancel && (ride.state === "accepted" || ride.state === "driver_arrived") ? (
         <KeyboardAvoidingView
           style={StyleSheet.absoluteFill}
@@ -257,5 +273,5 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  topCard: { flex: 1 },
+  topCard: { flex: 1, gap: spacing.sm },
 });

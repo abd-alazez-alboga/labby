@@ -4,6 +4,9 @@
   },
   "nav": {
     "dashboard": "لوحة التحكم",
+    "liveMap": "الخريطة المباشرة",
+    "rides": "الرحلات",
+    "openSosAlerts": "تنبيهات استغاثة مفتوحة",
     "users": "المستخدمون",
     "regions": "المناطق",
     "driverApplications": "طلبات السائقين",
@@ -1015,6 +1018,206 @@
       "regionNotFound": "المنطقة غير موجودة.",
       "loadFailed": "تعذّر تحميل حالة زيادة الأسعار المباشرة.",
       "refreshFailed": "تعذّر تحديث حالة زيادة الأسعار — نعرض آخر القيم المعروفة. ستُعاد المحاولة تلقائيًا."
+    }
+  },
+  "sos": {
+    "toastTitle": "تنبيه استغاثة",
+    "toastBody": "أطلق {{name}} إشارة استغاثة في {{time}}. افتح الخريطة المباشرة الآن.",
+    "toastOpen": "فتح الخريطة المباشرة"
+  },
+  "liveOps": {
+    "title": "الخريطة المباشرة",
+    "liveChip": "مباشر · كل {{seconds}} ثوانٍ",
+    "regionLabel": "المنطقة",
+    "surgeToggle": "طبقة زيادة الأسعار",
+    "mapLabel": "خريطة العمليات المباشرة",
+    "banner": {
+      "title": "استغاثة — الرحلة {{ride}} · {{name}} · {{time}}",
+      "byRider": "أطلقها الراكب",
+      "byDriver": "أطلقها السائق",
+      "focus": "تركيز على الخريطة"
+    },
+    "legend": {
+      "label": "مفتاح الخريطة",
+      "idle": "سائق متاح",
+      "onRide": "في رحلة",
+      "surge": "منطقة زيادة أسعار",
+      "sos": "استغاثة"
+    },
+    "counts": {
+      "title": "على الخريطة",
+      "onlineDrivers": "السائقون المتصلون",
+      "driversValue": "{{total}} · {{onRides}} في رحلات",
+      "activeRides": "الرحلات النشطة",
+      "zonesSurging": "مناطق بزيادة أسعار",
+      "zonesValue": "{{surging}} من {{total}}",
+      "hint": "انقر على سائق أو رحلة أو دبوس لفتح تفاصيله. يتطلب صلاحية عرض الرحلات؛ وتتطلب معالجة الاستغاثة صلاحية معالجة الدعم."
+    },
+    "sos": {
+      "title": "تنبيهات الاستغاثة",
+      "filterLabel": "حالة التنبيه",
+      "status": {
+        "open": "مفتوح",
+        "acknowledged": "تمت المعالجة",
+        "all": "الكل"
+      },
+      "empty": {
+        "open": "لا توجد تنبيهات استغاثة مفتوحة.",
+        "acknowledged": "لا توجد تنبيهات تمت معالجتها بعد.",
+        "all": "لا توجد تنبيهات استغاثة بعد."
+      },
+      "loadFailed": "تعذّر تحميل تنبيهات الاستغاثة.",
+      "openChip": "مفتوح",
+      "acknowledgedChip": "تمت المعالجة",
+      "triggeredByRider": "أطلق الراكب {{name}} إشارة استغاثة في الرحلة.",
+      "triggeredByDriver": "أطلق السائق {{name}} إشارة استغاثة في الرحلة.",
+      "openRide": "فتح الرحلة",
+      "noteLabel": "ملاحظة إنهاء الحالة",
+      "notePlaceholder": "ما الذي حدث، والإجراءات المتخذة…",
+      "acknowledge": "تأكيد المعالجة",
+      "acknowledging": "جارٍ التأكيد…",
+      "acknowledgeFailed": "تعذّر تأكيد معالجة التنبيه. ربما تمت معالجته بالفعل — حدّث القائمة.",
+      "needsHandle": "يتطلب تأكيد المعالجة صلاحية معالجة الدعم.",
+      "stoodDownBy": "أنهاها {{name}} · {{time}}"
+    },
+    "errors": {
+      "regionsFailed": "تعذّر تحميل قائمة المناطق.",
+      "noRegions": "لا توجد مناطق بعد. أنشئ واحدة من صفحة المناطق.",
+      "loadFailed": "تعذّر تحميل اللقطة المباشرة.",
+      "refreshFailed": "تعذّر تحديث اللقطة المباشرة — نعرض آخر المواقع المعروفة. ستُعاد المحاولة تلقائيًا."
+    }
+  },
+  "rides": {
+    "title": "الرحلات",
+    "subtitle": "ابحث في كل الرحلات وافحصها.",
+    "searchLabel": "بحث",
+    "searchPlaceholder": "معرّف رحلة أو مستخدم، أو هاتف مطابق (+9639…)",
+    "searchHint": "الصق معرّف رحلة أو مستخدم للانتقال إليه مباشرة؛ يجب أن يطابق رقم الهاتف تمامًا بالصيغة الدولية.",
+    "search": "بحث",
+    "regionLabel": "المنطقة",
+    "allRegions": "كل المناطق",
+    "dayLabel": "في يوم",
+    "filterLabel": "حالة الرحلة",
+    "chips": {
+      "all": "الكل",
+      "active": "نشطة",
+      "completed": "مكتملة",
+      "cancelled": "ملغاة",
+      "no_driver": "بلا سائق",
+      "sos": "استغاثة"
+    },
+    "count": "{{total}} رحلة",
+    "empty": "لا توجد رحلات مطابقة لهذه المرشحات.",
+    "emptySos": "لا توجد رحلات بتنبيه استغاثة مفتوح.",
+    "sosFlag": "استغاثة مفتوحة",
+    "routeFallback": "نقطة على الخريطة",
+    "fareEstimate": "{{amount}} تقديري",
+    "fareFee": "{{amount}} رسوم",
+    "columns": {
+      "ride": "الرحلة",
+      "when": "الوقت",
+      "rider": "الراكب",
+      "driver": "السائق",
+      "route": "المسار",
+      "state": "الحالة",
+      "fare": "الأجرة"
+    },
+    "errors": {
+      "loadFailed": "تعذّر تحميل الرحلات."
+    }
+  },
+  "rideDetail": {
+    "title": "الرحلة {{ref}}",
+    "sosOpenChip": "استغاثة مفتوحة · {{time}}",
+    "sosBanner": "استغاثة من {{name}} · {{time}} — التنبيه ما يزال مفتوحًا",
+    "sosBannerHint": "أكّد معالجتها من لوحة الاستغاثة في الخريطة المباشرة بعد إنهاء الحالة.",
+    "openLiveMap": "فتح الخريطة المباشرة",
+    "parties": {
+      "rider": "الراكب {{name}}",
+      "driver": "السائق {{name}}",
+      "phonesNeedHandle": "تتطلب أرقام الهواتف في هذه الصفحة صلاحية معالجة الدعم"
+    },
+    "payment": {
+      "cash": "نقدًا",
+      "wallet": "المحفظة"
+    },
+    "timelineTitle": "الخط الزمني",
+    "timeline": {
+      "requested": "طُلبت",
+      "requestedDetail": "تقدير {{estimate}} · زيادة أسعار {{surge}}",
+      "offering": "جارٍ البحث عن سائق",
+      "accepted": "قُبلت",
+      "acceptedBy": "قُبلت — {{name}}",
+      "acceptedDetail": "العرض {{sequence}} · الانطلاق على بعد {{distance}} كم",
+      "driver_arrived": "وصل السائق",
+      "started": "بدأت",
+      "completed": "اكتملت",
+      "cancelledByRider": "ألغاها الراكب",
+      "cancelledByDriver": "ألغاها السائق",
+      "cancellationFee": "رسوم {{amount}}",
+      "no_driver_found": "لم يوجد سائق",
+      "sosByRider": "استغاثة من الراكب",
+      "sosByDriver": "استغاثة من السائق",
+      "sosPermanent": "التنبيه مفتوح · الحدث دائم لا يُحذف",
+      "sosAcknowledged": "أنهاها {{name}} · {{time}}"
+    },
+    "cancellationReason": {
+      "changed_mind": "غيّر الراكب رأيه",
+      "driver_too_far": "السائق بعيد جدًا",
+      "wrong_pickup": "نقطة انطلاق خاطئة",
+      "rider_no_show": "لم يحضر الراكب",
+      "vehicle_issue": "عطل في المركبة",
+      "unsafe_pickup": "نقطة انطلاق غير آمنة",
+      "other": "سبب آخر"
+    },
+    "offersTitle": "سلسلة العروض",
+    "offers": {
+      "empty": "لم تُقدَّم أي عروض.",
+      "entry": "{{name}} · {{distance}} كم",
+      "accepted": "قبِل · {{time}}",
+      "declined": "رفض · {{time}}",
+      "timeout": "انتهت المهلة · {{time}}",
+      "withdrawn": "سُحب · {{time}}",
+      "open": "مفتوح"
+    },
+    "fareTitle": "الأجرة",
+    "fare": {
+      "base": "الأجرة الأساسية",
+      "distance": "المسافة",
+      "time": "الوقت",
+      "surcharge": "رسوم الفترة",
+      "surge": "زيادة الأسعار",
+      "wait": "وقت الانتظار",
+      "pickupFee": "رسوم الانطلاق البعيد",
+      "minimum": "استكمال الحد الأدنى",
+      "discount": "خصم",
+      "total": "الأجرة النهائية",
+      "estimateTotal": "تقدير (بالعداد)",
+      "tip": "إكرامية"
+    },
+    "paymentStatus": {
+      "pending": "الدفع معلّق",
+      "paid_cash": "دُفعت نقدًا",
+      "paid_wallet": "دُفعت من المحفظة",
+      "paid_mixed": "دُفعت محفظة + نقدًا",
+      "unpaid": "مسجّلة غير مدفوعة"
+    },
+    "traceLabel": "مسار GPS",
+    "traceCaption": "مسار GPS — متقطع حتى الانطلاق، متصل أثناء الرحلة.",
+    "traceCaptionSos": "مسار GPS · استغاثة في {{time}}",
+    "noTrace": "لم تُسجَّل نقاط GPS لهذه الرحلة.",
+    "chat": {
+      "title": "سجل المحادثة",
+      "readOnly": "للقراءة فقط · صلاحية عرض الدعم",
+      "noThread": "لا توجد محادثة — لم تُقبل الرحلة قط.",
+      "empty": "لم تُرسل أي رسائل.",
+      "loadFailed": "تعذّر تحميل سجل المحادثة.",
+      "loadEarlier": "تحميل رسائل أقدم",
+      "driverFallback": "السائق"
+    },
+    "errors": {
+      "notFound": "لا توجد رحلة بهذا المعرّف.",
+      "loadFailed": "تعذّر تحميل الرحلة."
     }
   }
 }

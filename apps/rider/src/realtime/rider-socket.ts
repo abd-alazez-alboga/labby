@@ -1,6 +1,8 @@
 import {
   accessTokenExpiryMs,
   backoffDelayMs,
+  type ChatClientFrame,
+  type ChatServerEvent,
   CLOSE_NORMAL,
   CLOSE_UNAUTHORIZED,
   type ClientFrame,
@@ -63,6 +65,10 @@ export interface RiderSocketDeps {
   refreshSession: () => Promise<string | null>;
   onReady: () => void;
   onEvent: (event: RideEvent) => void;
+  /** M10 chat frames (`chat.message`, `chat.read`) addressed to this user. */
+  onChatEvent?: (event: ChatServerEvent) => void;
+  /** Non-closing `{"type":"error"}` frames (e.g. `chat_closed`). */
+  onError?: (code: string) => void;
   onStatus?: (status: SocketStatus) => void;
   random?: () => number;
   now?: () => number;
@@ -91,6 +97,16 @@ export class RiderSocket {
 
   getStatus(): SocketStatus {
     return this.status;
+  }
+
+  /**
+   * Sends a chat frame on the live, authenticated socket. Returns false when
+   * it is not live — the caller keeps the frame and resends after the next
+   * `ready` (the clientMsgId dedup makes resends safe).
+   */
+  sendChatFrame(frame: ChatClientFrame): boolean {
+    if (!this.authenticated) return false;
+    return this.send(frame);
   }
 
   start(): void {
@@ -206,8 +222,13 @@ export class RiderSocket {
       case "ride":
         this.deps.onEvent(frame.event);
         break;
-      case "pong":
+      case "chat":
+        this.deps.onChatEvent?.(frame.event);
+        break;
       case "error":
+        this.deps.onError?.(frame.code);
+        break;
+      case "pong":
       case "ignored":
         break;
     }

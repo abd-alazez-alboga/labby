@@ -174,6 +174,21 @@ class RideLifecycleIntegrationTest extends AbstractRideIntegrationTest {
     // Admin: the full truth (UC-A-18).
     JsonNode detail = ok(get("/api/v1/admin/rides/" + rideId, admin), HttpStatus.OK);
     assertThat(detail.get("riderPhone").asText()).isEqualTo(rider.phone());
+    assertThat(detail.get("driverPhone").asText()).isEqualTo(near.phone());
+    // Contact access (UC-A-20): rides:view alone sees the ride but never the party phones.
+    UUID ridesViewerRole =
+        jdbcTemplate.queryForObject(
+            "INSERT INTO roles (name, is_system) VALUES ('Rides viewer', false) RETURNING role_id",
+            UUID.class);
+    jdbcTemplate.update(
+        "INSERT INTO role_permissions (role_id, permission_id)"
+            + " SELECT ?, permission_id FROM permissions WHERE code = 'rides:view'",
+        ridesViewerRole);
+    String ridesViewer = registerAdmin("+963937904001", ridesViewerRole);
+    JsonNode withheld = ok(get("/api/v1/admin/rides/" + rideId, ridesViewer), HttpStatus.OK);
+    assertThat(withheld.get("riderPhone").isNull()).isTrue();
+    assertThat(withheld.get("driverPhone").isNull()).isTrue();
+    assertThat(withheld.get("riderName").asText()).isEqualTo(detail.get("riderName").asText());
     assertThat(detail.get("driverUserId").asText()).isEqualTo(near.userId().toString());
     assertThat(detail.get("offers")).hasSize(1);
     assertThat(detail.get("offers").get(0).get("response").asText()).isEqualTo("accepted");
