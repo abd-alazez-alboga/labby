@@ -5,7 +5,9 @@
  * gated on counterpart.phone, Share trip (one POST, url persisted per ride
  * and reused; 409 already_shared → notice) and SOS (confirm → dialer with
  * the region emergency number + the silent SOS event with GPS and
- * recordedAt, one retry).
+ * recordedAt, one retry — sent at once with the best position in hand:
+ * the fix warmed while the sheet was open → last known → pickup; no
+ * region number → plain `tel:` + the no-number copy).
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -92,6 +94,7 @@ function grantLocation() {
   locationMock.getCurrentPositionAsync.mockResolvedValue({
     coords: { latitude: 33.5201, longitude: 36.2802 },
   } as Location.LocationObject);
+  locationMock.getLastKnownPositionAsync.mockResolvedValue(null);
   locationMock.watchPositionAsync.mockResolvedValue({
     remove: jest.fn(),
   } as unknown as Location.LocationSubscription);
@@ -360,6 +363,118 @@ describe("SOS (UC-S-16, SAFE-01)", () => {
     expect(screen.queryByTestId("sos-sheet")).toBeNull();
     expect(openUrl).not.toHaveBeenCalled();
     expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)).toHaveLength(0);
+  });
+
+  /** Lets the region resolve first, then makes every fresh fix hang. */
+  async function hangFreshFixAfterRegion(api: ReturnType<typeof mockApi>) {
+    await waitFor(() =>
+      expect(api.callsTo("GET", "/api/v1/regions/resolve")).toHaveLength(1),
+    );
+    locationMock.getCurrentPositionAsync.mockImplementation(
+      () => new Promise(() => {}),
+    );
+  }
+
+  it("does not wait for a hung fresh fix: sends at once with the last known position", async () => {
+    const api = mockApi(routes({ [SOS]: { status: 201, body: sosEvent() } }));
+    locationMock.getLastKnownPositionAsync.mockResolvedValue({
+      coords: { latitude: 33.5111, longitude: 36.2999 },
+    } as Location.LocationObject);
+    await renderRide();
+    await screen.findByTestId("ride-sos");
+    await hangFreshFixAfterRegion(api);
+
+    await fireEvent.press(screen.getByTestId("ride-sos"));
+    await waitFor(() =>
+      expect(screen.getByTestId("sos-confirm")).toHaveTextContent(
+        "Call 112 — support alerted",
+      ),
+    );
+    await fireEvent.press(screen.getByTestId("sos-confirm"));
+    expect(openUrl).toHaveBeenCalledWith("tel:112");
+    // Well inside the old 4 s fresh-fix wait (waitFor gives up at 1 s).
+    await waitFor(
+      () =>
+        expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)).toHaveLength(1),
+      { timeout: 500 },
+    );
+    expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)[0].body).toMatchObject({
+      lat: 33.5111,
+      lng: 36.2999,
+    });
+  });
+
+  it("falls back to the pickup when there is no fix and no last known position", async () => {
+    const api = mockApi(routes({ [SOS]: { status: 201, body: sosEvent() } }));
+    locationMock.getLastKnownPositionAsync.mockResolvedValue(null);
+    await renderRide();
+    await screen.findByTestId("ride-sos");
+    await hangFreshFixAfterRegion(api);
+
+    await fireEvent.press(screen.getByTestId("ride-sos"));
+    await fireEvent.press(await screen.findByTestId("sos-confirm"));
+    await waitFor(
+      () =>
+        expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)).toHaveLength(1),
+      { timeout: 500 },
+    );
+    expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)[0].body).toMatchObject({
+      lat: 33.5138,
+      lng: 36.2765,
+    });
+  });
+
+  it("falls back to the pickup when the location reads fail", async () => {
+    const api = mockApi(routes({ [SOS]: { status: 201, body: sosEvent() } }));
+    await renderRide();
+    await screen.findByTestId("ride-sos");
+    await waitFor(() =>
+      expect(api.callsTo("GET", "/api/v1/regions/resolve")).toHaveLength(1),
+    );
+    locationMock.getCurrentPositionAsync.mockRejectedValue(new Error("off"));
+    locationMock.getLastKnownPositionAsync.mockRejectedValue(new Error("off"));
+
+    await fireEvent.press(screen.getByTestId("ride-sos"));
+    await fireEvent.press(await screen.findByTestId("sos-confirm"));
+    await waitFor(() =>
+      expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)).toHaveLength(1),
+    );
+    expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)[0].body).toMatchObject({
+      lat: 33.5138,
+      lng: 36.2765,
+    });
+  });
+
+  it("no region emergency number: plain dialer, the no-number copy, the event still fires", async () => {
+    const api = mockApi(
+      routes({
+        "GET /api/v1/regions/resolve": {
+          status: 404,
+          body: { status: 404, message: "Outside every region" },
+        },
+        [SOS]: { status: 201, body: sosEvent() },
+      }),
+    );
+    await renderRide();
+    await waitFor(() =>
+      expect(api.callsTo("GET", "/api/v1/regions/resolve")).toHaveLength(1),
+    );
+
+    await fireEvent.press(await screen.findByTestId("ride-sos"));
+    expect(await screen.findByTestId("sos-confirm")).toHaveTextContent(
+      "Call emergency — support alerted",
+    );
+    expect(
+      screen.getByText(
+        "Your phone will open the dialer to call emergency services. Labby support is alerted instantly with your ride and live location.",
+      ),
+    ).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByTestId("sos-confirm"));
+    expect(openUrl).toHaveBeenCalledWith("tel:");
+    await waitFor(() =>
+      expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/sos`)).toHaveLength(1),
+    );
   });
 
   it("renders the SOS confirm in Arabic", async () => {

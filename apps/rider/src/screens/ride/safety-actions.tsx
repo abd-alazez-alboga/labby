@@ -12,8 +12,9 @@
  *   `already_shared` with a lost url tells the user instead of erroring;
  * - the red SOS pill over the map + the confirm sheet (SAFE-01): confirm
  *   opens the dialer with the region's emergency number AND fires the SOS
- *   event silently (current GPS + recordedAt; one retry; never blocking
- *   the dialer).
+ *   event silently and at once with the best position already in hand
+ *   (the fix warmed while the sheet was open → last known → pickup) +
+ *   recordedAt; one retry; never blocking the dialer.
  *
  * Red #D92D20 is owner-approved as a functional safety color (2026-10-13).
  */
@@ -21,7 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Linking,
   Modal,
@@ -54,8 +55,11 @@ const SAFETY_RED_TINT = "#FEE4E2";
 
 export const SHARE_LINK_KEY_PREFIX = "labby.rider.share-link.";
 
-/** How long the SOS event waits for a GPS fix before falling back. */
-const SOS_GPS_TIMEOUT_MS = 4000;
+/**
+ * Upper bound for reading the OS's cached (last known) position — a cache
+ * read that normally answers at once; the SOS never waits for a fresh fix.
+ */
+const SOS_LAST_KNOWN_TIMEOUT_MS = 1000;
 
 // ---------------------------------------------------------------- share
 
@@ -77,44 +81,38 @@ async function storeShareUrl(rideId: string, url: string): Promise<void> {
 
 // ------------------------------------------------------------------ SOS
 
-async function positionWithTimeout(): Promise<LatLngPoint | null> {
+async function lastKnownPosition(): Promise<LatLngPoint | null> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
-    const fix = await Promise.race([
-      Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      }),
+    const last = await Promise.race([
+      Location.getLastKnownPositionAsync(),
       new Promise<null>((resolve) => {
-        timer = setTimeout(() => resolve(null), SOS_GPS_TIMEOUT_MS);
+        timer = setTimeout(() => resolve(null), SOS_LAST_KNOWN_TIMEOUT_MS);
       }),
     ]);
-    if (fix) return { lat: fix.coords.latitude, lng: fix.coords.longitude };
+    if (last) return { lat: last.coords.latitude, lng: last.coords.longitude };
   } catch {
     // fall through
   } finally {
     if (timer) clearTimeout(timer);
   }
-  try {
-    const last = await Location.getLastKnownPositionAsync();
-    if (last) return { lat: last.coords.latitude, lng: last.coords.longitude };
-  } catch {
-    // fall through
-  }
   return null;
 }
 
 /**
- * Records the SOS event silently: current GPS (pickup as the last resort —
- * the event must carry a position) + the device moment, one retry on
- * failure. Never awaited by the dialer path.
+ * Records the SOS event silently and at once with the best position
+ * already available — the fix warmed while the confirm sheet was open,
+ * else the last known position, else the pickup (the event must carry a
+ * position) — + the device moment, one retry on failure. Never awaited by
+ * the dialer path.
  */
-async function fireSosEvent(ride: Ride): Promise<void> {
-  const point = (await positionWithTimeout()) ?? ride.pickup;
-  const event = {
-    lat: point.lat,
-    lng: point.lng,
-    recordedAt: new Date().toISOString(),
-  };
+async function fireSosEvent(
+  ride: Ride,
+  warmFix: LatLngPoint | null,
+): Promise<void> {
+  const recordedAt = new Date().toISOString();
+  const point = warmFix ?? (await lastKnownPosition()) ?? ride.pickup;
+  const event = { lat: point.lat, lng: point.lng, recordedAt };
   try {
     await sendSos(ride.id, event);
   } catch {
@@ -316,10 +314,33 @@ export function SosConfirmSheet({
   const number = region?.config?.emergencyNumber ?? null;
   const regionName = region?.config?.name ?? null;
 
+  // Warm a fresh fix while the sheet is open, so the confirm tap already
+  // has a current position and the event never waits for the GPS.
+  const warmFix = useRef<LatLngPoint | null>(null);
+  useEffect(() => {
+    if (!visible) return;
+    let live = true;
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then((fix) => {
+        if (live) {
+          warmFix.current = {
+            lat: fix.coords.latitude,
+            lng: fix.coords.longitude,
+          };
+        }
+      })
+      .catch(() => {
+        // No fix — confirm falls back to last known, then pickup.
+      });
+    return () => {
+      live = false;
+    };
+  }, [visible]);
+
   const confirm = () => {
     // Dialer first — the event fires silently alongside it (SAFE-01).
     void Linking.openURL(number ? `tel:${number}` : "tel:").catch(() => {});
-    void fireSosEvent(ride);
+    void fireSosEvent(ride, warmFix.current);
     onClose();
   };
 

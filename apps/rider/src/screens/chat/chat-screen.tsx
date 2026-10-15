@@ -61,6 +61,23 @@ function messageText(message: ChatMessage, locale: AppLocale): string {
   return message.body ?? "";
 }
 
+function pendingText(item: PendingMessage, locale: AppLocale): string {
+  if (item.kind === "quick_reply" && item.quickReply) {
+    return quickReplyText(item.quickReply, locale);
+  }
+  return item.body ?? "";
+}
+
+/** Changes only when a message is added at the END (or a send is queued). */
+function newestMessageKey(
+  messages: ChatMessage[],
+  pending: PendingMessage[],
+): string | null {
+  const newest = messages.at(-1)?.messageId ?? "";
+  const newestPending = pending.at(-1)?.clientMsgId ?? "";
+  return newest || newestPending ? `${newest}|${newestPending}` : null;
+}
+
 function dayKey(iso: string): string {
   const date = new Date(iso);
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -80,9 +97,11 @@ export default function ChatScreen({ rideId }: { rideId: string }) {
   // the message lands live here (owner ruling 2026-10-14).
   useFocusEffect(useCallback(() => setOpenChatRideId(rideId), [rideId]));
 
-  const messageCount = chat.messages.length + chat.pending.length;
+  // Keyed on the NEWEST shown / pending ids, not the count: an earlier
+  // page prepended by "Load earlier messages" must not jump to the bottom.
+  const newestKey = newestMessageKey(chat.messages, chat.pending);
   useEffect(() => {
-    if (messageCount > 0) {
+    if (newestKey) {
       // Keep the newest message in view (initial load and every arrival).
       const timer = setTimeout(
         () => scrollRef.current?.scrollToEnd({ animated: false }),
@@ -90,7 +109,7 @@ export default function ChatScreen({ rideId }: { rideId: string }) {
       );
       return () => clearTimeout(timer);
     }
-  }, [messageCount]);
+  }, [newestKey]);
 
   const leave = () => {
     if (router.canGoBack()) router.back();
@@ -502,7 +521,7 @@ function MessageList({
           key={item.clientMsgId}
           mine
           flipRows={flipRows}
-          text={item.body ?? ""}
+          text={pendingText(item, locale)}
           time={sendingLabel}
           testID="chat-pending"
         />
@@ -692,9 +711,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
-    height: 44,
+    // One-tap path (CHAT-02, NFR-U2): the 48 px touch-target rule.
+    height: touchTarget,
     paddingHorizontal: spacing.lg,
-    borderRadius: 22,
+    borderRadius: touchTarget / 2,
     borderWidth: 1.5,
     borderColor: colors.grabHandle,
     backgroundColor: colors.surface,

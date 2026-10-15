@@ -121,13 +121,16 @@ let quickRepliesCache: Promise<QuickReply[]> | null = null;
 
 /**
  * The localized one-tap catalog, cached per session (both languages are
- * served, so a language switch re-renders without refetching).
+ * served, so a language switch re-renders without refetching). `as=rider`
+ * is required (backend ruling B-H2, 2026-10-15): the server answers with
+ * the rider + both audiences only.
  */
 export function getQuickReplies(): Promise<QuickReply[]> {
   if (!quickRepliesCache) {
-    quickRepliesCache = apiFetch<QuickReply[]>("/api/v1/chat/quick-replies", {
-      auth: true,
-    }).catch((error) => {
+    quickRepliesCache = apiFetch<QuickReply[]>(
+      "/api/v1/chat/quick-replies?as=rider",
+      { auth: true },
+    ).catch((error) => {
       quickRepliesCache = null;
       throw error;
     });

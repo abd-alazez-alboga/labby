@@ -4,7 +4,10 @@
  * gating, history rendering, localized quick replies (EN + AR), text send
  * with clientMsgId dedup (echo = ack), reconnect resend + `after` backfill,
  * read markers both ways ("Seen"), the read_only window and the 404
- * no-thread state.
+ * no-thread state; plus the M10 review paths: the reopened window, the
+ * `invalid_message` / `chat_not_open` errors, load-earlier, the empty-
+ * history and 404 → ready reconnects, in-flight merge and the pending
+ * quick-reply bubble.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -15,7 +18,7 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import React from "react";
-import { Linking } from "react-native";
+import { Linking, ScrollView } from "react-native";
 
 import { resetQuickRepliesCache } from "../../../api/comms";
 import { ChatProvider } from "../../../chat/chat-context";
@@ -490,5 +493,249 @@ describe("chat screen (UC-S-13/14)", () => {
     );
     expect(await screen.findByTestId("chat-read-only")).toBeOnTheScreen();
     expect(screen.queryByTestId("chat-pending")).toBeNull();
+  });
+
+  it("asks the catalog for the rider audience (`as=rider`, B-H2)", async () => {
+    const api = mockApi(baseRoutes);
+    await renderChat();
+    await screen.findByText("I'm coming");
+    const calls = api.callsTo("GET", "/api/v1/chat/quick-replies");
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) expect(call.query).toEqual({ as: "rider" });
+  });
+
+  it("a pending quick reply shows its localized text until the echo", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    mockApi(baseRoutes);
+    await renderChat();
+    await screen.findByText("أنا قادم");
+    await connect();
+
+    await fireEvent.press(screen.getByTestId("chat-quick-reply-rider_coming"));
+    expect(screen.getByTestId("chat-pending")).toHaveTextContent(/أنا قادم/);
+  });
+
+  it("quick-reply chips meet the 48 px touch target", async () => {
+    mockApi(baseRoutes);
+    await renderChat();
+    expect(
+      await screen.findByTestId("chat-quick-reply-rider_coming"),
+    ).toHaveStyle({ height: 48 });
+  });
+
+  it("reopened window (UC-S-13 A2): writable, call shown", async () => {
+    mockApi({
+      ...baseRoutes,
+      [ACTIVE]: { status: 204 },
+      [THREAD]: { status: 200, body: chatThread({ windowState: "reopened" }) },
+    });
+    await renderChat();
+
+    expect(await screen.findByTestId("chat-input")).toBeOnTheScreen();
+    expect(screen.getByTestId("chat-send")).toBeOnTheScreen();
+    expect(screen.getByTestId("chat-call")).toBeOnTheScreen();
+    expect(screen.getByTestId("chat-quick-replies")).toBeOnTheScreen();
+    expect(screen.queryByTestId("chat-read-only")).toBeNull();
+  });
+
+  it("invalid_message: send-failed banner, only the refused (oldest in-flight) message is dropped", async () => {
+    mockApi(baseRoutes);
+    await renderChat();
+    await screen.findByTestId("chat-name");
+    const socket = await connect();
+
+    await fireEvent.changeText(screen.getByTestId("chat-input"), "First");
+    await fireEvent.press(screen.getByTestId("chat-send"));
+    await fireEvent.changeText(screen.getByTestId("chat-input"), "Second");
+    await fireEvent.press(screen.getByTestId("chat-send"));
+    expect(screen.getAllByTestId("chat-pending")).toHaveLength(2);
+
+    // The server answers frames in order: the error refers to "First".
+    await act(async () =>
+      socket.receive({
+        type: "error",
+        code: "invalid_message",
+        message: "Invalid message",
+      }),
+    );
+    expect(screen.getByTestId("chat-send-failed")).toHaveTextContent(
+      "This message couldn't be sent.",
+    );
+    const left = screen.getAllByTestId("chat-pending");
+    expect(left).toHaveLength(1);
+    expect(left[0]).toHaveTextContent(/Second/);
+  });
+
+  it("a chat_not_open error drops the queue and re-reads the thread", async () => {
+    const api = mockApi({
+      ...baseRoutes,
+      // Provider + screen on mount and again on ready, then the re-read.
+      [THREAD]: [
+        { status: 200, body: chatThread() },
+        { status: 200, body: chatThread() },
+        { status: 200, body: chatThread() },
+        { status: 200, body: chatThread() },
+        { status: 404, body: { status: 404, message: "No thread" } },
+      ],
+    });
+    await renderChat();
+    await screen.findByTestId("chat-name");
+    const socket = await connect();
+    await waitFor(() =>
+      expect(api.callsTo("GET", `/api/v1/rides/${RIDE_ID}/chat`)).toHaveLength(4),
+    );
+
+    await fireEvent.changeText(screen.getByTestId("chat-input"), "Hello?");
+    await fireEvent.press(screen.getByTestId("chat-send"));
+    expect(screen.getByTestId("chat-pending")).toBeOnTheScreen();
+
+    await act(async () =>
+      socket.receive({
+        type: "error",
+        code: "chat_not_open",
+        message: "The chat is not open",
+      }),
+    );
+    expect(await screen.findByTestId("chat-missing")).toBeOnTheScreen();
+    expect(screen.queryByTestId("chat-pending")).toBeNull();
+  });
+
+  it("load earlier: prepends the older page with `before` and does not jump to the bottom", async () => {
+    const scrollToEnd = jest.spyOn(ScrollView.prototype, "scrollToEnd");
+    const older = chatMessage({
+      messageId: MSG_3,
+      body: "I'm at the gate",
+      sentAt: "2026-10-13T09:20:00Z",
+    });
+    const api = mockApi({
+      ...baseRoutes,
+      [MESSAGES]: [
+        { status: 200, body: messagePage(history, "cursor-1") },
+        { status: 200, body: messagePage([older]) },
+      ],
+    });
+    try {
+      await renderChat();
+      await screen.findByText("On my way");
+      // Initial load scrolls to the newest message.
+      await waitFor(() => expect(scrollToEnd).toHaveBeenCalled());
+      scrollToEnd.mockClear();
+
+      await fireEvent.press(screen.getByTestId("chat-load-earlier"));
+      expect(await screen.findByText("I'm at the gate")).toBeOnTheScreen();
+      const call = api
+        .callsTo("GET", `/api/v1/rides/${RIDE_ID}/chat/messages`)
+        .at(-1);
+      expect(call?.query.before).toBe("cursor-1");
+      // Older first, then the shown history.
+      const bubbles = screen.getAllByTestId(/chat-bubble-/);
+      expect(bubbles).toHaveLength(3);
+      expect(bubbles[0]).toHaveTextContent(/I'm at the gate/);
+      expect(bubbles[1]).toHaveTextContent(/On my way/);
+      expect(bubbles[2]).toHaveTextContent(/pharmacy entrance/);
+      // Exhausted: the control is gone.
+      expect(screen.queryByTestId("chat-load-earlier")).toBeNull();
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+      expect(scrollToEnd).not.toHaveBeenCalled();
+    } finally {
+      scrollToEnd.mockRestore();
+    }
+  });
+
+  it("reconnect with an empty history reloads the latest page (no `after`) and shows the missed message", async () => {
+    const missed = chatMessage({ messageId: MSG_3, body: "I'm here" });
+    const api = mockApi({
+      ...baseRoutes,
+      [MESSAGES]: [
+        { status: 200, body: messagePage([]) },
+        { status: 200, body: messagePage([]) },
+        { status: 200, body: messagePage([missed]) },
+      ],
+    });
+    await renderChat();
+    await screen.findByTestId("chat-name");
+    const socket = await connect();
+    const messageCalls = () =>
+      api.callsTo("GET", `/api/v1/rides/${RIDE_ID}/chat/messages`);
+    await waitFor(() => expect(messageCalls()).toHaveLength(2));
+    expect(screen.queryByText("I'm here")).toBeNull();
+
+    // The socket drops; the driver writes during the gap.
+    await act(async () => socket.serverClose(1001));
+    await waitFor(
+      () => expect(FakeSocket.instances.length).toBeGreaterThan(1),
+      { timeout: 3000 },
+    );
+    const next = FakeSocket.latest();
+    await act(async () => next.open());
+    await waitFor(() => expect(next.sent.length).toBeGreaterThan(0));
+    await act(async () => next.receive({ type: "ready", userId: "u-1" }));
+
+    expect(await screen.findByText("I'm here")).toBeOnTheScreen();
+    expect(messageCalls().at(-1)?.query).toEqual({ size: "50" });
+  });
+
+  it("a thread that appears on reconnect (404 → ready) loads its history", async () => {
+    mockApi({
+      ...baseRoutes,
+      // Provider + screen on mount: no thread yet; on ready it exists.
+      [THREAD]: [
+        { status: 404, body: { status: 404, message: "No thread" } },
+        { status: 404, body: { status: 404, message: "No thread" } },
+        { status: 200, body: chatThread() },
+      ],
+      [MESSAGES]: [
+        { status: 404, body: { status: 404, message: "No thread" } },
+        { status: 200, body: messagePage(history) },
+      ],
+    });
+    await renderChat();
+    expect(await screen.findByTestId("chat-missing")).toBeOnTheScreen();
+
+    await connect();
+    expect(await screen.findByText("On my way")).toBeOnTheScreen();
+    expect(
+      screen.getByText("I'm at the pharmacy entrance, blue jacket"),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId("chat-input")).toBeOnTheScreen();
+  });
+
+  it("a live frame that lands while the history request is in flight survives the load", async () => {
+    let resolvePage: (value: unknown) => void = () => {};
+    const api = mockApi(baseRoutes);
+    const realFetch = api.fetchMock.getMockImplementation() as (
+      input: unknown,
+      init?: RequestInit,
+    ) => Promise<Response>;
+    // Hold the first history read until the live frame has arrived.
+    let held = false;
+    api.fetchMock.mockImplementation(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (!held && url.includes(`/rides/${RIDE_ID}/chat/messages`)) {
+        held = true;
+        await new Promise((resolve) => {
+          resolvePage = resolve;
+        });
+      }
+      return realFetch(input, init);
+    });
+    await renderChat();
+    const socket = await connect();
+
+    await act(async () =>
+      socket.receive({
+        type: "chat.message",
+        rideId: RIDE_ID,
+        messageId: MSG_3,
+        senderRole: "driver",
+        kind: "text",
+        body: "Stuck in traffic",
+        sentAt: "2026-10-13T09:33:00Z",
+      }),
+    );
+    await act(async () => resolvePage(undefined));
+
+    expect(await screen.findByText("On my way")).toBeOnTheScreen();
+    expect(screen.getByText("Stuck in traffic")).toBeOnTheScreen();
   });
 });

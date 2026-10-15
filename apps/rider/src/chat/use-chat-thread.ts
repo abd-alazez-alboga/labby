@@ -8,9 +8,13 @@
  *   the delivery ack; an unacked message stays pending and is RESENT after
  *   every reconnect — the server dedups on `clientMsgId`, so a resend can
  *   never duplicate (UC-S-13 E2);
+ * - every history read MERGES into what is shown (dedup by messageId,
+ *   `sentAt` order) — live frames that land while a request is in flight
+ *   are never overwritten;
  * - reconnect backfill: on every socket ready the history after the last
- *   seen message id is fetched and merged (dedup by messageId), and the
- *   thread is re-read (the window may have changed);
+ *   seen message id is fetched (the latest page when nothing is shown
+ *   yet), and the thread is re-read (the window may have changed); a
+ *   thread that appears on that re-read (404 → ready) loads its history;
  * - read markers both ways: incoming counterpart messages are marked read
  *   while the screen is open (WS frame, REST fallback) and the
  *   counterpart's `chat.read` drives the "Seen" marker;
@@ -53,6 +57,8 @@ export interface PendingMessage {
   kind: "text" | "quick_reply";
   body?: string;
   quickReplyCode?: string;
+  /** The tapped catalog entry — display only (the frame carries the code). */
+  quickReply?: QuickReply;
   /** Local clock, display only. */
   sentAtMs: number;
 }
@@ -111,6 +117,8 @@ export function useChatThread(rideId: string): ChatThreadValue {
   const threadRef = useRef<ChatThread | null>(null);
   const quickRepliesRef = useRef<QuickReply[]>([]);
   const lastSentReadRef = useRef<string | null>(null);
+  /** clientMsgIds sent on the CURRENT socket, oldest first (R-I1). */
+  const inFlightRef = useRef<string[]>([]);
 
   useEffect(() => {
     mounted.current = true;
@@ -172,15 +180,24 @@ export function useChatThread(rideId: string): ChatThreadValue {
     if (latest) markRead(latest.messageId);
   }, [markRead]);
 
-  /** Appends messages that are not already shown (dedup by messageId). */
-  const appendMessages = useCallback(
+  /**
+   * Merges messages into what is shown: dedup by messageId, oldest →
+   * newest by `sentAt` (stable, so equal times keep their arrival order).
+   */
+  const mergeMessages = useCallback(
     (incoming: ChatMessage[]) => {
       if (!incoming.length) return;
       const known = new Set(messagesRef.current.map((m) => m.messageId));
-      const fresh = incoming.filter((m) => !known.has(m.messageId));
-      if (fresh.length) {
-        setMessagesSynced([...messagesRef.current, ...fresh]);
-      }
+      const fresh = incoming.filter((m) => {
+        if (known.has(m.messageId)) return false;
+        known.add(m.messageId);
+        return true;
+      });
+      if (!fresh.length) return;
+      const merged = [...messagesRef.current, ...fresh].sort(
+        (a, b) => Date.parse(a.sentAt) - Date.parse(b.sentAt),
+      );
+      setMessagesSynced(merged);
     },
     [setMessagesSynced],
   );
@@ -194,7 +211,8 @@ export function useChatThread(rideId: string): ChatThreadValue {
         .then(
           ([fetchedThread, page]) => {
             if (!mounted.current) return;
-            setMessagesSynced(page.items);
+            // Merge, never replace: a live frame may have landed meanwhile.
+            mergeMessages(page.items);
             setEarlierCursor(page.nextCursor);
             adoptThread(fetchedThread);
             // Opening the chat reads everything shown.
@@ -218,17 +236,45 @@ export function useChatThread(rideId: string): ChatThreadValue {
           if (mounted.current) setQuickReplies(catalog);
         })
         .catch(() => {}),
-    [rideId, adoptThread, markLatestCounterpartRead, setMessagesSynced],
+    [rideId, adoptThread, markLatestCounterpartRead, mergeMessages],
   );
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  /** Re-reads the thread (window changes) without touching the messages. */
+  /**
+   * Reconnect: backfill everything newer than the last shown message, or
+   * the latest page when nothing is shown yet (an empty thread right after
+   * acceptance). Skipped while no thread is known — `refreshThread` runs
+   * it once the thread appears.
+   */
+  const backfill = useCallback(async () => {
+    if (!threadRef.current) return;
+    const last = messagesRef.current[messagesRef.current.length - 1];
+    try {
+      const page = await getChatMessages(
+        rideId,
+        last ? { after: last.messageId } : { size: 50 },
+      );
+      if (!mounted.current) return;
+      mergeMessages(page.items);
+      if (!last) setEarlierCursor(page.nextCursor);
+      markLatestCounterpartRead();
+    } catch {
+      // The next reconnect (or frame) catches up.
+    }
+  }, [rideId, mergeMessages, markLatestCounterpartRead]);
+
+  /**
+   * Re-reads the thread (window changes). A thread that was not known
+   * before (404 / failed load → ready) also loads its history.
+   */
   const refreshThread = useCallback(async () => {
+    const wasKnown = threadRef.current !== null;
     try {
       adoptThread(await getChatThread(rideId));
+      if (!wasKnown && mounted.current) void backfill();
     } catch (error) {
       if (!mounted.current) return;
       if (error instanceof ApiError && error.status === 404) {
@@ -237,21 +283,26 @@ export function useChatThread(rideId: string): ChatThreadValue {
         setStatus("missing");
       }
     }
-  }, [rideId, adoptThread]);
+  }, [rideId, adoptThread, backfill]);
 
-  /** Reconnect: backfill everything newer than the last shown message. */
-  const backfill = useCallback(async () => {
-    const last = messagesRef.current[messagesRef.current.length - 1];
-    if (!last) return;
-    try {
-      const page = await getChatMessages(rideId, { after: last.messageId });
-      if (!mounted.current) return;
-      appendMessages(page.items);
-      markLatestCounterpartRead();
-    } catch {
-      // The next reconnect (or frame) catches up.
-    }
-  }, [rideId, appendMessages, markLatestCounterpartRead]);
+  /** Sends one queued message; true when it left on the current socket. */
+  const transmit = useCallback(
+    (item: PendingMessage) => {
+      const sent = sendChatFrame({
+        type: "chat.send",
+        rideId,
+        clientMsgId: item.clientMsgId,
+        kind: item.kind,
+        ...(item.body !== undefined ? { body: item.body } : {}),
+        ...(item.quickReplyCode !== undefined
+          ? { quickReplyCode: item.quickReplyCode }
+          : {}),
+      });
+      if (sent) inFlightRef.current = [...inFlightRef.current, item.clientMsgId];
+      return sent;
+    },
+    [sendChatFrame, rideId],
+  );
 
   const toChatMessage = useCallback(
     (
@@ -288,13 +339,15 @@ export function useChatThread(rideId: string): ChatThreadValue {
         case "chat.message": {
           if (event.rideId !== rideId) return;
           if (event.clientMsgId) {
+            const acked = event.clientMsgId;
             setPendingSynced(
-              pendingRef.current.filter(
-                (item) => item.clientMsgId !== event.clientMsgId,
-              ),
+              pendingRef.current.filter((item) => item.clientMsgId !== acked),
+            );
+            inFlightRef.current = inFlightRef.current.filter(
+              (id) => id !== acked,
             );
           }
-          appendMessages([toChatMessage(event)]);
+          mergeMessages([toChatMessage(event)]);
           if (event.senderRole !== "rider") markRead(event.messageId);
           break;
         }
@@ -305,29 +358,33 @@ export function useChatThread(rideId: string): ChatThreadValue {
         case "chat.ready": {
           void refreshThread();
           void backfill();
-          // Resend the unacked queue — clientMsgId makes this duplicate-free.
-          for (const item of pendingRef.current) {
-            sendChatFrame({
-              type: "chat.send",
-              rideId,
-              clientMsgId: item.clientMsgId,
-              kind: item.kind,
-              ...(item.body !== undefined ? { body: item.body } : {}),
-              ...(item.quickReplyCode !== undefined
-                ? { quickReplyCode: item.quickReplyCode }
-                : {}),
-            });
-          }
+          // A new socket: nothing is in flight on it yet. Resend the
+          // unacked queue in order — clientMsgId makes this duplicate-free.
+          inFlightRef.current = [];
+          for (const item of pendingRef.current) transmit(item);
           break;
         }
         case "chat.error":
           if (event.code === "chat_closed" || event.code === "chat_not_open") {
             // The window moved under us: drop the queue, re-read the facts.
             setPendingSynced([]);
+            inFlightRef.current = [];
             void refreshThread();
           } else if (event.code === "invalid_message") {
-            // The newest queued message is the refused one.
-            setPendingSynced(pendingRef.current.slice(0, -1));
+            // The error frame names no clientMsgId. The server answers one
+            // socket's frames in order and every earlier send was already
+            // answered (echo → removed above), so the refused message is
+            // the OLDEST still in flight on this socket. Only that one is
+            // dropped; the rest of the queue stays.
+            const [refused, ...rest] = inFlightRef.current;
+            if (refused !== undefined) {
+              inFlightRef.current = rest;
+              setPendingSynced(
+                pendingRef.current.filter(
+                  (item) => item.clientMsgId !== refused,
+                ),
+              );
+            }
             if (mounted.current) setSendFailed(true);
           }
           break;
@@ -335,12 +392,12 @@ export function useChatThread(rideId: string): ChatThreadValue {
     });
   }, [
     subscribeChat,
-    sendChatFrame,
     rideId,
-    appendMessages,
+    mergeMessages,
     markRead,
     refreshThread,
     backfill,
+    transmit,
     setPendingSynced,
     toChatMessage,
   ]);
@@ -356,18 +413,9 @@ export function useChatThread(rideId: string): ChatThreadValue {
       };
       setPendingSynced([...pendingRef.current, item]);
       // A failed send stays queued; the next ready resends it.
-      sendChatFrame({
-        type: "chat.send",
-        rideId,
-        clientMsgId: item.clientMsgId,
-        kind: item.kind,
-        ...(item.body !== undefined ? { body: item.body } : {}),
-        ...(item.quickReplyCode !== undefined
-          ? { quickReplyCode: item.quickReplyCode }
-          : {}),
-      });
+      transmit(item);
     },
-    [sendChatFrame, rideId, setPendingSynced],
+    [transmit, setPendingSynced],
   );
 
   const sendText = useCallback(
@@ -381,7 +429,11 @@ export function useChatThread(rideId: string): ChatThreadValue {
 
   const sendQuickReply = useCallback(
     (reply: QuickReply) => {
-      enqueue({ kind: "quick_reply", quickReplyCode: reply.code });
+      enqueue({
+        kind: "quick_reply",
+        quickReplyCode: reply.code,
+        quickReply: reply,
+      });
     },
     [enqueue],
   );
@@ -392,16 +444,14 @@ export function useChatThread(rideId: string): ChatThreadValue {
     getChatMessages(rideId, { before: earlierCursor, size: 50 })
       .then((page) => {
         if (!mounted.current) return;
-        const known = new Set(messagesRef.current.map((m) => m.messageId));
-        const fresh = page.items.filter((m) => !known.has(m.messageId));
-        setMessagesSynced([...fresh, ...messagesRef.current]);
+        mergeMessages(page.items);
         setEarlierCursor(page.nextCursor);
       })
       .catch(() => {})
       .finally(() => {
         if (mounted.current) setLoadingEarlier(false);
       });
-  }, [rideId, earlierCursor, loadingEarlier, setMessagesSynced]);
+  }, [rideId, earlierCursor, loadingEarlier, mergeMessages]);
 
   return {
     status,
