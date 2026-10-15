@@ -390,3 +390,29 @@ Owner rulings 2026-10-15 (all as recommended): A-H1 Support gets `regions:view` 
 New follow-up noted (backlog, contract change): chat WS error frames should echo the refused `clientMsgId` so clients need not infer which send was refused. Scheduler pool is now 4 threads (`SCHEDULER_POOL_SIZE`) — different scheduled jobs may run concurrently (each job still never overlaps itself); flagged for the re-audit.
 
 Gates after the fixes (sequential, 2026-10-15): backend `make check` 457 · rider 349 · driver 394 (3 pre-existing lint warnings) · admin 305 — all green. Next: re-audit of the fix range.
+
+---
+
+## Re-audit — fix range `5932e32..10171c2` (2026-10-15)
+_4 commits (84f9ea0 backend · d2990dd rider · d3f648d driver · 10171c2 admin) · 65 files · two independent re-auditors (backend; rider + driver + admin)_
+
+**Verdict:** Pass
+**Findings:** Critical 0 · High 0 · Warning 0 · Info 5 (new) — every original finding resolved.
+
+| Area | Original findings | Status |
+|---|---|---|
+| Backend | B-H1, B-H2, B-W1, B-W2, B-W3 (contract → 404), B-W4, B-I1, B-I3, B-I4, A-H1 (V16) | all resolved, each with a test asserting the fix |
+| Rider | R-H1, R-W1..R-W6, R-I1 (+ `?as=rider`) | all resolved |
+| Driver | D-W1..D-W6, D-I3 (+ `?as=driver`) | all resolved |
+| Admin | A-H1 (client), A-H2, A-H3, A-W1..A-W4 (+ nullable caller phone) | all resolved |
+
+Regression checks: share-page CSP hashes match the served EN and AR pages and allow everything the page loads; the Arabic page interpolates no data; `?as=` gives 400/403 correctly and every client sends it; the caller phone is nulled on every non-`support:handle` path; V16 is idempotent and grants only `regions:view`. **Scheduler pool 4:** no unsafe pair of concurrently running jobs — each locks or claims its rows; the post-commit SOS dispatch pass cannot double-send next to the scheduled dispatcher (rows locked + claimed before the push). Rider merge/ordering/in-flight bookkeeping, driver focus and offline-note behaviour, admin polling timers and grouped-chip paging all verified.
+
+### New Info (non-blocking → backlog)
+- **N-I1** share-page CSP lacks `data:` in `img-src`: Leaflet's blank-tile `data:` URL logs CSP violations when a tile is dropped (`leaflet-src.js` blank tile); page unaffected.
+- **N-I2** two new backend tests are thin: the concurrent-acknowledge test is not deterministic, and no test asserts that the post-commit SOS dispatch pass fires.
+- **N-I3** stale "oldest first" Javadoc at `NotificationDeliveryWriter.java:83` (SOS is now picked first).
+- **N-I4** driver: "Go online to chat" also shows to an online driver whose location access is off (composer correctly hidden; wording could be refined — owner copy decision).
+- **N-I5** admin: an alert acknowledged (or 409) and the filter switched within one request round-trip can briefly show in the new filter's list until Refresh.
+
+Tests at re-audit: backend `make check` 457 · rider 349 · driver 394 · admin 305 (all green, sequential); CI run 38753366062 on 10171c2 — success.
