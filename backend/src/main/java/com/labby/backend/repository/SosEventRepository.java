@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -58,6 +59,31 @@ public interface SosEventRepository extends JpaRepository<SosEvent, UUID> {
           """,
       nativeQuery = true)
   List<SosEvent> findOpenByRegion(@Param("regionId") UUID regionId);
+
+  /**
+   * Stamps the handling fields of a still-OPEN event (SAFE-01 stand-down). Conditional, so of two
+   * concurrent acknowledges exactly one wins: the loser waits on the row lock, re-checks {@code
+   * acknowledged_at IS NULL} against the committed winner and updates nothing.
+   *
+   * @param id the event
+   * @param by the acknowledging admin
+   * @param at when
+   * @param note the optional note
+   * @return 1 when stamped, 0 when the event is unknown or already acknowledged
+   */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          """
+          UPDATE sos_events SET acknowledged_by = :by, acknowledged_at = :at, note = :note
+          WHERE sos_event_id = :id AND acknowledged_at IS NULL
+          """,
+      nativeQuery = true)
+  int acknowledgeIfOpen(
+      @Param("id") UUID id,
+      @Param("by") UUID by,
+      @Param("at") Instant at,
+      @Param("note") String note);
 
   /** The rides among the given ones that have an open SOS event (the red flag). */
   @Query(

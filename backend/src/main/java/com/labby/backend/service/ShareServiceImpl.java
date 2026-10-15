@@ -27,14 +27,14 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Trip sharing (SHARE-01/02). The token is 256 random bits, URL-safe base64; only its SHA-256 hex
  * ever touches the database, so the raw url exists exactly once — in the 201. Liveness derives from
- * the ride's state: unknown tokens are 404, terminal rides 410 for ever, both without revealing
- * which (the lookup is a constant hash either way).
+ * the ride's state: unknown tokens are 404, terminal rides 410 for ever.
  */
 @Service
 @Transactional
@@ -45,6 +45,9 @@ public class ShareServiceImpl implements ShareService {
   static final int TOKEN_BYTES = 32;
 
   private static final SecureRandom RANDOM = new SecureRandom();
+
+  /** V15's one-link-per-user-per-ride constraint. */
+  private static final String RIDE_USER_CONSTRAINT = "uq_trip_share_links_ride_user";
 
   private final TripShareLinkRepository tripShareLinkRepository;
   private final RideRepository rideRepository;
@@ -74,20 +77,28 @@ public class ShareServiceImpl implements ShareService {
     }
     if (tripShareLinkRepository.existsByRideIdAndCreatedByUserId(rideId, userId)) {
       // One link per user per ride (owner ruling): the raw url was served once, at creation.
-      throw (ConflictException)
-          new ConflictException("You already shared this ride").withCode("already_shared");
+      throw alreadyShared();
     }
     byte[] raw = new byte[TOKEN_BYTES];
     RANDOM.nextBytes(raw);
     String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
-    TripShareLink link =
-        tripShareLinkRepository.save(
-            TripShareLink.builder()
-                .rideId(rideId)
-                .createdByUserId(userId)
-                .tokenHash(sha256Hex(token))
-                .createdAt(clock.instant())
-                .build());
+    TripShareLink link;
+    try {
+      link =
+          tripShareLinkRepository.saveAndFlush(
+              TripShareLink.builder()
+                  .rideId(rideId)
+                  .createdByUserId(userId)
+                  .tokenHash(sha256Hex(token))
+                  .createdAt(clock.instant())
+                  .build());
+    } catch (DataIntegrityViolationException ex) {
+      // A concurrent double tap passed the check too: the unique (ride, user) row decides.
+      if (String.valueOf(ex.getMostSpecificCause().getMessage()).contains(RIDE_USER_CONSTRAINT)) {
+        throw alreadyShared();
+      }
+      throw ex;
+    }
     return new ShareLinkDto(
         commsProperties.publicBaseUrl() + "/share/" + token, link.getCreatedAt());
   }
@@ -116,6 +127,11 @@ public class ShareServiceImpl implements ShareService {
         position(ride),
         ride.getEtaSeconds(),
         commsProperties.shareRefreshSeconds());
+  }
+
+  private static ConflictException alreadyShared() {
+    return (ConflictException)
+        new ConflictException("You already shared this ride").withCode("already_shared");
   }
 
   /** The driver's latest position, null when stale (the realtime staleness window) or unknown. */

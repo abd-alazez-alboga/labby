@@ -2,9 +2,11 @@ package com.labby.backend.controller;
 
 import com.labby.backend.dto.AdminRideDetailDto;
 import com.labby.backend.dto.AdminRideSummaryPageDto;
+import com.labby.backend.enums.Permission;
 import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.InvalidRequestException;
+import com.labby.backend.security.SecurityUtils;
 import com.labby.backend.service.AdminRideService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -96,8 +98,7 @@ public class AdminRidesController {
       @PathVariable UUID rideId, Authentication authentication) {
     AdminRideDetailDto detail = adminRideService.detail(rideId);
     boolean contactAccess =
-        authentication.getAuthorities().stream()
-            .anyMatch(authority -> "support:handle".equals(authority.getAuthority()));
+        SecurityUtils.holds(authentication, Permission.SUPPORT_HANDLE.getValue());
     return ResponseEntity.ok(contactAccess ? detail : detail.withoutPhones());
   }
 }

@@ -342,6 +342,13 @@ class CommsSimulatorIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(flagged.get("sosEvents")).hasSize(1);
     assertThat(flagged.get("sosEvents").get(0).get("sosEventId").asText()).isEqualTo(sosEventId);
     assertThat(flagged.get("sosEvents").get(0).get("rideId").asText()).isEqualTo(rideId.toString());
+    // The caller's phone is contact access (owner ruling 2026-10-15): null for rides:view only,
+    // served to support:handle on the same feed.
+    assertThat(flagged.get("sosEvents").get(0).get("triggeredBy").get("phone").isNull()).isTrue();
+    assertThat(flagged.get("sosEvents").get(0).get("triggeredBy").get("name").asText())
+        .isNotBlank();
+    assertThat(liveOps(handler).get("sosEvents").get(0).get("triggeredBy").get("phone").asText())
+        .isEqualTo(rider.phone());
 
     // The alert list (support:view) shows it open.
     JsonNode open = ok(get("/api/v1/admin/sos-events", supportViewer), HttpStatus.OK);
@@ -349,6 +356,16 @@ class CommsSimulatorIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(open.get("items").get(0).get("sosEventId").asText()).isEqualTo(sosEventId);
     assertThat(open.get("items").get(0).get("rideId").asText()).isEqualTo(rideId.toString());
     assertThat(open.get("items").get(0).get("acknowledged").isNull()).isTrue();
+    // support:view alone gets no phone; support:handle does.
+    assertThat(open.get("items").get(0).get("triggeredBy").get("phone").isNull()).isTrue();
+    assertThat(
+            ok(get("/api/v1/admin/sos-events", handler), HttpStatus.OK)
+                .get("items")
+                .get(0)
+                .get("triggeredBy")
+                .get("phone")
+                .asText())
+        .isEqualTo(rider.phone());
 
     // Contact access on the ride detail: phones for support:handle, null for rides:view only.
     JsonNode withContact = ok(get("/api/v1/admin/rides/" + rideId, handler), HttpStatus.OK);

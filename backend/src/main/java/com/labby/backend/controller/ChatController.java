@@ -78,13 +78,16 @@ public class ChatController {
   }
 
   /**
-   * The localized quick-reply catalog for the caller's role(s) (CHAT-02, NFR-U2).
+   * The localized quick-reply catalog for one side of the ride (CHAT-02, NFR-U2): that audience
+   * plus {@code both}.
    *
-   * @return 200 with the active entries, in sort order
+   * @param as {@code rider} or {@code driver} — the asking app
+   * @return 200 with the active entries, in sort order; 400 {@code as} missing/invalid; 403 the
+   *     account lacks that role
    */
   @GetMapping("/chat/quick-replies")
   @Operation(summary = "The localized one-tap quick-reply catalog")
-  public ResponseEntity<List<QuickReplyDto>> quickReplies() {
-    return ResponseEntity.ok(chatService.quickReplies(SecurityUtils.currentUserId()));
+  public ResponseEntity<List<QuickReplyDto>> quickReplies(@RequestParam("as") String as) {
+    return ResponseEntity.ok(chatService.quickReplies(SecurityUtils.currentUserId(), as));
   }
 }

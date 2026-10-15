@@ -48,7 +48,8 @@ info:
     `{"type":"chat.read","rideId","readerRole","lastReadMessageId"}`.
     Errors (socket stays open): `{"type":"error","code","message"}` with codes `chat_not_open`,
     `chat_closed`, `not_in_ride` (sender is neither party), `invalid_message` (shape/length/
-    unknown or inactive quick-reply code).
+    unknown or inactive quick-reply code, or a code whose `audience` is neither `both` nor the
+    sender's side of the ride — a driver cannot send a rider code and vice versa).
 
     Offline recipient (UC-S-13 E1): the message persists and is delivered as history on
     reconnect. Every new message ALSO queues the recipient's push (below), whether or not the
@@ -60,7 +61,9 @@ info:
     their socket open in the background, so an open socket does not mean the chat is on
     screen), category `chat`, deep link `{screen: "chat", params: {rideId}}` (screen catalog:
     realtime-v1.yaml). The apps suppress the banner themselves while that ride's chat is on
-    screen; the live `chat.message` frame is sent too. A dedup resend queues nothing new. While the ride is ACTIVE the push is delivered even if the
+    screen; the live `chat.message` frame is sent too. A dedup resend (sequential or concurrent)
+    queues nothing new and sends only the sender's echo. While the ride is ACTIVE the push is
+    delivered even if the
     recipient muted the `chat` category — in-ride chat is ride-critical (NTF-02's exception);
     after the ride ends (the 24 h tail and reopened windows) the mute applies normally. The
     center row is recorded either way (UC-S-25 A1).
@@ -72,8 +75,10 @@ info:
     authentication and serves exactly the SHARE-02 list — live position, driver first name +
     photo, vehicle model/color/plate, ETA, status — by POLLING (`refreshSeconds`, default 5,
     env `SHARE_REFRESH_SECONDS`); no anonymous WebSocket. The moment the ride is terminal the
-    endpoint answers 410 for ever (UC-S-15 E1); unknown tokens are 404, indistinguishable in
-    timing from dead ones.
+    endpoint answers 410 for ever (UC-S-15 E1); unknown tokens are 404. The html page sends no
+    referrer (`Referrer-Policy: no-referrer` + meta; map tiles send the bare origin only) and
+    carries a Content-Security-Policy allowing exactly what it loads; it renders in Arabic
+    (`lang="ar" dir="rtl"`) when the browser's `Accept-Language` prefers Arabic, else English.
 
 
     **SOS (SAFE-01/02).** `POST /rides/{rideId}/sos` records the permanent event (append-only
@@ -82,7 +87,9 @@ info:
     the live ops feed and the alert list below. The dialer side of SAFE-01 is entirely client:
     the app opens `tel:` with the region's `emergencyNumber` from runtime config
     (regions-v1.yaml) in parallel with this call. Acknowledging stamps the handling fields
-    (audited); the event itself can never be deleted or altered.
+    (audited); the event itself can never be deleted or altered. Of two concurrent acknowledges
+    exactly one wins; the other is 409 `already_acknowledged`. SOS pushes are dispatched ahead of
+    every other queued notification, and a dispatch pass starts right after the SOS commits.
 
 
     **Live ops map feed (ADM-03, UC-A-19).** `GET /admin/regions/{regionId}/live-ops` is one
@@ -96,6 +103,11 @@ info:
     **Permissions.** No new entries: chat visibility (CHAT-03) `support:view`; SOS list
     `support:view`, acknowledge `support:handle` (alert push targets `support:handle`); live ops
     feed `rides:view`. Rider/driver endpoints need only being a party to the ride.
+    Contact access (UC-A-20, owner rulings 2026-10-14/15): the SOS caller's phone
+    (`AdminSosEvent.triggeredBy.phone`) is served only to admins holding `support:handle` — on
+    the alert list, the acknowledge response and the live ops `sosEvents` — and is null for
+    everyone else. The system Support role holds `regions:view` (V16) so it can pick a region
+    on the live ops map.
 
 
     Errors use the global ErrorResponse shape (status, message, code?, details?).
@@ -174,10 +186,17 @@ paths:
       tags: [Chat]
       summary: The localized one-tap quick-reply catalog (CHAT-02, NFR-U2)
       description: >
-        Active entries for the caller's role (`audience` role or `both`), in `sortOrder`. Both
-        languages are served; the client renders its own, so a language switch re-renders
-        instantly. Cacheable per session.
+        Active entries of the asking app's side (`audience` = `as`, or `both`), in `sortOrder`.
+        The app states its side with `as` — every account holds the rider role, so roles alone
+        cannot tell the driver app from the rider app. Both languages are served; the client
+        renders its own, so a language switch re-renders instantly. Cacheable per session.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - name: as
+          in: query
+          required: true
+          description: The asking app's side of the ride; the account must hold that role
+          schema: { type: string, enum: [rider, driver] }
       responses:
         '200':
           description: The catalog
@@ -186,6 +205,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/QuickReply' }
+        '400': { description: '`as` missing or not rider/driver' }
+        '403': { description: The account does not hold the `as` role }
   /api/v1/rides/{rideId}/share-links:
     post:
       tags: [Share]
@@ -209,8 +230,8 @@ paths:
                 properties:
                   url: { type: string, description: 'Absolute public page url, `<PUBLIC_BASE_URL>/share/<token>`' }
                   createdAt: { type: string, format: date-time }
-        '403': { description: Not a party to this ride }
-        '409': { description: 'code `ride_not_active` (no active accepted ride) or `already_shared` (this user already holds this ride''s link)' }
+        '404': { description: Ride unknown, or the caller is not a party (the ride's existence is not revealed) }
+        '409': { description: 'code `ride_not_active` (no active accepted ride) or `already_shared` (this user already holds this ride''s link — also for a concurrent double tap)' }
   /api/v1/share/{token}:
     get:
       tags: [Share]
@@ -283,6 +304,9 @@ paths:
     get:
       tags: [AdminComms]
       summary: SOS alert list (UC-A-20) — `support:view`
+      description: >
+        `triggeredBy.phone` is contact access: served only to admins holding `support:handle`,
+        null for `support:view`-only admins.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [open, acknowledged, all], default: open } }
@@ -338,7 +362,8 @@ paths:
       description: >
         One polled snapshot: fresh online drivers (last sample within the realtime staleness
         window), active rides, the surge overlay (M9 zone state) and open SOS pins. Poll every
-        `refreshSeconds`.
+        `refreshSeconds`. The pins' `triggeredBy.phone` is served only to admins holding
+        `support:handle` (contact access), null for `rides:view`-only admins.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: regionId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -475,7 +500,7 @@ components:
               properties:
                 userId: { type: string, format: uuid }
                 name: { type: string }
-                phone: { type: string, description: UC-A-20 contact access — the list itself is permission-gated }
+                phone: { type: [string, 'null'], description: 'UC-A-20 contact access — served only to admins holding `support:handle`; null for everyone else' }
             rideState: { type: string }
             acknowledged:
               oneOf:
@@ -538,7 +563,7 @@ components:
               level: { type: integer }
         sosEvents:
           type: array
-          description: OPEN events only — the red pins
+          description: OPEN events only — the red pins (`triggeredBy.phone` null without `support:handle`)
           items: { $ref: '#/components/schemas/AdminSosEvent' }
     LatLng:
       type: object

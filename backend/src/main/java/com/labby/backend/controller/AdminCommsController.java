@@ -4,6 +4,7 @@ import com.labby.backend.dto.AdminChatLogDto;
 import com.labby.backend.dto.AdminSosEventDto;
 import com.labby.backend.dto.AdminSosEventPageDto;
 import com.labby.backend.dto.SosAcknowledgeRequestDto;
+import com.labby.backend.enums.Permission;
 import com.labby.backend.security.SecurityUtils;
 import com.labby.backend.service.ChatService;
 import com.labby.backend.service.SosService;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,12 +54,14 @@ public class AdminCommsController {
   }
 
   /**
-   * The SOS alert list, newest first (UC-A-20).
+   * The SOS alert list, newest first (UC-A-20). The callers' phones are contact access: served only
+   * to {@code support:handle} holders, null for {@code support:view}-only admins.
    *
    * @param status open (default), acknowledged or all
    * @param regionId optional region filter
    * @param before the previous page's cursor
    * @param size page size (1..50)
+   * @param authentication the caller
    * @return 200 with one page
    */
   @GetMapping("/sos-events")
@@ -67,12 +71,18 @@ public class AdminCommsController {
       @RequestParam(defaultValue = "open") String status,
       @RequestParam(required = false) UUID regionId,
       @RequestParam(required = false) String before,
-      @RequestParam(defaultValue = "20") int size) {
-    return ResponseEntity.ok(sosService.adminList(status, regionId, before, size));
+      @RequestParam(defaultValue = "20") int size,
+      Authentication authentication) {
+    AdminSosEventPageDto page = sosService.adminList(status, regionId, before, size);
+    return ResponseEntity.ok(
+        SecurityUtils.holds(authentication, Permission.SUPPORT_HANDLE.getValue())
+            ? page
+            : page.withoutPhones());
   }
 
   /**
    * Acknowledges an SOS alert (stand-down). Audited; the event's facts stay immutable (SAFE-02).
+   * Gated by {@code support:handle}, so the response always carries the caller's phone.
    *
    * @param sosEventId the event
    * @param request the optional note

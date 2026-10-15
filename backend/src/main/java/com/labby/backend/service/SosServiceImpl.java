@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +54,7 @@ public class SosServiceImpl implements SosService {
   private final RbacPermissionRepository rbacPermissionRepository;
   private final NotificationService notificationService;
   private final AuditService auditService;
+  private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
   @Override
@@ -90,6 +92,8 @@ public class SosServiceImpl implements SosService {
             Permission.SUPPORT_HANDLE.getValue())) {
       notificationService.queue(adminId, NotificationEvent.SOS_TRIGGERED, params);
     }
+    // After commit: an immediate dispatch pass, not the next tick (SosAlertDispatchListener).
+    eventPublisher.publishEvent(new SosTriggeredEvent(event.getId()));
     return new SosEventDto(
         event.getId(),
         rideId,
@@ -138,23 +142,24 @@ public class SosServiceImpl implements SosService {
         sosEventRepository
             .findById(sosEventId)
             .orElseThrow(() -> new ResourceNotFoundException("SOS event not found"));
-    if (event.getAcknowledgedAt() != null) {
+    String storedNote = note == null || note.isBlank() ? null : note;
+    // Conditional stamp: of two concurrent acknowledges only one updates the row.
+    if (event.getAcknowledgedAt() != null
+        || sosEventRepository.acknowledgeIfOpen(
+                sosEventId, adminUserId, clock.instant(), storedNote)
+            == 0) {
       throw (ConflictException)
           new ConflictException("This SOS alert is already acknowledged")
               .withCode("already_acknowledged");
     }
-    event.setAcknowledgedBy(adminUserId);
-    event.setAcknowledgedAt(clock.instant());
-    event.setNote(note == null || note.isBlank() ? null : note);
-    sosEventRepository.save(event);
     auditService.record(
         adminUserId,
         "sos.acknowledge",
         "sos_event",
         sosEventId.toString(),
         null,
-        Map.of("note", event.getNote() == null ? "" : event.getNote()));
-    return adminViews(List.of(event)).get(0);
+        Map.of("note", storedNote == null ? "" : storedNote));
+    return adminViews(List.of(sosEventRepository.findById(sosEventId).orElseThrow())).get(0);
   }
 
   /**

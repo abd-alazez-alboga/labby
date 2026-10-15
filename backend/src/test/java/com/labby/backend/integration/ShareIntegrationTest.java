@@ -12,6 +12,13 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
@@ -83,9 +90,49 @@ class ShareIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(code(repeat)).isEqualTo("already_shared");
     ok(createLink(driver, rideId), HttpStatus.CREATED);
 
-    // A stranger is no party.
+    // A stranger is no party: 404, the ride's existence is not revealed (comms-v1).
     Account stranger = rider();
     assertThat(createLink(stranger, rideId).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  @DisplayName("SHARE-01: a concurrent double tap is one 201 and 409 already_shared, never 500")
+  void shouldAnswerConcurrentDoubleTapWithConflict() throws Exception {
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    UUID rideId = acceptedRide(rider, driver);
+    int taps = 6;
+    CountDownLatch start = new CountDownLatch(1);
+    ExecutorService pool = Executors.newFixedThreadPool(taps);
+    try {
+      List<Future<ResponseEntity<JsonNode>>> answers = new ArrayList<>();
+      for (int i = 0; i < taps; i++) {
+        answers.add(
+            pool.submit(
+                () -> {
+                  start.await();
+                  return createLink(rider, rideId);
+                }));
+      }
+      start.countDown();
+      int created = 0;
+      for (Future<ResponseEntity<JsonNode>> answer : answers) {
+        ResponseEntity<JsonNode> response = answer.get(10, TimeUnit.SECONDS);
+        if (response.getStatusCode() == HttpStatus.CREATED) {
+          created++;
+        } else {
+          assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+          assertThat(code(response)).isEqualTo("already_shared");
+        }
+      }
+      assertThat(created).isEqualTo(1);
+    } finally {
+      pool.shutdownNow();
+    }
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM trip_share_links WHERE ride_id = ?", Integer.class, rideId))
+        .isEqualTo(1);
   }
 
   @Test
@@ -151,6 +198,82 @@ class ShareIntegrationTest extends AbstractRideIntegrationTest {
         .containsPattern("leaflet@1\\.9\\.4/dist/leaflet\\.css\"\\s+integrity=\"sha256-")
         .contains("This page updates live and stops working when the trip ends.")
         .contains("No sign-in needed.");
+    // English by default, left to right.
+    assertThat(html.getBody()).contains("<html lang=\"en\" dir=\"ltr\">");
+    assertThat(html.getHeaders().getFirst(HttpHeaders.CONTENT_LANGUAGE)).isEqualTo("en");
+  }
+
+  @Test
+  @DisplayName("SHARE-02: the page renders in Arabic (RTL) when Accept-Language prefers Arabic")
+  void shouldRenderArabicSharePage() {
+    String token = sharedToken();
+    for (String preference : List.of("ar", "ar-SY,ar;q=0.9,en;q=0.8", "fr, ar;q=0.5")) {
+      ResponseEntity<String> arabic = sharePage(token, preference);
+      assertThat(arabic.getStatusCode()).isEqualTo(HttpStatus.OK);
+      assertThat(arabic.getBody())
+          .contains("<html lang=\"ar\" dir=\"rtl\">")
+          .contains("لبي")
+          .contains("انتهت هذه الرحلة.")
+          .contains("هذا الرابط غير صالح.")
+          .doesNotContain("No sign-in needed.")
+          .doesNotContain(token);
+      assertThat(arabic.getHeaders().getFirst(HttpHeaders.CONTENT_LANGUAGE)).isEqualTo("ar");
+    }
+    // English when the browser prefers it (or anything else).
+    for (String preference : List.of("en-US,ar;q=0.5", "fr", "not a header;;")) {
+      assertThat(sharePage(token, preference).getBody())
+          .contains("<html lang=\"en\" dir=\"ltr\">")
+          .contains("This trip has ended.");
+    }
+  }
+
+  @Test
+  @DisplayName("SHARE-02: the page sends no referrer and carries a CSP matching what it loads")
+  void shouldHardenSharePage() throws Exception {
+    String token = sharedToken();
+    for (String language : List.of("en", "ar")) {
+      ResponseEntity<String> html = sharePage(token, language);
+      String body = html.getBody();
+      assertThat(html.getHeaders().getFirst("Referrer-Policy")).isEqualTo("no-referrer");
+      assertThat(body).contains("<meta name=\"referrer\" content=\"no-referrer\">");
+      String csp = html.getHeaders().getFirst("Content-Security-Policy");
+      assertThat(csp)
+          .startsWith("default-src 'none';")
+          .contains("script-src 'sha256-" + inlineHash(body, "script") + "' ")
+          .contains("style-src 'sha256-" + inlineHash(body, "style") + "' ")
+          .contains("https://unpkg.com/leaflet@1.9.4/")
+          .contains("https://fonts.googleapis.com")
+          .contains("font-src https://fonts.gstatic.com")
+          .contains("img-src 'self' https://tile.openstreetmap.org")
+          .contains("connect-src 'self'")
+          .contains("frame-ancestors 'none'")
+          .doesNotContain("unsafe-inline")
+          .doesNotContain(token);
+    }
+  }
+
+  private String sharedToken() {
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    return token(ok(createLink(rider, acceptedRide(rider, driver)), HttpStatus.CREATED));
+  }
+
+  private ResponseEntity<String> sharePage(String token, String acceptLanguage) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.set(HttpHeaders.ACCEPT_LANGUAGE, acceptLanguage);
+    return restTemplate.exchange(
+        "/share/" + token, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+  }
+
+  /** The CSP hash of the page's one inline (attribute-less) script or style element. */
+  private static String inlineHash(String html, String tag) throws Exception {
+    Matcher inline =
+        Pattern.compile("<" + tag + ">(.*?)</" + tag + ">", Pattern.DOTALL).matcher(html);
+    assertThat(inline.find()).isTrue();
+    return Base64.getEncoder()
+        .encodeToString(
+            MessageDigest.getInstance("SHA-256")
+                .digest(inline.group(1).getBytes(StandardCharsets.UTF_8)));
   }
 
   @Test

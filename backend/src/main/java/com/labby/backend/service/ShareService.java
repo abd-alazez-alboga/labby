@@ -17,8 +17,11 @@ public interface ShareService {
    * @param userId the calling party
    * @param rideId the ride
    * @return the public url
+   * @throws com.labby.backend.exception.ResourceNotFoundException the ride is unknown or the caller
+   *     is not a party (404 — the ride's existence is not revealed)
    * @throws com.labby.backend.exception.ConflictException {@code ride_not_active} outside an active
-   *     accepted ride, {@code already_shared} when this user already holds this ride's link
+   *     accepted ride, {@code already_shared} when this user already holds this ride's link (also
+   *     for a concurrent double tap)
    */
   ShareLinkDto create(UUID userId, UUID rideId);
 

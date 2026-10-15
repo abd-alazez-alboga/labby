@@ -15,7 +15,7 @@ import java.util.UUID;
  * @param triggeredAt device moment, clamped to server time
  * @param createdAt when the server recorded it
  * @param regionId the ride's region
- * @param triggeredBy who triggered it (contact access is gated by the list's permission)
+ * @param triggeredBy who triggered it; the phone is contact access — {@code support:handle} only
  * @param rideState the ride's current state
  * @param acknowledged the stand-down stamp, or null while the alert is open
  */
@@ -33,11 +33,32 @@ public record AdminSosEventDto(
     AcknowledgedDto acknowledged) {
 
   /**
+   * The same event with the caller's phone withheld — contact access (UC-A-20, owner rulings
+   * 2026-10-14/15) is served only to {@code support:handle} holders.
+   *
+   * @return the event without {@code triggeredBy.phone}
+   */
+  public AdminSosEventDto withoutPhone() {
+    return new AdminSosEventDto(
+        sosEventId,
+        rideId,
+        triggeredByRole,
+        lat,
+        lng,
+        triggeredAt,
+        createdAt,
+        regionId,
+        new TriggeredByDto(triggeredBy.userId(), triggeredBy.name(), null),
+        rideState,
+        acknowledged);
+  }
+
+  /**
    * The triggering account (UC-A-20 contact access).
    *
    * @param userId the account
    * @param name the full name
-   * @param phone the phone number
+   * @param phone the phone number; null without {@code support:handle}
    */
   public record TriggeredByDto(UUID userId, String name, String phone) {}
 

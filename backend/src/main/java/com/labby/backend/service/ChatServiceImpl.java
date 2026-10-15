@@ -188,17 +188,21 @@ public class ChatServiceImpl implements ChatService {
 
   @Override
   @Transactional(readOnly = true)
-  public List<QuickReplyDto> quickReplies(UUID userId) {
-    List<String> audiences = new ArrayList<>();
-    audiences.add(ChatQuickReply.AUDIENCE_BOTH);
-    if (roleAssignmentRepository.existsByUserIdAndRole(userId, Role.RIDER)) {
-      audiences.add(RideParty.RIDER.getValue());
+  public List<QuickReplyDto> quickReplies(UUID userId, String as) {
+    RideParty audience =
+        RideParty.RIDER.getValue().equals(as)
+            ? RideParty.RIDER
+            : RideParty.DRIVER.getValue().equals(as) ? RideParty.DRIVER : null;
+    if (audience == null) {
+      throw new InvalidRequestException("as must be rider or driver");
     }
-    if (roleAssignmentRepository.existsByUserIdAndRole(userId, Role.DRIVER)) {
-      audiences.add(RideParty.DRIVER.getValue());
+    Role role = audience == RideParty.RIDER ? Role.RIDER : Role.DRIVER;
+    if (!roleAssignmentRepository.existsByUserIdAndRole(userId, role)) {
+      throw new ForbiddenException("This account has no " + audience.getValue() + " role");
     }
     return chatQuickReplyRepository
-        .findByActiveTrueAndAudienceInOrderBySortOrderAscCodeAsc(audiences)
+        .findByActiveTrueAndAudienceInOrderBySortOrderAscCodeAsc(
+            List.of(ChatQuickReply.AUDIENCE_BOTH, audience.getValue()))
         .stream()
         .map(reply -> new QuickReplyDto(reply.getCode(), reply.getTextEn(), reply.getTextAr()))
         .toList();
@@ -211,6 +215,12 @@ public class ChatServiceImpl implements ChatService {
     RideParty sender = partyOf(ride, userId);
     if (sender == null) {
       throw notInRide();
+    }
+    if (validated.quickReply() != null
+        && !ChatQuickReply.AUDIENCE_BOTH.equals(validated.quickReply().getAudience())
+        && !sender.getValue().equals(validated.quickReply().getAudience())) {
+      // A party sends only its own audience's codes (or the shared ones).
+      throw invalidMessage("This quick reply is not available to the " + sender.getValue());
     }
     ChatThread thread =
         chatThreadRepository
@@ -228,29 +238,39 @@ public class ChatServiceImpl implements ChatService {
             thread.getId(), userId, request.clientMsgId());
     if (existing.isEmpty()) {
       // Race-safe dedup: the unique constraint decides; a loser answers with the winner's row.
-      chatMessageRepository.insertIfAbsent(
-          UUID.randomUUID(),
-          thread.getId(),
-          userId,
-          sender.getValue(),
-          validated.kind().getValue(),
-          validated.body(),
-          validated.quickReplyCode(),
-          request.clientMsgId(),
-          now);
+      int inserted =
+          chatMessageRepository.insertIfAbsent(
+              UUID.randomUUID(),
+              thread.getId(),
+              userId,
+              sender.getValue(),
+              validated.kind().getValue(),
+              validated.body(),
+              validated.quickReplyCode(),
+              request.clientMsgId(),
+              now);
       ChatMessage stored =
           chatMessageRepository
               .findByThreadIdAndSenderUserIdAndClientMsgId(
                   thread.getId(), userId, request.clientMsgId())
               .orElseThrow();
-      fanOut(ride, sender, userId, stored);
+      if (inserted == 1) {
+        fanOut(ride, sender, userId, stored);
+      } else {
+        // Lost a concurrent duplicate's race: the winner already fanned out — echo only.
+        echo(ride, userId, stored);
+      }
       return toDto(stored, userId);
     }
     // UC-S-13 reconnection: the resend's echo is the already-stored message — one row, no error.
-    realtimePublisher.publish(
-        List.of(userId),
-        messageFrame(ride.getId(), existing.get(), quickReplyOf(existing.get()), true));
+    echo(ride, userId, existing.get());
     return toDto(existing.get(), userId);
+  }
+
+  /** The dedup answer: the sender's echo of the already-stored message, nothing queued. */
+  private void echo(Ride ride, UUID senderUserId, ChatMessage stored) {
+    realtimePublisher.publish(
+        List.of(senderUserId), messageFrame(ride.getId(), stored, quickReplyOf(stored), true));
   }
 
   @Override
@@ -309,8 +329,13 @@ public class ChatServiceImpl implements ChatService {
 
   // ---- send internals --------------------------------------------------------------------------
 
-  /** A validated send: the parsed kind and its exactly-one payload. */
-  private record Validated(ChatMessageKind kind, String body, String quickReplyCode) {}
+  /** A validated send: the parsed kind and its exactly-one payload (with the catalog entry). */
+  private record Validated(ChatMessageKind kind, String body, ChatQuickReply quickReply) {
+
+    String quickReplyCode() {
+      return quickReply == null ? null : quickReply.getCode();
+    }
+  }
 
   private Validated validate(SendRequest request) {
     if (request.rideId() == null || request.clientMsgId() == null) {
@@ -336,10 +361,12 @@ public class ChatServiceImpl implements ChatService {
       throw invalidMessage("A quick reply carries no body");
     }
     String code = request.quickReplyCode();
-    if (code == null || chatQuickReplyRepository.findByCodeAndActiveTrue(code).isEmpty()) {
+    ChatQuickReply quickReply =
+        code == null ? null : chatQuickReplyRepository.findByCodeAndActiveTrue(code).orElse(null);
+    if (quickReply == null) {
       throw invalidMessage("Unknown quick-reply code");
     }
-    return new Validated(kind, null, code);
+    return new Validated(kind, null, quickReply);
   }
 
   /**

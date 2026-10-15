@@ -51,12 +51,17 @@ public interface ChatService {
   void markRead(UUID userId, UUID rideId, UUID lastReadMessageId);
 
   /**
-   * The active quick replies for the caller's role(s) plus {@code both}, in sort order (CHAT-02).
+   * The active quick replies of ONE audience plus {@code both}, in sort order (CHAT-02). The app
+   * says which side it is ({@code as}); every account holds the rider role, so the role set alone
+   * cannot tell a driver app from a rider app.
    *
    * @param userId the caller
+   * @param as {@code rider} or {@code driver}
    * @return the catalog, both languages
+   * @throws com.labby.backend.exception.InvalidRequestException {@code as} missing or invalid
+   * @throws com.labby.backend.exception.ForbiddenException the account lacks that role
    */
-  List<QuickReplyDto> quickReplies(UUID userId);
+  List<QuickReplyDto> quickReplies(UUID userId, String as);
 
   /**
    * The WS {@code chat.send} path: validates, enforces the window, stores (deduplicated on {@code

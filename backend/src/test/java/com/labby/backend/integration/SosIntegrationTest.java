@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.labby.backend.service.NotificationDeliveryWriter;
 import com.labby.backend.service.NotificationDispatchService;
 import com.labby.backend.service.PushSender;
 import com.labby.backend.service.PushSender.PushMessage;
@@ -18,6 +19,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,6 +49,7 @@ class SosIntegrationTest extends AbstractRideIntegrationTest {
   @MockitoBean private PushSender pushSender;
 
   @Autowired private NotificationDispatchService notificationDispatchService;
+  @Autowired private NotificationDeliveryWriter notificationDeliveryWriter;
 
   @BeforeEach
   void pushSucceeds() {
@@ -183,7 +190,17 @@ class SosIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(newest.get("triggeredByRole").asText()).isEqualTo("driver");
     assertThat(newest.get("regionId").asText()).isEqualTo(regionId.toString());
     assertThat(newest.get("rideState").asText()).isEqualTo("accepted");
-    assertThat(newest.get("triggeredBy").get("phone").asText()).isEqualTo(driver.phone());
+    // Contact access (owner ruling 2026-10-15): support:view alone gets no caller phone.
+    assertThat(newest.get("triggeredBy").get("phone").isNull()).isTrue();
+    assertThat(newest.get("triggeredBy").get("name").asText()).isNotBlank();
+    assertThat(
+            ok(get("/api/v1/admin/sos-events", handler), HttpStatus.OK)
+                .get("items")
+                .get(0)
+                .get("triggeredBy")
+                .get("phone")
+                .asText())
+        .isEqualTo(driver.phone());
     assertThat(newest.get("acknowledged").isNull()).isTrue();
     assertThat(
             ok(get("/api/v1/admin/sos-events?regionId=" + UUID.randomUUID(), viewer), HttpStatus.OK)
@@ -217,6 +234,7 @@ class SosIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(acknowledged.get("acknowledged").get("note").asText())
         .isEqualTo("called the rider, all fine");
     assertThat(acknowledged.get("acknowledged").get("byName").asText()).isNotBlank();
+    assertThat(acknowledged.get("triggeredBy").get("phone").asText()).isEqualTo(driver.phone());
     assertThat(auditActions(sosEventId)).containsExactly("sos.acknowledge");
     ResponseEntity<JsonNode> again =
         post("/api/v1/admin/sos-events/" + sosEventId + "/acknowledge", null, handler);
@@ -239,6 +257,87 @@ class SosIntegrationTest extends AbstractRideIntegrationTest {
     // The list itself is permission-gated: a party is no admin.
     assertThat(get("/api/v1/admin/sos-events", rider.token()).getStatusCode())
         .isEqualTo(HttpStatus.FORBIDDEN);
+  }
+
+  @Test
+  @DisplayName("SAFE-01: of two concurrent acknowledges exactly one wins, the other is 409")
+  void shouldAcknowledgeOnceUnderConcurrency() throws Exception {
+    String first = registerAdmin("+963937902021", RbacIds.SUPPORT_ROLE_ID);
+    String second = registerAdmin("+963937902022", RbacIds.SUPPORT_ROLE_ID);
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    UUID rideId = acceptedRide(rider, driver);
+    String sosEventId =
+        ok(sos(rider, rideId, CLOCK.instant()), HttpStatus.CREATED).get("sosEventId").asText();
+    String url = "/api/v1/admin/sos-events/" + sosEventId + "/acknowledge";
+
+    CountDownLatch start = new CountDownLatch(1);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      Future<ResponseEntity<JsonNode>> a =
+          pool.submit(
+              () -> {
+                start.await();
+                return post(url, Map.of("note", "first"), first);
+              });
+      Future<ResponseEntity<JsonNode>> b =
+          pool.submit(
+              () -> {
+                start.await();
+                return post(url, Map.of("note", "second"), second);
+              });
+      start.countDown();
+      List<ResponseEntity<JsonNode>> answers =
+          List.of(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS));
+      assertThat(answers.stream().map(ResponseEntity::getStatusCode))
+          .containsExactlyInAnyOrder(HttpStatus.OK, HttpStatus.CONFLICT);
+      ResponseEntity<JsonNode> loser =
+          answers.stream()
+              .filter(answer -> answer.getStatusCode() == HttpStatus.CONFLICT)
+              .findFirst()
+              .orElseThrow();
+      assertThat(code(loser)).isEqualTo("already_acknowledged");
+      // The winner's note is the stored one — never overwritten by the loser.
+      String winnerNote =
+          answers.stream()
+              .filter(answer -> answer.getStatusCode() == HttpStatus.OK)
+              .findFirst()
+              .orElseThrow()
+              .getBody()
+              .get("acknowledged")
+              .get("note")
+              .asText();
+      assertThat(
+              jdbcTemplate.queryForObject(
+                  "SELECT note FROM sos_events WHERE sos_event_id = ?::uuid",
+                  String.class,
+                  sosEventId))
+          .isEqualTo(winnerNote);
+      assertThat(auditActions(sosEventId)).containsExactly("sos.acknowledge");
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  @DisplayName("SAFE-01: the dispatcher picks SOS alerts before older queued notifications")
+  void shouldDispatchSosAheadOfBacklog() {
+    registerAdmin("+963937902031", RbacIds.SUPPORT_ROLE_ID);
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    UUID rideId = acceptedRide(rider, driver);
+    // An older backlog (the acceptance notices) sits in the outbox before the SOS.
+    advance(Duration.ofSeconds(5));
+    ok(sos(rider, rideId, CLOCK.instant()), HttpStatus.CREATED);
+
+    List<UUID> pending = notificationDeliveryWriter.pendingOutboxIds(200);
+    assertThat(pending.size()).isGreaterThan(1);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT event FROM notification_outbox WHERE notification_outbox_id = ?",
+                String.class,
+                pending.get(0)))
+        .isEqualTo("sos.triggered");
   }
 
   private UUID userIdOf(String phone) {

@@ -27,6 +27,20 @@ public final class SecurityUtils {
   }
 
   /**
+   * Whether the caller holds a permission — for response shaping inside an endpoint (e.g. contact
+   * access: party phones only for {@code support:handle} holders, UC-A-20).
+   *
+   * @param authentication the caller
+   * @param authority the permission code
+   * @return true when granted
+   */
+  public static boolean holds(Authentication authentication, String authority) {
+    return authentication != null
+        && authentication.getAuthorities().stream()
+            .anyMatch(granted -> authority.equals(granted.getAuthority()));
+  }
+
+  /**
    * Returns the current session id (the refresh-token row the access token was issued with), used
    * to keep the current session alive when revoking the others (AUTH-05).
    *

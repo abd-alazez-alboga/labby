@@ -1,9 +1,12 @@
 package com.labby.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.labby.backend.dto.ChatMessageDto;
+import com.labby.backend.service.ChatService;
 import com.labby.backend.util.RbacIds;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -18,6 +21,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +34,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * M10-T2 acceptance — chat (CHAT-01..03, CALL-01, comms-v1.yaml): the window edges around
@@ -40,6 +49,8 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
 
   @LocalServerPort private int port;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private ChatService chatService;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   private final HttpClient httpClient = HttpClient.newHttpClient();
   private final List<WebSocket> sockets = new ArrayList<>();
@@ -95,14 +106,19 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
   }
 
   private static JsonNode next(BlockingQueue<JsonNode> frames, String type) throws Exception {
-    long deadline = System.currentTimeMillis() + FRAME_WAIT_MS;
+    return next(frames, type, FRAME_WAIT_MS);
+  }
+
+  private static JsonNode next(BlockingQueue<JsonNode> frames, String type, long waitMs)
+      throws Exception {
+    long deadline = System.currentTimeMillis() + waitMs;
     while (System.currentTimeMillis() < deadline) {
       JsonNode frame = frames.poll(deadline - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
       if (frame != null && type.equals(frame.path("type").asText())) {
         return frame;
       }
     }
-    throw new AssertionError("no " + type + " frame within " + FRAME_WAIT_MS + " ms");
+    throw new AssertionError("no " + type + " frame within " + waitMs + " ms");
   }
 
   private Map<String, Object> textSend(UUID rideId, UUID clientMsgId, String body) {
@@ -310,6 +326,78 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
   // ---- reconnection / dedup --------------------------------------------------------------------
 
   @Test
+  @DisplayName("UC-S-13 E1: a CONCURRENT duplicate send stores one row and pushes/frames once")
+  void shouldFanOutOnceForConcurrentDuplicates() throws Exception {
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    UUID rideId = acceptedRide(rider, driver);
+    Socket driverSocket = connect(driver);
+    ChatService.SendRequest request =
+        new ChatService.SendRequest(rideId, UUID.randomUUID(), "text", "at the gate", null);
+    CountDownLatch winnerInserted = new CountDownLatch(1);
+    CountDownLatch commitWinner = new CountDownLatch(1);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      // The winner inserts but does not commit yet; the loser's pre-check misses the uncommitted
+      // row and its insert waits on the winner's unique-index entry, then hits the conflict.
+      Future<?> winner =
+          pool.submit(
+              () ->
+                  new TransactionTemplate(transactionManager)
+                      .executeWithoutResult(
+                          status -> {
+                            chatService.send(rider.userId(), request);
+                            winnerInserted.countDown();
+                            try {
+                              commitWinner.await(10, TimeUnit.SECONDS);
+                            } catch (InterruptedException ex) {
+                              Thread.currentThread().interrupt();
+                            }
+                          }));
+      assertThat(winnerInserted.await(10, TimeUnit.SECONDS)).isTrue();
+      Future<ChatMessageDto> loser = pool.submit(() -> chatService.send(rider.userId(), request));
+      assertThat(awaitLockWait()).isTrue();
+      commitWinner.countDown();
+      winner.get(10, TimeUnit.SECONDS);
+      ChatMessageDto deduplicated = loser.get(10, TimeUnit.SECONDS);
+      assertThat(deduplicated.clientMsgId()).isEqualTo(request.clientMsgId());
+    } finally {
+      pool.shutdownNow();
+    }
+
+    assertThat(messageRows(rideId)).isEqualTo(1);
+    // One push and one frame to the recipient — the loser only echoes to the sender.
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM notification_outbox WHERE user_id = ? AND event ="
+                    + " 'chat.message'",
+                Integer.class,
+                driver.userId()))
+        .isEqualTo(1);
+    assertThat(next(driverSocket.frames(), "chat.message").get("body").asText())
+        .isEqualTo("at the gate");
+    assertThatThrownBy(() -> next(driverSocket.frames(), "chat.message", 1000))
+        .isInstanceOf(AssertionError.class);
+  }
+
+  /** Whether another backend connection is waiting on a row/transaction lock (within 10 s). */
+  private boolean awaitLockWait() throws InterruptedException {
+    long deadline = System.currentTimeMillis() + 10_000;
+    while (System.currentTimeMillis() < deadline) {
+      Integer waiting =
+          jdbcTemplate.queryForObject(
+              "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock'"
+                  + " AND datname = current_database()",
+              Integer.class);
+      if (waiting != null && waiting > 0) {
+        return true;
+      }
+      Thread.sleep(20);
+    }
+    return false;
+  }
+
+  @Test
   @DisplayName("UC-S-13 E1: a resend with the same clientMsgId returns the stored message, one row")
   void shouldDeduplicateResends() throws Exception {
     Account rider = rider();
@@ -416,7 +504,8 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
     Account driver = driverAt(33.501, 36.30);
     UUID rideId = acceptedRide(rider, driver);
 
-    JsonNode riderCatalog = ok(get("/api/v1/chat/quick-replies", rider.token()), HttpStatus.OK);
+    JsonNode riderCatalog =
+        ok(get("/api/v1/chat/quick-replies?as=rider", rider.token()), HttpStatus.OK);
     List<String> riderCodes = new ArrayList<>();
     riderCatalog.forEach(entry -> riderCodes.add(entry.get("code").asText()));
     assertThat(riderCodes)
@@ -425,11 +514,16 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(riderCatalog.get(0).get("textEn").asText()).isNotBlank();
     assertThat(riderCatalog.get(0).get("textAr").asText()).isNotBlank();
 
-    // The driver account also holds the rider role (registration grants it): both sets.
-    JsonNode driverCatalog = ok(get("/api/v1/chat/quick-replies", driver.token()), HttpStatus.OK);
+    // The driver app asks as=driver: driver + both only, even though the driver account also
+    // holds the rider role (registration grants it) — owner ruling 2026-10-15 (M10 review B-H2).
+    JsonNode driverCatalog =
+        ok(get("/api/v1/chat/quick-replies?as=driver", driver.token()), HttpStatus.OK);
     List<String> driverCodes = new ArrayList<>();
     driverCatalog.forEach(entry -> driverCodes.add(entry.get("code").asText()));
-    assertThat(driverCodes).contains("driver_on_my_way", "both_okay");
+    assertThat(driverCodes)
+        .contains("driver_on_my_way", "both_okay")
+        .noneMatch(code -> code.startsWith("rider_"));
+    assertThat(riderCodes).noneMatch(code -> code.startsWith("driver_"));
 
     // Unknown and inactive codes are invalid_message; nothing is stored.
     Socket riderSocket = connect(rider);
@@ -445,7 +539,7 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
     jdbcTemplate.update("UPDATE chat_quick_replies SET active = false WHERE code = 'both_okay'");
     try {
       assertThat(
-              ok(get("/api/v1/chat/quick-replies", rider.token()), HttpStatus.OK)
+              ok(get("/api/v1/chat/quick-replies?as=rider", rider.token()), HttpStatus.OK)
                   .findValues("code"))
           .noneMatch(code -> code.asText().equals("both_okay"));
       unknown.put("clientMsgId", UUID.randomUUID().toString());
@@ -462,6 +556,61 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(next(riderSocket.frames(), "error").get("code").asText())
         .isEqualTo("invalid_message");
     assertThat(messageRows(rideId)).isZero();
+  }
+
+  @Test
+  @DisplayName("CHAT-02: the catalog needs as=rider|driver (400) and that role (403)")
+  void shouldRequireTheAskingSideForQuickReplies() {
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+
+    assertThat(get("/api/v1/chat/quick-replies", rider.token()).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(get("/api/v1/chat/quick-replies?as=both", rider.token()).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(get("/api/v1/chat/quick-replies?as=admin", driver.token()).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    // A rider-only account is no driver.
+    assertThat(get("/api/v1/chat/quick-replies?as=driver", rider.token()).getStatusCode())
+        .isEqualTo(HttpStatus.FORBIDDEN);
+    // The driver account holds the rider role too, so it may ask as a rider.
+    assertThat(get("/api/v1/chat/quick-replies?as=rider", driver.token()).getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
+  @DisplayName("CHAT-02: a party cannot send the other side's quick-reply codes (invalid_message)")
+  void shouldRefuseCrossAudienceQuickReplies() throws Exception {
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    UUID rideId = acceptedRide(rider, driver);
+
+    Socket driverSocket = connect(driver);
+    Map<String, Object> frame = new LinkedHashMap<>();
+    frame.put("type", "chat.send");
+    frame.put("rideId", rideId.toString());
+    frame.put("clientMsgId", UUID.randomUUID().toString());
+    frame.put("kind", "quick_reply");
+    frame.put("quickReplyCode", "rider_coming");
+    sendFrame(driverSocket, frame);
+    assertThat(next(driverSocket.frames(), "error").get("code").asText())
+        .isEqualTo("invalid_message");
+
+    Socket riderSocket = connect(rider);
+    frame.put("clientMsgId", UUID.randomUUID().toString());
+    frame.put("quickReplyCode", "driver_on_my_way");
+    sendFrame(riderSocket, frame);
+    assertThat(next(riderSocket.frames(), "error").get("code").asText())
+        .isEqualTo("invalid_message");
+    assertThat(messageRows(rideId)).isZero();
+
+    // Own-side and shared codes still go through.
+    frame.put("clientMsgId", UUID.randomUUID().toString());
+    frame.put("quickReplyCode", "both_okay");
+    sendFrame(riderSocket, frame);
+    assertThat(next(riderSocket.frames(), "chat.message").get("quickReplyCode").asText())
+        .isEqualTo("both_okay");
+    assertThat(messageRows(rideId)).isEqualTo(1);
   }
 
   // ---- admin log (CHAT-03) ---------------------------------------------------------------------

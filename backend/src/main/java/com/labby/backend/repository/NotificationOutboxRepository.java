@@ -10,14 +10,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** Notifications queued for delivery; the M6 dispatcher drains it (oldest first). */
+/** Notifications queued for delivery; the M6 dispatcher drains it (SOS first, then oldest). */
 public interface NotificationOutboxRepository extends JpaRepository<NotificationOutboxEntry, UUID> {
 
   List<NotificationOutboxEntry> findByUserIdOrderByCreatedAtAsc(UUID userId);
 
   /**
-   * Undelivered entries whose event has a template and that no dispatcher holds a live claim on,
-   * oldest first.
+   * Undelivered entries whose event has a template and that no dispatcher holds a live claim on:
+   * SOS alerts (category safety) first, then oldest first — a chat backlog never delays an SOS.
    *
    * @param events the renderable event keys
    * @param staleBefore claims older than this are stale (their dispatcher died) and claimable
@@ -30,7 +30,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
           SELECT notification_outbox_id FROM notification_outbox
           WHERE delivered_at IS NULL AND event IN (:events)
             AND (claimed_at IS NULL OR claimed_at < :staleBefore)
-          ORDER BY created_at, notification_outbox_id
+          ORDER BY (event = 'sos.triggered') DESC, created_at, notification_outbox_id
           LIMIT :limit
           """,
       nativeQuery = true)

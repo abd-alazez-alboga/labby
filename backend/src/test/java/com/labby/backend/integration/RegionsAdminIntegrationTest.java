@@ -176,7 +176,7 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
   }
 
   @Test
-  @DisplayName("401 anonymous, 403 without regions:*/pricing:*, client endpoints need no admin")
+  @DisplayName("401 anonymous; Support reads regions, 403 on regions:edit/pricing:*; client open")
   void shouldEnforcePermissionsPerEndpointGroup() {
     AuthTokensResponseDto superAdmin = registerAdmin("+963934000001", RbacIds.SUPER_ADMIN_ROLE_ID);
     AuthTokensResponseDto support = registerAdmin("+963934000002", RbacIds.SUPPORT_ROLE_ID);
@@ -189,15 +189,15 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
     assertThat(get("/api/v1/regions/resolve?lat=33.0&lng=36.0", null).getStatusCode())
         .isEqualTo(HttpStatus.UNAUTHORIZED);
 
-    // Support holds neither regions:* nor pricing:* -> 403 on every admin group.
-    assertThat(get("/api/v1/admin/regions", supportToken).getStatusCode())
-        .isEqualTo(HttpStatus.FORBIDDEN);
+    // Support holds regions:view (V16, owner ruling 2026-10-15 — the live ops map's region
+    // list) but no regions:edit nor pricing:* -> reads pass, every write/pricing call is 403.
+    assertThat(get("/api/v1/admin/regions", supportToken).getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(
             send("/api/v1/admin/regions", HttpMethod.POST, Map.of("name", "X"), supportToken)
                 .getStatusCode())
         .isEqualTo(HttpStatus.FORBIDDEN);
     assertThat(get("/api/v1/admin/regions/" + someId, supportToken).getStatusCode())
-        .isEqualTo(HttpStatus.FORBIDDEN);
+        .isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(
             send(
                     "/api/v1/admin/regions/" + someId,

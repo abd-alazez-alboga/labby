@@ -17,6 +17,12 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 11MB
+  task:
+    scheduling:
+      # Threads shared by every @Scheduled job (ride dispatch 1 s, monitor, outbox dispatcher, …).
+      # More than one, so a slow outbox pass (FCM) never delays the ride jobs or vice versa.
+      pool:
+        size: ${SCHEDULER_POOL_SIZE:4}
 
 server:
   port: ${SERVER_PORT:8080}

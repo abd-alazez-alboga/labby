@@ -14,7 +14,7 @@ import java.util.UUID;
  * @param drivers online drivers with a fresh position in the region
  * @param rides active rides (requested → in_progress)
  * @param surgeZones the M9 surge overlay
- * @param sosEvents OPEN events only — the red pins
+ * @param sosEvents OPEN events only — the red pins (caller phone for {@code support:handle} only)
  */
 public record LiveOpsDto(
     UUID regionId,
@@ -24,6 +24,23 @@ public record LiveOpsDto(
     List<LiveOpsRideDto> rides,
     List<LiveOpsSurgeZoneDto> surgeZones,
     List<AdminSosEventDto> sosEvents) {
+
+  /**
+   * The same snapshot with the SOS callers' phones withheld — the feed is {@code rides:view}, but
+   * contact access needs {@code support:handle} (UC-A-20).
+   *
+   * @return the snapshot without SOS phones
+   */
+  public LiveOpsDto withoutSosPhones() {
+    return new LiveOpsDto(
+        regionId,
+        serverTime,
+        refreshSeconds,
+        drivers,
+        rides,
+        surgeZones,
+        sosEvents.stream().map(AdminSosEventDto::withoutPhone).toList());
+  }
 
   /**
    * One driver dot (idle vs on-ride).
