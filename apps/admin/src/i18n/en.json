@@ -1078,13 +1078,17 @@
       "acknowledging": "Acknowledging…",
       "acknowledgeFailed": "Couldn't acknowledge the alert. It may already be acknowledged — refresh the list.",
       "needsHandle": "Acknowledging needs the Handle support permission.",
-      "stoodDownBy": "Stood down by {{name}} · {{time}}"
+      "stoodDownBy": "Stood down by {{name}} · {{time}}",
+      "refresh": "Refresh",
+      "alreadyAcknowledged": "Another admin already acknowledged this alert — showing their stand-down."
     },
     "errors": {
       "regionsFailed": "Couldn't load the regions list.",
       "noRegions": "No regions exist yet. Create one under Regions.",
       "loadFailed": "Couldn't load the live snapshot.",
-      "refreshFailed": "Couldn't refresh the live snapshot — showing the last known positions. Retrying automatically."
+      "refreshFailed": "Couldn't refresh the live snapshot — showing the last known positions. Retrying automatically.",
+      "regionsForbidden": "The region list needs the View regions permission. Open the map from an SOS alert to see its region.",
+      "regionsForbiddenLinked": "The region list needs the View regions permission — showing the region from the alert link."
     }
   },
   "rides": {

@@ -9,9 +9,11 @@ import { isUuid } from '../money/money-format';
 /**
  * Pure helpers behind the UC-A-18 rides search page. The contract's state
  * filter takes ONE state, so chips that group several states (Active,
- * Cancelled) issue one search per member state and merge the pages
- * client-side — states are disjoint, so page n of the group is the union of
- * each member's page n, re-sorted newest first.
+ * Cancelled) search each member state and merge client-side. States are
+ * disjoint, so the group's newest-first page n (size S) is exactly the
+ * slice [n·S, (n+1)·S) of the members' first (n+1)·S rows merged newest
+ * first — `memberWindow` says how many rows to read per member and
+ * `mergePages(…, window)` cuts that slice, so every page holds S rows.
  */
 
 export type RideFilterChip = 'all' | 'active' | 'completed' | 'cancelled' | 'no_driver' | 'sos';
@@ -39,24 +41,43 @@ export function chipStates(chip: Exclude<RideFilterChip, 'sos'>): RideState[] {
 }
 
 export interface MergedRides {
-  /** The union of the member pages, newest first. */
+  /** The rows of the requested page, newest first. */
   items: AdminRideSummary[];
   totalItems: number;
-  /** Zero-based count of pages (the largest member's). */
+  /** How many pages of the page size the merged rows fill (at least 1). */
   totalPages: number;
 }
 
-/** Merges the member-state pages of one grouped chip (or the single page). */
-export function mergePages(pages: readonly AdminRideSummaryPage[]): MergedRides {
-  const items = pages
+/** The largest page the admin rides search serves (rides-v1 `size` maximum). */
+export const MAX_SEARCH_SIZE = 100;
+
+/**
+ * The reads one member state needs for the group's page `page` of `size`:
+ * its first (page+1)·size rows, in chunks the search serves.
+ */
+export function memberWindow(page: number, size: number): { chunk: number; rows: number } {
+  const rows = (page + 1) * size;
+  return { chunk: Math.min(MAX_SEARCH_SIZE, rows), rows };
+}
+
+/**
+ * Merges the member-state reads of one grouped chip (or the single page)
+ * newest first. With `window`, the members' reads are their leading rows
+ * (see memberWindow) and the result is exactly that page's slice.
+ */
+export function mergePages(
+  pages: readonly AdminRideSummaryPage[],
+  window?: { page: number; size: number },
+): MergedRides {
+  const sorted = pages
     .flatMap((page) => page.items)
-    .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+    .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt) || a.id.localeCompare(b.id));
   const totalItems = pages.reduce((sum, page) => sum + page.totalItems, 0);
-  const totalPages = Math.max(
-    1,
-    ...pages.map((page) => Math.ceil(page.totalItems / Math.max(1, page.size))),
-  );
-  return { items, totalItems, totalPages };
+  const size = Math.max(1, window?.size ?? Math.max(1, ...pages.map((page) => page.size)));
+  const items = window
+    ? sorted.slice(window.page * window.size, (window.page + 1) * window.size)
+    : sorted;
+  return { items, totalItems, totalPages: Math.max(1, Math.ceil(totalItems / size)) };
 }
 
 export type QueryKind = 'none' | 'id' | 'phone';

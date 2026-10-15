@@ -9,7 +9,9 @@ import {
   getAdminRide,
   searchAdminRides,
   type AdminRideQuery,
+  type AdminRideSummary,
   type AdminRideSummaryPage,
+  type RideState,
 } from '../api/rides';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
@@ -21,6 +23,7 @@ import {
   classifyQuery,
   dayBounds,
   detailToSummary,
+  memberWindow,
   mergePages,
   RIDE_FILTER_CHIPS,
   type RideFilterChip,
@@ -153,13 +156,38 @@ export default function RidesPage() {
         size: PAGE_SIZE,
       };
       const states = chipStates(chip);
-      const pages: AdminRideSummaryPage[] =
-        states.length === 0
-          ? [await searchAdminRides(apiClient, base)]
-          : await Promise.all(
-              states.map((state) => searchAdminRides(apiClient, { ...base, state })),
-            );
-      const merged = mergePages(pages);
+      let merged;
+      if (states.length <= 1) {
+        const single = states[0];
+        merged = mergePages([
+          await searchAdminRides(apiClient, single ? { ...base, state: single } : base),
+        ]);
+      } else {
+        // A grouped chip: each member's leading rows, merged and sliced to this page.
+        const { chunk, rows } = memberWindow(page, PAGE_SIZE);
+        const memberRows = async (state: RideState): Promise<AdminRideSummaryPage> => {
+          const items: AdminRideSummary[] = [];
+          let totalItems = 0;
+          for (let index = 0; index * chunk < rows; index++) {
+            const read = await searchAdminRides(apiClient, {
+              ...base,
+              state,
+              page: index,
+              size: chunk,
+            });
+            items.push(...read.items);
+            totalItems = read.totalItems;
+            if ((index + 1) * chunk >= read.totalItems) {
+              break;
+            }
+          }
+          return { items, page: 0, size: rows, totalItems };
+        };
+        merged = mergePages(await Promise.all(states.map(memberRows)), {
+          page,
+          size: PAGE_SIZE,
+        });
+      }
       if (!cancelled) {
         setResult({
           rows: merged.items,
@@ -333,7 +361,12 @@ export default function RidesPage() {
                     <td>{row.riderName}</td>
                     <td>{row.driverName ?? <span className="table__muted">—</span>}</td>
                     <td className="table__muted">
-                      {routeLabel(row.pickup, row.destination, t('rides.routeFallback'))}
+                      {routeLabel(
+                        row.pickup,
+                        row.destination,
+                        t('rides.routeFallback'),
+                        i18n.dir(),
+                      )}
                     </td>
                     <td>
                       <StatusChip tone={rideStateTone(row.state)}>

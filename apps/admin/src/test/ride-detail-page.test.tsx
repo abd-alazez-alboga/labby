@@ -135,12 +135,12 @@ describe('ride detail page (UC-A-18, CHAT-03)', () => {
     expect(map).toHaveTextContent(`sos-pin ${SOS_RIDE_ID}`);
     expect(screen.getByText(`GPS trace · SOS at ${formatClock(SOS_AT, 'en')}`)).toBeInTheDocument();
 
-    // The open-SOS banner points at the live map.
+    // The open-SOS banner points at the live map on the alert's region and ride (A-H3).
     const banner = screen.getAllByRole('alert').find((el) => el.className.includes('sos-banner'))!;
     expect(banner).toHaveTextContent('SOS by Lina K.');
     expect(within(banner).getByRole('link', { name: 'Open live map' })).toHaveAttribute(
       'href',
-      '/live-ops',
+      `/live-ops?region=region-1&ride=${SOS_RIDE_ID}`,
     );
 
     // The per-ride SOS lookup walks the region's alert list (the badge polls status=open).

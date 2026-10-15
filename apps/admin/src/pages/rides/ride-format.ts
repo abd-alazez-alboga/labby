@@ -31,11 +31,26 @@ export function rideStateTone(state: RideState): ChipTone {
   }
 }
 
-/** "Pickup → destination", from the places' labels (RTL-safe arrow via CSS order). */
+/**
+ * "Pickup → destination", from the places' labels. The arrow follows the
+ * reading direction (`←` in RTL, the DriverApplicationDetailPage pattern),
+ * so it always points from the pickup to the destination.
+ */
 export function routeLabel(
   pickup: { label?: string | null },
   destination: { label?: string | null },
   fallback: string,
+  dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
-  return `${pickup.label ?? fallback} → ${destination.label ?? fallback}`;
+  const arrow = dir === 'rtl' ? '←' : '→';
+  return `${pickup.label ?? fallback} ${arrow} ${destination.label ?? fallback}`;
+}
+
+/**
+ * The live map opened on one SOS alert (UC-A-20 click-throughs): the alert's
+ * region, and the ride whose pin the map centres on (LiveOpsPage honours both).
+ */
+export function liveOpsLink(event: { regionId: string; rideId: string }): string {
+  const params = new URLSearchParams({ region: event.regionId, ride: event.rideId });
+  return `/live-ops?${params.toString()}`;
 }

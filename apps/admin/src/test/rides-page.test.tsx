@@ -293,5 +293,30 @@ describe('rides search page (UC-A-18)', () => {
     // Arabic uses Western digits with the Arabic currency label (owner ruling).
     expect(screen.getByText('ل.س 61,000')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'مكتملة' })).toBeInTheDocument();
+    // The route arrow follows the reading direction (A-W4).
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('Abu Rummaneh ← Umayyad Sq');
+  });
+
+  it("reads each member state's leading rows for a grouped chip's later page (A-W3)", async () => {
+    const fetchMock = stubRides(SUPPORT_VIEWER, { rides: () => [] });
+    window.history.pushState({}, '', '/rides?state=cancelled&page=1');
+    renderShell();
+
+    await waitFor(() =>
+      expect(
+        statesAsked(fetchMock)
+          .filter((s) => s !== null)
+          .sort(),
+      ).toEqual(['cancelled_by_driver', 'cancelled_by_rider']),
+    );
+    // Page 2 of 25 = the first 50 rows of each member, merged and sliced.
+    for (const [input] of callsTo(fetchMock, `${RIDES_PATH}?`)) {
+      const url = new URL(String(input));
+      if (url.searchParams.get('state')) {
+        expect(url.searchParams.get('page')).toBe('0');
+        expect(url.searchParams.get('size')).toBe('50');
+      }
+    }
   });
 });

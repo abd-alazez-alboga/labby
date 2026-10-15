@@ -7,6 +7,7 @@ import i18n from '../i18n/i18n';
 import type { LiveOpsMapProps } from '../pages/liveops/LiveOpsMap';
 import { formatClock } from '../pages/surge';
 import {
+  ACK_AT,
   ACKNOWLEDGED_SOS,
   LIVE_OPS,
   OPEN_SOS,
@@ -63,6 +64,13 @@ vi.mock('../pages/liveops/LiveOpsMap', () => ({
 const VIEWER = adminUser(['rides:view', 'regions:view']);
 const SUPPORT_VIEWER = adminUser(['rides:view', 'regions:view', 'support:view']);
 const SUPPORT_HANDLER = adminUser(['rides:view', 'regions:view', 'support:view', 'support:handle']);
+/** The seeded Support role after the A-H1 grant (rides + support + regions:view). */
+const SUPPORT_ROLE = adminUser(
+  ['rides:view', 'support:view', 'support:handle', 'regions:view'],
+  'Support',
+);
+/** A custom role without regions:view (the region list answers 403). */
+const NO_REGIONS = adminUser(['rides:view', 'support:view', 'support:handle']);
 
 const LIVE_OPS_PATH = '/api/v1/admin/regions/region-1/live-ops';
 const SOS_LIST_PATH = '/api/v1/admin/sos-events';
@@ -328,6 +336,173 @@ describe('live ops map page (UC-A-19/20, ADM-03)', () => {
     await waitFor(() =>
       expect(callsTo(fetchMock, '/api/v1/admin/regions/region-2/live-ops').length).toBe(1),
     );
+  });
+
+  it('loads the map for the Support role (rides:view + support + regions:view) (A-H1)', async () => {
+    stubLiveOps(SUPPORT_ROLE);
+    renderShell();
+
+    const map = await screen.findByRole('region', { name: 'Live operations map' });
+    expect(within(map).getByText(`pin ${SOS_RIDE_ID}`)).toBeInTheDocument();
+    expect(screen.getByLabelText('Region')).toHaveValue('region-1');
+    expect(within(sosPanel()).getByRole('button', { name: 'Acknowledge' })).toBeInTheDocument();
+  });
+
+  it('explains a forbidden region list instead of a blank page, and still opens a linked region (A-H1)', async () => {
+    const forbid: FetchRouteHandler = (method, path) =>
+      method === 'GET' && path === '/api/v1/admin/regions' ? jsonResponse(403, {}) : null;
+    stubLiveOps(NO_REGIONS, { extra: forbid });
+    const first = renderShell();
+
+    expect(
+      await screen.findByText(
+        'The region list needs the View regions permission. Open the map from an SOS alert to see its region.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Region')).toBeNull();
+    // The alerts stay reachable (all regions) even without a map.
+    expect(await within(sosPanel()).findByText('OPEN')).toBeInTheDocument();
+    first.unmount();
+
+    // An SOS link carries the region: that region's map loads without the list.
+    window.history.pushState({}, '', '/live-ops?region=region-1');
+    renderShell();
+    const map = await screen.findByRole('region', { name: 'Live operations map' });
+    expect(within(map).getByText(`pin ${SOS_RIDE_ID}`)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The region list needs the View regions permission — showing the region from the alert link.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('re-reads the alert panel when a new SOS appears in the live feed (A-H2)', async () => {
+    const SECOND = {
+      ...OPEN_SOS,
+      sosEventId: 'sos-open-9',
+      rideId: 'cccccccc-0000-4000-8000-000000000003',
+      triggeredBy: { ...OPEN_SOS.triggeredBy, name: 'Hadi R.' },
+    };
+    let open = [OPEN_SOS];
+    stubLiveOps(SUPPORT_HANDLER, {
+      snapshot: () => ({ ...LIVE_OPS, sosEvents: open }),
+      sosItems: (status) => (status === 'acknowledged' ? [] : open),
+    });
+    renderShell();
+    await screen.findByRole('region', { name: 'Live operations map' });
+    expect(within(sosPanel()).getAllByRole('button', { name: 'Acknowledge' })).toHaveLength(1);
+
+    // The live feed's next 5 s poll carries a second open SOS; the panel follows
+    // it without a remount (the app-wide badge poll is 30 s away).
+    open = [SECOND, OPEN_SOS];
+    await waitFor(
+      () =>
+        expect(
+          within(sosPanel()).getByText('Rider Hadi R. triggered SOS on the ride.'),
+        ).toBeInTheDocument(),
+      { timeout: 8_000 },
+    );
+    expect(within(sosPanel()).getAllByRole('button', { name: 'Acknowledge' })).toHaveLength(2);
+  }, 12_000);
+
+  it('refreshes the alert list on demand (A-H2)', async () => {
+    let items = [OPEN_SOS];
+    stubLiveOps(SUPPORT_HANDLER, { sosItems: () => items });
+    renderShell();
+    const user = userEvent.setup();
+    await screen.findByRole('region', { name: 'Live operations map' });
+    expect(within(sosPanel()).getByText('OPEN')).toBeInTheDocument();
+
+    items = [];
+    await user.click(within(sosPanel()).getByRole('button', { name: 'Refresh' }));
+    expect(await within(sosPanel()).findByText('No open SOS alerts.')).toBeInTheDocument();
+  });
+
+  it("turns a 409 already_acknowledged into the winner's stand-down, not a dead end (A-H2)", async () => {
+    const WON = {
+      ...OPEN_SOS,
+      acknowledged: { byUserId: 'admin-2', byName: 'Rana S.', at: ACK_AT, note: null },
+    };
+    const fetchMock = stubLiveOps(SUPPORT_HANDLER, {
+      sosItems: (status) => (status === 'acknowledged' ? [WON] : [OPEN_SOS]),
+      extra: (method, path) =>
+        method === 'POST' && path === `/api/v1/admin/sos-events/${OPEN_SOS.sosEventId}/acknowledge`
+          ? jsonResponse(409, {
+              code: 'already_acknowledged',
+              message: 'SOS event already acknowledged',
+            })
+          : null,
+    });
+    renderShell();
+    const user = userEvent.setup();
+    await screen.findByRole('region', { name: 'Live operations map' });
+
+    const panel = sosPanel();
+    await user.click(within(panel).getByRole('button', { name: 'Acknowledge' }));
+
+    expect(await within(panel).findByText(/Stood down by Rana S\./)).toBeInTheDocument();
+    expect(
+      within(panel).getByText(
+        'Another admin already acknowledged this alert — showing their stand-down.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Acknowledge' })).toBeNull();
+    expect(within(panel).queryByText(/Couldn't acknowledge/)).toBeNull();
+    // The pins/banner re-read too.
+    await waitFor(() => expect(callsTo(fetchMock, LIVE_OPS_PATH).length).toBeGreaterThan(1));
+  });
+
+  it("opens the alert's region and centres on its ride from a ?region=&ride= link (A-H3)", async () => {
+    const REGION_2_SOS = { ...OPEN_SOS, regionId: 'region-2', lat: 36.2, lng: 37.15 };
+    const fetchMock = stubLiveOps(SUPPORT_HANDLER, {
+      extra: (method, path) =>
+        method === 'GET' && path === '/api/v1/admin/regions/region-2/live-ops'
+          ? jsonResponse(200, { ...LIVE_OPS, regionId: 'region-2', sosEvents: [REGION_2_SOS] })
+          : null,
+    });
+    window.history.pushState({}, '', `/live-ops?region=region-2&ride=${SOS_RIDE_ID}`);
+    renderShell();
+
+    const map = await screen.findByRole('region', { name: 'Live operations map' });
+    expect(screen.getByLabelText('Region')).toHaveValue('region-2');
+    expect(within(map).getByText('focus 36.2,37.15')).toBeInTheDocument();
+    expect(callsTo(fetchMock, LIVE_OPS_PATH)).toHaveLength(0);
+    // The panel follows the region too.
+    const panelRead = callsTo(fetchMock, SOS_LIST_PATH)
+      .map(([input]) => new URL(String(input)))
+      .find((url) => url.searchParams.get('regionId') !== null);
+    expect(panelRead?.searchParams.get('regionId')).toBe('region-2');
+  });
+
+  it("sends the SOS toast's Open action to the alert's region and ride (A-H3)", async () => {
+    let items = [OPEN_SOS];
+    stubLiveOps(SUPPORT_HANDLER, {
+      sosItems: () => items,
+      extra: (method, path) =>
+        method === 'GET' && path === '/api/v1/admin/regions/region-2/live-ops'
+          ? jsonResponse(200, { ...LIVE_OPS, regionId: 'region-2' })
+          : null,
+    });
+    window.history.pushState({}, '', '/');
+    renderShell();
+    const user = userEvent.setup();
+    expect(await screen.findByLabelText('Open SOS alerts')).toHaveTextContent('1');
+
+    const ARRIVAL = {
+      ...OPEN_SOS,
+      sosEventId: 'sos-open-7',
+      regionId: 'region-2',
+      triggeredBy: { ...OPEN_SOS.triggeredBy, name: 'Hadi R.' },
+    };
+    items = [ARRIVAL, OPEN_SOS];
+    window.dispatchEvent(new Event('focus'));
+
+    const toast = await screen.findByTestId('toast');
+    await user.click(within(toast).getByRole('button', { name: 'Open live map' }));
+    expect(window.location.pathname).toBe('/live-ops');
+    expect(window.location.search).toBe(`?region=region-2&ride=${SOS_RIDE_ID}`);
+    expect(await screen.findByRole('region', { name: 'Live operations map' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Region')).toHaveValue('region-2');
   });
 
   it('renders Arabic with Western digits', async () => {

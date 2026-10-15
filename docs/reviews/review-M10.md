@@ -372,3 +372,21 @@ Getting to admins:
 - Admin `npm run check`: **291 passed** (last run on 3e6bb01; `apps/admin` unchanged since).
 - CI on 92933f8: run 38743887304 — **success** (all four jobs).
 - Reviewers ran no additional suites; every High was re-checked by reading the cited lines.
+
+---
+
+## Resolution — /labby-fix round 1 (2026-10-15)
+Owner rulings 2026-10-15 (all as recommended): A-H1 Support gets `regions:view` (V16); B-H1 the SOS caller phone on `/admin/sos-events` and the live-ops feed only with `support:handle`; B-H2 quick replies requested with `?as=rider|driver` (that side + `both`), cross-side codes refused; D-W3 offline driver in the 24 h tail sees "Go online to chat" instead of the composer; B-I4 public share page in Arabic from Accept-Language. Every finding was re-validated against the live code first — no false positives.
+
+| Finding | Resolution |
+|---|---|
+| B-H1, B-H2, B-W1, B-W2, B-W4, B-I1, B-I3, B-I4, A-H1 (V16) | fixed in the backend (contract comms-v1 amended: required `as`, nullable caller phone, 404 share create, SOS-first dispatch + post-commit pass, share-page CSP/no-referrer/Arabic) |
+| B-W3 | resolved by aligning contract + Javadoc to the existing, safer 404 (no behaviour change) |
+| R-H1, R-W1..R-W6, R-I1 | fixed in the rider app (+ `?as=rider`) |
+| D-W1..D-W6, D-I3 | fixed in the driver app (+ `?as=driver`) |
+| A-H1 (client), A-H2, A-H3, A-W1..A-W4 | fixed in the admin app (+ nullable caller phone) |
+| 13 unlisted nitpicks | backlog (unchanged) |
+
+New follow-up noted (backlog, contract change): chat WS error frames should echo the refused `clientMsgId` so clients need not infer which send was refused. Scheduler pool is now 4 threads (`SCHEDULER_POOL_SIZE`) — different scheduled jobs may run concurrently (each job still never overlaps itself); flagged for the re-audit.
+
+Gates after the fixes (sequential, 2026-10-15): backend `make check` 457 · rider 349 · driver 394 (3 pre-existing lint warnings) · admin 305 — all green. Next: re-audit of the fix range.

@@ -16,7 +16,7 @@ import {
   fetchRideSosEvents,
   type TimelineMoment,
 } from './rides/ride-detail-utils';
-import { rideRef, rideStateTone } from './rides/ride-format';
+import { liveOpsLink, rideRef, rideStateTone } from './rides/ride-format';
 import { RideTraceMap } from './rides/RideTraceMap';
 import { formatClock, formatMultiplier, isolateLtr } from './surge';
 
@@ -292,7 +292,7 @@ export default function RideDetailPage() {
             </strong>
             <span>{t('rideDetail.sosBannerHint')}</span>
           </span>
-          <Link className="btn sos-banner__focus" to="/live-ops">
+          <Link className="btn sos-banner__focus" to={liveOpsLink(openSos)}>
             {t('rideDetail.openLiveMap')}
           </Link>
         </div>

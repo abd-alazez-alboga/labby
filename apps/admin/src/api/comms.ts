@@ -14,11 +14,15 @@ export interface LatLng {
   lng: number;
 }
 
-/** Who triggered an SOS event (UC-A-20 contact access — the list is permission-gated). */
+/** Who triggered an SOS event (UC-A-20). */
 export interface SosTriggeredBy {
   userId: string;
   name: string;
-  phone: string;
+  /**
+   * The caller's phone — contact access: served only to `support:handle`
+   * holders, null for everyone else (owner ruling 2026-10-15).
+   */
+  phone: string | null;
 }
 
 /** The stand-down stamp; null while the alert is open. */

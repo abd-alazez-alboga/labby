@@ -68,8 +68,9 @@ export function useLiveOps(regionId: string | undefined): LiveOpsFacade {
       }
       timer = setTimeout(() => {
         if (document.visibilityState === 'hidden') {
-          // Skip the hidden tick; the visibility listener resumes the poll.
-          timer = setTimeout(() => void load(), FAILED_RETRY_MS);
+          // Paused: no timer stays armed while hidden — the visibility
+          // listener resumes the poll when the tab is shown again.
+          timer = undefined;
           return;
         }
         void load();

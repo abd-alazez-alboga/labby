@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { ApiError } from '../api/client';
 import type { AdminSosEvent, LatLng } from '../api/comms';
 import { listRegions, type RegionSummary } from '../api/regions';
 import { useAuth } from '../auth/AuthContext';
@@ -18,8 +19,14 @@ import { formatClock, formatMultiplier, isolateLtr } from './surge';
  * UC-A-19 / ADM-03 live operations map: one polled snapshot per region —
  * idle vs on-ride driver dots, active-ride route lines, the surge overlay
  * (the M9 facade's zone shape) and red SOS pins — plus the UC-A-20 SOS
- * alert rail. The route needs rides:view; the alert list needs
- * support:view and acknowledging support:handle (SosAlertPanel).
+ * alert rail. The route needs rides:view; the region selector also needs
+ * regions:view (granted to Support), the alert list support:view and
+ * acknowledging support:handle (SosAlertPanel).
+ *
+ * `?region=` picks the region (SOS click-throughs carry the alert's) and
+ * `?ride=` centres the map on that ride's open SOS pin once it is drawn.
+ * Without regions:view the selector is replaced by a clear notice, and a
+ * `?region=` link still opens that region's map.
  */
 export default function LiveOpsPage() {
   const { t, i18n } = useTranslation();
@@ -30,12 +37,18 @@ export default function LiveOpsPage() {
   const [params, setParams] = useSearchParams();
 
   const [regions, setRegions] = useState<RegionSummary[] | null>(null);
-  const [regionsFailed, setRegionsFailed] = useState(false);
+  const [regionsFailed, setRegionsFailed] = useState<'forbidden' | 'failed' | null>(null);
   const requestedRegion = params.get('region');
+  const requestedRide = params.get('ride');
   const regionId =
-    (requestedRegion && regions?.some((r) => r.id === requestedRegion)
-      ? requestedRegion
-      : undefined) ?? regions?.[0]?.id;
+    regions === null
+      ? // No list to check against (forbidden / failed): trust an explicit link.
+        regionsFailed
+        ? (requestedRegion ?? undefined)
+        : undefined
+      : ((requestedRegion && regions.some((r) => r.id === requestedRegion)
+          ? requestedRegion
+          : undefined) ?? regions[0]?.id);
 
   const { snapshot, error, refresh } = useLiveOps(regionId);
   const [surgeOn, setSurgeOn] = useState(true);
@@ -47,12 +60,13 @@ export default function LiveOpsPage() {
       .then((loaded) => {
         if (!cancelled) {
           setRegions(loaded);
-          setRegionsFailed(loaded.length === 0);
         }
       })
-      .catch(() => {
+      .catch((failure) => {
         if (!cancelled) {
-          setRegionsFailed(true);
+          setRegionsFailed(
+            failure instanceof ApiError && failure.status === 403 ? 'forbidden' : 'failed',
+          );
         }
       });
     return () => {
@@ -64,7 +78,21 @@ export default function LiveOpsPage() {
     () => (snapshot && surgeOn ? toLiveOpsOverlay(snapshot.surgeZones) : null),
     [snapshot, surgeOn],
   );
-  const openSos = snapshot?.sosEvents ?? [];
+  const openSos = useMemo(() => snapshot?.sosEvents ?? [], [snapshot]);
+  const openSosKey = openSos.map((event) => event.sosEventId).join(',');
+
+  // `?ride=`: centre on that ride's open SOS pin once per link.
+  const focusedRide = useRef<string | null>(null);
+  useEffect(() => {
+    if (!requestedRide || focusedRide.current === `${regionId}|${requestedRide}`) {
+      return;
+    }
+    const pin = openSos.find((event) => event.rideId === requestedRide);
+    if (pin) {
+      focusedRide.current = `${regionId}|${requestedRide}`;
+      setFocus({ lat: pin.lat, lng: pin.lng });
+    }
+  }, [openSos, regionId, requestedRide]);
   const banner: AdminSosEvent | undefined = openSos[0];
   const onRides = snapshot?.drivers.filter((d) => d.status === 'on_ride').length ?? 0;
   const surging = snapshot?.surgeZones.filter((z) => z.level > 0 && z.multiplier > 1) ?? [];
@@ -85,24 +113,27 @@ export default function LiveOpsPage() {
         }
         actions={
           <div className="liveops-controls">
-            <label className="liveops-controls__region">
-              {t('liveOps.regionLabel')}
-              <select
-                value={regionId ?? ''}
-                onChange={(event) => {
-                  const next = new URLSearchParams(params);
-                  next.set('region', event.target.value);
-                  setParams(next);
-                  setFocus(null);
-                }}
-              >
-                {(regions ?? []).map((region) => (
-                  <option key={region.id} value={region.id}>
-                    {region.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {regions !== null && regions.length > 0 ? (
+              <label className="liveops-controls__region">
+                {t('liveOps.regionLabel')}
+                <select
+                  value={regionId ?? ''}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params);
+                    next.set('region', event.target.value);
+                    next.delete('ride');
+                    setParams(next);
+                    setFocus(null);
+                  }}
+                >
+                  {regions.map((region) => (
+                    <option key={region.id} value={region.id}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label className="liveops-controls__toggle">
               <input
                 type="checkbox"
@@ -115,7 +146,14 @@ export default function LiveOpsPage() {
         }
       />
 
-      {regionsFailed && regions === null ? (
+      {regionsFailed === 'forbidden' ? (
+        <p className="banner banner--info" role="status">
+          {t(
+            regionId ? 'liveOps.errors.regionsForbiddenLinked' : 'liveOps.errors.regionsForbidden',
+          )}
+        </p>
+      ) : null}
+      {regionsFailed === 'failed' ? (
         <p className="banner banner--error" role="alert">
           {t('liveOps.errors.regionsFailed')}
         </p>
@@ -130,7 +168,7 @@ export default function LiveOpsPage() {
           {t('liveOps.errors.refreshFailed')}
         </p>
       ) : null}
-      {error === 'failed' && snapshot === null ? (
+      {error !== null && snapshot === null ? (
         <p className="banner banner--error" role="alert">
           {t('liveOps.errors.loadFailed')}{' '}
           <button className="btn btn--small" type="button" onClick={() => void refresh()}>
@@ -237,7 +275,11 @@ export default function LiveOpsPage() {
 
         <aside className="liveops-layout__aside">
           {can('support:view') ? (
-            <SosAlertPanel regionId={regionId} onChanged={() => void refresh()} />
+            <SosAlertPanel
+              regionId={regionId}
+              openSosKey={openSosKey}
+              onChanged={() => void refresh()}
+            />
           ) : null}
           {snapshot ? (
             <section className="card section">

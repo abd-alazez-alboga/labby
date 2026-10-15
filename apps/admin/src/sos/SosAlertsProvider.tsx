@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { listSosEvents, type AdminSosEvent } from '../api/comms';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { liveOpsLink } from '../pages/rides/ride-format';
 import { formatClock } from '../pages/surge';
 import { useToast } from '../toast/ToastProvider';
 
@@ -67,11 +68,17 @@ export function SosAlertsProvider({ children }: { children: ReactNode }) {
   const [openEvents, setOpenEvents] = useState<AdminSosEvent[] | null>(null);
   const seen = useRef<Set<string> | null>(null);
   const mounted = useRef(true);
+  /** The read in flight; a refresh asked meanwhile queues ONE follow-up read. */
+  const inFlight = useRef<Promise<void> | null>(null);
+  const queued = useRef(false);
+  // Route- and language-dependent callbacks live in a ref, so navigating
+  // (a new `navigate`) or switching language (a new `t`) never restarts the poll.
+  const latest = useRef({ navigate, t, language: i18n.language, show });
+  useEffect(() => {
+    latest.current = { navigate, t, language: i18n.language, show };
+  });
 
-  const refresh = useCallback(async () => {
-    if (!enabled) {
-      return;
-    }
+  const readOnce = useCallback(async () => {
     try {
       const page = await listSosEvents(apiClient, { status: 'open', size: BADGE_PAGE_SIZE });
       if (!mounted.current) {
@@ -79,16 +86,17 @@ export function SosAlertsProvider({ children }: { children: ReactNode }) {
       }
       // The first read seeds the badge silently; later reads toast arrivals.
       if (seen.current !== null) {
+        const { navigate: go, t: tr, language, show: toast } = latest.current;
         for (const event of newOpenEvents(seen.current, page.items)) {
-          show({
+          toast({
             id: `sos-${event.sosEventId}`,
             tone: 'critical',
-            title: t('sos.toastTitle'),
-            message: t('sos.toastBody', {
+            title: tr('sos.toastTitle'),
+            message: tr('sos.toastBody', {
               name: event.triggeredBy.name,
-              time: formatClock(event.triggeredAt, i18n.language),
+              time: formatClock(event.triggeredAt, language),
             }),
-            action: { label: t('sos.toastOpen'), onClick: () => navigate('/live-ops') },
+            action: { label: tr('sos.toastOpen'), onClick: () => go(liveOpsLink(event)) },
           });
         }
       }
@@ -97,7 +105,32 @@ export function SosAlertsProvider({ children }: { children: ReactNode }) {
     } catch {
       // Keep the last known alerts: a transient failure must not blank the badge.
     }
-  }, [apiClient, enabled, i18n.language, navigate, show, t]);
+  }, [apiClient]);
+
+  /**
+   * Reads never overlap: a refresh while one is in flight (focus +
+   * visibilitychange on tab return, an acknowledgement mid-poll) waits for
+   * it and then reads once more, so the newest answer always lands last.
+   */
+  const refresh = useCallback((): Promise<void> => {
+    if (!enabled) {
+      return Promise.resolve();
+    }
+    if (inFlight.current) {
+      queued.current = true;
+      return inFlight.current;
+    }
+    const run = async () => {
+      do {
+        queued.current = false;
+        await readOnce();
+      } while (queued.current && mounted.current);
+    };
+    inFlight.current = run().finally(() => {
+      inFlight.current = null;
+    });
+    return inFlight.current;
+  }, [enabled, readOnce]);
 
   useEffect(() => {
     mounted.current = true;
