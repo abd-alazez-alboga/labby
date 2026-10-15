@@ -98,6 +98,11 @@ describe("chat frames (comms-v1.yaml)", () => {
           senderRole: "rider",
           kind: "quick_reply",
           quickReplyCode: "rider_coming",
+          quickReply: {
+            code: "rider_coming",
+            textEn: "I'm coming",
+            textAr: "أنا قادم",
+          },
           sentAt: "2026-10-13T09:30:00Z",
         }),
       ),
@@ -112,6 +117,11 @@ describe("chat frames (comms-v1.yaml)", () => {
         kind: "quick_reply",
         body: null,
         quickReplyCode: "rider_coming",
+        quickReply: {
+          code: "rider_coming",
+          textEn: "I'm coming",
+          textAr: "أنا قادم",
+        },
         sentAt: "2026-10-13T09:30:00Z",
       },
     });

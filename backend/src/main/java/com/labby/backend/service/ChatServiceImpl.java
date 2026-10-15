@@ -49,8 +49,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Per-ride chat (CHAT-01..03). The window is derived per request from the thread's {@code
  * closed_at} / {@code reopened_until} — clients never compute it. WS errors ride on {@link
  * com.labby.backend.exception.BusinessException} codes; frames go through the {@link
- * RealtimePublisher} (after commit, every instance); the offline recipient's push through the
- * notification outbox (category {@code chat}, ride-critical while the ride is active).
+ * RealtimePublisher} (after commit, every instance); the recipient's push on every new message
+ * through the notification outbox (category {@code chat}, ride-critical while the ride is active).
  */
 @Service
 @Transactional
@@ -72,7 +72,6 @@ public class ChatServiceImpl implements ChatService {
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final OnboardingAssembler onboardingAssembler;
   private final RealtimePublisher realtimePublisher;
-  private final RealtimeSessionRegistry realtimeSessionRegistry;
   private final NotificationService notificationService;
   private final AuditService auditService;
   private final Clock clock;
@@ -248,7 +247,9 @@ public class ChatServiceImpl implements ChatService {
       return toDto(stored, userId);
     }
     // UC-S-13 reconnection: the resend's echo is the already-stored message — one row, no error.
-    realtimePublisher.publish(List.of(userId), messageFrame(ride.getId(), existing.get(), true));
+    realtimePublisher.publish(
+        List.of(userId),
+        messageFrame(ride.getId(), existing.get(), quickReplyOf(existing.get()), true));
     return toDto(existing.get(), userId);
   }
 
@@ -341,24 +342,40 @@ public class ChatServiceImpl implements ChatService {
     return new Validated(kind, null, code);
   }
 
-  /** The chat.message fan-out to both parties, plus the offline recipient's push (CHAT-02). */
+  /**
+   * The chat.message fan-out to both parties, plus the recipient's push on EVERY new message
+   * (CHAT-02, owner ruling 2026-10-14): both apps keep their socket open in the background, so a
+   * live socket says nothing about whether the chat is on screen — the apps suppress the banner
+   * themselves while that ride's chat is open.
+   */
   private void fanOut(Ride ride, RideParty sender, UUID senderUserId, ChatMessage stored) {
     UUID recipient = counterpartUserId(ride, sender);
-    realtimePublisher.publish(List.of(senderUserId), messageFrame(ride.getId(), stored, true));
-    realtimePublisher.publish(List.of(recipient), messageFrame(ride.getId(), stored, false));
-    if (!realtimeSessionRegistry.hasOpenSocket(recipient)) {
-      Map<String, Object> params = new LinkedHashMap<>();
-      params.put("rideId", ride.getId().toString());
-      params.put("senderName", RideAssembler.firstName(name(senderUserId)));
-      params.put("recipientRole", sender.other().getValue());
-      // The ride-critical ruling: active-ride chat pushes bypass a muted chat category.
-      params.put("rideActive", String.valueOf(ride.isActive()));
-      notificationService.queue(recipient, NotificationEvent.CHAT_MESSAGE, params);
-    }
+    ChatQuickReply quickReply = quickReplyOf(stored);
+    realtimePublisher.publish(
+        List.of(senderUserId), messageFrame(ride.getId(), stored, quickReply, true));
+    realtimePublisher.publish(
+        List.of(recipient), messageFrame(ride.getId(), stored, quickReply, false));
+    Map<String, Object> params = new LinkedHashMap<>();
+    params.put("rideId", ride.getId().toString());
+    params.put("senderName", RideAssembler.firstName(name(senderUserId)));
+    params.put("recipientRole", sender.other().getValue());
+    // The ride-critical ruling: active-ride chat pushes bypass a muted chat category.
+    params.put("rideActive", String.valueOf(ride.isActive()));
+    notificationService.queue(recipient, NotificationEvent.CHAT_MESSAGE, params);
   }
 
+  private ChatQuickReply quickReplyOf(ChatMessage message) {
+    return message.getQuickReplyCode() == null
+        ? null
+        : chatQuickReplyRepository.findById(message.getQuickReplyCode()).orElse(null);
+  }
+
+  /**
+   * One chat.message frame. A quick reply carries its texts in both languages: each app's own
+   * catalog holds only its audience, so the counterpart's codes are unknown to it.
+   */
   private static Map<String, Object> messageFrame(
-      UUID rideId, ChatMessage message, boolean toSender) {
+      UUID rideId, ChatMessage message, ChatQuickReply quickReply, boolean toSender) {
     Map<String, Object> frame = new LinkedHashMap<>();
     frame.put("type", "chat.message");
     frame.put("rideId", rideId.toString());
@@ -374,6 +391,13 @@ public class ChatServiceImpl implements ChatService {
     }
     if (message.getQuickReplyCode() != null) {
       frame.put("quickReplyCode", message.getQuickReplyCode());
+    }
+    if (quickReply != null) {
+      Map<String, Object> texts = new LinkedHashMap<>();
+      texts.put("code", quickReply.getCode());
+      texts.put("textEn", quickReply.getTextEn());
+      texts.put("textAr", quickReply.getTextAr());
+      frame.put("quickReply", texts);
     }
     frame.put("sentAt", message.getCreatedAt().toString());
     return frame;

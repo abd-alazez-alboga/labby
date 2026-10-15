@@ -19,7 +19,12 @@ import { Linking } from "react-native";
 
 import { resetQuickRepliesCache } from "../../../api/comms";
 import { ChatProvider } from "../../../chat/chat-context";
-import { LANGUAGE_STORAGE_KEY, LocaleProvider } from "../../../i18n/locale-context";
+import { openChatRideId } from "../../../chat/open-chat";
+import { getAppConfig } from "../../../config/app-config";
+import {
+  LANGUAGE_STORAGE_KEY,
+  LocaleProvider,
+} from "../../../i18n/locale-context";
 import { RideProvider } from "../../../ride/ride-context";
 import {
   chatMessage,
@@ -48,6 +53,11 @@ jest.mock("expo-router", () => ({
     replace: jest.fn(),
     canGoBack: () => true,
   }),
+  // Focus = mounted in these screen-level tests.
+  useFocusEffect: (effect: () => void | (() => void)) =>
+    jest
+      .requireActual<typeof import("react")>("react")
+      .useEffect(effect, [effect]),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -129,13 +139,88 @@ describe("chat screen (UC-S-13/14)", () => {
       screen.getByText("I'm at the pharmacy entrance, blue jacket"),
     ).toBeOnTheScreen();
     // Localized quick replies (EN), rendered from the catalog.
-    for (const label of ["I'm coming", "Where are you now?", "One minute, please"]) {
+    for (const label of [
+      "I'm coming",
+      "Where are you now?",
+      "One minute, please",
+    ]) {
       expect(screen.getByText(label)).toBeOnTheScreen();
     }
     // Call button present while counterpart.phone is non-null.
     const spy = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     await fireEvent.press(screen.getByTestId("chat-call"));
     expect(spy).toHaveBeenCalledWith("tel:+963955000111");
+  });
+
+  it("shows the driver photo as the header avatar, resolving an API-relative url", async () => {
+    mockApi({
+      ...baseRoutes,
+      [THREAD]: {
+        status: 200,
+        body: chatThread({
+          counterpart: {
+            ...chatThread().counterpart,
+            photoUrl: "/api/v1/files/tok-1",
+          },
+        }),
+      },
+    });
+    await renderChat();
+
+    const photo = await screen.findByTestId("chat-avatar-photo");
+    expect(photo.props.source).toEqual({
+      uri: `${getAppConfig().apiBaseUrl}/api/v1/files/tok-1`,
+    });
+    expect(photo).toHaveStyle({ width: 44, height: 44, borderRadius: 22 });
+    expect(screen.queryByTestId("chat-avatar-initial")).toBeNull();
+
+    // A photo that fails to load falls back to the initial.
+    await act(async () => photo.props.onError());
+    expect(screen.getByTestId("chat-avatar-initial")).toHaveTextContent("S");
+  });
+
+  it("keeps an absolute photo url as is", async () => {
+    mockApi({
+      ...baseRoutes,
+      [THREAD]: {
+        status: 200,
+        body: chatThread({
+          counterpart: {
+            ...chatThread().counterpart,
+            photoUrl: "https://cdn.example/p.jpg",
+          },
+        }),
+      },
+    });
+    await renderChat();
+    expect(
+      (await screen.findByTestId("chat-avatar-photo")).props.source,
+    ).toEqual({ uri: "https://cdn.example/p.jpg" });
+  });
+
+  it("falls back to the first-name initial on the accent tint without a photo", async () => {
+    mockApi(baseRoutes);
+    await renderChat();
+    const initial = await screen.findByTestId("chat-avatar-initial");
+    expect(initial).toHaveTextContent("S");
+    expect(initial).toHaveStyle({
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: "#F1EAF8",
+    });
+    expect(screen.getByText("S")).toHaveStyle({ color: "#59128A" });
+    expect(screen.queryByTestId("chat-avatar-photo")).toBeNull();
+  });
+
+  it("marks this ride's chat as open while it is on screen (push banner suppression)", async () => {
+    mockApi(baseRoutes);
+    const view = await renderChat();
+    await screen.findByTestId("chat-name");
+    expect(openChatRideId()).toBe(RIDE_ID);
+
+    await view.unmount();
+    expect(openChatRideId()).toBeNull();
   });
 
   it("renders Arabic quick replies and the AR placeholder", async () => {
@@ -156,7 +241,10 @@ describe("chat screen (UC-S-13/14)", () => {
     await screen.findByTestId("chat-name");
     const socket = await connect();
 
-    await fireEvent.changeText(screen.getByTestId("chat-input"), "Okay, waiting");
+    await fireEvent.changeText(
+      screen.getByTestId("chat-input"),
+      "Okay, waiting",
+    );
     await fireEvent.press(screen.getByTestId("chat-send"));
 
     const sends = sentChatSends(socket);
@@ -248,7 +336,9 @@ describe("chat screen (UC-S-13/14)", () => {
     await screen.findByTestId("chat-name");
     // Opening the chat reads the shown history (REST fallback pre-socket).
     await waitFor(() =>
-      expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/chat/read`)).toHaveLength(1),
+      expect(
+        api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/chat/read`),
+      ).toHaveLength(1),
     );
     expect(
       api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/chat/read`)[0].body,
@@ -290,6 +380,31 @@ describe("chat screen (UC-S-13/14)", () => {
       }),
     );
     expect(screen.getByTestId("chat-seen")).toHaveTextContent("Seen");
+  });
+
+  it("renders a live counterpart quick reply from the frame's texts (not in the rider catalog)", async () => {
+    mockApi(baseRoutes);
+    await renderChat();
+    await screen.findByTestId("chat-name");
+    const socket = await connect();
+    await act(async () =>
+      socket.receive({
+        type: "chat.message",
+        rideId: RIDE_ID,
+        messageId: MSG_3,
+        senderRole: "driver",
+        kind: "quick_reply",
+        quickReplyCode: "driver_cant_find",
+        quickReply: {
+          code: "driver_cant_find",
+          textEn: "I can't find you",
+          textAr: "لا أستطيع إيجادك",
+        },
+        sentAt: "2026-10-13T09:33:00Z",
+      }),
+    );
+    expect(screen.getByText("I can't find you")).toBeOnTheScreen();
+    expect(screen.queryByText("driver_cant_find")).toBeNull();
   });
 
   it("read_only window: history visible, composer + call replaced by a notice", async () => {

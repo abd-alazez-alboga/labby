@@ -36,8 +36,7 @@ import { useOptionalChat } from "./chat-context";
 /** RFC 4122 v4 id — `crypto.randomUUID` when the runtime has it. */
 export function newClientMsgId(): string {
   const cryptoObj = globalThis.crypto as
-    | { randomUUID?: () => string }
-    | undefined;
+    { randomUUID?: () => string } | undefined;
   if (typeof cryptoObj?.randomUUID === "function") {
     return cryptoObj.randomUUID();
   }
@@ -83,9 +82,7 @@ export interface ChatThreadValue {
 }
 
 function isWritable(thread: ChatThread | null): boolean {
-  return (
-    thread?.windowState === "open" || thread?.windowState === "reopened"
-  );
+  return thread?.windowState === "open" || thread?.windowState === "reopened";
 }
 
 export function useChatThread(rideId: string): ChatThreadValue {
@@ -257,10 +254,13 @@ export function useChatThread(rideId: string): ChatThreadValue {
   }, [rideId, appendMessages, markLatestCounterpartRead]);
 
   const toChatMessage = useCallback(
-    (event: Extract<ChatServerEvent, { type: "chat.message" }>): ChatMessage => {
+    (
+      event: Extract<ChatServerEvent, { type: "chat.message" }>,
+    ): ChatMessage => {
       const quickReply =
         event.kind === "quick_reply" && event.quickReplyCode
-          ? (quickRepliesRef.current.find(
+          ? (event.quickReply ??
+            quickRepliesRef.current.find(
               (reply) => reply.code === event.quickReplyCode,
             ) ?? {
               code: event.quickReplyCode,

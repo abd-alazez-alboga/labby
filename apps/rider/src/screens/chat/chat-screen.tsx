@@ -10,8 +10,8 @@
  * `counterpart.phone` is non-null (CALL-01 window gating).
  */
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -26,6 +26,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ChatMessage, ChatThread, QuickReply } from "../../api/comms";
+import { resolveFileUrl } from "../../api/http-client";
 import {
   AppText,
   Banner,
@@ -35,6 +36,7 @@ import {
   useDirection,
   useFontFamily,
 } from "../../components/ui";
+import { setOpenChatRideId } from "../../chat/open-chat";
 import { useChatThread } from "../../chat/use-chat-thread";
 import type { PendingMessage } from "../../chat/use-chat-thread";
 import { useLocale } from "../../i18n/locale-context";
@@ -73,6 +75,10 @@ export default function ChatScreen({ rideId }: { rideId: string }) {
   const inputFamily = useFontFamily(400);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<ScrollView>(null);
+
+  // While focused, a foreground chat push for THIS ride shows no banner —
+  // the message lands live here (owner ruling 2026-10-14).
+  useFocusEffect(useCallback(() => setOpenChatRideId(rideId), [rideId]));
 
   const messageCount = chat.messages.length + chat.pending.length;
   useEffect(() => {
@@ -348,19 +354,12 @@ function ChatHeader({
       ]}
     >
       <BackButton onPress={onBack} chevron={backChevron} label={t("chat.back")} />
-      {thread.counterpart.photoUrl ? (
-        <Image
-          source={{ uri: thread.counterpart.photoUrl }}
-          style={styles.avatar}
-          testID="chat-avatar-photo"
-        />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFill]}>
-          <AppText variant="bodyStrong" weight={800} tone="accent" align="center">
-            {name.trim().charAt(0).toUpperCase() || "?"}
-          </AppText>
-        </View>
-      )}
+      {/* Keyed by url: a fresh (expiring) url gets a fresh load attempt. */}
+      <Avatar
+        key={thread.counterpart.photoUrl ?? "none"}
+        photoUrl={thread.counterpart.photoUrl ?? null}
+        name={name}
+      />
       <View style={styles.headerText}>
         <AppText variant="rowTitle" weight={800} testID="chat-name">
           {name}
@@ -388,6 +387,32 @@ function ChatHeader({
           <Ionicons name="call" size={20} color={colors.onAccent} />
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * 44 px round avatar (artboard RiderChat): the driver photo — API-relative
+ * URLs resolved against the API base — else, or when the photo fails to
+ * load, the first letter of the first name on the accent tint.
+ */
+function Avatar({ photoUrl, name }: { photoUrl: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (photoUrl && !failed) {
+    return (
+      <Image
+        source={{ uri: resolveFileUrl(photoUrl) }}
+        style={styles.avatar}
+        onError={() => setFailed(true)}
+        testID="chat-avatar-photo"
+      />
+    );
+  }
+  return (
+    <View style={[styles.avatar, styles.avatarFill]} testID="chat-avatar-initial">
+      <AppText variant="bodyStrong" weight={800} tone="accent" align="center">
+        {name.trim().charAt(0).toUpperCase() || "?"}
+      </AppText>
     </View>
   );
 }

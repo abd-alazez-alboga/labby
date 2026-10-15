@@ -42,7 +42,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * M10-T2 acceptance — the chat push (CHAT-02 + the ride-critical ruling): an offline recipient gets
- * a push (deep link {@code {screen: chat, params: {rideId}}}), a live socket suppresses it, a muted
+ * a push (deep link {@code {screen: chat, params: {rideId}}}), a live socket gets the frame AND the
+ * push (owner ruling 2026-10-14 — the apps suppress the banner while the chat is open), a muted
  * {@code chat} category is bypassed while the ride is ACTIVE and honoured after the ride ends — the
  * center row recorded either way (UC-S-25 A1).
  */
@@ -208,8 +209,9 @@ class ChatPushIntegrationTest extends AbstractRideIntegrationTest {
   }
 
   @Test
-  @DisplayName("a recipient with a live socket gets the frame, not a push")
-  void shouldNotPushToLiveSocket() throws Exception {
+  @DisplayName(
+      "a recipient with a live socket gets the frame AND the push (owner ruling 2026-10-14)")
+  void shouldPushToLiveSocketToo() throws Exception {
     Account rider = rider();
     Account driver = driverAt(33.501, 36.30);
     UUID rideId = book(rider);
@@ -220,12 +222,14 @@ class ChatPushIntegrationTest extends AbstractRideIntegrationTest {
 
     send(rider, rideId, "see you soon");
 
-    // The message reaches the live socket; no outbox push is queued for the recipient.
+    // The message reaches the live socket, and the push is queued anyway: a backgrounded app keeps
+    // its socket open, so only the app knows whether the chat is on screen.
     JsonNode frame = next(driverFrames, "chat.message");
     assertThat(frame.get("body").asText()).isEqualTo("see you soon");
-    assertThat(chatOutboxRows(driver.userId())).isZero();
+    assertThat(chatOutboxRows(driver.userId())).isEqualTo(1);
     notificationDispatchService.dispatchPending();
-    verify(pushSender, Mockito.never()).send(anyList(), any());
+    verify(pushSender).send(Mockito.eq(List.of("fcm-chat-live")), any());
+    assertThat(pushStatus(driver.userId())).isEqualTo("sent");
   }
 
   // ---- WS harness (recipient side only) --------------------------------------------------------

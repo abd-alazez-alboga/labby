@@ -1,3 +1,4 @@
+import type { QuickReply } from "../api/comms";
 import type { Ride } from "../api/rides";
 
 /**
@@ -37,9 +38,7 @@ export type ChatClientFrame =
   | { type: "chat.read"; rideId: string; lastReadMessageId: string };
 
 export type ClientFrame =
-  | { type: "auth"; token: string }
-  | { type: "ping" }
-  | ChatClientFrame;
+  { type: "auth"; token: string } | { type: "ping" } | ChatClientFrame;
 
 /** The ride events addressed to the rider (`"as": "rider"`). */
 export type RideEvent =
@@ -71,6 +70,8 @@ export type ChatServerEvent =
       kind: "text" | "quick_reply";
       body: string | null;
       quickReplyCode: string | null;
+      /** A quick reply's texts — the counterpart's codes are not in this app's catalog. */
+      quickReply: QuickReply | null;
       sentAt: string;
     }
   | {
@@ -102,7 +103,9 @@ function isRide(value: unknown): value is Ride {
 function parseRideEvent(frame: Record<string, unknown>): RideEvent | null {
   switch (frame.type) {
     case "ride.state":
-      return isRide(frame.ride) ? { type: "ride.state", ride: frame.ride } : null;
+      return isRide(frame.ride)
+        ? { type: "ride.state", ride: frame.ride }
+        : null;
     case "ride.updated":
       return isRide(frame.ride)
         ? {
@@ -122,7 +125,8 @@ function parseRideEvent(frame: Record<string, unknown>): RideEvent | null {
         lat,
         lng,
         headingDeg: finite(frame.headingDeg),
-        recordedAt: typeof frame.recordedAt === "string" ? frame.recordedAt : null,
+        recordedAt:
+          typeof frame.recordedAt === "string" ? frame.recordedAt : null,
         etaSeconds: finite(frame.etaSeconds),
       };
     }
@@ -146,7 +150,19 @@ function chatRole(value: unknown): "rider" | "driver" | null {
   return value === "rider" || value === "driver" ? value : null;
 }
 
-function parseChatEvent(frame: Record<string, unknown>): ChatServerEvent | null {
+function parseQuickReply(value: unknown): QuickReply | null {
+  if (typeof value !== "object" || value === null) return null;
+  const reply = value as Record<string, unknown>;
+  return typeof reply.code === "string" &&
+    typeof reply.textEn === "string" &&
+    typeof reply.textAr === "string"
+    ? { code: reply.code, textEn: reply.textEn, textAr: reply.textAr }
+    : null;
+}
+
+function parseChatEvent(
+  frame: Record<string, unknown>,
+): ChatServerEvent | null {
   if (typeof frame.rideId !== "string") return null;
   switch (frame.type) {
     case "chat.message": {
@@ -173,7 +189,10 @@ function parseChatEvent(frame: Record<string, unknown>): ChatServerEvent | null 
         kind,
         body: typeof frame.body === "string" ? frame.body : null,
         quickReplyCode:
-          typeof frame.quickReplyCode === "string" ? frame.quickReplyCode : null,
+          typeof frame.quickReplyCode === "string"
+            ? frame.quickReplyCode
+            : null,
+        quickReply: parseQuickReply(frame.quickReply),
         sentAt: frame.sentAt,
       };
     }
@@ -225,7 +244,9 @@ export function parseServerFrame(data: unknown): ServerFrame | null {
     default: {
       if (typeof frame.type === "string" && frame.type.startsWith("chat.")) {
         const chatEvent = parseChatEvent(frame);
-        return chatEvent ? { type: "chat", event: chatEvent } : { type: "ignored" };
+        return chatEvent
+          ? { type: "chat", event: chatEvent }
+          : { type: "ignored" };
       }
       if (frame.as !== "rider") return { type: "ignored" };
       const event = parseRideEvent(frame);

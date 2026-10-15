@@ -37,7 +37,10 @@ import type { MockResponse } from "../test-utils/contract";
 
 const originalWebSocket = globalThis.WebSocket;
 const ok = (body: unknown): MockResponse => ({ status: 200, body });
-const NOT_FOUND: MockResponse = { status: 404, body: { status: 404, message: "no thread" } };
+const NOT_FOUND: MockResponse = {
+  status: 404,
+  body: { status: 404, message: "no thread" },
+};
 
 const RIDER_MSG = chatMessageFixture();
 
@@ -70,7 +73,9 @@ async function openChat(
   fireEvent.press(screen.getByTestId("safety-chat"));
   await waitFor(() => expect(screen.getByTestId("chat-screen")).toBeTruthy());
   await waitFor(() =>
-    expect(screen.getByTestId(`chat-message-${RIDER_MSG.messageId}`)).toBeTruthy(),
+    expect(
+      screen.getByTestId(`chat-message-${RIDER_MSG.messageId}`),
+    ).toBeTruthy(),
   );
   return { contract, socket };
 }
@@ -155,7 +160,9 @@ describe("driver chat (UC-S-13/14)", () => {
         ),
       ).toHaveTextContent("On my way"),
     );
-    expect(screen.queryByTestId(`chat-message-pending:${sends[0].clientMsgId}`)).toBeNull();
+    expect(
+      screen.queryByTestId(`chat-message-pending:${sends[0].clientMsgId}`),
+    ).toBeNull();
   });
 
   it("sends typed text and renders the rider's incoming frame", async () => {
@@ -174,15 +181,34 @@ describe("driver chat (UC-S-13/14)", () => {
 
     // Incoming rider message lands in the thread and is read on screen.
     receive(socket, chatMessageFrame({ body: "Blue jacket" }));
-    await waitFor(() =>
-      expect(screen.getByText("Blue jacket")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText("Blue jacket")).toBeTruthy());
     await waitFor(() => {
       const reads = socket.framesOfType("chat.read");
       expect(reads[reads.length - 1]).toMatchObject({
         lastReadMessageId: "aa000000-0000-4000-8000-000000000009",
       });
     });
+  });
+
+  it("renders a live rider quick reply from the frame's texts (not in the driver catalog)", async () => {
+    const { socket } = await openChat();
+    receive(
+      socket,
+      chatMessageFrame({
+        kind: "quick_reply",
+        body: null,
+        quickReplyCode: "rider_wait_please",
+        quickReply: {
+          code: "rider_wait_please",
+          textEn: "One minute, please",
+          textAr: "دقيقة من فضلك",
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("One minute, please")).toBeTruthy(),
+    );
+    expect(screen.queryByText("rider_wait_please")).toBeNull();
   });
 
   it("resends with the SAME clientMsgId after a reconnect and backfills (dedup)", async () => {
@@ -278,7 +304,9 @@ describe("driver chat (UC-S-13/14)", () => {
     await goLive();
     await waitForResync(contract);
 
-    await waitFor(() => expect(screen.getByTestId("to-pickup-sheet")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("to-pickup-sheet")).toBeTruthy(),
+    );
     await waitFor(() =>
       expect(contract.requestsTo(CHAT_THREAD).length).toBeGreaterThanOrEqual(1),
     );

@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isRunningInExpoGo } from "expo";
 import type * as ExpoNotifications from "expo-notifications";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { registerDevice, unregisterDevice } from "../api/notifications";
 import type { DevicePlatform } from "../api/realtime-types";
 import { runExclusive } from "../permissions/permission-queue";
+import { parsePushPayload } from "./deep-links";
+import { openChatRideId } from "./open-chat";
 
 /**
  * Push plumbing (NTF-01, UC-S-25) — the ONLY module touching
@@ -203,6 +205,24 @@ export function onPushTokenChange(
   }
 }
 
+/**
+ * A notification's data payload. Raw FCM messages on Android may carry it
+ * on the trigger only (e.g. tapped from a killed app), so that is the fallback.
+ */
+function notificationData(
+  notification: ExpoNotifications.Notification | null | undefined,
+): unknown {
+  const request = notification?.request;
+  const data = request?.content?.data;
+  if (data && typeof data === "object" && Object.keys(data).length > 0) {
+    return data;
+  }
+  const remote = (
+    request?.trigger as { remoteMessage?: { data?: unknown } } | null | undefined
+  )?.remoteMessage;
+  return remote?.data ?? data ?? null;
+}
+
 /** The data payload of a tapped notification. */
 export function onNotificationTap(
   listener: (data: unknown) => void,
@@ -210,7 +230,7 @@ export function onNotificationTap(
   try {
     const subscription =
       notifications().addNotificationResponseReceivedListener((response) =>
-        listener(response.notification.request.content.data),
+        listener(notificationData(response.notification)),
       );
     return () => subscription.remove();
   } catch {
@@ -226,7 +246,7 @@ export async function takeLaunchTap(): Promise<unknown | null> {
     await notifications()
       .clearLastNotificationResponseAsync()
       .catch(() => {});
-    return response.notification.request.content.data;
+    return notificationData(response.notification);
   } catch {
     return null;
   }
@@ -238,7 +258,7 @@ export function onNotificationReceived(
 ): () => void {
   try {
     const subscription = notifications().addNotificationReceivedListener(
-      (notification) => listener(notification?.request?.content?.data),
+      (notification) => listener(notificationData(notification)),
     );
     return () => subscription.remove();
   } catch {
@@ -246,16 +266,35 @@ export function onNotificationReceived(
   }
 }
 
-/** Foreground pushes show as a banner (the center records them anyway). */
+/**
+ * A foreground chat push for the thread already on screen (open-chat.ts):
+ * the message is landing live there, so no banner/list entry/sound.
+ */
+export function isPushForOpenChat(data: unknown): boolean {
+  if (AppState.currentState !== "active") return false;
+  const openRideId = openChatRideId();
+  if (!openRideId) return false;
+  const { link, event } = parsePushPayload(data);
+  const isChat = event === "chat.message" || link?.screen === "chat";
+  return isChat && link?.params?.rideId === openRideId;
+}
+
+/**
+ * Foreground pushes show as a banner (the center records them anyway) —
+ * except a chat push for the chat screen that is open on that same ride.
+ */
 export function configureForegroundPresentation(): void {
   try {
     notifications().setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
+      handleNotification: async (notification) => {
+        const show = !isPushForOpenChat(notificationData(notification));
+        return {
+          shouldShowBanner: show,
+          shouldShowList: show,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+        };
+      },
     });
   } catch {
     // unsupported runtime

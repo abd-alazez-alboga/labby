@@ -106,6 +106,8 @@ export type ChatServerFrame =
       kind: ChatMessageKind;
       body?: string | null;
       quickReplyCode?: string | null;
+      /** A quick reply's texts — the counterpart's codes are not in this app's catalog. */
+      quickReply?: QuickReply | null;
       sentAt: string;
     }
   | {
@@ -118,10 +120,7 @@ export type ChatServerFrame =
   | { type: "chat.error"; code: ChatErrorCode; message?: string };
 
 export type ChatErrorCode =
-  | "chat_not_open"
-  | "chat_closed"
-  | "not_in_ride"
-  | "invalid_message";
+  "chat_not_open" | "chat_closed" | "not_in_ride" | "invalid_message";
 
 export const CHAT_ERROR_CODES: readonly ChatErrorCode[] = [
   "chat_not_open",

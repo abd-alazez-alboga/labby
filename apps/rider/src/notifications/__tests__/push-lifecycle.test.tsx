@@ -11,9 +11,15 @@ import React from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
 import { emitSessionExpired } from "../../auth/session-store";
+import { setOpenChatRideId } from "../../chat/open-chat";
 import SettingsScreen from "../../screens/settings-screen";
 import { mockApi, seedSignedInSession } from "../../test-utils/mock-api";
+import {
+  coldStartNavigationRef,
+  settledNavigationRef,
+} from "../../test-utils/navigation";
 import { renderWithProviders } from "../../test-utils/render";
+import type { NavigationRefLike } from "../navigation-settled";
 import {
   NotificationsProvider,
   resetHandledNotificationResponses,
@@ -23,8 +29,10 @@ import { isRemotePushSupported } from "../push-support";
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+let mockNavigationRef: NavigationRefLike = settledNavigationRef;
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useNavigationContainerRef: () => mockNavigationRef,
 }));
 
 jest.mock("../push-support", () => ({
@@ -462,6 +470,42 @@ describe("push taps → deep links", () => {
     );
   });
 
+  it("opens the chat on a cold-start chat tap once the signed-in stack is mounted", async () => {
+    supportMock.mockReturnValue(true);
+    const navigation = coldStartNavigationRef();
+    mockNavigationRef = navigation;
+    notificationsMock.getLastNotificationResponseAsync.mockResolvedValue(
+      tapResponse("push-cold-chat", {
+        notificationId: "n-9",
+        category: "chat",
+        event: "chat.message",
+        screen: "chat",
+        params: JSON.stringify({ rideId: "r-42" }),
+      }),
+    );
+    const api = mockApi({
+      [UNREAD]: { status: 200, body: { unread: 1 } },
+      "POST /api/v1/notifications/n-9/read": { status: 204 },
+    });
+
+    try {
+      await renderSignedIn();
+      await waitFor(() =>
+        expect(
+          api.callsTo("POST", "/api/v1/notifications/n-9/read"),
+        ).toHaveLength(1),
+      );
+      // The navigation tree is still mounting: navigating now would be dropped.
+      expect(mockPush).not.toHaveBeenCalled();
+
+      navigation.settle();
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/chat/r-42"));
+      expect(mockPush).toHaveBeenCalledTimes(1);
+    } finally {
+      mockNavigationRef = settledNavigationRef;
+    }
+  });
+
   it("refreshes the badge when a push arrives while the app is open", async () => {
     let onReceive: (() => void) | null = null;
     notificationsMock.addNotificationReceivedListener.mockImplementation(
@@ -498,5 +542,122 @@ describe("push taps → deep links", () => {
     expect(
       await screen.findByTestId("settings-notifications-badge"),
     ).toHaveTextContent("1");
+  });
+});
+
+describe("foreground chat push presentation", () => {
+  type Handler = Parameters<typeof Notifications.setNotificationHandler>[0];
+  let clearOpenChat: (() => void) | null = null;
+  const appState = AppState as { currentState: string };
+  const initialAppState = appState.currentState;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    secureStoreMock.__reset();
+    await AsyncStorage.clear();
+    resetHandledNotificationResponses();
+    supportMock.mockReturnValue(true);
+    notificationsMock.getLastNotificationResponseAsync.mockResolvedValue(null);
+    appState.currentState = "active";
+    await seedSignedInSession();
+  });
+
+  afterEach(() => {
+    clearOpenChat?.();
+    clearOpenChat = null;
+    appState.currentState = initialAppState;
+  });
+
+  function pushNotification(data: Record<string, unknown>) {
+    return {
+      date: 0,
+      request: { identifier: "p", content: { data }, trigger: null },
+    } as unknown as Notifications.Notification;
+  }
+
+  const chatPush = (rideId: string) =>
+    pushNotification({
+      notificationId: "n-1",
+      category: "chat",
+      event: "chat.message",
+      screen: "chat",
+      params: JSON.stringify({ rideId }),
+    });
+
+  async function mountedHandler(): Promise<NonNullable<Handler>> {
+    mockApi({ [UNREAD]: { status: 200, body: { unread: 0 } } });
+    await renderSignedIn();
+    await waitFor(() =>
+      expect(notificationsMock.setNotificationHandler).toHaveBeenCalled(),
+    );
+    const handler = notificationsMock.setNotificationHandler.mock.calls[0][0];
+    if (!handler) throw new Error("no notification handler");
+    return handler;
+  }
+
+  async function presentation(
+    handler: NonNullable<Handler>,
+    notification: Notifications.Notification,
+  ) {
+    const behavior = await handler.handleNotification(notification);
+    return [
+      behavior.shouldShowBanner,
+      behavior.shouldShowList,
+      behavior.shouldPlaySound,
+    ];
+  }
+
+  it("hides the banner only while that same ride's chat is on screen", async () => {
+    const handler = await mountedHandler();
+    clearOpenChat = setOpenChatRideId("r-1");
+
+    expect(await presentation(handler, chatPush("r-1"))).toEqual([
+      false,
+      false,
+      false,
+    ]);
+    // Another ride's chat push still shows.
+    expect(await presentation(handler, chatPush("r-2"))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    // Other pushes are untouched while a chat is open.
+    expect(
+      await presentation(
+        handler,
+        pushNotification({
+          notificationId: "n-2",
+          event: "ride.driver_arrived",
+          screen: "ride",
+          params: JSON.stringify({ rideId: "r-1" }),
+        }),
+      ),
+    ).toEqual([true, true, true]);
+    // Not in the foreground: never suppressed here (the OS presents it).
+    appState.currentState = "background";
+    expect(await presentation(handler, chatPush("r-1"))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it("shows the chat banner when no chat screen is on screen", async () => {
+    const handler = await mountedHandler();
+    expect(await presentation(handler, chatPush("r-1"))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+
+    // The chat screen left (blur/unmount clears the registry).
+    const clear = setOpenChatRideId("r-1");
+    clear();
+    expect(await presentation(handler, chatPush("r-1"))).toEqual([
+      true,
+      true,
+      true,
+    ]);
   });
 });

@@ -108,9 +108,7 @@ interface PendingSend {
 
 /** Writes are allowed (and the composer / call shown) in these states. */
 export function chatWritable(thread: ChatThread | null): boolean {
-  return (
-    thread?.windowState === "open" || thread?.windowState === "reopened"
-  );
+  return thread?.windowState === "open" || thread?.windowState === "reopened";
 }
 
 function toUiMessage(message: ChatMessage): UiChatMessage {
@@ -449,6 +447,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 senderRole: frame.senderRole,
                 kind: frame.kind,
                 body: frame.body ?? null,
+                quickReply: frame.quickReply ?? null,
                 quickReplyCode: frame.quickReplyCode ?? null,
                 sentAt: frame.sentAt,
               },

@@ -41,20 +41,26 @@ info:
     `chat.read` frame to the counterpart.
 
     Server → client: `{"type":"chat.message","rideId","messageId","clientMsgId"?,"senderRole",
-    "kind","body"?,"quickReplyCode"?,"sentAt"}` — fanned out to BOTH parties' sockets; the
-    sender recognizes its echo by `clientMsgId` (that echo is the delivery ack).
+    "kind","body"?,"quickReplyCode"?,"quickReply"?,"sentAt"}` — fanned out to BOTH parties'
+    sockets; the sender recognizes its echo by `clientMsgId` (that echo is the delivery ack). A
+    quick reply also carries `quickReply: {code, textEn, textAr}` — each app's catalog holds only
+    its own audience, so the counterpart's codes are rendered from these texts.
     `{"type":"chat.read","rideId","readerRole","lastReadMessageId"}`.
     Errors (socket stays open): `{"type":"error","code","message"}` with codes `chat_not_open`,
     `chat_closed`, `not_in_ride` (sender is neither party), `invalid_message` (shape/length/
     unknown or inactive quick-reply code).
 
     Offline recipient (UC-S-13 E1): the message persists and is delivered as history on
-    reconnect; a push (below) is sent when the recipient has no live socket.
+    reconnect. Every new message ALSO queues the recipient's push (below), whether or not the
+    recipient has a live socket — the frame is sent as well.
 
 
-    **Chat push (CHAT-02; ride-critical ruling from the M10 plan).** New message → outbox push
-    to the recipient, category `chat`, deep link `{screen: "chat", params: {rideId}}` (screen
-    catalog: realtime-v1.yaml). While the ride is ACTIVE the push is delivered even if the
+    **Chat push (CHAT-02; ride-critical ruling from the M10 plan; owner ruling 2026-10-14).**
+    EVERY new message → outbox push to the recipient, regardless of sockets (both apps keep
+    their socket open in the background, so an open socket does not mean the chat is on
+    screen), category `chat`, deep link `{screen: "chat", params: {rideId}}` (screen catalog:
+    realtime-v1.yaml). The apps suppress the banner themselves while that ride's chat is on
+    screen; the live `chat.message` frame is sent too. A dedup resend queues nothing new. While the ride is ACTIVE the push is delivered even if the
     recipient muted the `chat` category — in-ride chat is ride-critical (NTF-02's exception);
     after the ride ends (the 24 h tail and reopened windows) the mute applies normally. The
     center row is recorded either way (UC-S-25 A1).
@@ -211,8 +217,10 @@ paths:
       summary: Public share-page data — NO authentication (SHARE-02)
       description: >
         Serves exactly the SHARE-02 list and nothing more — no phone numbers, no rider identity,
-        no fare. The web page itself (T2) is a minimal server-rendered page polling this
-        endpoint every `refreshSeconds`.
+        no fare. The web page itself (`GET /share/{token}`, text/html) is a static
+        server-rendered shell polling this endpoint every `refreshSeconds`: a live map (Leaflet
+        1.9.4, SRI-pinned; OSM tiles) moving the driver's marker, the driver/vehicle card and
+        the status + ETA tiles, "This trip has ended." once the link is dead.
       parameters:
         - { name: token, in: path, required: true, schema: { type: string } }
       responses:

@@ -137,7 +137,7 @@ class ShareIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(publicGet("/api/v1/share/not-a-real-token").getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
 
-    // The minimal public web page: no login, Labby purple, polls the data endpoint.
+    // The public web page: no login, Labby purple, polls the data endpoint, live Leaflet map.
     ResponseEntity<String> html =
         restTemplate.exchange(
             "/share/" + token, HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), String.class);
@@ -145,6 +145,12 @@ class ShareIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(html.getHeaders().getContentType().toString()).contains("text/html");
     assertThat(html.getBody()).contains("#59128A").contains("/api/v1/share/");
     assertThat(html.getBody()).doesNotContain(token);
+    assertThat(html.getBody())
+        .containsPattern(
+            "<script src=\"https://unpkg\\.com/leaflet@1\\.9\\.4/dist/leaflet\\.js\"\\s+integrity=\"sha256-")
+        .containsPattern("leaflet@1\\.9\\.4/dist/leaflet\\.css\"\\s+integrity=\"sha256-")
+        .contains("This page updates live and stops working when the trip ends.")
+        .contains("No sign-in needed.");
   }
 
   @Test

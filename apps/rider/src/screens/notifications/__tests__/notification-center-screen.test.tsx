@@ -29,6 +29,8 @@ import NotificationCenterScreen from "../notification-center-screen";
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush }),
+  useNavigationContainerRef: () =>
+    jest.requireActual("../../../test-utils/navigation").settledNavigationRef,
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

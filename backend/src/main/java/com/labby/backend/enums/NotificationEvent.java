@@ -61,9 +61,9 @@ public enum NotificationEvent {
   DRIVER_BALANCE_UNBLOCKED("driver.balance_unblocked"),
   // M10 comms events (comms-v1.yaml).
   /**
-   * To a chat recipient without a live socket (CHAT-02). Params: rideId, senderName, recipientRole
-   * (rider|driver), rideActive ("true" while the ride is active — the push then bypasses a muted
-   * chat category, NTF-02's ride-critical exception).
+   * To the chat recipient on every new message, live socket or not (CHAT-02). Params: rideId,
+   * senderName, recipientRole (rider|driver), rideActive ("true" while the ride is active — the
+   * push then bypasses a muted chat category, NTF-02's ride-critical exception).
    */
   CHAT_MESSAGE("chat.message"),
   /**

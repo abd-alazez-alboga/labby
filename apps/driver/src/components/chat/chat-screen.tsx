@@ -17,6 +17,7 @@ import { CHAT_BODY_MAX } from "../../api/comms-types";
 import type { QuickReply } from "../../api/comms-types";
 import { chatWritable, useOptionalChat } from "../../chat/ChatProvider";
 import type { UiChatMessage } from "../../chat/ChatProvider";
+import { setOpenChatRideId } from "../../notifications/open-chat";
 import { useOptionalDriverRide } from "../../rides/DriverRideProvider";
 import { formatTime, placeLabel } from "../../rides/format";
 import {
@@ -134,6 +135,16 @@ export function ChatScreen() {
         focusThread(paramRideId);
       }
     }, [paramRideId, focusThread, chatRideId]),
+  );
+
+  // While focused, a foreground chat push for THIS ride shows no banner —
+  // the message lands live here (owner ruling 2026-10-14, push.ts).
+  const shownRideId = paramRideId ?? chatRideId;
+  useFocusEffect(
+    useCallback(
+      () => (shownRideId ? setOpenChatRideId(shownRideId) : undefined),
+      [shownRideId],
+    ),
   );
 
   // Screen focus marks incoming messages read as they land (read markers).

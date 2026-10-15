@@ -58,6 +58,15 @@ function buildUrl(path: string): string {
   return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * Resolves a contract file URL (e.g. a driver `photoUrl`): API-relative ones
+ * (`/api/v1/files/{token}`) against the API base URL, absolute ones
+ * unchanged. These URLs need no Authorization header and expire.
+ */
+export function resolveFileUrl(url: string): string {
+  return /^[a-z][a-z\d+.-]*:/i.test(url) ? url : buildUrl(url);
+}
+
 function buildHeaders(
   init: ApiFetchOptions | undefined,
   accessToken?: string,

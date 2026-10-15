@@ -12,10 +12,13 @@
  *   (push-registration.ts);
  * - notification taps: the push's deep link is mapped (deep-links.ts) and
  *   opened, and the notification is marked read — including the tap that
- *   cold-started the app.
+ *   cold-started the app, which waits until the signed-in stack is mounted
+ *   (navigation-settled.ts) so the deep link is not dropped;
+ * - foreground presentation: banners for every push, except a chat push for
+ *   the chat screen that is open on that same ride (open-chat.ts).
  */
 import type * as ExpoNotifications from "expo-notifications";
-import { useRouter } from "expo-router";
+import { useNavigationContainerRef, useRouter } from "expo-router";
 import React, {
   createContext,
   useCallback,
@@ -28,8 +31,10 @@ import React, {
 import { AppState } from "react-native";
 
 import { getUnreadCount, markNotificationRead } from "../api/notifications";
+import { openChatRideId } from "../chat/open-chat";
 import { notifications } from "./notifications-module";
 import { parsePushPayload, resolveDeepLink } from "./deep-links";
+import { whenSignedInStackSettled } from "./navigation-settled";
 import { registerForPush, watchPushTokenRotation } from "./push-registration";
 
 export interface NotificationsContextValue {
@@ -46,39 +51,67 @@ const NotificationsContext = createContext<
 /** Taps already handled in this JS session (cold-start + listener overlap). */
 const handledResponses = new Set<string>();
 
-/** Test hook: forget handled taps between suites. */
+/** Test hook: forget handled taps (and the configured handler) between suites. */
 export function resetHandledNotificationResponses(): void {
   handledResponses.clear();
+  handlerConfigured = false;
+}
+
+function notificationData(
+  notification: ExpoNotifications.Notification | null | undefined,
+): Record<string, unknown> {
+  const request = notification?.request;
+  const data = request?.content?.data;
+  if (data && Object.keys(data).length > 0) {
+    return data as Record<string, unknown>;
+  }
+  // Raw FCM messages on Android may carry their data on the trigger only.
+  const remote = (
+    request?.trigger as { remoteMessage?: { data?: Record<string, unknown> } } | null
+  )?.remoteMessage;
+  return remote?.data ?? {};
 }
 
 function responseData(
   response: ExpoNotifications.NotificationResponse,
 ): Record<string, unknown> {
-  const { content, trigger } = response.notification.request;
-  if (content.data && Object.keys(content.data).length > 0) {
-    return content.data as Record<string, unknown>;
-  }
-  // Raw FCM messages on Android may carry their data on the trigger only.
-  const remote = (
-    trigger as { remoteMessage?: { data?: Record<string, unknown> } } | null
-  )?.remoteMessage;
-  return remote?.data ?? {};
+  return notificationData(response.notification);
+}
+
+/**
+ * A foreground chat push for the chat screen open on that same ride: the
+ * message is landing live there, so it shows no banner, list entry or sound
+ * (owner ruling 2026-10-14). The center records it either way.
+ */
+export function isPushForOpenChat(data: Record<string, unknown>): boolean {
+  if (AppState.currentState !== "active") return false;
+  const openRideId = openChatRideId();
+  if (!openRideId) return false;
+  const { link } = parsePushPayload(data);
+  const isChat = data.event === "chat.message" || link?.screen === "chat";
+  return isChat && link?.params?.rideId === openRideId;
 }
 
 let handlerConfigured = false;
 
-/** Foreground pushes are shown as banners too (the center records them anyway). */
+/**
+ * Foreground pushes are shown as banners too (the center records them
+ * anyway) — except a chat push for the chat that is open on that ride.
+ */
 function configureForegroundPresentation(): void {
   if (handlerConfigured) return;
   handlerConfigured = true;
   try {
     notifications().setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
+      handleNotification: async (notification) => {
+        const show = !isPushForOpenChat(notificationData(notification));
+        return {
+          shouldShowBanner: show,
+          shouldShowList: show,
+          shouldPlaySound: show,
+          shouldSetBadge: false,
+        };
+      },
     });
   } catch {
     // unsupported runtime — nothing to present
@@ -91,6 +124,7 @@ export function NotificationsProvider({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const navigationRef = useNavigationContainerRef();
   const [unread, setUnreadState] = useState<number | null>(null);
   const mounted = useRef(true);
 
@@ -160,6 +194,10 @@ export function NotificationsProvider({
     };
   }, []);
 
+  // A tap waiting for the signed-in stack to mount (cold start).
+  const cancelPendingTap = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelPendingTap.current?.(), []);
+
   const openResponse = useCallback(
     (response: ExpoNotifications.NotificationResponse | null) => {
       if (!response) return;
@@ -172,9 +210,14 @@ export function NotificationsProvider({
           .catch(() => {})
           .finally(() => refreshUnread());
       }
-      router.push(resolveDeepLink(link));
+      const href = resolveDeepLink(link);
+      cancelPendingTap.current?.();
+      cancelPendingTap.current = whenSignedInStackSettled(navigationRef, () => {
+        cancelPendingTap.current = null;
+        router.push(href);
+      });
     },
-    [refreshUnread, router],
+    [navigationRef, refreshUnread, router],
   );
 
   // Taps on pushes (warm) and the tap that launched the app (cold).
