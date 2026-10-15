@@ -528,7 +528,8 @@ components:
       type: object
       description: >
         USR-05 auto-suspension on rating, per role (defaults: driver < 3.0 after >= 20 rated
-        rides; rider < 2.5 after >= 10). Consumed by M11.
+        rides; rider < 2.5 after >= 10), plus the RATE-03 warning level. Consumed by M11
+        (trust-v1.yaml).
       required: [driver, rider]
       properties:
         driver: { $ref: '#/components/schemas/SuspensionThreshold' }
@@ -539,6 +540,25 @@ components:
       properties:
         minAvgRating: { type: number, minimum: 1, maximum: 5 }
         minRatedRides: { type: integer, minimum: 1 }
+        warnAvgRating:
+          type: [number, 'null']
+          maximum: 5
+          description: >
+            RATE-03 admin flag level (M11, trust-v1.yaml; owner ruling 2026-10-15). Must be
+            greater than `minAvgRating`; same `minRatedRides`. Omitted/null = `minAvgRating`
+            + 0.5 (defaults: driver 3.5, rider 3.0).
+    MetricWarnings:
+      type: object
+      description: >
+        DRV-07 driver metric warnings (M11, trust-v1.yaml; owner ruling 2026-10-15). Warn only,
+        never suspend. Evaluated on the `windowDays` window with at least `minSample` offers
+        (acceptance) / accepted rides (cancellation).
+      required: [minAcceptancePercent, maxCancellationPercent, windowDays, minSample]
+      properties:
+        minAcceptancePercent: { type: number, minimum: 0, maximum: 100, description: 'Default: 50' }
+        maxCancellationPercent: { type: number, minimum: 0, maximum: 100, description: 'Default: 15' }
+        windowDays: { type: integer, enum: [7, 30], description: 'Default: 30' }
+        minSample: { type: integer, minimum: 1, description: 'Default: 20' }
     RegionSummary:
       type: object
       required: [id, name, state]
@@ -587,6 +607,11 @@ components:
           oneOf:
             - { $ref: '#/components/schemas/SuspensionThresholds' }
             - { type: 'null' }
+        metricWarnings:
+          description: 'DRV-07 (M11); null = the SRS defaults 50 / 15 / 30 days / 20'
+          oneOf:
+            - { $ref: '#/components/schemas/MetricWarnings' }
+            - { type: 'null' }
         serviceTypeCount: { type: integer }
         surgeZoneCount: { type: integer }
     RegionUpsertRequest:
@@ -634,6 +659,13 @@ components:
         suspensionThresholds:
           oneOf:
             - { $ref: '#/components/schemas/SuspensionThresholds' }
+            - { type: 'null' }
+        metricWarnings:
+          description: >
+            DRV-07 (M11). Omitted or null → the region KEEPS its stored value (same rule as
+            `driverBalanceFloor`); a new region starts unset (= the SRS defaults).
+          oneOf:
+            - { $ref: '#/components/schemas/MetricWarnings' }
             - { type: 'null' }
     ServiceType:
       type: object

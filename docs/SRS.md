@@ -95,7 +95,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | USR-03 | Profile: name, photo, language (EN/AR). Rider extras: saved locations, comfort preferences, matching toggles. Driver extras: vehicle, availability. | V1 |
 | USR-04 | Account states `active / suspended / deleted`, with **role-level granularity** (driver role may be suspended while rider role stays active). Every state change notifies the user with the reason. | V1 |
 | USR-05 | Auto-suspension on rating: per-role threshold + minimum rated-rides count, configurable per region. Defaults: driver < 3.0 avg after ≥ 20 rated rides; rider < 2.5 after ≥ 10. | V1 |
-| USR-06 | Manual suspend/reactivate/deactivate by admins holding the permission; audit-logged with actor + reason. | V1 |
+| USR-06 | Manual suspend/reactivate/deactivate by admins holding the permission; audit-logged with actor + reason. "Deactivate" = whole-account suspension (all roles; login still works to show the reason) — owner ruling 2026-10-15. | V1 |
 | USR-07 | Account deletion (behind 2FA) = **soft delete**: state `deleted`, all data retained, account unusable. Re-registering with that phone **automatically reactivates** the account after OTP verification (history, wallet, ratings intact; password reset available). | V1 |
 
 ### 4.3 RBAC — Admin Access Control
@@ -194,8 +194,8 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | DRV-03 | One active vehicle per driver. At approval the **admin assigns the service types** the vehicle may serve. Vehicle switch = new registration + insurance reviewed; old vehicle active until new approved. Riders see make/model/color/plate/photo. | V1 |
 | DRV-04 | Document expiry: reminders 30 and 7 days before; on expiry the driver role **auto-suspends** until a renewed document is approved. Admin dashboard lists upcoming expirations. | V1 |
 | DRV-05 | Availability: online/offline toggle (gates live offers) + weekly availability schedule (gates the scheduled-ride board). | V1 |
-| DRV-06 | Driver dashboard: acceptance rate, cancellation rate, on-time % (**arrived ≤ 5 min after the ETA quoted at acceptance**), avg rating, trips, earnings — rolling 7/30-day windows. | V1 |
-| DRV-07 | Metric warnings (no auto-suspension except rating): acceptance < 50% or cancellation > 15% (configurable) → in-app warning + admin flag. | V1 |
+| DRV-06 | Driver dashboard: acceptance rate, cancellation rate, on-time % (**arrived ≤ 5 min after the ETA quoted at acceptance**), avg rating, trips, earnings — rolling 7/30-day windows (the avg rating is the lifetime RATE-02 snapshot, not per window — privacy, owner ruling 2026-10-15). | V1 |
+| DRV-07 | Metric warnings (no auto-suspension except rating): acceptance < 50% or cancellation > 15% (configurable per region) → in-app warning + admin flag. Evaluated on the 30-day window with a minimum sample of 20 offers / accepted rides (owner ruling 2026-10-15). | V1 |
 | DRV-08 | Incentives (per region, live progress visible): weekly trip bonuses (defaults 50 @ 40+, 100 @ 60+); peak-hour bonus (+1.00/completed trip in admin windows); weekly rating reward (20 @ avg ≥ 4.8 with ≥ 30 trips). All credit COM-01. | V1 |
 | DRV-09 | Live demand heatmap in Driver app: surge zones colored by demand/supply, refreshed with the surge cycle. | V1 |
 
@@ -204,13 +204,13 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | ID | Requirement | Ver |
 |---|---|---|
 | RATE-01 | Post-ride, both parties prompted to rate (1–5 + optional text). Skippable; 7-day window; one rating per ride; immutable. | V1 |
-| RATE-02 | Per-role averages on profiles and matching contexts; **aggregates only** — the rated party never sees which ride/person produced a rating. | V1 |
-| RATE-03 | Rolling average crossing the warning threshold (above USR-05 levels) flags the account on the admin dashboard. | V1 |
+| RATE-02 | Per-role averages on profiles and matching contexts; **aggregates only** — the rated party never sees which ride/person produced a rating. Averages are lifetime per role; what users see is a daily snapshot, shown only from 5 ratings on (timing side-channel mitigation); suspension/flags use the live average (owner ruling 2026-10-15). | V1 |
+| RATE-03 | Rolling average crossing the warning threshold (above USR-05 levels) flags the account on the admin dashboard. Default warning level = USR-05 level + 0.5 (driver 3.5, rider 3.0), per region, same minimum count (owner ruling 2026-10-15). | V1 |
 | SAFE-01 | SOS button (both apps, prominent in active rides): opens native dialer with the region's emergency number **and** records an SOS event (ride, GPS, timestamp) that flags the ride red + real-time alert to support admins. | V1 |
 | SAFE-02 | SOS events are permanent and never deletable. | V1 |
-| REP-01 | Riders report drivers and drivers report riders (categories: unsafe driving, inappropriate behavior, vehicle condition, other; text/photos), during or after a ride. | V1 |
+| REP-01 | Riders report drivers and drivers report riders (categories: unsafe driving, inappropriate behavior, vehicle condition, other; text/photos), during or after a ride. One report per ride per reporter, up to 3 photos (owner ruling 2026-10-15); mirrored driver→rider categories: unsafe behavior, inappropriate behavior, vehicle damage, other. | V1 |
 | REP-02 | Reports enter an admin queue; investigation has ride record, GPS trace, chat log at hand; resolution `substantiated / unsubstantiated` + notes; audit-logged. | V1 |
-| REP-03 | **3 substantiated reports in 90 days** (configurable) auto-flags the account for status review — flag only; suspension stays human/ratings-driven. | V1 |
+| REP-03 | **3 substantiated reports in 90 days** (configurable, platform-wide) auto-flags the account for status review — flag only; suspension stays human/ratings-driven. | V1 |
 | SUP-01 | Tickets from both apps: user-selected category (admin-managed list), description, attachments, optional ride link. | V1 |
 | SUP-02 | Lifecycle `open → in_progress → waiting_on_user → resolved → closed` with a user↔support message thread; state changes notify; status/history in-app. | V1 |
 | SUP-03 | Category carries default priority; admin override; queue sorted by priority + age. | V1 |
@@ -400,7 +400,8 @@ All admin-configurable (mostly per region); these are the values V1 ships with.
 | Chat window after completion | 24 h |
 | Driver stale-stream exclusion | 30 s |
 | Auto-suspend rating | driver < 3.0 @ ≥ 20 rides; rider < 2.5 @ ≥ 10 |
-| Metric warnings | acceptance < 50%; cancellation > 15% |
+| Rating warning flag | driver < 3.5; rider < 3.0 (same minimum counts) |
+| Metric warnings | acceptance < 50%; cancellation > 15% (30-day window, ≥ 20 sample) |
 | On-time definition | arrival ≤ 5 min after quoted ETA |
 | Commission tiers | 25% / 20% > 100 / 15% > 200 weekly trips (weekly recalc) |
 | Driver balance floor | −50 |

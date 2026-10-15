@@ -950,7 +950,7 @@ components:
       properties:
         firstName: { type: string }
         photoUrl: { type: [string, 'null'], description: Signed file URL (onboarding-v1 rules) }
-        rating: { type: [number, 'null'], description: Driver-role average; null until M11 }
+        rating: { type: [number, 'null'], description: 'Driver-role lifetime average from the daily snapshot (M11, trust-v1.yaml RATE-02); null below 5 ratings' }
         vehicle:
           type: object
           required: [make, model, color, plate]
@@ -966,7 +966,7 @@ components:
       required: [firstName, comfort]
       properties:
         firstName: { type: string }
-        rating: { type: [number, 'null'], description: Rider-role average; null until M11 }
+        rating: { type: [number, 'null'], description: 'Rider-role lifetime average from the daily snapshot (M11, trust-v1.yaml RATE-02); null below 5 ratings' }
         comfort: { $ref: '#/components/schemas/ComfortPreferences' }
     Timeline:
       type: object
@@ -1066,6 +1066,16 @@ components:
           oneOf:
             - { $ref: '#/components/schemas/RiderSummary' }
             - { type: 'null' }
+        myRating:
+          description: >
+            M11 (RATE-01): the caller's own rating state for this ride — rider and driver views,
+            history included; `MyRating` in trust-v1.yaml. Absent in admin views.
+          type: object
+          required: [state]
+          properties:
+            state: { type: string, enum: [pending, submitted, expired, not_applicable] }
+            windowEndsAt: { type: [string, 'null'], format: date-time }
+            score: { type: [integer, 'null'] }
     FinalFare:
       type: object
       description: The stored fare (fares row) — never recomputed (PRC-04)

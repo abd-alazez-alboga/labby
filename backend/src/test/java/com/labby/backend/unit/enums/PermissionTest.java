@@ -50,7 +50,8 @@ class PermissionTest {
             "audit",
             "admins",
             "roles",
-            "wallets");
+            "wallets",
+            "reports");
   }
 
   @Test

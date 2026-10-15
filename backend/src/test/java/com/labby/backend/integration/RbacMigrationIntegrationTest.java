@@ -69,7 +69,8 @@ class RbacMigrationIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   @DisplayName(
-      "Super Admin holds the full catalog; Support holds its RBAC-04 subset (+ regions:view, V16)")
+      "Super Admin holds the full catalog; Support holds its RBAC-04 subset (+ regions:view V16,"
+          + " reports V17)")
   void shouldGrantSeededRolesCorrectly() {
     Integer superAdminGrants =
         jdbcTemplate.queryForObject(
@@ -86,7 +87,13 @@ class RbacMigrationIntegrationTest extends AbstractIntegrationTest {
     assertThat(superAdminGrants).isEqualTo(Permission.values().length);
     assertThat(supportGrants)
         .containsExactly(
-            "regions:view", "rides:view", "support:handle", "support:view", "users:view");
+            "regions:view",
+            "reports:handle",
+            "reports:view",
+            "rides:view",
+            "support:handle",
+            "support:view",
+            "users:view");
   }
 
   @Test

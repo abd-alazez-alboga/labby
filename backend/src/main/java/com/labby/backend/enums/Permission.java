@@ -26,6 +26,8 @@ public enum Permission {
   SETTLEMENTS_RECORD("settlements:record"),
   WALLETS_VIEW("wallets:view"),
   WALLETS_MANAGE("wallets:manage"),
+  REPORTS_VIEW("reports:view"),
+  REPORTS_HANDLE("reports:handle"),
   PROMOS_VIEW("promos:view"),
   PROMOS_MANAGE("promos:manage"),
   ANALYTICS_VIEW("analytics:view"),

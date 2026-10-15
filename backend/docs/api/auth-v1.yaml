@@ -445,12 +445,16 @@ components:
         state: { type: string, enum: [active, suspended] }
         suspensionReason:
           type: [string, 'null']
-          enum: [document_expired, null]
+          enum: [document_expired, low_rating, manual, null]
           description: >
             Why the role is suspended (USR-04), present only while suspended. M5 adds
             `document_expired` (DRV-04 auto-suspension, lifted by an approved renewal — see
-            onboarding-v1.yaml); null for suspensions recorded before a reason existed. More
-            reasons arrive with their milestones (rating USR-05, manual USR-06).
+            onboarding-v1.yaml); M11 adds `low_rating` (USR-05) and `manual` (USR-06, with
+            `suspensionNote`) — trust-v1.yaml. null for suspensions recorded before a reason
+            existed.
+        suspensionNote:
+          type: [string, 'null']
+          description: The admin's reason, shown to the user — `manual` suspensions only (M11)
         rbacRole:
           type: [object, 'null']
           required: [id, name]
@@ -469,7 +473,15 @@ components:
         name: { type: string }
         language: { type: string, enum: [en, ar] }
         photoUrl: { type: [string, 'null'] }
-        state: { type: string, enum: [active, suspended, deleted] }
+        state:
+          type: string
+          enum: [active, suspended, deleted]
+          description: >
+            `suspended` = whole-account suspension (M11, USR-06 "deactivate", trust-v1.yaml):
+            every rider/driver feature answers 403 `account_suspended`; login still works.
+        suspensionNote:
+          type: [string, 'null']
+          description: The admin's reason for a whole-account suspension, shown to the user (M11)
         roles:
           type: array
           items: { $ref: '#/components/schemas/RoleAssignment' }

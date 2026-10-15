@@ -1,0 +1,861 @@
+openapi: 3.1.0
+info:
+  title: Labby Trust & Quality API (M11 contract)
+  version: 0.1.0
+  description: >
+    Milestone M11: ratings (RATE-01..03), reports (REP-01..03), account states and suspension
+    (USR-04..06), driver performance metrics and warnings (DRV-06/07). Use cases UC-S-17/18,
+    UC-D-20, UC-A-14/16/17 (+ the trust sections of UC-A-13's user profile). Schema: migration
+    V17. Owner rulings 2026-10-15 are marked **(ruling)** below.
+
+
+    **Ratings (RATE-01).** After a ride reaches `completed`, each party may rate the other once
+    (1–5 + optional text ≤ 1000) within 7 days of `completedAt`. Skippable; a skipped prompt
+    stays reachable from history (`GET /ratings/pending`, and `myRating` on the ride, rides-v1)
+    until the window closes. A rating is immutable — no edit, no delete (V17 trigger). Errors:
+    `rating_window_closed` (409), `rating_already_submitted` (409), `ride_not_completed` (409),
+    403 for a non-party. Submitting returns 204 with no body: there is nothing to show back.
+
+
+    **Aggregates and privacy (RATE-02, USR-02).** Averages are per role and LIFETIME **(ruling)**.
+    Two views exist:
+
+    | View | Who | Source | Rule |
+    |---|---|---|---|
+    | exposed | the rated user (own profile, driver dashboard), counterparts in matching contexts (rides-v1 `DriverSummary.rating` / `RiderSummary.rating`) | `rating_snapshots`, rewritten once a day | `null` until the role has ≥ 5 ratings **(ruling)** |
+    | live | suspension (USR-05), flags (RATE-03), admins | `ratings` | always exact |
+
+    The daily snapshot is the documented mitigation of the timing side channel: a rated user can
+    never watch the number move right after a given ride (M11-T6 privacy review). No endpoint
+    for riders or drivers ever returns an individual rating received, its ride, its rater or its
+    text; a user sees only the ratings they GAVE (`myRating`). The 2 decimals of the average
+    are rounded HALF_UP.
+
+
+    **Rating thresholds (USR-05, RATE-03) — per region, inside `Region.suspensionThresholds`
+    (regions-v1.yaml).** Per role: `minAvgRating` + `minRatedRides` (auto-suspension; defaults
+    driver 3.0 / 20, rider 2.5 / 10) and `warnAvgRating` (the RATE-03 admin flag; optional,
+    absent = `minAvgRating + 0.5` → driver 3.5, rider 3.0 **(ruling)**; must be > `minAvgRating`).
+    Both rules need `rating_count ≥ minRatedRides` and compare the LIVE lifetime average with a
+    strict `<`. They are evaluated each time a rating is stored, against the region of the
+    rated ride. Crossing `warnAvgRating` opens a `low_rating` flag (one open flag per user ×
+    role × kind). Crossing `minAvgRating` suspends the role with reason `low_rating` (only if it
+    is `active`) and notifies the user (category `account`, with the rule). After an admin
+    reactivates a rating suspension, the rule re-fires only on the NEXT rating stored.
+
+
+    **Reports (REP-01..03).** A party reports the counterpart of a ride from acceptance on —
+    during the ride or after it, completed or cancelled after acceptance, no time limit
+    **(ruling)**. One report per ride per reporter (409 `report_already_submitted`)
+    **(ruling)**. Categories per direction (rider → driver: `unsafe_driving`,
+    `inappropriate_behavior`, `vehicle_condition`, `other`; driver → rider: `unsafe_behavior`,
+    `inappropriate_behavior`, `vehicle_damage`, `other`) — a category of the other direction is
+    400 `invalid_category`. Text ≤ 2000 and up to 3 photos **(ruling)**, uploaded first with
+    `POST /report-files`. Lifecycle `open → substantiated | unsubstantiated`, resolved exactly
+    once with mandatory notes (V17 trigger), audit-logged; the reporter is notified of the
+    OUTCOME only (category `account`) — internal notes never leave the admin side. The
+    reported user is never told who reported them. REP-03: `REPORT_FLAG_COUNT` (default 3)
+    substantiated reports against one user × role whose `resolvedAt` falls within the last
+    `REPORT_FLAG_DAYS` (default 90) days open a `report_threshold` flag — flag only, never a
+    suspension. Platform config, not per region **(ruling)**.
+
+
+    **Driver performance (DRV-06/07, UC-D-20).** Computed on read for rolling 7- and 30-day
+    windows ending now:
+
+    | Metric | Numerator | Denominator (counted in the window by) |
+    |---|---|---|
+    | acceptance | offers `accepted` | offers `accepted` + `declined` + `expired` (`withdrawn` excluded) — by `offeredAt` |
+    | cancellation | rides `cancelled_by_driver` after acceptance | rides the driver accepted — by `acceptedAt` |
+    | on-time | rides with `driverArrivedAt ≤ acceptedAt + accepted offer's pickupEtaSeconds + 5 min` | accepted rides that reached `driver_arrived` — by `acceptedAt` |
+
+    plus completed trips and earnings (driver ledger fare earnings, per currency) per window. A
+    percentage is `null` when its denominator is 0. The average rating shown is the lifetime
+    snapshot (exposed view above) — not per window, so it cannot be correlated with recent
+    rides. DRV-07 warnings **(ruling)**: evaluated on the 30-day window, only with a sample ≥ 20
+    (offers for acceptance, accepted rides for cancellation); acceptance `<` 50% or cancellation
+    `>` 15% raises a warning (in-app on the dashboard + push category `account`) and opens a
+    `metric_warning` flag; the warning clears itself when the metric recovers. Per-region
+    `Region.metricWarnings` (regions-v1.yaml; null = these defaults). Warnings NEVER suspend.
+    The rating proximity warning (UC-D-20 A1) shows when the exposed driver average is below
+    the region's `warnAvgRating`, with the exact suspension rule.
+
+
+    **Suspension (USR-04/06, UC-A-14).** Role-level (`rider` / `driver`) suspension carries a
+    reason: `document_expired` (DRV-04, automatic), `low_rating` (USR-05, automatic), `manual`
+    (admin; mandatory note ≤ 500, shown to the user). Whole-account suspension = USR-06
+    "deactivate" **(ruling)**: `users.state = suspended`, reason `manual`, every rider/driver
+    feature then refused as if both roles were suspended (403 `account_suspended`); login still
+    works so the apps can show the suspended screen with the note. Admin accounts are not
+    suspended here (409 `admin_account`) — RBAC's `/admin/admins/{id}/deactivate` covers them.
+    Every change is audit-logged (actor + note) and notifies the user (category `account`).
+    Manual suspension of a role already suspended for an automatic reason REPLACES the reason
+    with `manual`; suspending an already manually suspended role is 409 `already_suspended`.
+    Reactivating lifts `low_rating` and `manual`; a `document_expired` suspension is lifted only
+    by an approved renewal (409 `document_expired`).
+
+
+    **Permissions.** New: `reports:view` (queue + detail) and `reports:handle` (resolve), both
+    seeded for Support (RBAC-04) and Super Admin. Flags queue and the user trust profile:
+    `users:view`; resolving a flag and every suspend/reactivate: `users:suspend`
+    **(ruling)**. The evidence panel links to the ride detail + GPS trace (`rides:view`,
+    rides-v1) and the chat log (`support:view`, comms-v1); the report detail itself carries
+    only the ride id and photos. Rider/driver endpoints need only being a party to the ride.
+
+
+    Errors use the global ErrorResponse shape (status, message, code?, details?).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Ratings
+  - name: Reports
+  - name: Performance
+  - name: AdminReports
+  - name: AdminFlags
+  - name: AdminUsers
+
+paths:
+  /api/v1/rides/{rideId}/rating:
+    post:
+      tags: [Ratings]
+      summary: Rate the counterpart of a completed ride (UC-S-17)
+      description: >
+        The caller's side (rider or driver) is derived from the ride. Re-evaluates USR-05 /
+        RATE-03 for the rated user's role on the live average.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/RideId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RatingRequest' }
+      responses:
+        '204': { description: Stored }
+        '400': { description: Score outside 1..5 or comment too long }
+        '403': { description: Not a party to this ride }
+        '404': { description: Unknown ride }
+        '409': { description: '`ride_not_completed`, `rating_window_closed` or `rating_already_submitted`' }
+
+  /api/v1/ratings/pending:
+    get:
+      tags: [Ratings]
+      summary: Completed rides the caller can still rate, newest first (prompt + history)
+      description: >
+        Rides of the caller on the given side, `completed`, inside the 7-day window and not yet
+        rated by the caller. Drives the post-ride prompt after a cold start too.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/As' }
+      responses:
+        '200':
+          description: Pending prompts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PendingRating' }
+
+  /api/v1/users/me/ratings:
+    get:
+      tags: [Ratings]
+      summary: The caller's own per-role averages (exposed view — daily snapshot, ≥ 5 ratings)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: One entry per rider/driver role the account holds
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OwnRatingAggregate' }
+
+  /api/v1/report-files:
+    post:
+      tags: [Reports]
+      summary: Upload a report photo (JPEG/PNG), both apps
+      description: >
+        Same storage rules as `/driver/files` (onboarding-v1.yaml: max size, daily cap, private
+        signed URLs, nightly cleanup of files no report references after the retention period);
+        kind is always `report_photo`. The returned `fileId` is usable only by the uploader.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Stored privately
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadedReportFile' }
+        '400': { description: Empty/unreadable file or not JPEG/PNG }
+        '413': { description: File too large }
+        '429': { description: Daily upload cap reached }
+
+  /api/v1/rides/{rideId}/reports:
+    post:
+      tags: [Reports]
+      summary: Report the counterpart of a ride (UC-S-18)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/RideId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportRequest' }
+      responses:
+        '201':
+          description: Filed — enters the admin queue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnReport' }
+        '400': { description: '`invalid_category`, text too long, more than 3 photos, or a photo id not uploaded by the caller / already used' }
+        '403': { description: Not a party to this ride }
+        '404': { description: Unknown ride }
+        '409': { description: '`no_counterpart` (ride never accepted) or `report_already_submitted`' }
+
+  /api/v1/reports/mine:
+    get:
+      tags: [Reports]
+      summary: Reports the caller filed on the given side, newest first — outcome only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/As' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnReportPage' }
+
+  /api/v1/driver/performance:
+    get:
+      tags: [Performance]
+      summary: Driver performance dashboard — metrics, warnings, rating rule (UC-D-20)
+      description: Approved driver (a suspended driver role may still read it).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The dashboard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DriverPerformance' }
+        '403': { description: Not an approved driver }
+
+  /api/v1/admin/reports:
+    get:
+      tags: [AdminReports]
+      summary: Reports queue (UC-A-17) — oldest first
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'reports:view'
+      parameters:
+        - name: status
+          in: query
+          description: Default `open`
+          schema: { $ref: '#/components/schemas/ReportStatus' }
+        - { name: reportedUserId, in: query, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportPage' }
+        '403': { description: Missing `reports:view` }
+
+  /api/v1/admin/reports/{reportId}:
+    get:
+      tags: [AdminReports]
+      summary: One report with its evidence references and both parties' history
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'reports:view'
+      parameters: [{ $ref: '#/components/parameters/ReportId' }]
+      responses:
+        '200':
+          description: Detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReport' }
+        '403': { description: Missing `reports:view` }
+        '404': { description: Unknown report }
+
+  /api/v1/admin/reports/{reportId}/resolve:
+    post:
+      tags: [AdminReports]
+      summary: Resolve a report substantiated / unsubstantiated with notes (REP-02)
+      description: >
+        Exactly once; audit-logged; the reporter is notified of the outcome. A `substantiated`
+        resolution re-evaluates REP-03 for the reported user × role.
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'reports:handle'
+      parameters: [{ $ref: '#/components/parameters/ReportId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportResolveRequest' }
+      responses:
+        '200':
+          description: The resolved report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReport' }
+        '400': { description: Missing note or unknown outcome }
+        '403': { description: Missing `reports:handle` }
+        '404': { description: Unknown report }
+        '409': { description: '`already_resolved`' }
+
+  /api/v1/admin/flags:
+    get:
+      tags: [AdminFlags]
+      summary: Flagged-accounts queue (UC-A-16) — oldest first
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'users:view'
+      parameters:
+        - name: status
+          in: query
+          description: Default `open`
+          schema: { $ref: '#/components/schemas/FlagStatus' }
+        - { name: kind, in: query, schema: { $ref: '#/components/schemas/FlagKind' } }
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountFlagPage' }
+        '403': { description: Missing `users:view` }
+
+  /api/v1/admin/flags/{flagId}/resolve:
+    post:
+      tags: [AdminFlags]
+      summary: Close a flag — `actioned` (warned via support / suspended) or `dismissed` — with a note
+      description: >
+        Audit-logged. Suspending is a separate call (below); this only closes the flag. A
+        condition that is still true later opens a NEW flag on its next evaluation.
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'users:suspend'
+      parameters: [{ $ref: '#/components/parameters/FlagId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FlagResolveRequest' }
+      responses:
+        '200':
+          description: The closed flag
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountFlag' }
+        '400': { description: Missing note or unknown resolution }
+        '403': { description: Missing `users:suspend` }
+        '404': { description: Unknown flag }
+        '409': { description: '`already_resolved`' }
+
+  /api/v1/admin/users/{userId}/trust:
+    get:
+      tags: [AdminUsers]
+      summary: Trust sections of the user profile (UC-A-13) — states, ratings, reports, flags
+      description: Admins see the LIVE averages; individual ratings stay hidden here too.
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'users:view'
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      responses:
+        '200':
+          description: The trust profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserTrust' }
+        '403': { description: Missing `users:view` }
+        '404': { description: Unknown user }
+
+  /api/v1/admin/users/{userId}/roles/{role}/suspend:
+    post:
+      tags: [AdminUsers]
+      summary: Suspend one role with a mandatory note (USR-06, UC-A-14)
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'users:suspend'
+      parameters:
+        - { $ref: '#/components/parameters/UserId' }
+        - { $ref: '#/components/parameters/PartyRole' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionRequest' }
+      responses:
+        '200':
+          description: The updated trust profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserTrust' }
+        '400': { description: Missing note }
+        '403': { description: Missing `users:suspend` }
+        '404': { description: Unknown user, or the user does not hold the role }
+        '409': { description: '`already_suspended` (manually) or `admin_account`' }
+
+  /api/v1/admin/users/{userId}/roles/{role}/reactivate:
+    post:
+      tags: [AdminUsers]
+      summary: Reactivate one role with a mandatory note (USR-06, UC-A-14 A1)
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'users:suspend'
+      parameters:
+        - { $ref: '#/components/parameters/UserId' }
+        - { $ref: '#/components/parameters/PartyRole' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionRequest' }
+      responses:
+        '200':
+          description: The updated trust profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserTrust' }
+        '400': { description: Missing note }
+        '403': { description: Missing `users:suspend` }
+        '404': { description: Unknown user, or the user does not hold the role }
+        '409': { description: '`not_suspended` or `document_expired` (lifted only by an approved renewal)' }
+
+  /api/v1/admin/users/{userId}/suspend:
+    post:
+      tags: [AdminUsers]
+      summary: Suspend the whole account — USR-06 "deactivate" (ruling)
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'users:suspend'
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionRequest' }
+      responses:
+        '200':
+          description: The updated trust profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserTrust' }
+        '400': { description: Missing note }
+        '403': { description: Missing `users:suspend` }
+        '404': { description: Unknown user }
+        '409': { description: '`already_suspended`, `account_deleted` or `admin_account`' }
+
+  /api/v1/admin/users/{userId}/reactivate:
+    post:
+      tags: [AdminUsers]
+      summary: Reactivate a suspended account (role-level suspensions stay as they are)
+      security: [{ bearerAuth: [] }]
+      x-required-permission: 'users:suspend'
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionRequest' }
+      responses:
+        '200':
+          description: The updated trust profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserTrust' }
+        '400': { description: Missing note }
+        '403': { description: Missing `users:suspend` }
+        '404': { description: Unknown user }
+        '409': { description: '`not_suspended`' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    RideId:
+      name: rideId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FlagId:
+      name: flagId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PartyRole:
+      name: role
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/PartyRole' }
+    As:
+      name: as
+      in: query
+      required: true
+      description: The caller's side (one account may hold both roles)
+      schema: { $ref: '#/components/schemas/PartyRole' }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    PartyRole:
+      type: string
+      enum: [rider, driver]
+    RatingRequest:
+      type: object
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: [string, 'null'], maxLength: 1000 }
+    MyRating:
+      type: object
+      description: >
+        The caller's OWN rating state for a ride — added to rides-v1 `Ride.myRating` (rider and
+        driver views). Never describes ratings the caller received.
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [pending, submitted, expired, not_applicable]
+          description: >
+            `pending` = completed, inside the window, not rated yet; `submitted` = rated;
+            `expired` = window closed unrated; `not_applicable` = the ride did not complete.
+        windowEndsAt: { type: [string, 'null'], format: date-time, description: completedAt + 7 days }
+        score: { type: [integer, 'null'], description: The score the caller gave (`submitted`) }
+    PendingRating:
+      type: object
+      required: [rideId, completedAt, windowEndsAt, counterpartFirstName]
+      properties:
+        rideId: { type: string, format: uuid }
+        completedAt: { type: string, format: date-time }
+        windowEndsAt: { type: string, format: date-time }
+        counterpartFirstName: { type: string }
+        counterpartPhotoUrl: { type: [string, 'null'], description: Signed file URL (driver photo for riders) }
+        pickupLabel: { type: [string, 'null'] }
+        destinationLabel: { type: [string, 'null'] }
+    OwnRatingAggregate:
+      type: object
+      required: [role, ratingCount]
+      properties:
+        role: { $ref: '#/components/schemas/PartyRole' }
+        average:
+          type: [number, 'null']
+          description: Snapshot average (2 decimals); null below 5 ratings
+        ratingCount:
+          type: integer
+          description: As of the snapshot (0 when there is none yet)
+        snapshotAt: { type: [string, 'null'], format: date-time }
+    ReportCategory:
+      type: string
+      enum: [unsafe_driving, unsafe_behavior, inappropriate_behavior, vehicle_condition,
+             vehicle_damage, other]
+      description: >
+        rider → driver: unsafe_driving, inappropriate_behavior, vehicle_condition, other;
+        driver → rider: unsafe_behavior, inappropriate_behavior, vehicle_damage, other.
+    ReportStatus:
+      type: string
+      enum: [open, substantiated, unsubstantiated]
+    UploadedReportFile:
+      type: object
+      required: [fileId, contentType, sizeBytes]
+      properties:
+        fileId: { type: string, format: uuid }
+        contentType: { type: string, enum: [image/jpeg, image/png] }
+        sizeBytes: { type: integer }
+    ReportRequest:
+      type: object
+      required: [category]
+      properties:
+        category: { $ref: '#/components/schemas/ReportCategory' }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        photoFileIds:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    OwnReport:
+      type: object
+      description: The reporter's view — outcome only, never the internal notes
+      required: [id, rideId, category, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        rideId: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/ReportCategory' }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+        createdAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+    OwnReportPage:
+      type: object
+      required: [items, page, size, totalElements]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OwnReport' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+    Percentage:
+      type: object
+      required: [numerator, denominator]
+      properties:
+        percent: { type: [number, 'null'], description: 0..100, 1 decimal; null when denominator is 0 }
+        numerator: { type: integer }
+        denominator: { type: integer }
+    MoneyAmount:
+      type: object
+      required: [currency, amount]
+      properties:
+        currency: { type: string }
+        amount: { type: number }
+    MetricWindow:
+      type: object
+      required: [days, acceptance, cancellation, onTime, trips, earnings]
+      properties:
+        days: { type: integer, enum: [7, 30] }
+        acceptance: { $ref: '#/components/schemas/Percentage' }
+        cancellation: { $ref: '#/components/schemas/Percentage' }
+        onTime: { $ref: '#/components/schemas/Percentage' }
+        trips: { type: integer, description: Completed rides in the window }
+        earnings:
+          type: array
+          description: Driver fare earnings per currency in the window (driver ledger)
+          items: { $ref: '#/components/schemas/MoneyAmount' }
+    MetricWarning:
+      type: object
+      description: An ACTIVE DRV-07 warning with the rule that raised it
+      required: [metric, valuePercent, thresholdPercent, comparison, windowDays, sampleSize, raisedAt]
+      properties:
+        metric: { type: string, enum: [acceptance, cancellation] }
+        valuePercent: { type: number }
+        thresholdPercent: { type: number }
+        comparison: { type: string, enum: [below, above], description: acceptance below / cancellation above }
+        windowDays: { type: integer }
+        sampleSize: { type: integer }
+        raisedAt: { type: string, format: date-time }
+    RatingRule:
+      type: object
+      description: The region's USR-05 rule for the driver role, shown verbatim (UC-D-20 A1)
+      required: [minAvgRating, minRatedRides, warnAvgRating]
+      properties:
+        minAvgRating: { type: number }
+        minRatedRides: { type: integer }
+        warnAvgRating: { type: number }
+    DriverPerformance:
+      type: object
+      required: [windows, rating, warnings, ratingWarning]
+      properties:
+        windows:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { $ref: '#/components/schemas/MetricWindow' }
+        rating: { $ref: '#/components/schemas/OwnRatingAggregate' }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/MetricWarning' }
+        ratingRule:
+          description: The rule of the driver's region (the region of the latest ride; null before any ride)
+          oneOf:
+            - { $ref: '#/components/schemas/RatingRule' }
+            - { type: 'null' }
+        ratingWarning:
+          type: boolean
+          description: Exposed average is below `ratingRule.warnAvgRating` (UC-D-20 A1)
+    PartySummary:
+      type: object
+      required: [userId, name, role]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        role: { $ref: '#/components/schemas/PartyRole' }
+    ReportHistory:
+      type: object
+      description: A party's prior trust history (UC-A-17 step 2), this report excluded
+      required: [reportsAgainst, substantiatedAgainst, reportsFiled]
+      properties:
+        reportsAgainst: { type: integer }
+        substantiatedAgainst: { type: integer }
+        reportsFiled: { type: integer }
+    AdminReportSummary:
+      type: object
+      required: [id, rideId, category, status, reporter, reported, createdAt, photoCount]
+      properties:
+        id: { type: string, format: uuid }
+        rideId: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/ReportCategory' }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+        reporter: { $ref: '#/components/schemas/PartySummary' }
+        reported: { $ref: '#/components/schemas/PartySummary' }
+        createdAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+        photoCount: { type: integer }
+    AdminReport:
+      allOf:
+        - { $ref: '#/components/schemas/AdminReportSummary' }
+        - type: object
+          required: [photoUrls, reporterHistory, reportedHistory]
+          properties:
+            description: { type: [string, 'null'] }
+            photoUrls:
+              type: array
+              description: Signed private file URLs (onboarding-v1 rules), in upload order
+              items: { type: string }
+            resolutionNote: { type: [string, 'null'] }
+            resolvedBy:
+              oneOf:
+                - type: object
+                  required: [userId, name]
+                  properties:
+                    userId: { type: string, format: uuid }
+                    name: { type: string }
+                - { type: 'null' }
+            reporterHistory: { $ref: '#/components/schemas/ReportHistory' }
+            reportedHistory: { $ref: '#/components/schemas/ReportHistory' }
+    AdminReportPage:
+      type: object
+      required: [items, page, size, totalElements]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportSummary' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+    ReportResolveRequest:
+      type: object
+      required: [outcome, note]
+      properties:
+        outcome: { type: string, enum: [substantiated, unsubstantiated] }
+        note: { type: string, minLength: 1, maxLength: 2000 }
+    FlagKind:
+      type: string
+      enum: [low_rating, metric_warning, report_threshold]
+    FlagStatus:
+      type: string
+      enum: [open, actioned, dismissed]
+    AccountFlag:
+      type: object
+      required: [id, user, kind, status, details, raisedAt]
+      properties:
+        id: { type: string, format: uuid }
+        user: { $ref: '#/components/schemas/PartySummary' }
+        kind: { $ref: '#/components/schemas/FlagKind' }
+        status: { $ref: '#/components/schemas/FlagStatus' }
+        details:
+          description: The triggering evaluation, shaped by `kind`
+          oneOf:
+            - type: object
+              title: low_rating
+              required: [average, ratingCount, warnAvgRating, minRatedRides]
+              properties:
+                average: { type: number, description: Live average when raised }
+                ratingCount: { type: integer }
+                warnAvgRating: { type: number }
+                minRatedRides: { type: integer }
+                regionId: { type: string, format: uuid }
+            - type: object
+              title: metric_warning
+              required: [metric, valuePercent, thresholdPercent, windowDays, sampleSize]
+              properties:
+                metric: { type: string, enum: [acceptance, cancellation] }
+                valuePercent: { type: number }
+                thresholdPercent: { type: number }
+                windowDays: { type: integer }
+                sampleSize: { type: integer }
+            - type: object
+              title: report_threshold
+              required: [substantiatedCount, windowDays, threshold, reportIds]
+              properties:
+                substantiatedCount: { type: integer }
+                windowDays: { type: integer }
+                threshold: { type: integer }
+                reportIds:
+                  type: array
+                  items: { type: string, format: uuid }
+        raisedAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+        resolutionNote: { type: [string, 'null'] }
+    AccountFlagPage:
+      type: object
+      required: [items, page, size, totalElements]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AccountFlag' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+    FlagResolveRequest:
+      type: object
+      required: [resolution, note]
+      properties:
+        resolution: { type: string, enum: [actioned, dismissed] }
+        note: { type: string, minLength: 1, maxLength: 2000 }
+    SuspensionRequest:
+      type: object
+      required: [note]
+      properties:
+        note:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: The reason — stored, audit-logged and shown to the user
+    SuspensionReason:
+      type: string
+      enum: [document_expired, low_rating, manual]
+    RoleTrust:
+      type: object
+      required: [role, state, liveRatingCount, openFlags, activeWarnings]
+      properties:
+        role: { $ref: '#/components/schemas/PartyRole' }
+        state: { type: string, enum: [active, suspended] }
+        suspensionReason:
+          oneOf:
+            - { $ref: '#/components/schemas/SuspensionReason' }
+            - { type: 'null' }
+        suspensionNote: { type: [string, 'null'] }
+        suspendedAt: { type: [string, 'null'], format: date-time }
+        liveAverage: { type: [number, 'null'], description: Live lifetime average (admins only); null without ratings }
+        liveRatingCount: { type: integer }
+        openFlags:
+          type: array
+          items: { $ref: '#/components/schemas/AccountFlag' }
+        activeWarnings:
+          type: array
+          description: Driver role only (empty for rider)
+          items: { $ref: '#/components/schemas/MetricWarning' }
+        reportHistory: { $ref: '#/components/schemas/ReportHistory' }
+    AdminUserTrust:
+      type: object
+      required: [userId, name, accountState, roles]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        accountState: { type: string, enum: [active, suspended, deleted] }
+        accountSuspensionNote: { type: [string, 'null'] }
+        accountSuspendedAt: { type: [string, 'null'], format: date-time }
+        roles:
+          type: array
+          description: The rider/driver roles the account holds
+          items: { $ref: '#/components/schemas/RoleTrust' }

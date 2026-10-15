@@ -42,7 +42,7 @@ class RbacAdminIntegrationTest extends AbstractAuthIntegrationTest {
         "INSERT INTO role_permissions (role_id, permission_id)"
             + " SELECT ?, permission_id FROM permissions"
             + " WHERE code IN ('users:view', 'rides:view', 'regions:view', 'support:view',"
-            + " 'support:handle')",
+            + " 'support:handle', 'reports:view', 'reports:handle')",
         RbacIds.SUPPORT_ROLE_ID);
   }
 
