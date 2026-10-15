@@ -18,6 +18,7 @@ import type { QuickReply } from "../../api/comms-types";
 import { chatWritable, useOptionalChat } from "../../chat/ChatProvider";
 import type { UiChatMessage } from "../../chat/ChatProvider";
 import { setOpenChatRideId } from "../../notifications/open-chat";
+import { useOptionalAvailability } from "../../realtime/AvailabilityProvider";
 import { useOptionalDriverRide } from "../../rides/DriverRideProvider";
 import { formatTime, placeLabel } from "../../rides/format";
 import {
@@ -37,7 +38,10 @@ import { AppText, Banner, Chevron, Icon, LoadingState, FailureState, useDirectio
  * text input last. Window states (CHAT-01): open / reopened are the full
  * screen; read_only is history only — composer and call hidden behind a
  * short notice; no thread renders the empty "none" state (there is no
- * entry point to reach it, but a stale deep link can).
+ * entry point to reach it, but a stale deep link can). An offline driver
+ * (no realtime socket — `chat.send` is WS-only) in a writable window sees
+ * the history with a "Go online to chat" note instead of the composer and
+ * quick replies (owner ruling 2026-10-15); Call follows the phone rule.
  */
 
 function quickReplyText(
@@ -122,6 +126,8 @@ export function ChatScreen() {
   const params = useLocalSearchParams<{ rideId?: string }>();
   const chat = useOptionalChat();
   const ride = useOptionalDriverRide()?.ride ?? null;
+  // No socket at all (offline): sends could never leave the device.
+  const offline = useOptionalAvailability()?.stream === "idle";
   const [draft, setDraft] = useState("");
 
   const paramRideId = typeof params.rideId === "string" ? params.rideId : null;
@@ -137,9 +143,14 @@ export function ChatScreen() {
     }, [paramRideId, focusThread, chatRideId]),
   );
 
-  // While focused, a foreground chat push for THIS ride shows no banner —
-  // the message lands live here (owner ruling 2026-10-14, push.ts).
-  const shownRideId = paramRideId ?? chatRideId;
+  // The deep-linked thread is not the provider's yet (one render): show
+  // nothing of the previous ride's thread meanwhile.
+  const switching = paramRideId !== null && paramRideId !== chatRideId;
+
+  // While focused, a foreground chat push for the ride whose thread is
+  // actually ON SCREEN shows no banner — the message lands live here
+  // (owner ruling 2026-10-14, push.ts).
+  const shownRideId = switching ? null : chatRideId;
   useFocusEffect(
     useCallback(
       () => (shownRideId ? setOpenChatRideId(shownRideId) : undefined),
@@ -196,7 +207,12 @@ export function ChatScreen() {
   };
 
   const body = (() => {
-    if (!chat || chat.status === "loading" || chat.status === "idle") {
+    if (
+      !chat ||
+      switching ||
+      chat.status === "loading" ||
+      chat.status === "idle"
+    ) {
       return <LoadingState testID="chat-loading" />;
     }
     if (chat.status === "error") {
@@ -260,6 +276,7 @@ export function ChatScreen() {
           { paddingTop: insets.top + spacing.sm },
           flipRows && styles.rowReverse,
         ]}
+        testID="chat-header"
       >
         <Pressable
           accessibilityRole="button"
@@ -310,8 +327,21 @@ export function ChatScreen() {
       <View style={styles.body}>{body}</View>
 
       {/* ------------------------------------------------------ composer */}
-      {chat?.status === "loaded" ? (
-        writable ? (
+      {chat?.status === "loaded" && !switching ? (
+        writable && offline ? (
+          <View
+            style={[
+              styles.composer,
+              { paddingBottom: Math.max(BOTTOM_SAFE_MIN, insets.bottom) },
+            ]}
+          >
+            <Banner
+              tone="neutral"
+              message={t("chat.offline")}
+              testID="chat-offline"
+            />
+          </View>
+        ) : writable ? (
           <View
             style={[
               styles.composer,
@@ -342,7 +372,10 @@ export function ChatScreen() {
                 ))}
               </View>
             ) : null}
-            <View style={[styles.inputRow, flipRows && styles.rowReverse]}>
+            <View
+              style={[styles.inputRow, flipRows && styles.rowReverse]}
+              testID="chat-input-row"
+            >
               <TextInput
                 value={draft}
                 onChangeText={setDraft}

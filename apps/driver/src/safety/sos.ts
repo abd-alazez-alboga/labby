@@ -11,25 +11,18 @@ import type { Place } from "../api/ride-types";
 /**
  * The position the event records: the latest own GPS fix. While online a
  * fix is virtually always present; the pickup is the honest last resort so
- * the alert is never dropped for want of coordinates (`recordedAt` stays
- * the device moment — the server clamps it).
+ * the alert is never dropped for want of coordinates. `recordedAt` is
+ * always the moment of the tap (comms-v1 "the device moment", served as
+ * `triggeredAt`) — never the fix's own time, which can be minutes old
+ * after a GPS gap. The server clamps it.
  */
 export function sosSample(
   position: LocationSample | null,
   pickup: Place,
+  now: Date = new Date(),
 ): { lat: number; lng: number; recordedAt: string } {
-  if (position) {
-    return {
-      lat: position.lat,
-      lng: position.lng,
-      recordedAt: position.recordedAt,
-    };
-  }
-  return {
-    lat: pickup.lat,
-    lng: pickup.lng,
-    recordedAt: new Date().toISOString(),
-  };
+  const at = position ?? pickup;
+  return { lat: at.lat, lng: at.lng, recordedAt: now.toISOString() };
 }
 
 /** Records the SOS event; swallows failure after one retry (never throws). */

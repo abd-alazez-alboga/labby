@@ -11,6 +11,7 @@ import { Linking, Share } from "react-native";
 
 import { clearSession } from "../auth/session";
 import { initI18n, setAppLanguage } from "../i18n";
+import { sosSample } from "../safety/sos";
 import { MockSocket } from "../test-utils/realtime";
 import {
   ACTIVE_RIDE,
@@ -259,6 +260,75 @@ describe("safety actions on the ride screens (UC-S-13..16)", () => {
     await waitFor(() => expect(contract.requestsTo(SOS)).toHaveLength(2));
     await act(async () => {});
     expect(contract.requestsTo(SOS)).toHaveLength(2);
+  });
+
+  it("SOS without any GPS fix records the pickup point — the alert is never dropped", async () => {
+    const pickup = { lat: 33.55, lng: 36.31, label: "Mezzeh 86" };
+    const contract = await renderDriverApp(
+      routes({
+        [ACTIVE_RIDE]: ok(rideFixture({ pickup })),
+        [SOS]: { status: 201, body: {} },
+      }),
+      { chat: true },
+    );
+    // Live socket, but the GPS never reported a fix.
+    await waitFor(() => expect(MockSocket.instances.length).toBeGreaterThan(0));
+    const socket = MockSocket.latest();
+    act(() => socket.open());
+    act(() => socket.ready());
+    await waitForResync(contract);
+    await waitFor(() => expect(screen.getByTestId("sos-pill")).toBeTruthy());
+
+    const before = Date.now();
+    fireEvent.press(screen.getByTestId("sos-pill"));
+    fireEvent.press(screen.getByTestId("sos-confirm"));
+    await waitFor(() => expect(contract.requestsTo(SOS)).toHaveLength(1));
+    const body = contract.requestsTo(SOS)[0].body as Record<string, unknown>;
+    expect(body.lat).toBe(33.55);
+    expect(body.lng).toBe(36.31);
+    expect(Date.parse(body.recordedAt as string)).toBeGreaterThanOrEqual(before);
+  });
+
+  it("SOS sheet without a region number: alert-only copy, no dialer, event still sent", async () => {
+    const { contract } = await renderActiveRide(
+      {
+        [RESOLVE_REGION]: ok({ ...regionBody(), emergencyNumber: null }),
+        [RESOLVE_REGION_LIVE]: ok({ ...regionBody(), emergencyNumber: null }),
+        [SOS]: { status: 201, body: {} },
+      },
+      { region: true },
+    );
+    fireEvent.press(screen.getByTestId("sos-pill"));
+    await waitFor(() => expect(screen.getByTestId("sos-sheet")).toBeTruthy());
+    expect(screen.getByTestId("sos-body")).toHaveTextContent(
+      "Labby support is alerted instantly with your ride and live location.",
+    );
+    expect(screen.getByTestId("sos-confirm")).toHaveTextContent(
+      /Alert Labby support/,
+    );
+
+    fireEvent.press(screen.getByTestId("sos-confirm"));
+    await waitFor(() => expect(contract.requestsTo(SOS)).toHaveLength(1));
+    expect(openURL).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("sos-sheet")).toBeNull();
+  });
+
+  it("SOS recordedAt is the moment of the tap, not the (stale) GPS fix time", () => {
+    const tap = new Date("2026-10-13T08:10:00Z");
+    const sample = sosSample(
+      {
+        lat: 33.5,
+        lng: 36.28,
+        recordedAt: "2026-10-13T08:02:00Z", // a fix from before a GPS gap
+      } as Parameters<typeof sosSample>[0],
+      { lat: 33.4, lng: 36.2, label: "Pickup" },
+      tap,
+    );
+    expect(sample).toEqual({
+      lat: 33.5,
+      lng: 36.28,
+      recordedAt: "2026-10-13T08:10:00.000Z",
+    });
   });
 
   it("SOS cancel keeps the ride untouched", async () => {

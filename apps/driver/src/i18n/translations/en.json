@@ -736,6 +736,7 @@
     "seen": "Seen",
     "empty": "No messages yet.",
     "readOnly": "This ride has ended. The conversation is view-only.",
+    "offline": "Go online to chat",
     "noThread": "There's no conversation for this ride."
   },
   "safety": {

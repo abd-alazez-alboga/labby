@@ -7,7 +7,8 @@ import { RIDE_ID } from "./rides";
 
 /** Contract-shaped fixtures for comms-v1.yaml (driver view). */
 
-export const QUICK_REPLIES_ROUTE = "GET /api/v1/chat/quick-replies";
+/** `as=driver` is required (owner ruling B-H2, 2026-10-15). */
+export const QUICK_REPLIES_ROUTE = "GET /api/v1/chat/quick-replies?as=driver";
 export const CHAT_THREAD = `GET /api/v1/rides/${RIDE_ID}/chat`;
 export const CHAT_MESSAGES = `GET /api/v1/rides/${RIDE_ID}/chat/messages`;
 export const CHAT_READ = `POST /api/v1/rides/${RIDE_ID}/chat/read`;

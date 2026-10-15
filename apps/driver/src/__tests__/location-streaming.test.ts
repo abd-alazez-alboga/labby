@@ -420,6 +420,44 @@ describe("LocationStreamer", () => {
     expect(socket.closedWith).toBeNull();
   });
 
+  it("sendFrame (M10 chat on the shared socket) sends only once the socket is ready", async () => {
+    const h = setup();
+    await h.streamer.start();
+    const socket = MockSocket.latest();
+    const frame = { type: "chat.read", rideId: "r-1", lastReadMessageId: "m-1" };
+
+    // Opened but not yet authenticated (`ready` not received): refused.
+    socket.open();
+    expect(h.streamer.sendFrame(frame)).toBe(false);
+    expect(socket.framesOfType("chat.read")).toHaveLength(0);
+
+    socket.ready();
+    expect(h.streamer.sendFrame(frame)).toBe(true);
+    expect(socket.framesOfType("chat.read")).toEqual([frame]);
+
+    // Dropped: refused again until the next ready.
+    socket.serverClose(1006);
+    expect(h.streamer.sendFrame(frame)).toBe(false);
+  });
+
+  it("hands chat error codes on to onEvent — never as stream rejections", async () => {
+    const events: Record<string, unknown>[] = [];
+    const h = setup({ onEvent: (frame) => events.push(frame) });
+    const socket = await startLive(h);
+
+    socket.receive({ type: "error", code: "chat_closed", message: "closed" });
+    socket.receive({ type: "error", code: "invalid_message" });
+    socket.receive({ type: "error", code: "invalid_sample", message: "bad" });
+    socket.receive({ type: "error", code: "not_online", message: "offline" });
+
+    expect(events).toEqual([
+      { type: "error", code: "chat_closed", message: "closed" },
+      { type: "error", code: "invalid_message" },
+    ]);
+    expect(h.rejected).toEqual(["not_online"]);
+    expect(h.streamer.getStatus()).toBe("live");
+  });
+
   it("going offline stops GPS, timers and the socket for good", async () => {
     const h = setup();
     const socket = await startLive(h);

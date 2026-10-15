@@ -53,12 +53,14 @@ export async function postChatRead(
 }
 
 /**
- * `GET /chat/quick-replies` — the localized one-tap catalog for the
- * caller's role (audience driver + both), in sort order, both languages
- * served. Cacheable per session.
+ * `GET /chat/quick-replies?as=driver` — the localized one-tap catalog for
+ * the driver app (audience driver + both), in sort order, both languages
+ * served. `as` is required (owner ruling B-H2, 2026-10-15): every account
+ * also holds the rider role, so the app names which side it is. Cacheable
+ * per session.
  */
 export function getQuickReplies(): Promise<QuickReply[]> {
-  return authFetch<QuickReply[]>("/api/v1/chat/quick-replies");
+  return authFetch<QuickReply[]>("/api/v1/chat/quick-replies?as=driver");
 }
 
 /**

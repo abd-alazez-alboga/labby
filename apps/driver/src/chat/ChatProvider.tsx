@@ -20,11 +20,19 @@
  *   thread is re-read); `chat_not_open` / `not_in_ride` drop the thread;
  *   `invalid_message` drops the rejected pending sends.
  *
- * The thread follows the ACTIVE ride; a chat deep link (push `chat`
- * {rideId}, UC-S-13) can focus another ride's thread — e.g. the 24 h
- * read-only tail — via `focusThread`. Clients never compute the window
- * themselves: `windowState` is read from the server and WS errors are
- * obeyed (CHAT-01).
+ * The thread follows the ACTIVE ride, except while the chat screen holds
+ * a focus: a chat deep link (push `chat` {rideId}, UC-S-13) focuses that
+ * ride's thread via `focusThread` — even while ANOTHER ride is active (an
+ * ended ride's 24 h tail) — and opening the chat screen pins the thread it
+ * shows, so the ride leaving the active set (the rider cancels) keeps the
+ * thread on screen. Leaving the screen releases the focus. Clients never
+ * compute the window themselves: `windowState` is read from the server
+ * and WS errors are obeyed (CHAT-01).
+ *
+ * Resilience: a failed first load is retried with a backoff (and when a
+ * live frame for the ride lands), so a flaky moment at acceptance never
+ * hides Chat / Call for the ride; the quick-reply catalog is re-fetched
+ * after a failure on the next thread load / reconnect (NFR-U2).
  */
 import React, {
   createContext,
@@ -88,15 +96,22 @@ export interface ChatContextValue {
   sendText: (body: string) => void;
   sendQuickReply: (code: string) => void;
   loadOlder: () => Promise<void>;
-  /** Chat screen focus: true marks incoming messages read immediately. */
+  /**
+   * Chat screen focus: true marks incoming messages read immediately and
+   * pins the shown thread; false releases the focus.
+   */
   setScreenOpen: (open: boolean) => void;
-  /** Deep link (push `chat` {rideId}): show this ride's thread. */
+  /** Deep link (push `chat` {rideId}): show this ride's thread (wins over the active ride). */
   focusThread: (rideId: string) => void;
   /** Retry after an error / re-read the thread. */
   refresh: () => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
+
+/** Backoff for a failed thread load: 2 s, 4 s, 8 s … capped at 30 s. */
+const RETRY_BASE_MS = 2000;
+const RETRY_MAX_MS = 30000;
 
 interface PendingSend {
   clientMsgId: string;
@@ -145,8 +160,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const activeRideId = ride?.id ?? null;
 
   const [focusedRideId, setFocusedRideId] = useState<string | null>(null);
-  // The active ride's thread wins; a deep link can focus an ended ride's.
-  const rideId = activeRideId ?? focusedRideId;
+  // A focus (deep link / the open chat screen) wins over the active ride.
+  const rideId = focusedRideId ?? activeRideId;
 
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [thread, setThread] = useState<ChatThread | null>(null);
@@ -155,12 +170,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  /** Failed-load retries so far (drives the backoff). */
+  const [retryCount, setRetryCount] = useState(0);
 
   const mounted = useRef(true);
   const rideIdRef = useRef<string | null>(null);
   rideIdRef.current = rideId;
   const threadRef = useRef<ChatThread | null>(null);
   threadRef.current = thread;
+  const statusRef = useRef<ChatStatus>(status);
+  statusRef.current = status;
   const serverMessagesRef = useRef<UiChatMessage[]>([]);
   serverMessagesRef.current = serverMessages;
   const pendingRef = useRef<PendingSend[]>([]);
@@ -170,6 +189,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const sentReadRef = useRef<string | null>(null);
   const sendRealtimeRef = useRef(sendRealtime);
   sendRealtimeRef.current = sendRealtime;
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  /** The catalog for this session: fetched once it succeeds, retried until. */
+  const catalogRef = useRef<{ session: number; state: "idle" | "loading" | "loaded" }>(
+    { session: 0, state: "idle" },
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -183,6 +208,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       mounted.current && rideIdRef.current === forRideId,
     [],
   );
+
+  // ----------------------------------------------------------- quick replies
+
+  /** Fetches the catalog unless this session already has it (or is fetching). */
+  const fetchQuickReplies = useCallback(() => {
+    const catalog = catalogRef.current;
+    if (!activeRef.current || catalog.state !== "idle") return;
+    const session = catalog.session;
+    catalog.state = "loading";
+    getQuickReplies()
+      .then((items) => {
+        if (catalogRef.current.session !== session) return;
+        catalogRef.current.state = "loaded";
+        if (mounted.current) setQuickReplies(items);
+      })
+      .catch(() => {
+        // The composer still works; the next thread load / reconnect retries.
+        if (catalogRef.current.session === session)
+          catalogRef.current.state = "idle";
+      });
+  }, []);
 
   // ------------------------------------------------------------- read marker
 
@@ -221,6 +267,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setServerMessages(page.items.map(toUiMessage));
         setOlderCursor(page.nextCursor);
         setStatus("loaded");
+        fetchQuickReplies();
         // The chat screen was already open while loading: read on arrival
         // (read_only threads record no marker — nothing new can arrive).
         const newest = page.items[page.items.length - 1];
@@ -240,7 +287,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         if (!quiet || threadRef.current === null) setStatus("error");
       }
     },
-    [live, markReadTo],
+    [live, markReadTo, fetchQuickReplies],
   );
 
   /** Reconnect / foreground: re-read the thread and backfill newer rows. */
@@ -262,6 +309,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setUnread(threadResult.unreadCount);
         setServerMessages((current) => mergeServer(current, page.items));
         setStatus("loaded");
+        fetchQuickReplies();
       } catch (error) {
         if (!live(forRideId)) return;
         if (error instanceof ApiError && error.status === 404) {
@@ -273,7 +321,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         // Transient trouble: keep what we have — the next resync catches up.
       }
     },
-    [live, loadThread],
+    [live, loadThread, fetchQuickReplies],
   );
 
   const refresh = useCallback(async () => {
@@ -307,6 +355,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setPendingSends([]);
     setOlderCursor(null);
     setUnread(0);
+    setRetryCount(0);
     sentReadRef.current = null;
     if (!active || !rideId) {
       setStatus("idle");
@@ -316,29 +365,41 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     void loadThread(rideId, false);
   }, [active, rideId, loadThread]);
 
-  // The active ride ended / signed out: drop a stale focus.
+  // A failed load retries with a backoff (D-W4): one flaky request at ride
+  // start must not hide Chat / Call for the rest of the ride.
+  useEffect(() => {
+    if (status !== "error") {
+      setRetryCount(0);
+      return undefined;
+    }
+    if (!active || !rideId) return undefined;
+    const delay = Math.min(
+      RETRY_MAX_MS,
+      RETRY_BASE_MS * 2 ** Math.min(retryCount, 8),
+    );
+    const timer = setTimeout(() => {
+      void loadThread(rideId, true).finally(() => {
+        if (mounted.current) setRetryCount((count) => count + 1);
+      });
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [active, rideId, status, retryCount, loadThread]);
+
+  // Signed out: drop a stale focus.
   useEffect(() => {
     if (!active) setFocusedRideId(null);
   }, [active]);
 
-  // Quick replies: one cacheable catalog per session (CHAT-02, NFR-U2).
+  // Quick replies: one cacheable catalog per session (CHAT-02, NFR-U2) —
+  // fetched on sign-in and retried on later loads until it succeeds.
   useEffect(() => {
-    if (!active) {
-      setQuickReplies([]);
-      return;
-    }
-    let cancelled = false;
-    getQuickReplies()
-      .then((catalog) => {
-        if (!cancelled && mounted.current) setQuickReplies(catalog);
-      })
-      .catch(() => {
-        // The composer still works; the grid just stays empty.
-      });
-    return () => {
-      cancelled = true;
+    catalogRef.current = {
+      session: catalogRef.current.session + 1,
+      state: "idle",
     };
-  }, [active]);
+    setQuickReplies([]);
+    if (active) fetchQuickReplies();
+  }, [active, fetchQuickReplies]);
 
   /** Marks everything currently loaded as read — the chat screen is open. */
   const markRead = useCallback(() => {
@@ -353,7 +414,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const setScreenOpen = useCallback(
     (open: boolean) => {
       screenOpenRef.current = open;
-      if (open) markRead();
+      if (open) {
+        // Pin the thread on screen (unless a deep link already focused
+        // one): the ride leaving the active set keeps it here (D-W2).
+        const shown = rideIdRef.current;
+        setFocusedRideId((current) => current ?? shown);
+        markRead();
+      } else {
+        // Leaving the chat: the ride screens follow the active ride again.
+        setFocusedRideId(null);
+      }
     },
     [markRead],
   );
@@ -417,6 +487,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const forRideId = rideIdRef.current;
       if (event.kind === "connected") {
         // Events are not replayed: backfill, then resend what never left.
+        fetchQuickReplies();
         if (forRideId) {
           void resync(forRideId).then(() => {
             if (!live(forRideId)) return;
@@ -430,6 +501,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       switch (frame.type) {
         case "chat.message": {
           if (frame.rideId !== forRideId) return;
+          // A frame for a thread we failed to load (or had none yet): the
+          // thread exists now — load it so Chat / Call appear (D-W4).
+          if (
+            forRideId &&
+            threadRef.current === null &&
+            (statusRef.current === "error" || statusRef.current === "none")
+          ) {
+            void loadThread(forRideId, true);
+          }
           if (frame.clientMsgId) {
             // Our own echo — the delivery ack replaces the pending bubble.
             setPendingSends((current) =>
@@ -511,6 +591,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     active,
     subscribeRealtime,
     dispatchSend,
+    fetchQuickReplies,
     live,
     loadThread,
     markReadTo,
