@@ -3,6 +3,7 @@ package com.labby.backend.service;
 import com.labby.backend.dto.GeoJsonLineStringDto;
 import com.labby.backend.dto.RideSummaryDto;
 import com.labby.backend.dto.RideSummaryPageDto;
+import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.enums.Role;
@@ -22,6 +23,7 @@ import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RideTraceRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
+import com.labby.backend.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
@@ -52,6 +54,7 @@ public class RideLifecycle {
   private final ServiceTypeRepository serviceTypeRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final DriverProfileRepository driverProfileRepository;
+  private final UserRepository userRepository;
   private final RideAssembler rideAssembler;
   private final RideEvents rideEvents;
 
@@ -102,8 +105,9 @@ public class RideLifecycle {
   }
 
   /**
-   * After a ride ends for its driver: a driver whose role was suspended meanwhile goes offline
-   * (suspension forces offline; mid-ride it waits for the ride to end).
+   * After a ride ends for its driver: a driver whose role — or whole account (M11, USR-06) — was
+   * suspended meanwhile goes offline (suspension forces offline; mid-ride it waits for the ride to
+   * end).
    *
    * @param driverUserId the released driver
    * @param now the moment
@@ -111,9 +115,13 @@ public class RideLifecycle {
   public void releaseDriver(UUID driverUserId, Instant now) {
     boolean suspended =
         roleAssignmentRepository
-            .findByUserIdAndRole(driverUserId, Role.DRIVER)
-            .map(role -> role.getState() == RoleState.SUSPENDED)
-            .orElse(false);
+                .findByUserIdAndRole(driverUserId, Role.DRIVER)
+                .map(role -> role.getState() == RoleState.SUSPENDED)
+                .orElse(false)
+            || userRepository
+                .findById(driverUserId)
+                .map(user -> user.getState() == AccountState.SUSPENDED)
+                .orElse(false);
     if (suspended) {
       driverProfileRepository
           .findByUserId(driverUserId)

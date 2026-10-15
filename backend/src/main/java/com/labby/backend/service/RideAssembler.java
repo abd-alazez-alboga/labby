@@ -14,6 +14,7 @@ import com.labby.backend.dto.RideOfferDto;
 import com.labby.backend.dto.RideTimelineDto;
 import com.labby.backend.dto.RiderSummaryDto;
 import com.labby.backend.dto.VehicleSummaryDto;
+import com.labby.backend.enums.RideParty;
 import com.labby.backend.model.Fare;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
@@ -44,7 +45,9 @@ import org.springframework.stereotype.Component;
 /**
  * Builds the API views of a ride (rides-v1.yaml): the rider view carries the driver from acceptance
  * on (TRK-02, UC-R-05), the driver view carries the rider (UC-D-06); the admin view carries both.
- * Ratings are null until M11. Photo URLs are fresh, expiring file URLs (NFR-S2).
+ * Counterpart ratings are the RATE-02 exposed view (daily snapshot, null below 5 ratings — M11);
+ * the rider and driver views carry the caller's own {@code myRating}. Photo URLs are fresh,
+ * expiring file URLs (NFR-S2).
  */
 @Component
 @RequiredArgsConstructor
@@ -63,6 +66,7 @@ public class RideAssembler {
   private final RegionRepository regionRepository;
   private final OnboardingAssembler onboardingAssembler;
   private final RideMoneyService rideMoneyService;
+  private final RatingService ratingService;
   private final ObjectMapper objectMapper;
 
   /** Which party a view is for. */
@@ -133,7 +137,12 @@ public class RideAssembler {
                 .orElse(null)
             : null,
         showDriver ? driverSummary(ride.getDriverUserId(), ride.getVehicleId()) : null,
-        showRider ? riderSummary(ride.getRiderUserId()) : null);
+        showRider ? riderSummary(ride.getRiderUserId()) : null,
+        switch (audience) {
+          case RIDER -> ratingService.myRating(ride, RideParty.RIDER);
+          case DRIVER -> ratingService.myRating(ride, RideParty.DRIVER);
+          case ADMIN -> null;
+        });
   }
 
   /**
@@ -179,7 +188,10 @@ public class RideAssembler {
             ? null
             : vehicleRepository.findById(vehicleId).map(this::vehicleSummary).orElse(null);
     return new DriverSummaryDto(
-        firstName(driver.getName()), photo == null ? null : photo.url(), null, vehicle);
+        firstName(driver.getName()),
+        photo == null ? null : photo.url(),
+        ratingService.exposedAverage(driverUserId, RideParty.DRIVER),
+        vehicle);
   }
 
   /**
@@ -196,7 +208,7 @@ public class RideAssembler {
             .orElseGet(() -> RiderPreference.defaults(riderUserId));
     return new RiderSummaryDto(
         firstName(rider.getName()),
-        null,
+        ratingService.exposedAverage(riderUserId, RideParty.RIDER),
         new ComfortPreferencesDto(
             preference.getTemperature(), preference.getConversation(), preference.getMusic()));
   }

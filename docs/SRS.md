@@ -95,7 +95,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | USR-03 | Profile: name, photo, language (EN/AR). Rider extras: saved locations, comfort preferences, matching toggles. Driver extras: vehicle, availability. | V1 |
 | USR-04 | Account states `active / suspended / deleted`, with **role-level granularity** (driver role may be suspended while rider role stays active). Every state change notifies the user with the reason. | V1 |
 | USR-05 | Auto-suspension on rating: per-role threshold + minimum rated-rides count, configurable per region. Defaults: driver < 3.0 avg after ≥ 20 rated rides; rider < 2.5 after ≥ 10. | V1 |
-| USR-06 | Manual suspend/reactivate/deactivate by admins holding the permission; audit-logged with actor + reason. "Deactivate" = whole-account suspension (all roles; login still works to show the reason) — owner ruling 2026-10-15. | V1 |
+| USR-06 | Manual suspend/reactivate/deactivate by admins holding the permission; audit-logged with actor + reason. "Deactivate" = whole-account suspension (all roles; login still works to show the reason; SOS always works and a ride already in progress can be finished, incl. the driver's cash confirmation) — owner rulings 2026-10-15. | V1 |
 | USR-07 | Account deletion (behind 2FA) = **soft delete**: state `deleted`, all data retained, account unusable. Re-registering with that phone **automatically reactivates** the account after OTP verification (history, wallet, ratings intact; password reset available). | V1 |
 
 ### 4.3 RBAC — Admin Access Control

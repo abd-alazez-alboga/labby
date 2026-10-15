@@ -27,6 +27,15 @@ class NotificationRendererTest {
 
   private final NotificationRenderer renderer = new NotificationRenderer();
 
+  private static final Set<NotificationEvent> TRUST_EVENTS =
+      Set.of(
+          NotificationEvent.ROLE_SUSPENDED,
+          NotificationEvent.ROLE_REACTIVATED,
+          NotificationEvent.ACCOUNT_SUSPENDED,
+          NotificationEvent.ACCOUNT_REACTIVATED,
+          NotificationEvent.REPORT_RESOLVED,
+          NotificationEvent.DRIVER_METRIC_WARNING);
+
   private static final Map<String, Object> REMINDER_PARAMS =
       Map.of("documentType", "drivers_license", "expiresOn", "2026-10-13", "daysLeft", 7);
 
@@ -42,6 +51,9 @@ class NotificationRendererTest {
       }
       if (event == NotificationEvent.CHAT_MESSAGE || event == NotificationEvent.SOS_TRIGGERED) {
         continue; // M10 comms events: see shouldRenderCommsEvents.
+      }
+      if (TRUST_EVENTS.contains(event)) {
+        continue; // M11 trust events: see shouldRenderTrustEvents.
       }
       Map<String, Object> params =
           switch (event) {
@@ -423,5 +435,126 @@ class NotificationRendererTest {
     Rendered sosDriver = renderer.render("sos.triggered", Map.of("role", "driver")).orElseThrow();
     assertThat(sosDriver.bodyEn()).contains("driver");
     assertThat(sosDriver.bodyAr()).contains("سائق");
+  }
+
+  @Test
+  @DisplayName(
+      "M11 trust: bilingual account notices to the right app, the rule or the admin's reason in"
+          + " the text, Western digits, never the report's internal notes")
+  void shouldRenderTrustEvents() {
+    Rendered lowRating =
+        renderer
+            .render(
+                "account.role_suspended",
+                Map.of(
+                    "role", "driver",
+                    "reason", "low_rating",
+                    "minAvgRating", "3",
+                    "minRatedRides", 20))
+            .orElseThrow();
+    assertThat(lowRating.audience()).isEqualTo(NotificationAudience.DRIVER);
+    // In-app support arrives only with M14: no "contact support" line (owner ruling 2026-10-15).
+    assertThat(lowRating.bodyEn())
+        .isEqualTo(
+            "Your driver account is suspended because your average rating is below 3 after 20"
+                + " rated rides.");
+    assertThat(lowRating.bodyAr())
+        .isEqualTo("تم إيقاف حساب السائق الخاص بك لأن متوسط تقييمك أقل من 3 بعد 20 رحلة مقيّمة.");
+    Rendered riderLow =
+        renderer
+            .render(
+                "account.role_suspended",
+                Map.of(
+                    "role",
+                    "rider",
+                    "reason",
+                    "low_rating",
+                    "minAvgRating",
+                    "2.5",
+                    "minRatedRides",
+                    10))
+            .orElseThrow();
+    assertThat(riderLow.audience()).isEqualTo(NotificationAudience.RIDER);
+    assertThat(riderLow.titleEn()).isEqualTo("Rider account suspended");
+    assertThat(riderLow.bodyAr()).contains("10 رحلات مقيّمة");
+    Rendered manual =
+        renderer
+            .render(
+                "account.role_suspended",
+                Map.of("role", "driver", "reason", "manual", "note", "Repeated complaints"))
+            .orElseThrow();
+    assertThat(manual.bodyEn()).endsWith("Reason: Repeated complaints");
+    assertThat(manual.bodyAr()).endsWith("السبب: Repeated complaints");
+    Rendered reactivated =
+        renderer
+            .render("account.role_reactivated", Map.of("role", "rider", "note", "Appeal ok"))
+            .orElseThrow();
+    assertThat(reactivated.audience()).isEqualTo(NotificationAudience.RIDER);
+    assertThat(reactivated.bodyEn()).contains("Appeal ok");
+    Rendered account =
+        renderer.render("account.suspended", Map.of("note", "Fraud check")).orElseThrow();
+    assertThat(account.audience()).isEqualTo(NotificationAudience.ALL);
+    assertThat(account.bodyAr()).contains("Fraud check");
+    Rendered substantiated =
+        renderer
+            .render("report.resolved", Map.of("outcome", "substantiated", "role", "rider"))
+            .orElseThrow();
+    assertThat(substantiated.audience()).isEqualTo(NotificationAudience.RIDER);
+    assertThat(substantiated.bodyEn()).contains("confirmed");
+    Rendered unsubstantiated =
+        renderer
+            .render("report.resolved", Map.of("outcome", "unsubstantiated", "role", "driver"))
+            .orElseThrow();
+    assertThat(unsubstantiated.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(unsubstantiated.bodyEn()).contains("could not confirm");
+    Rendered acceptance =
+        renderer
+            .render(
+                "driver.metric_warning",
+                Map.of(
+                    "metric", "acceptance",
+                    "valuePercent", "42.50",
+                    "thresholdPercent", "50",
+                    "windowDays", 30))
+            .orElseThrow();
+    assertThat(acceptance.bodyEn())
+        .isEqualTo(
+            "Your acceptance rate for the last 30 days is 42.5%, below the 50% minimum. Try to"
+                + " accept more ride requests.");
+    assertThat(acceptance.bodyAr()).contains("30 يوماً", "42.5%", "50%");
+    Rendered cancellation =
+        renderer
+            .render(
+                "driver.metric_warning",
+                Map.of(
+                    "metric", "cancellation",
+                    "valuePercent", "20.00",
+                    "thresholdPercent", "15",
+                    "windowDays", 7))
+            .orElseThrow();
+    assertThat(cancellation.titleEn()).isEqualTo("Your cancellation rate is high");
+    assertThat(cancellation.bodyAr()).contains("7 أيام", "20%", "15%");
+    for (Rendered rendered :
+        List.of(
+            lowRating,
+            riderLow,
+            manual,
+            reactivated,
+            account,
+            substantiated,
+            unsubstantiated,
+            acceptance,
+            cancellation)) {
+      assertThat(rendered.category()).isEqualTo(NotificationCategory.ACCOUNT);
+      assertThat(rendered.linkScreen()).isNull();
+      for (String text :
+          new String[] {
+            rendered.titleEn(), rendered.bodyEn(), rendered.titleAr(), rendered.bodyAr()
+          }) {
+        assertThat(text).isNotBlank().doesNotContain("%s", "null");
+        assertThat(text.toLowerCase(Locale.ROOT)).doesNotContain("verification", "verify");
+        assertThat(text).doesNotContain("التحقق").doesNotContainPattern("[\\u0660-\\u0669]");
+      }
+    }
   }
 }

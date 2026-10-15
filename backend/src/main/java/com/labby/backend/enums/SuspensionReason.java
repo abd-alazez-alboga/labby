@@ -4,10 +4,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Why a role is suspended (USR-04). Only {@code document_expired} is lifted automatically (DRV-04).
+ * Why a role (or, {@code manual} only, a whole account) is suspended (USR-04..06): DRV-04 document
+ * expiry, USR-05 low rating, or an admin action. Only {@code document_expired} is lifted
+ * automatically (DRV-04); the others only by an admin reactivation (M11).
  */
 public enum SuspensionReason {
-  DOCUMENT_EXPIRED("document_expired");
+  DOCUMENT_EXPIRED("document_expired"),
+  LOW_RATING("low_rating"),
+  MANUAL("manual");
 
   private final String value;
 

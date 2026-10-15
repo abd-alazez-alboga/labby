@@ -12,12 +12,14 @@ import java.util.List;
  * {@code domain:action} codes so the admin UI can gate routes/menus (RBAC-03); absent elsewhere.
  * Enforcement stays server-side per request — these fields refresh on the next profile fetch.
  * {@code suspensionReason} is present only while the role is suspended with a recorded reason
- * (USR-04; M5's {@code document_expired}).
+ * (USR-04; M5's {@code document_expired}, M11's {@code low_rating} and {@code manual}); {@code
+ * suspensionNote} is the admin's reason of a {@code manual} suspension, shown to the user.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RoleAssignmentDto(
     Role role,
     RoleState state,
     SuspensionReason suspensionReason,
+    String suspensionNote,
     RoleSummaryDto rbacRole,
     List<String> permissions) {}

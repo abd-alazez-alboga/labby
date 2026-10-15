@@ -28,5 +28,6 @@ public record RegionDto(
     List<CommissionTierDto> commissionTiers,
     IncentiveValuesDto incentiveValues,
     SuspensionThresholdsDto suspensionThresholds,
+    MetricWarningsDto metricWarnings,
     long serviceTypeCount,
     long surgeZoneCount) {}

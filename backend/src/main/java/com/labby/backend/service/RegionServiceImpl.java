@@ -4,14 +4,17 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.dto.CommissionTierDto;
 import com.labby.backend.dto.IncentiveValuesDto;
+import com.labby.backend.dto.MetricWarningsDto;
 import com.labby.backend.dto.RegionConfigDto;
 import com.labby.backend.dto.RegionDto;
 import com.labby.backend.dto.RegionSummaryDto;
 import com.labby.backend.dto.RegionUpsertRequestDto;
 import com.labby.backend.dto.ServiceTypeDto;
+import com.labby.backend.dto.SuspensionThresholdDto;
 import com.labby.backend.dto.SuspensionThresholdsDto;
 import com.labby.backend.enums.RegionState;
 import com.labby.backend.exception.ConflictException;
+import com.labby.backend.exception.FieldValidationException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
@@ -223,6 +226,7 @@ public class RegionServiceImpl implements RegionService {
 
   private void applyBundle(
       Region region, RegionUpsertRequestDto request, Polygon boundary, UUID actorUserId) {
+    requireValidTrustConfig(request);
     region.setName(request.name());
     region.setBoundary(boundary);
     region.setCurrency(request.currency());
@@ -252,7 +256,46 @@ public class RegionServiceImpl implements RegionService {
         request.suspensionThresholds() == null
             ? null
             : objectMapper.convertValue(request.suspensionThresholds(), new TypeReference<>() {}));
+    // M11 DRV-07: like the floor, omitted/null keeps the stored value; a new region starts NULL
+    // (= the SRS defaults 50 / 15 / 30 days / 20).
+    if (request.metricWarnings() != null) {
+      region.setMetricWarnings(
+          objectMapper.convertValue(request.metricWarnings(), new TypeReference<>() {}));
+    }
     region.setUpdatedBy(actorUserId);
+  }
+
+  /**
+   * M11 trust config rules the annotations cannot express: a RATE-03 {@code warnAvgRating} must be
+   * above its role's {@code minAvgRating}; DRV-07 {@code windowDays} is 7 or 30.
+   */
+  private static void requireValidTrustConfig(RegionUpsertRequestDto request) {
+    Map<String, String> errors = new LinkedHashMap<>();
+    SuspensionThresholdsDto thresholds = request.suspensionThresholds();
+    if (thresholds != null) {
+      requireWarnAboveMin("suspensionThresholds.driver", thresholds.driver(), errors);
+      requireWarnAboveMin("suspensionThresholds.rider", thresholds.rider(), errors);
+    }
+    MetricWarningsDto metricWarnings = request.metricWarnings();
+    if (metricWarnings != null
+        && metricWarnings.windowDays() != null
+        && metricWarnings.windowDays() != 7
+        && metricWarnings.windowDays() != 30) {
+      errors.put("metricWarnings.windowDays", "must be 7 or 30");
+    }
+    if (!errors.isEmpty()) {
+      throw new FieldValidationException(errors);
+    }
+  }
+
+  private static void requireWarnAboveMin(
+      String field, SuspensionThresholdDto threshold, Map<String, String> errors) {
+    if (threshold != null
+        && threshold.warnAvgRating() != null
+        && threshold.minAvgRating() != null
+        && threshold.warnAvgRating().compareTo(threshold.minAvgRating()) <= 0) {
+      errors.put(field + ".warnAvgRating", "must be greater than minAvgRating");
+    }
   }
 
   /** The complete activation checklist (UC-A-05 E1), including the service-type part. */
@@ -353,6 +396,9 @@ public class RegionServiceImpl implements RegionService {
             ? null
             : objectMapper.convertValue(
                 region.getSuspensionThresholds(), SuspensionThresholdsDto.class),
+        region.getMetricWarnings() == null
+            ? null
+            : objectMapper.convertValue(region.getMetricWarnings(), MetricWarningsDto.class),
         serviceTypeRepository.countByRegionId(region.getId()),
         surgeZoneRepository.countByRegionId(region.getId()));
   }
@@ -405,6 +451,7 @@ public class RegionServiceImpl implements RegionService {
     snapshot.put("commissionTiers", region.getCommissionTiers());
     snapshot.put("incentiveValues", region.getIncentiveValues());
     snapshot.put("suspensionThresholds", region.getSuspensionThresholds());
+    snapshot.put("metricWarnings", region.getMetricWarnings());
     return snapshot;
   }
 }

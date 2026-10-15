@@ -70,7 +70,30 @@ public enum NotificationEvent {
    * To every admin holding {@code support:handle} when an SOS fires (SAFE-01; category safety —
    * never muted). Params: rideId, role (rider|driver).
    */
-  SOS_TRIGGERED("sos.triggered");
+  SOS_TRIGGERED("sos.triggered"),
+  // M11 trust events (trust-v1.yaml; category account).
+  /**
+   * To the user whose rider or driver role was suspended for a low rating (USR-05) or by an admin
+   * (USR-06). Params: role (rider|driver), reason (low_rating|manual), note (manual), minAvgRating
+   * and minRatedRides (low_rating — the rule that fired).
+   */
+  ROLE_SUSPENDED("account.role_suspended"),
+  /** To the user whose role an admin reactivated (USR-06). Params: role, note. */
+  ROLE_REACTIVATED("account.role_reactivated"),
+  /** To the user whose whole account an admin suspended (USR-06 "deactivate"). Params: note. */
+  ACCOUNT_SUSPENDED("account.suspended"),
+  /** To the user whose whole account an admin reactivated. Params: note. */
+  ACCOUNT_REACTIVATED("account.reactivated"),
+  /**
+   * To the reporter when their report is resolved — the outcome only, never the internal notes
+   * (REP-02). Params: outcome (substantiated|unsubstantiated), role (the reporter's side).
+   */
+  REPORT_RESOLVED("report.resolved"),
+  /**
+   * To the driver when a DRV-07 warning is raised (never a suspension). Params: metric
+   * (acceptance|cancellation), valuePercent, thresholdPercent, windowDays.
+   */
+  DRIVER_METRIC_WARNING("driver.metric_warning");
 
   private final String value;
 

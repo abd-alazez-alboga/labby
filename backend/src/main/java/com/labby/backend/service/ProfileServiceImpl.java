@@ -42,6 +42,7 @@ public class ProfileServiceImpl implements ProfileService {
                     base.role(),
                     base.state(),
                     base.suspensionReason(),
+                    base.suspensionNote(),
                     new RoleSummaryDto(rbacRole.getId(), rbacRole.getName()),
                     rbacRole.getPermissions().stream()
                         .map(RbacPermission::getCode)

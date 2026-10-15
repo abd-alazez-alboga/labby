@@ -62,6 +62,7 @@ public class DriverRoleServiceImpl implements DriverRoleService {
     }
     role.get().setState(RoleState.SUSPENDED);
     role.get().setSuspensionReason(SuspensionReason.DOCUMENT_EXPIRED);
+    role.get().setSuspendedAt(calendar.now());
     roleAssignmentRepository.save(role.get());
     forceOfflineUnlessOnRide(userId);
     notificationService.queue(
@@ -101,6 +102,7 @@ public class DriverRoleServiceImpl implements DriverRoleService {
     }
     role.get().setState(RoleState.ACTIVE);
     role.get().setSuspensionReason(null);
+    role.get().setSuspendedAt(null);
     roleAssignmentRepository.save(role.get());
     notificationService.queue(userId, NotificationEvent.DRIVER_REINSTATED);
     return true;

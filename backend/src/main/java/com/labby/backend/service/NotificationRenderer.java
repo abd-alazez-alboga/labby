@@ -6,6 +6,7 @@ import com.labby.backend.enums.NotificationCategory;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.SuspensionReason;
 import com.labby.backend.util.MoneyFormat;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
@@ -313,7 +314,148 @@ public class NotificationRenderer {
                   .formatted(moneyAr(params, "balance")));
       case CHAT_MESSAGE -> chatMessage(params);
       case SOS_TRIGGERED -> sosTriggered(event, params);
+      case ROLE_SUSPENDED -> roleSuspended(event, params);
+      case ROLE_REACTIVATED -> roleReactivated(event, params);
+      case ACCOUNT_SUSPENDED ->
+          account(
+              event,
+              NotificationAudience.ALL,
+              "Account suspended",
+              "Your Labby account has been suspended. Reason: %s"
+                  .formatted(text(params.get("note"))),
+              "تم إيقاف حسابك",
+              "تم إيقاف حسابك في لبي. السبب: %s".formatted(text(params.get("note"))));
+      case ACCOUNT_REACTIVATED ->
+          account(
+              event,
+              NotificationAudience.ALL,
+              "Account active again",
+              "Your Labby account is active again. Reason: %s".formatted(text(params.get("note"))),
+              "أُعيد تفعيل حسابك",
+              "أصبح حسابك في لبي فعّالاً من جديد. السبب: %s".formatted(text(params.get("note"))));
+      case REPORT_RESOLVED -> reportResolved(event, params);
+      case DRIVER_METRIC_WARNING -> metricWarning(event, params);
     };
+  }
+
+  /**
+   * USR-04/05/06: a role suspension, to that role's app. A low-rating suspension states the rule
+   * that fired (Western digits in both languages); a manual one carries the admin's reason. No deep
+   * link — a push tap opens the notification center.
+   */
+  private static Rendered roleSuspended(NotificationEvent event, Map<String, Object> params) {
+    boolean driver = "driver".equals(text(params.get("role")));
+    String titleEn = driver ? "Driver account suspended" : "Rider account suspended";
+    String titleAr = driver ? "تم إيقاف حساب السائق" : "تم إيقاف حساب الراكب";
+    String roleEn = driver ? "driver" : "rider";
+    String roleAr = driver ? "السائق" : "الراكب";
+    String bodyEn;
+    String bodyAr;
+    if (SuspensionReason.LOW_RATING.getValue().equals(text(params.get("reason")))) {
+      String level = text(params.get("minAvgRating"));
+      int rides = number(params.get("minRatedRides"));
+      bodyEn =
+          "Your %s account is suspended because your average rating is below %s after %s."
+              .formatted(roleEn, level, ratedRidesEn(rides));
+      bodyAr =
+          "تم إيقاف حساب %s الخاص بك لأن متوسط تقييمك أقل من %s بعد %s."
+              .formatted(roleAr, level, ratedRidesAr(rides));
+    } else {
+      bodyEn =
+          "Your %s account has been suspended. Reason: %s"
+              .formatted(roleEn, text(params.get("note")));
+      bodyAr = "تم إيقاف حساب %s الخاص بك. السبب: %s".formatted(roleAr, text(params.get("note")));
+    }
+    return account(
+        event,
+        driver ? NotificationAudience.DRIVER : NotificationAudience.RIDER,
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr);
+  }
+
+  /** USR-06: an admin lifted a role suspension, with the admin's reason. */
+  private static Rendered roleReactivated(NotificationEvent event, Map<String, Object> params) {
+    boolean driver = "driver".equals(text(params.get("role")));
+    return account(
+        event,
+        driver ? NotificationAudience.DRIVER : NotificationAudience.RIDER,
+        driver ? "Driver account active again" : "Rider account active again",
+        "Your %s account is active again. Reason: %s"
+            .formatted(driver ? "driver" : "rider", text(params.get("note"))),
+        driver ? "أُعيد تفعيل حساب السائق" : "أُعيد تفعيل حساب الراكب",
+        "أصبح حساب %s الخاص بك فعّالاً من جديد. السبب: %s"
+            .formatted(driver ? "السائق" : "الراكب", text(params.get("note"))));
+  }
+
+  /** REP-02: the outcome of the reporter's report — never the internal notes. */
+  private static Rendered reportResolved(NotificationEvent event, Map<String, Object> params) {
+    boolean substantiated = "substantiated".equals(text(params.get("outcome")));
+    boolean driver = "driver".equals(text(params.get("role")));
+    return account(
+        event,
+        driver ? NotificationAudience.DRIVER : NotificationAudience.RIDER,
+        "Your report was reviewed",
+        substantiated
+            ? "We reviewed your report and confirmed it. Thank you for helping keep Labby safe."
+            : "We reviewed your report but could not confirm it. Thank you for letting us know.",
+        "تمت مراجعة بلاغك",
+        substantiated
+            ? "راجعنا بلاغك وتأكدنا من صحته. شكراً لمساعدتك في الحفاظ على أمان لبي."
+            : "راجعنا بلاغك ولم نتمكن من تأكيده. شكراً لإبلاغنا.");
+  }
+
+  /** DRV-07: a metric warning with the rule that raised it (warn only — never a suspension). */
+  private static Rendered metricWarning(NotificationEvent event, Map<String, Object> params) {
+    boolean acceptance = "acceptance".equals(text(params.get("metric")));
+    String value = percent(params.get("valuePercent"));
+    String threshold = percent(params.get("thresholdPercent"));
+    int days = number(params.get("windowDays"));
+    return account(
+        event,
+        NotificationAudience.DRIVER,
+        acceptance ? "Your acceptance rate is low" : "Your cancellation rate is high",
+        acceptance
+            ? ("Your acceptance rate for the last %s is %s, below the %s minimum. Try to accept"
+                    + " more ride requests.")
+                .formatted(daysEn(days), value, threshold)
+            : ("Your cancellation rate for the last %s is %s, above the %s maximum. Try to"
+                    + " cancel fewer accepted rides.")
+                .formatted(daysEn(days), value, threshold),
+        acceptance ? "معدل قبولك منخفض" : "معدل إلغائك مرتفع",
+        acceptance
+            ? "معدل قبولك للطلبات خلال آخر %s هو %s، وهو أقل من الحد الأدنى %s. حاول قبول المزيد من طلبات الرحلات."
+                .formatted(daysAr(days), value, threshold)
+            : "معدل إلغائك للرحلات خلال آخر %s هو %s، وهو أعلى من الحد الأقصى %s. حاول تقليل إلغاء الرحلات التي قبلتها."
+                .formatted(daysAr(days), value, threshold));
+  }
+
+  /** A percent param as plain text with Western digits: {@code 42.5%}, {@code 50%}. */
+  private static String percent(Object value) {
+    try {
+      return new BigDecimal(text(value)).stripTrailingZeros().toPlainString() + "%";
+    } catch (NumberFormatException ex) {
+      return text(value) + "%";
+    }
+  }
+
+  private static String ratedRidesEn(int rides) {
+    return rides == 1 ? "1 rated ride" : rides + " rated rides";
+  }
+
+  /** Arabic number–noun agreement for "rated rides". */
+  static String ratedRidesAr(int rides) {
+    if (rides == 1) {
+      return "رحلة مقيّمة واحدة";
+    }
+    if (rides == 2) {
+      return "رحلتين مقيّمتين";
+    }
+    if (rides >= 3 && rides <= 10) {
+      return rides + " رحلات مقيّمة";
+    }
+    return rides + " رحلة مقيّمة";
   }
 
   /**

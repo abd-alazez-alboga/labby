@@ -54,6 +54,14 @@ public class RoleAssignment {
   @Column(name = "suspension_reason", length = 32)
   private SuspensionReason suspensionReason;
 
+  /** The admin's reason, shown to the user — {@code manual} suspensions only (M11, V17 CHECK). */
+  @Column(name = "suspension_note", length = 500)
+  private String suspensionNote;
+
+  /** When the current suspension started (M11); null while active. */
+  @Column(name = "suspended_at")
+  private Instant suspendedAt;
+
   @Column(name = "granted_at", nullable = false)
   private Instant grantedAt;
 

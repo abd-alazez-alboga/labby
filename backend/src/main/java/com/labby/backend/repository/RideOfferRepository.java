@@ -2,6 +2,7 @@ package com.labby.backend.repository;
 
 import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.model.RideOffer;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,4 +33,30 @@ public interface RideOfferRepository extends JpaRepository<RideOffer, UUID> {
       "SELECT o.rideId FROM RideOffer o WHERE o.id = :offerId AND o.driverUserId = :driverUserId")
   Optional<UUID> findRideIdOfDriverOffer(
       @Param("offerId") UUID offerId, @Param("driverUserId") UUID driverUserId);
+
+  /**
+   * DRV-06 acceptance of one driver in the window {@code [from, to]} by {@code offered_at}: offers
+   * accepted, and offers decided (accepted + declined + expired — {@code withdrawn} and still-open
+   * offers excluded).
+   */
+  @Query(
+      value =
+          """
+          SELECT COUNT(*) FILTER (WHERE response = 'accepted') AS accepted,
+                 COUNT(*) FILTER (WHERE response IN ('accepted', 'declined', 'timeout')) AS decided
+          FROM ride_offers
+          WHERE driver_user_id = :driverUserId AND offered_at BETWEEN :from AND :to
+          """,
+      nativeQuery = true)
+  OfferCounts offerCounts(
+      @Param("driverUserId") UUID driverUserId,
+      @Param("from") Instant from,
+      @Param("to") Instant to);
+
+  /** A driver's offer counts in a window. */
+  interface OfferCounts {
+    long getAccepted();
+
+    long getDecided();
+  }
 }

@@ -32,6 +32,9 @@ public class DriverFileServiceImpl implements DriverFileService {
 
   private static final String KEY_PREFIX = "driver-files/";
 
+  /** REP-01 report photos (M11, {@code /report-files}): same rules, images only. */
+  private static final String REPORT_KEY_PREFIX = "report-files/";
+
   private final StoredFileRepository storedFileRepository;
   private final StorageProvider storageProvider;
   private final StorageProperties storageProperties;
@@ -39,7 +42,20 @@ public class DriverFileServiceImpl implements DriverFileService {
 
   @Override
   public UploadedFileDto upload(UUID userId, String kind, MultipartFile file) {
-    StoredFileKind fileKind = parseKind(kind);
+    return store(userId, parseKind(kind), file, KEY_PREFIX);
+  }
+
+  @Override
+  public UploadedFileDto uploadReportPhoto(UUID userId, MultipartFile file) {
+    return store(userId, StoredFileKind.REPORT_PHOTO, file, REPORT_KEY_PREFIX);
+  }
+
+  /**
+   * The shared private-upload rules: rolling daily cap (counted over every kind), size cap, type
+   * from the magic bytes, images only for photos, server-generated key.
+   */
+  private UploadedFileDto store(
+      UUID userId, StoredFileKind fileKind, MultipartFile file, String keyPrefix) {
     long recent =
         storedFileRepository.countByOwnerUserIdAndCreatedAtAfter(
             userId, clock.instant().minus(Duration.ofDays(1)));
@@ -65,10 +81,13 @@ public class DriverFileServiceImpl implements DriverFileService {
     if (fileKind == StoredFileKind.VEHICLE_PHOTO && FileSignatures.PDF.equals(contentType)) {
       throw new InvalidRequestException("Vehicle photos must be JPEG or PNG");
     }
+    if (fileKind == StoredFileKind.REPORT_PHOTO && FileSignatures.PDF.equals(contentType)) {
+      throw new InvalidRequestException("Report photos must be JPEG or PNG");
+    }
 
     String key =
         storageProvider.store(
-            KEY_PREFIX + UUID.randomUUID() + FileSignatures.extensionOf(contentType), content);
+            keyPrefix + UUID.randomUUID() + FileSignatures.extensionOf(contentType), content);
     StoredFile stored =
         storedFileRepository.save(
             StoredFile.builder()
@@ -86,10 +105,16 @@ public class DriverFileServiceImpl implements DriverFileService {
     if (kind == null || kind.isBlank()) {
       throw new InvalidRequestException("kind is required: document or vehicle_photo");
     }
+    StoredFileKind parsed;
     try {
-      return StoredFileKind.fromValue(kind);
+      parsed = StoredFileKind.fromValue(kind);
     } catch (IllegalArgumentException ex) {
       throw new InvalidRequestException("Unknown kind; use document or vehicle_photo");
     }
+    if (parsed == StoredFileKind.REPORT_PHOTO) {
+      // Report photos (M11) have their own endpoint, /report-files.
+      throw new InvalidRequestException("Unknown kind; use document or vehicle_photo");
+    }
+    return parsed;
   }
 }

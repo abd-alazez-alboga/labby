@@ -2,6 +2,7 @@ package com.labby.backend.model;
 
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.Language;
+import com.labby.backend.enums.SuspensionReason;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -77,6 +78,20 @@ public class User {
 
   @Column(name = "terms_accepted_at")
   private Instant termsAcceptedAt;
+
+  /**
+   * USR-06 whole-account suspension (M11, "deactivate"): only an admin does it, so the only reason
+   * is {@code manual}; set only while {@code state} is suspended, with the mandatory note (V17).
+   */
+  @Column(name = "suspension_reason", length = 32)
+  private SuspensionReason suspensionReason;
+
+  /** The admin's reason for a whole-account suspension, shown to the user (M11). */
+  @Column(name = "suspension_note", length = 500)
+  private String suspensionNote;
+
+  @Column(name = "suspended_at")
+  private Instant suspendedAt;
 
   @PrePersist
   void onCreate() {

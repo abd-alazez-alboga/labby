@@ -51,6 +51,9 @@ public abstract class AbstractIntegrationTest {
     registry.add("labby.money.commission-recalc-cron", () -> "-");
     // The surge cycle runs only when tests call SurgeService.recompute on their clock (M9).
     registry.add("labby.surge.cycle-cron", () -> "-");
+    // The M11 rating-snapshot and metric-warning jobs run only when tests call their services.
+    registry.add("labby.trust.rating-snapshot-cron", () -> "-");
+    registry.add("labby.trust.metric-warning-cron", () -> "-");
     // Tests never call the public OSRM server: the discard port refuses connections, so routing
     // takes the straight-line fallback unless a test points the URL at its own stub (M6-T3).
     registry.add("labby.routing.osrm-url", () -> "http://127.0.0.1:9");

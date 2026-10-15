@@ -471,6 +471,75 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "M11: warnAvgRating must exceed minAvgRating; metricWarnings is validated and an omitted"
+          + " value keeps the stored one")
+  void shouldValidateAndKeepTrustConfig() {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963934000041", RbacIds.SUPER_ADMIN_ROLE_ID);
+    String token = superAdmin.accessToken();
+    ResponseEntity<Map<String, Object>> created =
+        sendForMap("/api/v1/admin/regions", HttpMethod.POST, Map.of("name", "Hama"), token);
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody().get("metricWarnings")).isNull();
+    String url = "/api/v1/admin/regions/" + created.getBody().get("id");
+
+    Map<String, Object> notAbove = new HashMap<>();
+    notAbove.put("name", "Hama");
+    notAbove.put(
+        "suspensionThresholds",
+        Map.of(
+            "driver", Map.of("minAvgRating", 3.0, "minRatedRides", 20, "warnAvgRating", 3.0),
+            "rider", Map.of("minAvgRating", 2.5, "minRatedRides", 10)));
+    ResponseEntity<String> refused = send(url, HttpMethod.PUT, notAbove, token);
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(refused.getBody()).contains("suspensionThresholds.driver.warnAvgRating");
+    Map<String, Object> badWindow = new HashMap<>();
+    badWindow.put("name", "Hama");
+    badWindow.put(
+        "metricWarnings",
+        Map.of(
+            "minAcceptancePercent", 50,
+            "maxCancellationPercent", 15,
+            "windowDays", 14,
+            "minSample", 20));
+    assertThat(send(url, HttpMethod.PUT, badWindow, token).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    badWindow.put(
+        "metricWarnings",
+        Map.of(
+            "minAcceptancePercent", 101,
+            "maxCancellationPercent", 15,
+            "windowDays", 30,
+            "minSample", 20));
+    assertThat(send(url, HttpMethod.PUT, badWindow, token).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+
+    Map<String, Object> valid = new HashMap<>();
+    valid.put("name", "Hama");
+    valid.put(
+        "suspensionThresholds",
+        Map.of(
+            "driver", Map.of("minAvgRating", 3.0, "minRatedRides", 20, "warnAvgRating", 3.8),
+            "rider", Map.of("minAvgRating", 2.5, "minRatedRides", 10)));
+    valid.put(
+        "metricWarnings",
+        Map.of(
+            "minAcceptancePercent", 40,
+            "maxCancellationPercent", 20,
+            "windowDays", 7,
+            "minSample", 10));
+    ResponseEntity<String> saved = send(url, HttpMethod.PUT, valid, token);
+    assertThat(saved.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(saved.getBody()).contains("\"warnAvgRating\":3.8", "\"windowDays\":7");
+    // The dashboard sends no metricWarnings field: the stored value survives the save.
+    ResponseEntity<String> kept = send(url, HttpMethod.PUT, Map.of("name", "Hama Edited"), token);
+    assertThat(kept.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(kept.getBody())
+        .contains("\"minAcceptancePercent\":40", "\"minSample\":10")
+        .contains("\"suspensionThresholds\":null");
+  }
+
+  @Test
   @DisplayName("SD-01 edges: ON-boundary resolves, outside 404, shared border first by name")
   void shouldResolveCorrectlyAtBoundaries() {
     AuthTokensResponseDto superAdmin = registerAdmin("+963934000021", RbacIds.SUPER_ADMIN_ROLE_ID);

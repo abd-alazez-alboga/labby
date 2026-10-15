@@ -106,6 +106,14 @@ public class Region {
   @Column(name = "suspension_thresholds")
   private Map<String, Object> suspensionThresholds;
 
+  /**
+   * DRV-07 driver metric warnings (M11): {minAcceptancePercent, maxCancellationPercent, windowDays,
+   * minSample}; NULL = the SRS defaults 50 / 15 / 30 / 20.
+   */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "metric_warnings")
+  private Map<String, Object> metricWarnings;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

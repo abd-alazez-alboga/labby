@@ -48,4 +48,32 @@ public interface DriverLedgerRepository extends JpaRepository<DriverLedgerEntry,
           + " WHERE e.driverUserId = :driverUserId AND e.currency = :currency")
   BigDecimal sumAmounts(
       @Param("driverUserId") UUID driverUserId, @Param("currency") String currency);
+
+  /**
+   * DRV-06 earnings in the window {@code [from, to]}: the driver's share of each fare posting (fare
+   * minus commission, COM-01) by posting moment, per currency.
+   */
+  @Query(
+      value =
+          """
+          SELECT currency AS currency, SUM(fare_amount - commission_amount) AS amount
+          FROM driver_ledger
+          WHERE driver_user_id = :driverUserId
+            AND type IN ('ride_earning', 'commission_due')
+            AND created_at BETWEEN :from AND :to
+          GROUP BY currency
+          ORDER BY currency
+          """,
+      nativeQuery = true)
+  List<CurrencyAmount> fareEarnings(
+      @Param("driverUserId") UUID driverUserId,
+      @Param("from") Instant from,
+      @Param("to") Instant to);
+
+  /** An amount in one currency. */
+  interface CurrencyAmount {
+    String getCurrency();
+
+    BigDecimal getAmount();
+  }
 }

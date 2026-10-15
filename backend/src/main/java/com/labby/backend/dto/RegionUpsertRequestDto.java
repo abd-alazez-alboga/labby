@@ -12,7 +12,9 @@ import java.util.List;
 
 /**
  * Create/replace payload for a region's bundle (UC-A-05/06) — {@code name} is the only mandatory
- * field (draft-friendly); a PUT is a full replace, absent optional fields clear.
+ * field (draft-friendly); a PUT is a full replace, absent optional fields clear — except {@code
+ * timeZone}, {@code driverBalanceFloor} and {@code metricWarnings} (M11), which an omitted/null
+ * value keeps.
  */
 public record RegionUpsertRequestDto(
     @NotBlank @Size(max = 100) String name,
@@ -30,4 +32,5 @@ public record RegionUpsertRequestDto(
     @DecimalMax("0") BigDecimal driverBalanceFloor,
     List<@Valid CommissionTierDto> commissionTiers,
     @Valid IncentiveValuesDto incentiveValues,
-    @Valid SuspensionThresholdsDto suspensionThresholds) {}
+    @Valid SuspensionThresholdsDto suspensionThresholds,
+    @Valid MetricWarningsDto metricWarnings) {}

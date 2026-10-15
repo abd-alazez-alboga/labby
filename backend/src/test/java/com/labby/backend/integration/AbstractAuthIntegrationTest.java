@@ -86,6 +86,13 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     jdbcTemplate.update("DELETE FROM driver_commission_rates");
     jdbcTemplate.update("DELETE FROM wallet_balances");
     jdbcTemplate.update("DELETE FROM driver_balances");
+    // M11 trust rows reference rides, stored files and users. ratings and reports refuse DELETE
+    // by trigger: TRUNCATE like the ledgers.
+    jdbcTemplate.execute("TRUNCATE ratings");
+    jdbcTemplate.execute("TRUNCATE report_photos, reports");
+    jdbcTemplate.update("DELETE FROM account_flags");
+    jdbcTemplate.update("DELETE FROM driver_metric_warnings");
+    jdbcTemplate.update("DELETE FROM rating_snapshots");
     // M10 sos_events are permanent by trigger; TRUNCATE bypasses it like the ledgers above. The
     // comms rows reference rides and users, so they go before both.
     jdbcTemplate.execute("TRUNCATE sos_events");

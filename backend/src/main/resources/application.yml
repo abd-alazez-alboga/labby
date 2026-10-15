@@ -163,6 +163,17 @@ labby:
     public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
     share-refresh-seconds: ${SHARE_REFRESH_SECONDS:5}
     liveops-refresh-seconds: ${LIVEOPS_REFRESH_SECONDS:5}
+  trust:
+    # M11 trust & quality (trust-v1.yaml). REP-03: this many substantiated reports against one
+    # user x role, resolved within the last REPORT_FLAG_DAYS days, open a report_threshold flag on
+    # the admin queue (flag only, never a suspension). Platform-wide, not per region.
+    report-flag-count: ${REPORT_FLAG_COUNT:3}
+    report-flag-days: ${REPORT_FLAG_DAYS:90}
+    # RATE-02: the daily rewrite of the rating snapshots riders and drivers see (timing side-channel
+    # mitigation). DRV-07: the periodic driver metric-warning evaluation (raise / clear). Spring
+    # cron (second minute hour day month weekday), operating timezone; "-" disables.
+    rating-snapshot-cron: ${TRUST_RATING_SNAPSHOT_CRON:0 20 0 * * *}
+    metric-warning-cron: ${TRUST_METRIC_WARNING_CRON:0 0 * * * *}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

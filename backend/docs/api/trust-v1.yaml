@@ -86,7 +86,19 @@ info:
     (admin; mandatory note ≤ 500, shown to the user). Whole-account suspension = USR-06
     "deactivate" **(ruling)**: `users.state = suspended`, reason `manual`, every rider/driver
     feature then refused as if both roles were suspended (403 `account_suspended`); login still
-    works so the apps can show the suspended screen with the note. Admin accounts are not
+    works so the apps can show the suspended screen with the note. Exemption **(ruling
+    2026-10-15, "SOS + finish the ride")**: a suspended account may still trigger SOS on any ride
+    it is a party to (`POST /rides/{id}/sos`) and finish a ride already in flight (accepted /
+    driver_arrived / in_progress): `GET /rides/active`, `GET /driver/rides/active`; as its rider
+    `GET /rides/{id}`, `GET /rides/{id}/cancellation-quote`, `POST /rides/{id}/cancel`,
+    `PUT /rides/{id}/route`; as its driver `GET /driver/rides/{id}`,
+    `POST /driver/rides/{id}/arrive|start|complete|cancel` and `POST /driver/locations`; as either
+    party its chat (`GET /rides/{id}/chat`, `GET /rides/{id}/chat/messages`,
+    `POST /rides/{id}/chat/read`), `GET /chat/quick-replies` and `POST /routing/route`. After
+    completion, while the cash payment is `pending`, its driver may still `GET /driver/rides/{id}`
+    and `POST /driver/rides/{id}/cash-confirm|mark-unpaid`. Everything new stays refused (booking,
+    estimates, availability, offers, wallet, ratings, reports, other rides' chat). Dispatch never
+    offers the account a ride, and a driver goes offline when the ride ends. Admin accounts are not
     suspended here (409 `admin_account`) — RBAC's `/admin/admins/{id}/deactivate` covers them.
     Every change is audit-logged (actor + note) and notifies the user (category `account`).
     Manual suspension of a role already suspended for an automatic reason REPLACES the reason

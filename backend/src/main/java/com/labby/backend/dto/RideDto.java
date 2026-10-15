@@ -1,5 +1,6 @@
 package com.labby.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.PaymentMethod;
 import com.labby.backend.enums.PaymentStatus;
@@ -11,7 +12,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/** One ride as its rider or its driver sees it (rides-v1 Ride). */
+/**
+ * One ride as its rider or its driver sees it (rides-v1 Ride). {@code myRating} (M11) is the
+ * caller's own rating state — absent in admin views.
+ */
 public record RideDto(
     UUID id,
     RideState state,
@@ -46,4 +50,5 @@ public record RideDto(
     UUID redispatchOfRideId,
     UUID redispatchedAsRideId,
     DriverSummaryDto driver,
-    RiderSummaryDto rider) {}
+    RiderSummaryDto rider,
+    @JsonInclude(JsonInclude.Include.NON_NULL) MyRatingDto myRating) {}

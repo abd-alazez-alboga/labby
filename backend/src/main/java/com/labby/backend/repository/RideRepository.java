@@ -184,6 +184,97 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
   long countByDriverUserIdAndRegionIdAndStateAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
       UUID driverUserId, UUID regionId, RideState state, Instant from, Instant to);
 
+  /**
+   * RATE-01 pending prompts: the caller's completed rides on one side, completed at or after {@code
+   * completedSince} (the 7-day window) and not yet rated by that side, newest first.
+   *
+   * @param userId the caller
+   * @param side {@code rider} or {@code driver}
+   * @param completedSince now minus the rating window
+   * @return the rides
+   */
+  @Query(
+      value =
+          """
+          SELECT r.* FROM rides r
+          WHERE r.state = 'completed' AND r.completed_at >= :completedSince
+            AND ((:side = 'rider' AND r.rider_user_id = :userId)
+                 OR (:side = 'driver' AND r.driver_user_id = :userId))
+            AND NOT EXISTS (SELECT 1 FROM ratings g
+                            WHERE g.ride_id = r.ride_id AND g.rater_role = :side)
+          ORDER BY r.completed_at DESC
+          """,
+      nativeQuery = true)
+  List<Ride> findRatingPending(
+      @Param("userId") UUID userId,
+      @Param("side") String side,
+      @Param("completedSince") Instant completedSince);
+
+  /**
+   * DRV-06 ride metrics of one driver for the window {@code [from, to]} (trust-v1.yaml): rides
+   * accepted in the window (by {@code accepted_at}), of them cancelled by the driver, of them that
+   * reached {@code driver_arrived}, of those the on-time ones (arrived at most the accepted offer's
+   * quoted pickup ETA + 5 min after acceptance), and rides completed in the window (by {@code
+   * completed_at}).
+   */
+  @Query(
+      value =
+          """
+          SELECT
+            COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to) AS accepted,
+            COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
+                             AND r.state = 'cancelled_by_driver') AS cancelledByDriver,
+            COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
+                             AND r.driver_arrived_at IS NOT NULL) AS arrived,
+            COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
+                             AND r.driver_arrived_at IS NOT NULL
+                             AND r.driver_arrived_at
+                                 <= r.accepted_at + (o.pickup_eta_s + 300) * interval '1 second')
+              AS onTime,
+            COUNT(*) FILTER (WHERE r.state = 'completed'
+                             AND r.completed_at BETWEEN :from AND :to) AS trips
+          FROM rides r
+          LEFT JOIN ride_offers o ON o.ride_id = r.ride_id AND o.driver_user_id = r.driver_user_id
+                                 AND o.response = 'accepted'
+          WHERE r.driver_user_id = :driverUserId
+            AND (r.accepted_at BETWEEN :from AND :to OR r.completed_at BETWEEN :from AND :to)
+          """,
+      nativeQuery = true)
+  DriverRideMetrics driverRideMetrics(
+      @Param("driverUserId") UUID driverUserId,
+      @Param("from") Instant from,
+      @Param("to") Instant to);
+
+  /**
+   * Drivers with any offer or accepted ride since the instant — the DRV-07 job's candidates.
+   *
+   * @param since the oldest moment of interest
+   * @return the driver ids
+   */
+  @Query(
+      value =
+          """
+          SELECT o.driver_user_id FROM ride_offers o WHERE o.offered_at >= :since
+          UNION
+          SELECT r.driver_user_id FROM rides r
+          WHERE r.driver_user_id IS NOT NULL AND r.accepted_at >= :since
+          """,
+      nativeQuery = true)
+  List<UUID> findDriversActiveSince(@Param("since") Instant since);
+
+  /** A driver's ride counts in a window (DRV-06). */
+  interface DriverRideMetrics {
+    long getAccepted();
+
+    long getCancelledByDriver();
+
+    long getArrived();
+
+    long getOnTime();
+
+    long getTrips();
+  }
+
   /** One driver's completed-trip count in a window (COM-02). */
   interface DriverTripCount {
     UUID getDriverUserId();
