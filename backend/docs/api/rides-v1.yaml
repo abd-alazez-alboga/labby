@@ -1043,12 +1043,14 @@ components:
         cancellationReason:
           type: [string, 'null']
           enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
-                 unsafe_pickup, other, account_suspended, shared_expired, null]
+                 unsafe_pickup, other, account_suspended, shared_expired, rider_busy, null]
           description: >
             `account_suspended` (M11 review ruling 2026-10-16) = the system cancelled a
             pre-acceptance request because an admin suspended the rider's whole account (no fee);
             never chosen by a party. `shared_expired` (M12) = the system cancelled a "when full"
-            shared ride left unfilled for 24 h (no fee)
+            shared ride left unfilled for 24 h (no fee); `rider_busy` (M12 ruling 2026-10-16) = the
+            system cancelled a scheduled ride because its rider was on another live ride at the
+            conversion/fallback moment (no fee)
         cancellationFee: { type: [number, 'null'], description: Recorded fee — collected by the M8 money rails (money-v1.yaml rider dues) }
         fare:
           oneOf:
@@ -1268,7 +1270,7 @@ components:
             cancellationReason:
               type: [string, 'null']
               enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
-                     unsafe_pickup, other, account_suspended, shared_expired, null]
+                     unsafe_pickup, other, account_suspended, shared_expired, rider_busy, null]
               description: Same as `Ride.cancellationReason`; null when not cancelled
     RideSummaryPage:
       type: object

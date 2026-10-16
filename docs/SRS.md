@@ -132,7 +132,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | RIDE-S1 | Schedule for any future time (**no horizon cap**), same booking options; estimate flagged "priced at ride time" (surge evaluated at execution). Earliest bookable lead 30 min — sooner is rejected, never converted to on-demand; cancellation is free until the ride converts to live, then RIDE-07 (owner rulings 2026-10-16). | V1 |
 | RIDE-S2 | **Claim board**: scheduled requests visible to drivers whose availability windows cover the slot (same region + service type); claiming locks driver ↔ ride, notifies rider. | V1 |
 | RIDE-S3 | Reminders to both parties (defaults 24 h + 1 h before); claimed rides convert to live flow from `accepted` at T − the fallback lead (default 15 min, owner ruling 2026-10-16). | V1 |
-| RIDE-S4 | Unclaimed shortly before pickup (default 15 min) → normal live dispatch; failing that, rider notified early enough to replan. | V1 |
+| RIDE-S4 | Unclaimed shortly before pickup (default 15 min) → normal live dispatch; failing that, rider notified early enough to replan. A rider still on another live ride at that moment → the scheduled ride is cancelled free (reason `rider_busy`), both parties notified, no driver metric; the rider app warns before an on-demand booking within 60 min of a scheduled ride (owner ruling 2026-10-16). | V1 |
 
 **Public shared rides (RIDE-P)**
 
@@ -152,7 +152,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | TRK-02 | From acceptance: rider sees driver's live position, route, continuously refreshed OSRM ETA; driver sees pickup, then route + stops. | V1 |
 | TRK-03 | Full GPS trace stored per ride — source of truth for metered fares, receipt route maps, dispute review. **Retention: forever.** | V1 |
 | TRK-04 | Driver stream silent > 30 s → excluded from new offers until updates resume; mid-ride → "connection lost" indicator both sides. | V1 |
-| CHAT-01 | Per-ride chat thread: open from acceptance until **24 h after completion**, then read-only. An open lost-item case on the ride reopens it until the case closes. | V1 |
+| CHAT-01 | Per-ride chat thread: open from acceptance until **24 h after completion**, then read-only. An open lost-item case on the ride reopens it until the case closes. Shared rides: one private thread per member with the driver, never between members (owner ruling 2026-10-16). | V1 |
 | CHAT-02 | Text + one-tap quick replies (localized EN/AR); push on new message; unread indicators. | V1 |
 | CHAT-03 | Chat history retained; visible to admins with support permission (disputes, lost items). | V1 |
 | CALL-01 | Click-to-dial (ES-05) from ride screen and chat header, both parties, while the chat window is open. | V1 |

@@ -86,7 +86,10 @@ info:
     scheduling time. The estimate uses the surcharge window covering `scheduledAt` (region time
     zone) and NO surge (multiplier 1.0), and is flagged `pricedAtRideTime: true` in every UI. At
     S3/S4 the surge multiplier is the pickup zone's live value at that moment and the estimate is
-    recomputed; the surcharge stays the one of `scheduledAt`'s window.
+    recomputed; the surcharge stays the one of `scheduledAt`'s window. **(ruling 2026-10-16)**
+    The rider app warns before an on-demand booking when one of the rider's scheduled rides is
+    due within the next 60 min ("You have a ride scheduled at 09:00 — keep it?"); a client rule,
+    the backend never blocks the booking.
 
 
     **Scheduled cancellation (UC-R-11).** `POST /rides/{id}/cancel` (rides-v1) accepts
@@ -148,9 +151,11 @@ info:
     `scheduled.converted`) — unless the claiming driver is then offline, holding another active
     ride or suspended: the claim is released by the system and the ride takes S4 **(owner
     2026-10-16)** — a suspension with reason `account_suspended` (no metric event), offline/busy
-    with reason `other`, note `unavailable_at_conversion`, counted like the driver's own release; a rider who holds another active ride at that moment is an
-    OPEN item for the owner (T2 asks before implementing); unclaimed → S4 fallback (rider sees "finding your driver", UC-R-11
-    A1). Overdue rows (the job was down) are processed on the next tick while `scheduledAt` is
+    with reason `other`, note `unavailable_at_conversion`, counted like the driver's own release. A RIDER who holds another live ride at that moment →
+    the scheduled ride is cancelled by the system, free, reason `rider_busy`; rider and claiming
+    driver notified (`scheduled.cancelled_rider_busy`), no metric event for the driver
+    **(ruling 2026-10-16)**. Otherwise unclaimed → S4 fallback (rider sees "finding your
+    driver", UC-R-11 A1). Overdue rows (the job was down) are processed on the next tick while `scheduledAt` is
     still ahead; once `scheduledAt` itself has passed the ride still converts / falls back
     immediately — it is never left in `scheduled`.
 
@@ -221,12 +226,16 @@ info:
     **Shared rides in the other contracts.** A member (any `joined` / `completed` party) is
     "the ride's rider" for the rides-v1 rider reads (`GET /rides/{id}`, `/rides/active`, history,
     receipt — their own share), trust-v1 ratings and reports, money-v1 tips and comms-v1 SOS and
-    trip sharing. Chat (comms-v1) on a shared ride is an OPEN item for the owner (T2 decides
-    with the owner before implementing): the thread model has one rider side today.
+    trip sharing. **Chat (CHAT-01..03, ruling 2026-10-16):** one PRIVATE thread per member with
+    the driver — never between members (public strangers; same privacy rule as above). The
+    thread becomes per ride x rider (migration in T2); each opens from acceptance and follows
+    the CHAT-01 window, lost-item reopening and admin visibility per thread; dial (masked) is per
+    member the same way. The driver app lists the members' threads from the ride.
 
 
     **Notifications.** Category `scheduled` (mutable): `scheduled.claimed`, `scheduled.released`,
-    `scheduled.reminder`, `scheduled.converted` (both parties). Category `ride` (never muted):
+    `scheduled.reminder`, `scheduled.converted` (both parties). Category `ride`:
+    `scheduled.cancelled_rider_busy` (both parties). Category `ride` (never muted):
     `shared.dispatched`, `shared.cancelled` (creator cancel or expiry; params `{rideId,
     reason}`), `shared.member_no_show` (to that member). Occupancy changes go only on the socket:
     `{"type":"shared.occupancy","rideId","seatsTaken","totalSeats","as":"rider"}` to every live
@@ -671,7 +680,7 @@ components:
         The rides-v1 `Ride` (every rides-v1 field, rider or driver view) with, by kind, ONE of
         the extension blocks below; `state` additionally takes `scheduled` / `gathering`,
         `paymentStatus` takes `split` on a completed shared ride, `cancellationReason` takes
-        `shared_expired`. On a shared ride the rider view's money fields (`walletApplied`,
+        `shared_expired` and `rider_busy`. On a shared ride the rider view's money fields (`walletApplied`,
         `cashDue`, `carriedDues`, `tip`, `cancellationFee`) are the CALLER's member values.
       required: [id, state, kind]
       properties:
