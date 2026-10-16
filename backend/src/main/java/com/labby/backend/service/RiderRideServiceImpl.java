@@ -20,6 +20,7 @@ import com.labby.backend.dto.ServiceTypeEstimateDto;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.PickupDistanceMode;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
@@ -34,6 +35,7 @@ import com.labby.backend.repository.FareRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderPreferenceRepository;
+import com.labby.backend.repository.ScheduledRideRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.service.RideAssembler.Audience;
 import com.labby.backend.util.GeoPoints;
@@ -83,6 +85,7 @@ public class RiderRideServiceImpl implements RiderRideService {
   private final RegionRepository regionRepository;
   private final ServiceTypeRepository serviceTypeRepository;
   private final RiderPreferenceRepository riderPreferenceRepository;
+  private final ScheduledRideRepository scheduledRideRepository;
   private final Clock clock;
 
   @Override
@@ -92,8 +95,17 @@ public class RiderRideServiceImpl implements RiderRideService {
     Region region = ridePricing.regionOf(request.pickup());
     ridePricing.checkRoute(region, request.destination(), request.stops());
     RouteDto route = ridePricing.route(request.pickup(), request.stops(), request.destination());
-    BigDecimal surcharge = ridePricing.surchargeNow(region);
-    RidePricing.PickupSurge pickupSurge = ridePricing.surgeAt(region, request.pickup());
+    // M12 (RIDE-S1): a scheduled estimate uses the surcharge of the pickup time and NO surge — the
+    // surge is evaluated at execution ("priced at ride time").
+    boolean scheduled = request.scheduledAt() != null;
+    BigDecimal surcharge =
+        scheduled
+            ? ridePricing.surchargePercentAt(region, request.scheduledAt())
+            : ridePricing.surchargeNow(region);
+    RidePricing.PickupSurge pickupSurge =
+        scheduled
+            ? new RidePricing.PickupSurge(SurgeCalculator.NO_SURGE, null)
+            : ridePricing.surgeAt(region, request.pickup());
     BigDecimal surge = pickupSurge.multiplier();
     List<ServiceTypeEstimateDto> options =
         serviceTypeRepository.findByRegionIdAndEnabledTrueOrderByNameEnAsc(region.getId()).stream()
@@ -123,7 +135,8 @@ public class RiderRideServiceImpl implements RiderRideService {
         mode,
         mode == PickupDistanceMode.ACCEPT_DISTANT_FEE
             ? new PickupFeeRuleDto(region.getPickupFeeThresholdKm(), region.getPickupFeePerKm())
-            : null);
+            : null,
+        scheduled);
   }
 
   @Override
@@ -207,6 +220,18 @@ public class RiderRideServiceImpl implements RiderRideService {
           NotificationEvent.RIDE_CANCELLED_BY_RIDER,
           Map.of("rideId", ride.getId().toString()));
       rideLifecycle.releaseDriver(driverUserId, now);
+    } else if (ride.getKind() == RideKind.SCHEDULED) {
+      // S5 (scheduled-shared-v1): a scheduled ride cancels free; its claiming driver is told.
+      UUID cancelledRideId = ride.getId();
+      scheduledRideRepository
+          .findById(cancelledRideId)
+          .filter(scheduled -> scheduled.isClaimed() && !scheduled.isExecuted())
+          .ifPresent(
+              scheduled ->
+                  rideEvents.push(
+                      scheduled.getClaimedDriverUserId(),
+                      NotificationEvent.RIDE_CANCELLED_BY_RIDER,
+                      Map.of("rideId", cancelledRideId.toString())));
     }
     return rideAssembler.view(ride, Audience.RIDER);
   }
@@ -389,8 +414,8 @@ public class RiderRideServiceImpl implements RiderRideService {
 
   private static void requireRiderCancellable(Ride ride) {
     switch (ride.getState()) {
-      case REQUESTED, OFFERING, ACCEPTED, DRIVER_ARRIVED -> {
-        // Transition 10 is legal from these states.
+      case SCHEDULED, REQUESTED, OFFERING, ACCEPTED, DRIVER_ARRIVED -> {
+        // Transition 10 (and S5 from scheduled, always free) is legal from these states.
       }
       default -> throw RideLifecycle.illegalState(ride);
     }

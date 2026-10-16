@@ -13,8 +13,8 @@ import java.util.List;
 /**
  * Create/replace payload for a region's bundle (UC-A-05/06) — {@code name} is the only mandatory
  * field (draft-friendly); a PUT is a full replace, absent optional fields clear — except {@code
- * timeZone}, {@code driverBalanceFloor} and {@code metricWarnings} (M11), which an omitted/null
- * value keeps.
+ * timeZone}, {@code driverBalanceFloor}, {@code metricWarnings} (M11) and {@code scheduledSettings}
+ * (M12), which an omitted/null value keeps.
  */
 public record RegionUpsertRequestDto(
     @NotBlank @Size(max = 100) String name,
@@ -33,4 +33,5 @@ public record RegionUpsertRequestDto(
     List<@Valid CommissionTierDto> commissionTiers,
     @Valid IncentiveValuesDto incentiveValues,
     @Valid SuspensionThresholdsDto suspensionThresholds,
-    @Valid MetricWarningsDto metricWarnings) {}
+    @Valid MetricWarningsDto metricWarnings,
+    @Valid ScheduledSettingsDto scheduledSettings) {}

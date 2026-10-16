@@ -131,6 +131,13 @@ labby:
     # stream lost/back, ETA refresh). Spring cron; "-" disables.
     dispatch-cron: ${DISPATCH_CRON:* * * * * *}
     monitor-cron: ${RIDE_MONITOR_CRON:*/5 * * * * *}
+  scheduled:
+    # M12 scheduled & shared rides (scheduled-shared-v1.yaml). The clock job: reminders (24 h + 1
+    # h), conversion of claimed rides / fallback to live dispatch at T - lead, shared departure
+    # and expiry. Per-region timing lives on the region (scheduledSettings). Spring cron; "-"
+    # disables.
+    cron: ${SCHEDULED_RIDES_CRON:*/30 * * * * *}
+    batch-size: ${SCHEDULED_RIDES_BATCH_SIZE:200}
   ridesim:
     # Dev driver-simulation harness (M7-T5, dev profile only): the listed seeded drivers go
     # online, stream, accept offers and drive their rides along real routes so the loop runs

@@ -99,6 +99,13 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     // Threads and messages reference each other (read markers), so they truncate together.
     jdbcTemplate.execute("TRUNCATE chat_messages, chat_threads");
     jdbcTemplate.update("DELETE FROM trip_share_links");
+    // M12 scheduled/shared rows reference rides, vehicles and users; the claim-release trail is
+    // append-only by trigger: TRUNCATE like the ledgers.
+    jdbcTemplate.execute("TRUNCATE scheduled_claim_releases");
+    jdbcTemplate.update("DELETE FROM shared_ride_members");
+    jdbcTemplate.update("DELETE FROM shared_rides");
+    jdbcTemplate.update("DELETE FROM scheduled_rides");
+    jdbcTemplate.update("DELETE FROM availability_windows");
     // M7 ride rows reference users, vehicles, regions and service types: they go first.
     jdbcTemplate.update("DELETE FROM fares");
     jdbcTemplate.update("DELETE FROM ride_traces");

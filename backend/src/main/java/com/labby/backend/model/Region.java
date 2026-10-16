@@ -114,6 +114,14 @@ public class Region {
   @Column(name = "metric_warnings")
   private Map<String, Object> metricWarnings;
 
+  /**
+   * RIDE-S timing (M12): {reminderFirstMin, reminderSecondMin, fallbackLeadMin, minLeadMin}; NULL =
+   * the SRS defaults 1440 / 60 / 15 / 30.
+   */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "scheduled_settings")
+  private Map<String, Object> scheduledSettings;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

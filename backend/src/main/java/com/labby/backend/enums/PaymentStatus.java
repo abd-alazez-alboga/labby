@@ -6,14 +6,16 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * Payment of a completed ride (UC-D-09; PAY-02 from M8): {@code paid_wallet} = fare fully covered
  * by the wallet at completion (auto-confirmed), {@code paid_mixed} = wallet drained + cash
- * remainder confirmed by the driver.
+ * remainder confirmed by the driver. {@code split} (M12) = a completed shared ride, paid per
+ * member.
  */
 public enum PaymentStatus {
   PENDING("pending"),
   PAID_CASH("paid_cash"),
   PAID_WALLET("paid_wallet"),
   PAID_MIXED("paid_mixed"),
-  UNPAID("unpaid");
+  UNPAID("unpaid"),
+  SPLIT("split");
 
   private final String value;
 

@@ -55,6 +55,9 @@ class NotificationRendererTest {
       if (TRUST_EVENTS.contains(event)) {
         continue; // M11 trust events: see shouldRenderTrustEvents.
       }
+      if (event.getValue().startsWith("scheduled.")) {
+        continue; // M12 scheduled events: see shouldRenderScheduledEvents.
+      }
       Map<String, Object> params =
           switch (event) {
             case DOCUMENT_EXPIRY_REMINDER -> REMINDER_PARAMS;
@@ -555,6 +558,91 @@ class NotificationRendererTest {
         assertThat(text.toLowerCase(Locale.ROOT)).doesNotContain("verification", "verify");
         assertThat(text).doesNotContain("التحقق").doesNotContainPattern("[\\u0660-\\u0669]");
       }
+    }
+  }
+
+  @Test
+  @DisplayName("M12 scheduled events render bilingual to the right app with the ride deep link")
+  void shouldRenderScheduledEvents() {
+    Map<String, Object> pickup =
+        Map.of(
+            "rideId",
+            "r-1",
+            "driverName",
+            "Sami",
+            "pickupDate",
+            "2026-10-20",
+            "pickupTime",
+            "09:00");
+    Rendered claimed = renderer.render("scheduled.claimed", pickup).orElseThrow();
+    assertThat(claimed.bodyEn()).isEqualTo("Sami will pick you up on 2026-10-20 at 09:00.");
+    assertThat(claimed.category()).isEqualTo(NotificationCategory.SCHEDULED);
+    assertThat(claimed.audience()).isEqualTo(NotificationAudience.RIDER);
+    Rendered released = renderer.render("scheduled.released", pickup).orElseThrow();
+    Rendered riderDay =
+        renderer
+            .render(
+                "scheduled.reminder",
+                Map.of(
+                    "rideId", "r-1", "as", "rider", "minutesBefore", 1440, "pickupTime", "09:00"))
+            .orElseThrow();
+    assertThat(riderDay.bodyEn()).isEqualTo("Your scheduled ride is in 24 hours, at 09:00.");
+    assertThat(riderDay.bodyAr()).contains("24 ساعة", "09:00");
+    Rendered driverHour =
+        renderer
+            .render(
+                "scheduled.reminder",
+                Map.of("rideId", "r-1", "as", "driver", "minutesBefore", 60, "pickupTime", "09:00"))
+            .orElseThrow();
+    assertThat(driverHour.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(driverHour.bodyEn()).contains("in 1 hour", "Be online");
+    assertThat(driverHour.bodyAr()).contains("ساعة");
+    Rendered convertedDriver =
+        renderer
+            .render("scheduled.converted", Map.of("rideId", "r-1", "as", "driver"))
+            .orElseThrow();
+    assertThat(convertedDriver.audience()).isEqualTo(NotificationAudience.DRIVER);
+    Rendered convertedRider =
+        renderer
+            .render("scheduled.converted", Map.of("rideId", "r-1", "as", "rider"))
+            .orElseThrow();
+    Rendered busy =
+        renderer
+            .render("scheduled.cancelled_rider_busy", Map.of("rideId", "r-1", "as", "rider"))
+            .orElseThrow();
+    assertThat(busy.category()).isEqualTo(NotificationCategory.RIDE);
+    Rendered busyDriver =
+        renderer
+            .render("scheduled.cancelled_rider_busy", Map.of("rideId", "r-1", "as", "driver"))
+            .orElseThrow();
+    assertThat(busyDriver.audience()).isEqualTo(NotificationAudience.DRIVER);
+    Rendered noDriver =
+        renderer
+            .render("ride.no_driver_found", Map.of("rideId", "r-1", "scheduled", "true"))
+            .orElseThrow();
+    assertThat(noDriver.titleEn()).isEqualTo("No driver for your scheduled ride");
+    for (Rendered rendered :
+        List.of(
+            claimed,
+            released,
+            riderDay,
+            driverHour,
+            convertedDriver,
+            convertedRider,
+            busy,
+            busyDriver,
+            noDriver)) {
+      assertThat(rendered.linkScreen()).isEqualTo("ride");
+      assertThat(rendered.linkParams()).containsEntry("rideId", "r-1");
+      for (String text :
+          new String[] {
+            rendered.titleEn(), rendered.bodyEn(), rendered.titleAr(), rendered.bodyAr()
+          }) {
+        assertThat(text).isNotBlank().doesNotContain("%s", "null");
+        assertThat(text.toLowerCase(Locale.ROOT)).doesNotContain("verification", "verify");
+        assertThat(text).doesNotContain("التحقق").doesNotContainPattern("[\\u0660-\\u0669]");
+      }
+      assertThat(rendered.titleAr()).containsPattern("[\\u0600-\\u06FF]");
     }
   }
 }

@@ -54,6 +54,8 @@ public abstract class AbstractIntegrationTest {
     // The M11 rating-snapshot and metric-warning jobs run only when tests call their services.
     registry.add("labby.trust.rating-snapshot-cron", () -> "-");
     registry.add("labby.trust.metric-warning-cron", () -> "-");
+    // The M12 scheduled-ride clock job runs only when tests call it on their clock.
+    registry.add("labby.scheduled.cron", () -> "-");
     // Tests never call the public OSRM server: the discard port refuses connections, so routing
     // takes the straight-line fallback unless a test points the URL at its own stub (M6-T3).
     registry.add("labby.routing.osrm-url", () -> "http://127.0.0.1:9");

@@ -16,7 +16,14 @@ public enum CancellationReason {
    * M11 (review ruling 2026-10-16, USR-06): the system cancelled a pre-acceptance request because
    * an admin suspended the rider's whole account. Never chosen by a party.
    */
-  ACCOUNT_SUSPENDED("account_suspended");
+  ACCOUNT_SUSPENDED("account_suspended"),
+  /** M12: the system cancelled a "when full" shared ride left unfilled for 24 h. */
+  SHARED_EXPIRED("shared_expired"),
+  /**
+   * M12 (ruling 2026-10-16): the system cancelled a scheduled ride whose rider was on another live
+   * ride at its conversion/fallback moment.
+   */
+  RIDER_BUSY("rider_busy");
 
   private final String value;
 

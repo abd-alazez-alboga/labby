@@ -93,7 +93,23 @@ public enum NotificationEvent {
    * To the driver when a DRV-07 warning is raised (never a suspension). Params: metric
    * (acceptance|cancellation), valuePercent, thresholdPercent, windowDays.
    */
-  DRIVER_METRIC_WARNING("driver.metric_warning");
+  DRIVER_METRIC_WARNING("driver.metric_warning"),
+  // M12 scheduled-ride events (scheduled-shared-v1.yaml; category scheduled unless noted).
+  /** To the rider when a driver claims. Params: rideId, driverName, pickupDate, pickupTime. */
+  SCHEDULED_CLAIMED("scheduled.claimed"),
+  /**
+   * To the rider when the claiming driver gives it back. Params: rideId, pickupDate, pickupTime.
+   */
+  SCHEDULED_RELEASED("scheduled.released"),
+  /** RIDE-S3 reminder. Params: rideId, as (rider|driver), minutesBefore, pickupDate, pickupTime. */
+  SCHEDULED_REMINDER("scheduled.reminder"),
+  /** To both parties when the claimed ride turned live at T − lead. Params: rideId, as. */
+  SCHEDULED_CONVERTED("scheduled.converted"),
+  /**
+   * Category ride: to both parties when the rider was on another live ride at the conversion /
+   * fallback moment (ruling 2026-10-16). Params: rideId, as.
+   */
+  SCHEDULED_CANCELLED_RIDER_BUSY("scheduled.cancelled_rider_busy");
 
   private final String value;
 

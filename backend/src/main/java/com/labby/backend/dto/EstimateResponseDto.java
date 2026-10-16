@@ -8,7 +8,8 @@ import java.util.UUID;
 /**
  * Estimates of every enabled service type of the pickup region (RIDE-01). The surge multiplier is
  * the pickup zone's current value (PRC-02): {@code surgeActive} when above 1.00, with the zone's
- * name (null without surge) for the UC-R-04 A2 explanation. Booking locks the same value.
+ * name (null without surge) for the UC-R-04 A2 explanation. Booking locks the same value. {@code
+ * pricedAtRideTime} (M12): a scheduled estimate — no surge, evaluated at execution.
  */
 public record EstimateResponseDto(
     UUID regionId,
@@ -20,4 +21,5 @@ public record EstimateResponseDto(
     RouteSummaryDto route,
     List<ServiceTypeEstimateDto> options,
     PickupDistanceMode pickupDistanceMode,
-    PickupFeeRuleDto pickupFeeRule) {}
+    PickupFeeRuleDto pickupFeeRule,
+    boolean pricedAtRideTime) {}

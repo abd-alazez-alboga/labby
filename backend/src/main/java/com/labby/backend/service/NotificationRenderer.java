@@ -246,13 +246,23 @@ public class NotificationRenderer {
               "أُلغيت الرحلة",
               "ألغى الراكب هذه الرحلة.");
       case RIDE_NO_DRIVER_FOUND ->
-          toRider(
-              event,
-              params,
-              "No driver available",
-              "We couldn't find a driver right now. Tap to try again.",
-              "لا يوجد سائق متاح",
-              "لم نجد سائقاً متاحاً حالياً. اضغط لإعادة المحاولة.");
+          "true".equals(text(params.get("scheduled")))
+              // RIDE-S4: the fallback of a scheduled ride failed — early enough to replan.
+              ? toRider(
+                  event,
+                  params,
+                  "No driver for your scheduled ride",
+                  "We couldn't find a driver for your scheduled ride. Please make other plans, or"
+                      + " tap to try again.",
+                  "لا يوجد سائق لرحلتك المجدولة",
+                  "لم نجد سائقاً لرحلتك المجدولة. يُرجى ترتيب بديل، أو اضغط لإعادة المحاولة.")
+              : toRider(
+                  event,
+                  params,
+                  "No driver available",
+                  "We couldn't find a driver right now. Tap to try again.",
+                  "لا يوجد سائق متاح",
+                  "لم نجد سائقاً متاحاً حالياً. اضغط لإعادة المحاولة.");
       case RIDE_WAIT_CHARGE_STARTED ->
           toRider(
               event,
@@ -335,7 +345,162 @@ public class NotificationRenderer {
               "أصبح حسابك في لبي فعّالاً من جديد. السبب: %s".formatted(text(params.get("note"))));
       case REPORT_RESOLVED -> reportResolved(event, params);
       case DRIVER_METRIC_WARNING -> metricWarning(event, params);
+      case SCHEDULED_CLAIMED ->
+          scheduled(
+              event,
+              NotificationAudience.RIDER,
+              params,
+              NotificationCategory.SCHEDULED,
+              "Driver confirmed for your scheduled ride",
+              "%s will pick you up on %s at %s."
+                  .formatted(
+                      text(params.get("driverName")),
+                      text(params.get("pickupDate")),
+                      text(params.get("pickupTime"))),
+              "تم تأكيد سائق لرحلتك المجدولة",
+              "سيقلّك %s يوم %s الساعة %s."
+                  .formatted(
+                      text(params.get("driverName")),
+                      text(params.get("pickupDate")),
+                      text(params.get("pickupTime"))));
+      case SCHEDULED_RELEASED ->
+          scheduled(
+              event,
+              NotificationAudience.RIDER,
+              params,
+              NotificationCategory.SCHEDULED,
+              "Your scheduled ride needs a new driver",
+              ("Your driver can no longer make your ride on %s at %s. It stays open for other"
+                      + " drivers.")
+                  .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))),
+              "رحلتك المجدولة بحاجة إلى سائق جديد",
+              "لم يعد بإمكان سائقك القيام برحلتك يوم %s الساعة %s. ستبقى الرحلة متاحة لسائقين آخرين."
+                  .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))));
+      case SCHEDULED_REMINDER -> scheduledReminder(event, params);
+      case SCHEDULED_CONVERTED ->
+          isDriver(params)
+              ? scheduled(
+                  event,
+                  NotificationAudience.DRIVER,
+                  params,
+                  NotificationCategory.SCHEDULED,
+                  "Your scheduled ride is live",
+                  "Head to the pickup point for your scheduled ride.",
+                  "رحلتك المجدولة بدأت",
+                  "توجّه إلى نقطة الانطلاق لرحلتك المجدولة.")
+              : scheduled(
+                  event,
+                  NotificationAudience.RIDER,
+                  params,
+                  NotificationCategory.SCHEDULED,
+                  "Your driver is on the way",
+                  "Your scheduled ride has started — your driver is heading to your pickup point.",
+                  "سائقك في الطريق",
+                  "بدأت رحلتك المجدولة — سائقك في طريقه إلى نقطة الانطلاق.");
+      case SCHEDULED_CANCELLED_RIDER_BUSY ->
+          isDriver(params)
+              ? scheduled(
+                  event,
+                  NotificationAudience.DRIVER,
+                  params,
+                  NotificationCategory.RIDE,
+                  "Scheduled ride cancelled",
+                  "The rider of your scheduled ride is on another trip, so the ride was cancelled.",
+                  "أُلغيت الرحلة المجدولة",
+                  "راكب رحلتك المجدولة في رحلة أخرى، لذلك أُلغيت الرحلة.")
+              : scheduled(
+                  event,
+                  NotificationAudience.RIDER,
+                  params,
+                  NotificationCategory.RIDE,
+                  "Scheduled ride cancelled",
+                  "You were on another ride when your scheduled ride was due, so we cancelled it."
+                      + " You weren't charged.",
+                  "أُلغيت رحلتك المجدولة",
+                  "كنت في رحلة أخرى عند موعد رحلتك المجدولة، لذلك ألغيناها. لم تُحتسب عليك أي رسوم.");
     };
+  }
+
+  /** RIDE-S3: the 24 h / 1 h reminder, to the rider or the claiming driver (Western digits). */
+  private static Rendered scheduledReminder(NotificationEvent event, Map<String, Object> params) {
+    int minutes = number(params.get("minutesBefore"));
+    String time = text(params.get("pickupTime"));
+    if (isDriver(params)) {
+      return scheduled(
+          event,
+          NotificationAudience.DRIVER,
+          params,
+          NotificationCategory.SCHEDULED,
+          "Upcoming scheduled ride",
+          "You have a pickup in %s, at %s. Be online before then.".formatted(leadEn(minutes), time),
+          "رحلة مجدولة قادمة",
+          "لديك رحلة بعد %s، الساعة %s. كن متصلاً قبل ذلك.".formatted(leadAr(minutes), time));
+    }
+    return scheduled(
+        event,
+        NotificationAudience.RIDER,
+        params,
+        NotificationCategory.SCHEDULED,
+        "Upcoming ride",
+        "Your scheduled ride is in %s, at %s.".formatted(leadEn(minutes), time),
+        "رحلة قادمة",
+        "رحلتك المجدولة بعد %s، الساعة %s.".formatted(leadAr(minutes), time));
+  }
+
+  private static boolean isDriver(Map<String, Object> params) {
+    return "driver".equals(text(params.get("as")));
+  }
+
+  /** A lead like "1 hour", "24 hours", "45 minutes". */
+  private static String leadEn(int minutes) {
+    if (minutes % 60 == 0) {
+      int hours = minutes / 60;
+      return hours == 1 ? "1 hour" : hours + " hours";
+    }
+    return minutes == 1 ? "1 minute" : minutes + " minutes";
+  }
+
+  /** The Arabic lead with its number agreement (Western digits). */
+  private static String leadAr(int minutes) {
+    if (minutes % 60 == 0) {
+      int hours = minutes / 60;
+      if (hours == 1) {
+        return "ساعة";
+      }
+      if (hours == 2) {
+        return "ساعتين";
+      }
+      return hours <= 10 ? hours + " ساعات" : hours + " ساعة";
+    }
+    if (minutes == 1) {
+      return "دقيقة";
+    }
+    if (minutes == 2) {
+      return "دقيقتين";
+    }
+    return minutes <= 10 ? minutes + " دقائق" : minutes + " دقيقة";
+  }
+
+  /** A scheduled-ride notice with the {@code ride} deep link, to either app. */
+  private static Rendered scheduled(
+      NotificationEvent event,
+      NotificationAudience audience,
+      Map<String, Object> params,
+      NotificationCategory category,
+      String titleEn,
+      String bodyEn,
+      String titleAr,
+      String bodyAr) {
+    return new Rendered(
+        category,
+        audience,
+        event.getValue(),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr,
+        SCREEN_RIDE,
+        Map.of("rideId", text(params.get("rideId"))));
   }
 
   /**

@@ -7,6 +7,7 @@ import com.labby.backend.dto.RouteDto;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.enums.PickupDistanceMode;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
@@ -192,10 +193,15 @@ public class RideDispatchServiceImpl implements RideDispatchService {
     ride.setNoDriverFoundAt(now);
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
+    // RIDE-S4: a scheduled ride's fallback failure tells the rider to replan (its own text).
     rideEvents.push(
         ride.getRiderUserId(),
         NotificationEvent.RIDE_NO_DRIVER_FOUND,
-        Map.of("rideId", ride.getId().toString()));
+        Map.of(
+            "rideId",
+            ride.getId().toString(),
+            "scheduled",
+            String.valueOf(ride.getKind() == RideKind.SCHEDULED)));
   }
 
   private static String uuidArray(Set<UUID> ids) {

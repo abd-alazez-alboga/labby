@@ -9,6 +9,7 @@ import com.labby.backend.dto.RegionConfigDto;
 import com.labby.backend.dto.RegionDto;
 import com.labby.backend.dto.RegionSummaryDto;
 import com.labby.backend.dto.RegionUpsertRequestDto;
+import com.labby.backend.dto.ScheduledSettingsDto;
 import com.labby.backend.dto.ServiceTypeDto;
 import com.labby.backend.dto.SuspensionThresholdDto;
 import com.labby.backend.dto.SuspensionThresholdsDto;
@@ -262,12 +263,18 @@ public class RegionServiceImpl implements RegionService {
       region.setMetricWarnings(
           objectMapper.convertValue(request.metricWarnings(), new TypeReference<>() {}));
     }
+    // M12 RIDE-S timing: same keep-on-omit rule; a new region starts NULL (= 1440 / 60 / 15 / 30).
+    if (request.scheduledSettings() != null) {
+      region.setScheduledSettings(
+          objectMapper.convertValue(request.scheduledSettings(), new TypeReference<>() {}));
+    }
     region.setUpdatedBy(actorUserId);
   }
 
   /**
-   * M11 trust config rules the annotations cannot express: a RATE-03 {@code warnAvgRating} must be
-   * above its role's {@code minAvgRating}; DRV-07 {@code windowDays} is 7 or 30.
+   * M11 trust config and M12 timing rules the annotations cannot express: a RATE-03 {@code
+   * warnAvgRating} must be above its role's {@code minAvgRating}; DRV-07 {@code windowDays} is 7 or
+   * 30; the scheduled tiers are ordered (ScheduledRules#ordered).
    */
   private static void requireValidTrustConfig(RegionUpsertRequestDto request) {
     Map<String, String> errors = new LinkedHashMap<>();
@@ -282,6 +289,23 @@ public class RegionServiceImpl implements RegionService {
         && metricWarnings.windowDays() != 7
         && metricWarnings.windowDays() != 30) {
       errors.put("metricWarnings.windowDays", "must be 7 or 30");
+    }
+    ScheduledSettingsDto scheduled = request.scheduledSettings();
+    if (scheduled != null
+        && scheduled.reminderFirstMin() != null
+        && scheduled.reminderSecondMin() != null
+        && scheduled.fallbackLeadMin() != null
+        && scheduled.minLeadMin() != null
+        && !ScheduledRules.ordered(
+            new ScheduledRules.Settings(
+                scheduled.reminderFirstMin(),
+                scheduled.reminderSecondMin(),
+                scheduled.fallbackLeadMin(),
+                scheduled.minLeadMin()))) {
+      errors.put(
+          "scheduledSettings",
+          "must satisfy reminderFirstMin > reminderSecondMin > fallbackLeadMin and minLeadMin >"
+              + " fallbackLeadMin");
     }
     if (!errors.isEmpty()) {
       throw new FieldValidationException(errors);
@@ -399,6 +423,9 @@ public class RegionServiceImpl implements RegionService {
         region.getMetricWarnings() == null
             ? null
             : objectMapper.convertValue(region.getMetricWarnings(), MetricWarningsDto.class),
+        region.getScheduledSettings() == null
+            ? null
+            : objectMapper.convertValue(region.getScheduledSettings(), ScheduledSettingsDto.class),
         serviceTypeRepository.countByRegionId(region.getId()),
         surgeZoneRepository.countByRegionId(region.getId()));
   }
@@ -452,6 +479,7 @@ public class RegionServiceImpl implements RegionService {
     snapshot.put("incentiveValues", region.getIncentiveValues());
     snapshot.put("suspensionThresholds", region.getSuspensionThresholds());
     snapshot.put("metricWarnings", region.getMetricWarnings());
+    snapshot.put("scheduledSettings", region.getScheduledSettings());
     return snapshot;
   }
 }

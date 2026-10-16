@@ -13,8 +13,11 @@ import com.labby.backend.dto.RideDto;
 import com.labby.backend.dto.RideOfferDto;
 import com.labby.backend.dto.RideTimelineDto;
 import com.labby.backend.dto.RiderSummaryDto;
+import com.labby.backend.dto.ScheduledInfoDto;
 import com.labby.backend.dto.VehicleSummaryDto;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
+import com.labby.backend.enums.RideState;
 import com.labby.backend.model.Fare;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
@@ -28,6 +31,7 @@ import com.labby.backend.repository.FareRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderPreferenceRepository;
+import com.labby.backend.repository.ScheduledRideRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.repository.VehicleRepository;
@@ -64,6 +68,7 @@ public class RideAssembler {
   private final RideRepository rideRepository;
   private final DriverLocationRepository driverLocationRepository;
   private final RegionRepository regionRepository;
+  private final ScheduledRideRepository scheduledRideRepository;
   private final OnboardingAssembler onboardingAssembler;
   private final RideMoneyService rideMoneyService;
   private final RatingService ratingService;
@@ -142,7 +147,45 @@ public class RideAssembler {
           case RIDER -> ratingService.myRating(ride, RideParty.RIDER);
           case DRIVER -> ratingService.myRating(ride, RideParty.DRIVER);
           case ADMIN -> null;
-        });
+        },
+        ride.getKind() == RideKind.SCHEDULED ? scheduledInfo(ride, audience) : null);
+  }
+
+  /**
+   * The scheduled extension of a ride (scheduled-shared-v1 ScheduledInfo): claim state, and the
+   * claiming driver for the rider while the ride is not live yet.
+   *
+   * @param ride a ride of kind scheduled
+   * @param audience who looks
+   * @return the block, or null when the extension row is missing
+   */
+  public ScheduledInfoDto scheduledInfo(Ride ride, Audience audience) {
+    return scheduledRideRepository
+        .findById(ride.getId())
+        .map(
+            scheduled -> {
+              String claimState;
+              if (scheduled.getConvertedAt() != null) {
+                claimState = "converted";
+              } else if (scheduled.getFallbackAt() != null) {
+                claimState = "fallen_back";
+              } else if (scheduled.isClaimed()) {
+                claimState = "claimed";
+              } else {
+                claimState = "open";
+              }
+              boolean pending = ride.getState() == RideState.SCHEDULED;
+              return new ScheduledInfoDto(
+                  scheduled.getScheduledAt(),
+                  claimState,
+                  scheduled.getClaimedAt(),
+                  pending,
+                  pending && scheduled.isClaimed() && audience != Audience.DRIVER
+                      ? driverSummary(
+                          scheduled.getClaimedDriverUserId(), scheduled.getClaimedVehicleId())
+                      : null);
+            })
+        .orElse(null);
   }
 
   /**

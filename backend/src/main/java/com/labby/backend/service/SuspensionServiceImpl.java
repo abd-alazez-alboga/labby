@@ -51,6 +51,7 @@ public class SuspensionServiceImpl implements SuspensionService {
   private final NotificationService notificationService;
   private final AuditService auditService;
   private final OperatingCalendar calendar;
+  private final ScheduledRideService scheduledRideService;
 
   @Override
   public boolean suspendForLowRating(UUID userId, RideParty role, TrustRules.RatingRule rule) {
@@ -158,6 +159,9 @@ public class SuspensionServiceImpl implements SuspensionService {
     userRepository.save(user);
     forceOfflineUnlessOnRide(userId, calendar.now());
     cancelPendingRequests(userId, calendar.now());
+    // M12 (approved reading 2026-10-16): scheduled rides as rider are cancelled, claims as driver
+    // released — both by the system, free, no metric event.
+    scheduledRideService.onAccountSuspended(userId, calendar.now());
     auditService.record(
         actorUserId,
         "user.suspend",
@@ -265,6 +269,7 @@ public class SuspensionServiceImpl implements SuspensionService {
     roleAssignmentRepository.save(assignment);
     if (assignment.getRole() == Role.DRIVER) {
       forceOfflineUnlessOnRide(assignment.getUserId(), now);
+      scheduledRideService.releaseClaimsOfSuspendedDriver(assignment.getUserId(), now);
     }
   }
 

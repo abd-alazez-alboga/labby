@@ -29,5 +29,6 @@ public record RegionDto(
     IncentiveValuesDto incentiveValues,
     SuspensionThresholdsDto suspensionThresholds,
     MetricWarningsDto metricWarnings,
+    ScheduledSettingsDto scheduledSettings,
     long serviceTypeCount,
     long surgeZoneCount) {}

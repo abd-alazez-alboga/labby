@@ -3,8 +3,13 @@ package com.labby.backend.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-/** Ride lifecycle (RIDE-02, rides-v1.yaml transition table). */
+/**
+ * Ride lifecycle (RIDE-02, rides-v1.yaml transition table). {@code scheduled} and {@code gathering}
+ * are the M12 pre-live states (scheduled-shared-v1.yaml): no driver, never the rider's active ride.
+ */
 public enum RideState {
+  SCHEDULED("scheduled"),
+  GATHERING("gathering"),
   REQUESTED("requested"),
   OFFERING("offering"),
   ACCEPTED("accepted"),

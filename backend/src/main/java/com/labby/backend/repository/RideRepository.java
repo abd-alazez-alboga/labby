@@ -216,7 +216,9 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
    * rider_no_show} cancellation counts in neither the cancellations nor their base (review B-W6) —,
    * of them that reached {@code driver_arrived}, of those the on-time ones (arrived at most the
    * accepted offer's quoted pickup ETA + 5 min after acceptance), and rides completed in the window
-   * (by {@code completed_at}).
+   * (by {@code completed_at}). M12 (UC-D-12 E1): a released scheduled-ride claim (by {@code
+   * released_at}) counts as one more driver cancellation AND one more base ride, except the
+   * system's {@code account_suspended} releases.
    */
   @Query(
       value =
@@ -225,11 +227,16 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to) AS accepted,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND r.state = 'cancelled_by_driver'
-                             AND r.cancellation_reason <> 'rider_no_show') AS cancelledByDriver,
+                             AND r.cancellation_reason <> 'rider_no_show')
+              + (SELECT COUNT(*) FROM scheduled_claim_releases s
+                 WHERE s.driver_user_id = :driverUserId AND s.reason <> 'account_suspended'
+                   AND s.released_at BETWEEN :from AND :to) AS cancelledByDriver,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND (r.state <> 'cancelled_by_driver'
                                   OR r.cancellation_reason <> 'rider_no_show'))
-              AS cancellationBase,
+              + (SELECT COUNT(*) FROM scheduled_claim_releases s
+                 WHERE s.driver_user_id = :driverUserId AND s.reason <> 'account_suspended'
+                   AND s.released_at BETWEEN :from AND :to) AS cancellationBase,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND r.driver_arrived_at IS NOT NULL) AS arrived,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
@@ -252,7 +259,8 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
       @Param("to") Instant to);
 
   /**
-   * Drivers with any offer or accepted ride since the instant — the DRV-07 job's candidates.
+   * Drivers with any offer, accepted ride or released scheduled claim (M12) since the instant — the
+   * DRV-07 job's candidates.
    *
    * @param since the oldest moment of interest
    * @return the driver ids
@@ -264,6 +272,8 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
           UNION
           SELECT r.driver_user_id FROM rides r
           WHERE r.driver_user_id IS NOT NULL AND r.accepted_at >= :since
+          UNION
+          SELECT s.driver_user_id FROM scheduled_claim_releases s WHERE s.released_at >= :since
           """,
       nativeQuery = true)
   List<UUID> findDriversActiveSince(@Param("since") Instant since);

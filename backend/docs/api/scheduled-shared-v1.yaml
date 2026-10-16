@@ -230,14 +230,24 @@ info:
     the driver — never between members (public strangers; same privacy rule as above). The
     thread becomes per ride x rider (migration in T2); each opens from acceptance and follows
     the CHAT-01 window, lost-item reopening and admin visibility per thread; dial (masked) is per
-    member the same way. The driver app lists the members' threads from the ride.
+    member the same way. The driver app lists the members' threads from the ride. Wire shape
+    (agreed with M12-T4 2026-10-16): the comms-v1 thread endpoints (`GET /rides/{id}/chat`,
+    `GET`/`POST /rides/{id}/chat/messages`, `POST /rides/{id}/chat/read`) and the masked-call
+    counterpart take `?memberId=` from the DRIVER on a shared ride (required there → 400 without
+    it; ignored for riders, whose own thread is implicit); the socket frames `chat.message` /
+    `chat.read` carry `memberId` in both directions for the driver (client → server required on
+    a shared ride; server → driver always set). Members and their ids come from the driver view's
+    `shared.members`; unread counts come from each thread's GET. One-rider rides are unchanged.
 
 
     **Notifications.** Category `scheduled` (mutable): `scheduled.claimed`, `scheduled.released`,
     `scheduled.reminder`, `scheduled.converted` (both parties). Category `ride`:
     `scheduled.cancelled_rider_busy` (both parties). Category `ride` (never muted):
     `shared.dispatched`, `shared.cancelled` (creator cancel or expiry; params `{rideId,
-    reason}`), `shared.member_no_show` (to that member). Occupancy changes go only on the socket:
+    reason}`), `shared.member_no_show` (to that member). Claim changes reach the rider's socket as rides-v1 `ride.updated` with reason
+    `scheduled_claimed` / `scheduled_released`; the fallback failure is the rides-v1
+    `ride.no_driver_found` push with param `scheduled: "true"` (its own replan text). Occupancy
+    changes go only on the socket:
     `{"type":"shared.occupancy","rideId","seatsTaken","totalSeats","as":"rider"}` to every live
     member. Deep link `ride` {rideId} for all of them; the board has none. Templates EN + AR
     (brand لبي); M12 copy goes through the owner's proofread like M10/M11.
@@ -743,14 +753,14 @@ components:
         estimateDurationSeconds: { type: integer }
     ClaimBoardPage:
       type: object
-      required: [items, page, size, total]
+      required: [items, page, size, totalItems]
       properties:
         items:
           type: array
           items: { $ref: '#/components/schemas/ClaimBoardEntry' }
         page: { type: integer }
         size: { type: integer }
-        total: { type: integer }
+        totalItems: { type: integer }
     ClaimReleaseRequest:
       type: object
       required: [reason]
@@ -869,14 +879,14 @@ components:
         cancellationReason: { type: [string, 'null'], description: 'e.g. `shared_expired` (P3 by the clock job)' }
     SharedRidePage:
       type: object
-      required: [items, page, size, total]
+      required: [items, page, size, totalItems]
       properties:
         items:
           type: array
           items: { $ref: '#/components/schemas/SharedRide' }
         page: { type: integer }
         size: { type: integer }
-        total: { type: integer }
+        totalItems: { type: integer }
     SharedOfferInfo:
       type: object
       description: Added to the rides-v1 `RideOffer` of a shared ride (UC-D-13 step 1)
