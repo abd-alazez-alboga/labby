@@ -4,6 +4,8 @@ import com.labby.backend.enums.RideParty;
 import com.labby.backend.model.Rating;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,6 +20,9 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
 
   /** The rating a side gave on a ride (the caller's own {@code myRating}). */
   Optional<Rating> findByRideIdAndRaterRole(UUID rideId, RideParty raterRole);
+
+  /** The ratings a side gave on a page of rides (history {@code myRating}, one query). */
+  List<Rating> findByRideIdInAndRaterRole(Collection<UUID> rideIds, RideParty raterRole);
 
   /**
    * The LIVE lifetime aggregate of one user x role (USR-05, RATE-03, admin views): count and exact

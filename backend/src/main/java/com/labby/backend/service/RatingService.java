@@ -8,6 +8,7 @@ import com.labby.backend.enums.RideParty;
 import com.labby.backend.model.Ride;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -75,6 +76,15 @@ public interface RatingService {
    * @return the state
    */
   MyRatingDto myRating(Ride ride, RideParty side);
+
+  /**
+   * The caller's own rating states for a page of rides (history), with one ratings query.
+   *
+   * @param rides the rides
+   * @param side the caller's side
+   * @return the state per ride id
+   */
+  Map<UUID, MyRatingDto> myRatings(List<Ride> rides, RideParty side);
 
   /**
    * Rewrites every RATE-02 snapshot from the live aggregates (the daily job).

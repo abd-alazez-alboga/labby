@@ -1,10 +1,12 @@
 package com.labby.backend.service;
 
 import com.labby.backend.dto.GeoJsonLineStringDto;
+import com.labby.backend.dto.MyRatingDto;
 import com.labby.backend.dto.RideSummaryDto;
 import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.OfferResponse;
+import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
@@ -15,6 +17,7 @@ import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.User;
 import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.FareRepository;
 import com.labby.backend.repository.RegionRepository;
@@ -27,6 +30,7 @@ import com.labby.backend.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -55,6 +59,7 @@ public class RideLifecycle {
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final DriverProfileRepository driverProfileRepository;
   private final UserRepository userRepository;
+  private final RatingService ratingService;
   private final RideAssembler rideAssembler;
   private final RideEvents rideEvents;
 
@@ -183,19 +188,40 @@ public class RideLifecycle {
   }
 
   /**
-   * History rows for a page of rides (fare totals from the stored fares).
+   * History rows for a page of rides, as one side sees them: fare totals from the stored fares, the
+   * caller's own rating state and the counterpart's first name (M11) — each batched per page.
    *
    * @param rides the page
+   * @param side the caller's side
    * @return the DTO page
    */
-  public RideSummaryPageDto historyPage(Page<Ride> rides) {
+  public RideSummaryPageDto historyPage(Page<Ride> rides, RideParty side) {
     Map<UUID, Fare> fares =
         fareRepository
             .findByRideIdIn(rides.getContent().stream().map(Ride::getId).toList())
             .stream()
             .collect(Collectors.toMap(Fare::getRideId, Function.identity()));
+    Map<UUID, MyRatingDto> ratings = ratingService.myRatings(rides.getContent(), side);
+    Map<UUID, String> names =
+        userRepository
+            .findAllById(
+                rides.getContent().stream()
+                    .map(ride -> counterpartOf(ride, side))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet()))
+            .stream()
+            .collect(
+                Collectors.toMap(User::getId, user -> RideAssembler.firstName(user.getName())));
     return new RideSummaryPageDto(
-        rides.getContent().stream().map(ride -> summary(ride, fares.get(ride.getId()))).toList(),
+        rides.getContent().stream()
+            .map(
+                ride ->
+                    summary(
+                        ride,
+                        fares.get(ride.getId()),
+                        ratings.get(ride.getId()),
+                        names.get(counterpartOf(ride, side))))
+            .toList(),
         rides.getNumber(),
         rides.getSize(),
         rides.getTotalElements());
@@ -216,7 +242,12 @@ public class RideLifecycle {
             .toList());
   }
 
-  private RideSummaryDto summary(Ride ride, Fare fare) {
+  private static UUID counterpartOf(Ride ride, RideParty side) {
+    return side == RideParty.RIDER ? ride.getDriverUserId() : ride.getRiderUserId();
+  }
+
+  private RideSummaryDto summary(
+      Ride ride, Fare fare, MyRatingDto myRating, String counterpartFirstName) {
     ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
     return new RideSummaryDto(
         ride.getId(),
@@ -228,7 +259,9 @@ public class RideLifecycle {
         serviceType.getNameAr(),
         fare == null ? null : fare.getTotal(),
         ride.getCancellationFee(),
-        ride.getCurrency());
+        ride.getCurrency(),
+        myRating,
+        counterpartFirstName);
   }
 
   /**

@@ -1209,13 +1209,35 @@ components:
         total: { type: [number, 'null'], description: Fare total when completed }
         cancellationFee: { type: [number, 'null'] }
         currency: { type: string }
+    PartyRideSummary:
+      description: >
+        A rider / driver history row (`GET /rides`, `GET /driver/rides`): RideSummary plus the
+        caller's side of it (M11, trust-v1.yaml). AdminRideSummary does NOT carry these fields.
+      allOf:
+        - { $ref: '#/components/schemas/RideSummary' }
+        - type: object
+          required: [myRating, counterpartFirstName]
+          properties:
+            myRating:
+              description: The caller's own rating state for the ride — same object as `Ride.myRating`
+              type: object
+              required: [state]
+              properties:
+                state: { type: string, enum: [pending, submitted, expired, not_applicable] }
+                windowEndsAt: { type: [string, 'null'], format: date-time }
+                score: { type: [integer, 'null'] }
+            counterpartFirstName:
+              type: [string, 'null']
+              description: >
+                The driver's first name in the rider's history, the rider's first name in the
+                driver's history; null when the ride never had a driver
     RideSummaryPage:
       type: object
       required: [items, page, size, totalItems]
       properties:
         items:
           type: array
-          items: { $ref: '#/components/schemas/RideSummary' }
+          items: { $ref: '#/components/schemas/PartyRideSummary' }
         page: { type: integer }
         size: { type: integer }
         totalItems: { type: integer }

@@ -212,23 +212,43 @@ public class RatingServiceImpl implements RatingService {
   @Override
   @Transactional(readOnly = true)
   public MyRatingDto myRating(Ride ride, RideParty side) {
+    return toMyRating(
+        ride, ratingRepository.findByRideIdAndRaterRole(ride.getId(), side).orElse(null));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, MyRatingDto> myRatings(List<Ride> rides, RideParty side) {
+    List<UUID> completed =
+        rides.stream()
+            .filter(ride -> ride.getState() == RideState.COMPLETED)
+            .map(Ride::getId)
+            .toList();
+    Map<UUID, Rating> given =
+        completed.isEmpty()
+            ? Map.of()
+            : ratingRepository.findByRideIdInAndRaterRole(completed, side).stream()
+                .collect(Collectors.toMap(Rating::getRideId, Function.identity()));
+    Map<UUID, MyRatingDto> states = new LinkedHashMap<>();
+    for (Ride ride : rides) {
+      states.put(ride.getId(), toMyRating(ride, given.get(ride.getId())));
+    }
+    return states;
+  }
+
+  /** The state of one ride from the caller's rating on it (null = none). */
+  private MyRatingDto toMyRating(Ride ride, Rating rating) {
     if (ride.getState() != RideState.COMPLETED || ride.getCompletedAt() == null) {
       return new MyRatingDto(MyRatingState.NOT_APPLICABLE, null, null);
     }
     Instant windowEndsAt = ride.getCompletedAt().plus(WINDOW);
-    return ratingRepository
-        .findByRideIdAndRaterRole(ride.getId(), side)
-        .map(
-            rating ->
-                new MyRatingDto(MyRatingState.SUBMITTED, windowEndsAt, (int) rating.getScore()))
-        .orElseGet(
-            () ->
-                new MyRatingDto(
-                    clock.instant().isAfter(windowEndsAt)
-                        ? MyRatingState.EXPIRED
-                        : MyRatingState.PENDING,
-                    windowEndsAt,
-                    null));
+    if (rating != null) {
+      return new MyRatingDto(MyRatingState.SUBMITTED, windowEndsAt, (int) rating.getScore());
+    }
+    return new MyRatingDto(
+        clock.instant().isAfter(windowEndsAt) ? MyRatingState.EXPIRED : MyRatingState.PENDING,
+        windowEndsAt,
+        null);
   }
 
   @Override

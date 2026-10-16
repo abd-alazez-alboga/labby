@@ -12,6 +12,7 @@ import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.enums.PaymentStatus;
+import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
 import com.labby.backend.exception.ConflictException;
@@ -164,8 +165,8 @@ public class DriverRideServiceImpl implements DriverRideService {
   public RideSummaryPageDto history(UUID userId, int page, int size) {
     rideAccess.requireDriver(userId);
     return rideLifecycle.historyPage(
-        rideRepository.findByDriverUserIdOrderByRequestedAtDesc(
-            userId, PageRequest.of(page, size)));
+        rideRepository.findByDriverUserIdOrderByRequestedAtDesc(userId, PageRequest.of(page, size)),
+        RideParty.DRIVER);
   }
 
   @Override

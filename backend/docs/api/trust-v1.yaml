@@ -92,7 +92,9 @@ info:
     driver_arrived / in_progress): `GET /rides/active`, `GET /driver/rides/active`; as its rider
     `GET /rides/{id}`, `GET /rides/{id}/cancellation-quote`, `POST /rides/{id}/cancel`,
     `PUT /rides/{id}/route`; as its driver `GET /driver/rides/{id}`,
-    `POST /driver/rides/{id}/arrive|start|complete|cancel` and `POST /driver/locations`; as either
+    `POST /driver/rides/{id}/arrive|start|complete|cancel`, `POST /driver/locations` and
+    `GET /driver/availability` (cold-start resume of the GPS stream; setting availability stays
+    refused); as either
     party its chat (`GET /rides/{id}/chat`, `GET /rides/{id}/chat/messages`,
     `POST /rides/{id}/chat/read`), `GET /chat/quick-replies` and `POST /routing/route`. After
     completion, while the cash payment is `pending`, its driver may still `GET /driver/rides/{id}`

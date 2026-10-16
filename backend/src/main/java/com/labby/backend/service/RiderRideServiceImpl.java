@@ -20,6 +20,7 @@ import com.labby.backend.dto.ServiceTypeEstimateDto;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.PickupDistanceMode;
+import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
 import com.labby.backend.exception.ConflictException;
@@ -153,7 +154,8 @@ public class RiderRideServiceImpl implements RiderRideService {
   public RideSummaryPageDto history(UUID userId, int page, int size) {
     rideAccess.requireRider(userId);
     return rideLifecycle.historyPage(
-        rideRepository.findByRiderUserIdOrderByRequestedAtDesc(userId, PageRequest.of(page, size)));
+        rideRepository.findByRiderUserIdOrderByRequestedAtDesc(userId, PageRequest.of(page, size)),
+        RideParty.RIDER);
   }
 
   @Override

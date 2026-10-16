@@ -389,6 +389,72 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
         .isEqualTo(HttpStatus.BAD_REQUEST);
   }
 
+  @Test
+  @DisplayName(
+      "History pages carry the caller's own myRating and the counterpart's first name; admin"
+          + " summaries do not")
+  void shouldShowMyRatingAndCounterpartInHistory() {
+    Account rider = newRider();
+    Account driver = newDriver();
+    UUID rated = completedRide(rider.userId(), driver.userId(), CLOCK.instant());
+    fixtureRating(rated, rider.userId(), "rider", driver.userId(), "driver", 4);
+    UUID old =
+        completedRide(rider.userId(), driver.userId(), CLOCK.instant().minus(Duration.ofDays(8)));
+    UUID open = completedRide(rider.userId(), driver.userId(), CLOCK.instant());
+    UUID noDriver =
+        ride(
+            rider.userId(),
+            null,
+            "cancelled_by_rider",
+            null,
+            null,
+            null,
+            CLOCK.instant().minusSeconds(30));
+
+    Map<String, JsonNode> riderRows = rows(get("/api/v1/rides?size=20", rider.token()));
+    assertThat(riderRows).hasSize(4);
+    assertRow(riderRows.get(rated.toString()), "submitted", 4, "Driver");
+    assertRow(riderRows.get(old.toString()), "expired", null, "Driver");
+    assertRow(riderRows.get(open.toString()), "pending", null, "Driver");
+    JsonNode cancelled = riderRows.get(noDriver.toString());
+    assertThat(cancelled.get("myRating").get("state").asText()).isEqualTo("not_applicable");
+    assertThat(cancelled.get("myRating").get("windowEndsAt").isNull()).isTrue();
+    assertThat(cancelled.get("counterpartFirstName").isNull()).isTrue();
+
+    // The driver's side: their own (absent) ratings, the rider's first name.
+    Map<String, JsonNode> driverRows = rows(get("/api/v1/driver/rides?size=20", driver.token()));
+    assertThat(driverRows).hasSize(3);
+    assertRow(driverRows.get(rated.toString()), "pending", null, "Rana");
+    assertRow(driverRows.get(old.toString()), "expired", null, "Rana");
+
+    // Admin search rows keep their M7 shape.
+    JsonNode admin = ok(get("/api/v1/admin/rides?size=50", this.admin), HttpStatus.OK);
+    assertThat(admin.get("items")).isNotEmpty();
+    for (JsonNode item : admin.get("items")) {
+      assertThat(item.has("myRating")).isFalse();
+      assertThat(item.has("counterpartFirstName")).isFalse();
+    }
+  }
+
+  private Map<String, JsonNode> rows(ResponseEntity<JsonNode> page) {
+    Map<String, JsonNode> rows = new java.util.HashMap<>();
+    for (JsonNode item : ok(page, HttpStatus.OK).get("items")) {
+      rows.put(item.get("id").asText(), item);
+    }
+    return rows;
+  }
+
+  private static void assertRow(JsonNode row, String state, Integer score, String counterpart) {
+    assertThat(row.get("myRating").get("state").asText()).isEqualTo(state);
+    assertThat(row.get("myRating").get("windowEndsAt").isNull()).isFalse();
+    if (score == null) {
+      assertThat(row.get("myRating").get("score").isNull()).isTrue();
+    } else {
+      assertThat(row.get("myRating").get("score").asInt()).isEqualTo(score);
+    }
+    assertThat(row.get("counterpartFirstName").asText()).isEqualTo(counterpart);
+  }
+
   private JsonNode ownDriverAggregate(Account driver) {
     return ownAggregate(driver, "driver");
   }

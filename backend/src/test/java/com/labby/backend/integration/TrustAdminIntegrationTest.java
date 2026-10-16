@@ -53,6 +53,7 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
         List.of(
             get("/api/v1/driver/rides", driver.token()),
             put("/api/v1/driver/availability", Map.of("online", true), driver.token()),
+            get("/api/v1/driver/availability", driver.token()),
             get("/api/v1/driver/performance", driver.token()),
             get("/api/v1/driver/earnings/summary?period=weekly", driver.token()),
             get("/api/v1/rides", driver.token()),
@@ -130,6 +131,7 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
     ok(get("/api/v1/driver/rides/active", driver.token()), HttpStatus.OK);
     ok(get("/api/v1/driver/rides/" + rideId, driver.token()), HttpStatus.OK);
     ok(get("/api/v1/chat/quick-replies?as=driver", driver.token()), HttpStatus.OK);
+    ok(get("/api/v1/driver/availability", driver.token()), HttpStatus.OK); // cold-start resume
 
     // Everything new is refused.
     for (ResponseEntity<JsonNode> refused :
@@ -138,7 +140,7 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
             post("/api/v1/rides/estimate", booking(List.of()), rider.token()),
             get("/api/v1/wallet", rider.token()),
             get("/api/v1/ratings/pending?as=rider", rider.token()),
-            put("/api/v1/driver/availability", Map.of("online", true), driver.token()),
+            put("/api/v1/driver/availability", Map.of("online", false), driver.token()),
             get("/api/v1/driver/offers/open", driver.token()),
             get("/api/v1/wallet", driver.token()))) {
       assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -164,6 +166,7 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
         List.of(
             driverAction(driver, rideId, "mark-unpaid"),
             get("/api/v1/driver/rides/" + rideId, driver.token()),
+            get("/api/v1/driver/availability", driver.token()),
             post(
                 "/api/v1/driver/locations",
                 Map.of("samples", List.of(sample(PICKUP_LAT, PICKUP_LNG, CLOCK.instant()))),

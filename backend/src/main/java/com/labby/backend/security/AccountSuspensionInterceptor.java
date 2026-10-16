@@ -31,9 +31,10 @@ import org.springframework.web.servlet.HandlerInterceptor;
  *       /rides/{id}}, {@code GET /rides/{id}/cancellation-quote}, {@code POST /rides/{id}/cancel},
  *       {@code PUT /rides/{id}/route};
  *   <li>as the DRIVER of an in-flight ride: {@code GET /driver/rides/{id}}, {@code POST
- *       /driver/rides/{id}/arrive|start|complete|cancel}, and {@code POST /driver/locations} while
- *       driving one; after completion with the cash payment still pending: {@code GET
- *       /driver/rides/{id}}, {@code POST /driver/rides/{id}/cash-confirm|mark-unpaid};
+ *       /driver/rides/{id}/arrive|start|complete|cancel}, and {@code POST /driver/locations} and
+ *       {@code GET /driver/availability} (cold-start resume of the GPS stream) while driving one;
+ *       after completion with the cash payment still pending: {@code GET /driver/rides/{id}},
+ *       {@code POST /driver/rides/{id}/cash-confirm|mark-unpaid};
  *   <li>as either party of an in-flight ride: its chat ({@code GET /rides/{id}/chat}, {@code GET
  *       /rides/{id}/chat/messages}, {@code POST /rides/{id}/chat/read}), and while it has one,
  *       {@code GET /chat/quick-replies} and {@code POST /routing/route}.
@@ -123,7 +124,9 @@ public class AccountSuspensionInterceptor implements HandlerInterceptor {
     if (post && (matcher = DRIVER_PAYMENT.matcher(path)).matches()) {
       return suspensionService.isAwaitingPayment(userId, UUID.fromString(matcher.group(1)));
     }
-    if (post && "/api/v1/driver/locations".equals(path)) {
+    if ((post && "/api/v1/driver/locations".equals(path))
+        || (get && "/api/v1/driver/availability".equals(path))) {
+      // Streaming the ride's GPS, and reading availability on a cold start to resume it.
       return suspensionService.hasActiveRide(userId, RideParty.DRIVER);
     }
     if ((get && "/api/v1/chat/quick-replies".equals(path))
