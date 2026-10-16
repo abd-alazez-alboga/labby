@@ -95,7 +95,7 @@ class TrustMigrationIntegrationTest extends AbstractIntegrationTest {
     // The same side rating the same ride again is refused; the other side still rates.
     assertThatThrownBy(() -> insertRating(ride, rider, "rider", driver, "driver", 4))
         .isInstanceOf(DataIntegrityViolationException.class)
-        .hasMessageContaining("uq_ratings_ride_rater_role");
+        .hasMessageContaining("uq_ratings_ride_rater_rated");
     insertRating(ride, driver, "driver", rider, "rider", 4);
     UUID other = insertCompletedRide();
     for (int score : new int[] {0, 6}) {

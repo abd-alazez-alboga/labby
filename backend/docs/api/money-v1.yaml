@@ -62,12 +62,14 @@ info:
 
 
     **Tips (PAY-04, UC-R-08).** Wallet-only, during the ride (`in_progress`) or ≤ 24 h after
-    `completedAt`; one tip per ride (owner ruling); 100% to the driver, commission-free, outside
+    `completedAt`; one tip per ride (owner ruling; per member on a shared ride, M12); 100% to the driver, commission-free, outside
     the fare total (receipts show it as its own line). Insufficient wallet balance → 409 (cash
     tips happen outside the app). Suggested amounts are a client concern.
 
 
-    **Driver ledger (COM-01/02).** One fare entry per completed ride, netting what the platform
+    **Driver ledger (COM-01/02).** One fare entry per completed ride (M12: per member of a
+    shared ride — the entry carries `sharedRideMemberId`, and the member's share is the fare;
+    scheduled-shared-v1.yaml), netting what the platform
     holds for the driver: `walletApplied − commission` — a fully wallet-paid ride is the
     `ride_earning` credit of fare − commission, a cash ride (walletApplied 0) the
     `commission_due` debit (driver keeps the cash), and a mixed ride lands in between (positive →
@@ -505,6 +507,7 @@ components:
         amount: { type: number, description: Signed }
         type: { $ref: '#/components/schemas/DriverLedgerType' }
         rideId: { type: [string, 'null'], format: uuid }
+        sharedRideMemberId: { type: [string, 'null'], format: uuid, description: 'M12: the shared-ride member this entry is for (null on one-rider rides)' }
         settlementId: { type: [string, 'null'], format: uuid }
         riderDueId: { type: [string, 'null'], format: uuid }
         fareAmount: { type: [number, 'null'] }

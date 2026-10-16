@@ -1,0 +1,877 @@
+openapi: 3.1.0
+info:
+  title: Labby Scheduled & Shared Rides API (M12 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M12: scheduled rides (RIDE-S1..4) with the drivers' claim
+    board and weekly availability windows (DRV-05), and public shared rides (RIDE-P1..5). Use
+    cases UC-R-10..15, UC-D-05, UC-D-11..13. Schema: migration V19. The clients (M12-T3 rider,
+    M12-T4 driver) build against this document; the backend (M12-T2) implements it exactly — on
+    conflict after T2 lands, the implementation is the truth and this file is amended. Both kinds
+    are ordinary rides (rides-v1.yaml): once live they follow its state machine, dispatch,
+    tracking, fare, money (money-v1), ratings/reports (trust-v1) and comms rules unchanged except
+    where this file says otherwise. Owner rulings 2026-10-16 are marked **(ruling)**; plan
+    readings the owner approved with the T1 plan are marked **(approved reading)**.
+
+
+    **New pre-live states (rides-v1 `RideState`).** `scheduled` (kind `scheduled`, waiting for
+    its time, claimed or not) and `gathering` (kind `shared`, collecting members). Neither holds
+    a driver on the ride (a claim lives on the scheduled extension until conversion) and neither
+    counts as the rider's active ride, so a rider may hold upcoming scheduled rides and still
+    book on demand. Additional transitions (the rides-v1 table continues):
+
+
+    | # | From | To | Caused by | Rule |
+
+    |---|---|---|---|---|
+
+    | S1 | (none) | `scheduled` | rider `POST /scheduled-rides` | booking validated (below); estimate stored and flagged `pricedAtRideTime` |
+
+    | S2 | `scheduled` | `scheduled` | driver claim / release | claim state only (not a state change) |
+
+    | S3 | `scheduled` | `accepted` | clock job, claimed ride at T − fallback lead | **conversion (ruling)**: claiming driver + vehicle bound, `acceptedAt` = now, RIDE-07 grace starts; surge locked now, estimate recomputed |
+
+    | S4 | `scheduled` | `requested` | clock job, UNCLAIMED ride at T − fallback lead | **fallback (RIDE-S4)**: surge locked now, estimate recomputed; normal live dispatch (rides-v1 transitions 2..6) |
+
+    | S5 | `scheduled` | `cancelled_by_rider` | rider `POST /rides/{id}/cancel` | always free **(ruling)**; a claiming driver is notified |
+
+    | P1 | (none) | `gathering` | rider `POST /shared-rides` | creator becomes the first member |
+
+    | P2 | `gathering` | `requested` | creator start, last seat taken, or departure time reached | dispatch trigger recorded (`creator` / `full` / `departure_time`); surge locked now, estimate recomputed; capacity-aware live dispatch |
+
+    | P3 | `gathering` | `cancelled_by_rider` | creator `POST /shared-rides/{id}/cancel`, or the clock job (reason `shared_expired`) | free; every member set `left` and notified |
+
+
+    After S3/S4/P2 every rides-v1 transition applies. Concurrency is the rides-v1 rule: every
+    writer — claim, release, join, leave, start, cancel, the clock job — locks the RIDE row
+    first; of two racing requests exactly one wins and the loser gets 409 with the current
+    state.
+
+
+    **Races (M12-T1 AC).**
+
+    | Race | Winner | Loser | Backstop |
+    |---|---|---|---|
+    | two drivers claim the same ride | first to lock the ride | 409 `already_claimed` (UC-D-11 E1: refresh the board) | claim columns are all-or-nothing (`ck_scheduled_rides_claim`) |
+    | claim vs the clock job's fallback/conversion | first to lock | claim after S3/S4 → 409 `claim_closed`; job finds the ride claimed → converts instead of falling back | `ck_scheduled_rides_fallback` (a fallen-back ride holds no claim) |
+    | release vs conversion | first to lock | release after S3 → 409 `illegal_state` (use the rides-v1 driver cancel) | — |
+    | rider cancel vs claim | first to lock | claim on a cancelled ride → 409 `claim_closed`; cancel after a claim simply notifies the driver | — |
+    | two joiners for the last seat(s) | first to lock the ride | 409 `insufficient_seats` with `details.seatsLeft` (UC-R-13 E1) | `ck_shared_rides_seats_taken` — `seats_taken` can never exceed `total_seats` |
+    | join vs dispatch (start / full / departure) | first to lock | join after P2 → 409 `shared_ride_closed` (UC-R-13 E2: refresh) | — |
+    | leave vs dispatch at the same moment | first to lock | leave BEFORE P2 = free, seats freed; leave AFTER P2 = a member cancellation under RIDE-07 (below) — the member's request is judged against the state it finds | — |
+    | creator cancel vs last joiner | first to lock | join after P3 → 409 `shared_ride_closed`; cancel after an auto-full P2 → it is a dispatched ride now: the creator's own leave applies | — |
+
+    The database also guarantees: one creator per shared ride, one live membership per rider per
+    ride (a member who LEFT before dispatch may join again while seats remain), one fare /
+    tip / cancellation-fee driver-ledger entry per ride x member, one due per cancelled ride per
+    rider, one rating per ride per rater → rated pair (V19).
+
+
+    **Region settings.** Timing is per region (`scheduledSettings`, regions-v1; null = SRS §9
+    defaults): `reminderFirstMin` 1440 (24 h), `reminderSecondMin` 60 (1 h), `fallbackLeadMin`
+    15, `minLeadMin` 30 **(ruling: 2× the fallback lead)**. Validation: all positive integers,
+    `reminderFirstMin > reminderSecondMin > fallbackLeadMin` and `minLeadMin > fallbackLeadMin`
+    (400 otherwise). Values are read when the clock job evaluates a ride, so an edit applies to
+    pending rides from the next tick. Platform config (not per region): the "when full" expiry
+    `SHARED_WHEN_FULL_EXPIRY_HOURS` = 24 **(ruling)** and the job cadence
+    `SCHEDULED_RIDES_CRON` (every 30 s; `-` disables, like every other cron).
+
+
+    **Scheduling (RIDE-S1, UC-R-10).** Same inputs and validation as rides-v1 booking (pickup in
+    an active region, ≤ 3 stops, same region, service type enabled, cash or wallet, rider role
+    active) plus `scheduledAt`; there is NO horizon cap (RIDE-S1) and no `expectedSurgeMultiplier`
+    (the surge is evaluated at execution). `scheduledAt` earlier than now + `minLeadMin` → 422
+    `scheduled_too_soon` with `details.minLeadMinutes` — never silently converted to on-demand
+    **(ruling)**; the app offers "book now instead". The active-ride rule does NOT apply at
+    scheduling time. The estimate uses the surcharge window covering `scheduledAt` (region time
+    zone) and NO surge (multiplier 1.0), and is flagged `pricedAtRideTime: true` in every UI. At
+    S3/S4 the surge multiplier is the pickup zone's live value at that moment and the estimate is
+    recomputed; the surcharge stays the one of `scheduledAt`'s window.
+
+
+    **Scheduled cancellation (UC-R-11).** `POST /rides/{id}/cancel` (rides-v1) accepts
+    `scheduled`; it is ALWAYS free there **(ruling: free until the ride is live)** and the
+    cancellation quote says `free: true`. From S3/S4 on, RIDE-07 applies exactly as for an
+    on-demand ride (grace from `acceptedAt`).
+
+
+    **Availability windows (DRV-05, UC-D-05).** The driver replaces the whole weekly set at once.
+    A window = ISO weekday (1 = Monday .. 7 = Sunday) + `startsAt`/`endsAt` (`HH:mm`), read as
+    wall-clock time in the time zone of the RIDE's region (a driver has no region of their own).
+    Start inclusive, end exclusive; `endsAt < startsAt` spans midnight and belongs to the day it
+    starts on; `startsAt = endsAt` covers that whole day — the surcharge-window semantics. A
+    window COVERS a scheduled ride when the ride's `scheduledAt`, converted to the ride region's
+    zone, falls inside it. Windows never gate live offers (the online toggle does, realtime-v1).
+
+
+    **Claim board (RIDE-S2, UC-D-11).** Lists rides in `scheduled`, unclaimed, with
+    `scheduledAt` > now + `fallbackLeadMin`, whose service type is assigned to the caller's
+    ACTIVE vehicle (service types are region-scoped, so this is the "same region + service type"
+    rule) and whose `scheduledAt` is covered by one of the caller's windows. Driver gates:
+    driver role active, application approved, an active approved vehicle; being online is NOT
+    required. Ordered by `scheduledAt`. Entries show the time, the pickup AREA (label + point
+    rounded to 3 decimals, ≈ 100 m), destination, service type, estimate (flagged
+    `pricedAtRideTime`) and payment method; the exact pickup and the rider summary appear once
+    claimed. Claim re-checks every board rule under the ride lock (422 `not_eligible` with
+    `details.rule` = `window` | `service_type` | `driver`); the rider is notified. A driver may
+    hold several claims; overlapping claims are not checked in V1.
+
+
+    **Release (UC-D-12 E1).** Before conversion the claiming driver may release with a reason
+    (`vehicle_issue` | `unsafe_pickup` | `other` + note). The ride returns to the board; if it is
+    still unclaimed at T − `fallbackLeadMin` the normal fallback (S4) takes it into live
+    dispatch. The release is recorded (`scheduled_claim_releases`) and counts in the driver's
+    cancellation metric (DRV-06/07, trust-v1) like a driver cancellation; the rider is notified.
+    A claim of a driver whose role or account an admin suspends is released by the system
+    (reason `account_suspended`, not a metric event). After conversion it is a live ride: the
+    rides-v1 driver cancel applies.
+
+
+    **Reminders (RIDE-S3).** Two tiers per party: T − `reminderFirstMin` and T −
+    `reminderSecondMin`. A tier is sent to the rider if its moment is after the booking, and to
+    the claiming driver if its moment is after the claim — earlier tiers are marked handled
+    without a push. A release clears the driver's marks (the next claimer gets their own). Push
+    category `scheduled` (mutable per NTF-02); event `scheduled.reminder` with params
+    `{rideId, minutesBefore}`.
+
+
+    **Clock job (`ScheduledRideJob`, every 30 s).** Restart-safe by construction: every effect
+    is keyed to a mark on the row and written in ONE transaction per ride together with its
+    outbox notification, the ride row locked `FOR UPDATE SKIP LOCKED` (several instances never
+    double-send, a crash mid-ride rolls the whole step back). Per tick it scans pending rows by
+    time (V19 partial indexes) and, per ride:
+
+    1. **Reminders** due and unmarked → send + mark (only the LATEST due tier is pushed if the
+    job was down across several; the others are marked).
+
+    2. **At T − `fallbackLeadMin`**: claimed → S3 conversion (rider + driver notified,
+    `scheduled.converted`) — unless the claiming driver is then offline, holding another active
+    ride or suspended: the claim is released by the system and the ride takes S4 **(owner
+    2026-10-16)** — a suspension with reason `account_suspended` (no metric event), offline/busy
+    with reason `other`, note `unavailable_at_conversion`, counted like the driver's own release; a rider who holds another active ride at that moment is an
+    OPEN item for the owner (T2 asks before implementing); unclaimed → S4 fallback (rider sees "finding your driver", UC-R-11
+    A1). Overdue rows (the job was down) are processed on the next tick while `scheduledAt` is
+    still ahead; once `scheduledAt` itself has passed the ride still converts / falls back
+    immediately — it is never left in `scheduled`.
+
+    3. **Fallback failure (RIDE-S4, UC-R-11 A2)** is the rides-v1 `no_driver_found` (candidate
+    exhaustion or 10 min give-up — at the latest ≈ T − 5 min with the defaults), pushed with the
+    one-tap retry; the scheduled-specific push text tells the rider to replan.
+
+    4. **Shared departure**: `at_time` rides at `departureAt` → P2 with trigger
+    `departure_time`, with whoever joined **(ruling)**.
+
+    5. **Shared expiry**: `when_full` rides past `expiresAt` (created + 24 h) → P3 reason
+    `shared_expired`, every member notified **(ruling)**.
+
+    Controlled clock: the job reads the injected `Clock` (tests drive it, like every M7+ job).
+
+
+    **Shared rides (RIDE-P1..3, UC-R-12/13).** One pickup, one destination, NO stops; the
+    service type and creator's payment method as in booking. `totalSeats` 2..8 and must not
+    exceed the largest seat count among approved active vehicles assigned that service type
+    (UC-R-12 step 2, 422 `seats_unavailable` with `details.maxSeats`); `partySize` 1..
+    `totalSeats` (UC-R-12 E1, 422 `party_too_large`). Departure: `at_time` with `departAt` in the
+    future (422 `departure_in_past`) or `when_full` (expires after 24 h). A creator whose party
+    fills every seat dispatches at once (trigger `full`). Browse lists `gathering` rides of the
+    region containing the given point, optionally near a destination (`destRadiusM`, default
+    1000) and within a departure range (`when_full` rides always match a range), soonest first.
+    Join is automatic, first-come, with party size and the member's OWN payment method; seats
+    left < party size → 409 `insufficient_seats`; the join that takes the last seat triggers
+    dispatch (`full`). A rider may be a live member of at most ONE gathering or live shared ride
+    and may not join/create while holding a live (rides-v1 active) ride → 409
+    `active_ride_exists`; joining twice → 409 `already_member`. Members see pickup, destination,
+    departure rule, occupancy (seats taken / total) and the per-seat basis (estimate ÷ the
+    seats that will board) — never other members' names or phones.
+
+
+    **Dispatch of a shared ride (RIDE-P3, UC-D-13).** rides-v1 sequential dispatch with one
+    extra eligibility rule: the candidate's active vehicle has `seats` ≥ the ride's seats taken
+    at dispatch **(approved reading)**. The offer carries `shared: {seats, parties}` (UC-D-13
+    step 1). The creator may start alone.
+
+
+    **Members after dispatch (RIDE-P5, UC-D-13 E1).** From P2 until `in_progress` a member's
+    `POST /shared-rides/{id}/leave` is a member cancellation under RIDE-07 — free before
+    acceptance and within the grace, the region's fee after it — recorded on the member, never on
+    the ride. In `driver_arrived`, after the region's wait grace, the driver may mark a member
+    absent (`no_show`): the member owes the region's cancellation fee **(approved reading)** and
+    no share. The ride continues while at least one member is `joined`; when the last one
+    cancels the ride ends `cancelled_by_rider` (offer withdrawn / driver released, no fee on the
+    ride), when the last ones are all no-shows it ends `cancelled_by_driver` reason
+    `rider_no_show` (no re-dispatch). `in_progress` cannot be left (rides-v1 UC-R-09 E1). The
+    creator after dispatch is a member like any other. Route changes (RIDE-05) are refused on
+    shared rides (409 `illegal_state`): one destination.
+
+
+    **Per-seat split (RIDE-P4).** At completion the stored fare total F (fares row, every
+    component included) is divided by the boarded seats B = Σ party sizes of the members still
+    `joined` at completion **(approved reading)**: per-seat P = F ÷ B rounded half-up to 2
+    decimals; member share = P × party size; the rounding remainder F − Σ shares (± a few
+    cents) goes to the creator's share, or — if the creator did not ride — to the earliest-joined
+    member who did **(approved reading)**. Those members become `completed`. Each completed
+    member then pays THEIR share plus THEIR own carried dues exactly as money-v1 applies payment
+    to a ride (wallet first for `wallet`, cash via the driver otherwise; per-member cash confirm /
+    mark-unpaid), gets their OWN receipt, may tip and may rate the driver; the driver may rate
+    each member. The ride's `paymentStatus` is `split`; it reads `paymentConfirmedAt` once every
+    member's payment is resolved. The driver ledger posts the money-v1 entries per member
+    (`sharedRideMemberId` on the entry); commission applies to each share.
+
+
+    **Shared rides in the other contracts.** A member (any `joined` / `completed` party) is
+    "the ride's rider" for the rides-v1 rider reads (`GET /rides/{id}`, `/rides/active`, history,
+    receipt — their own share), trust-v1 ratings and reports, money-v1 tips and comms-v1 SOS and
+    trip sharing. Chat (comms-v1) on a shared ride is an OPEN item for the owner (T2 decides
+    with the owner before implementing): the thread model has one rider side today.
+
+
+    **Notifications.** Category `scheduled` (mutable): `scheduled.claimed`, `scheduled.released`,
+    `scheduled.reminder`, `scheduled.converted` (both parties). Category `ride` (never muted):
+    `shared.dispatched`, `shared.cancelled` (creator cancel or expiry; params `{rideId,
+    reason}`), `shared.member_no_show` (to that member). Occupancy changes go only on the socket:
+    `{"type":"shared.occupancy","rideId","seatsTaken","totalSeats","as":"rider"}` to every live
+    member. Deep link `ride` {rideId} for all of them; the board has none. Templates EN + AR
+    (brand لبي); M12 copy goes through the owner's proofread like M10/M11.
+
+
+    Errors use the global ErrorResponse shape (status, message, code?, details?). A request the
+    ride's state does not allow is 409 `illegal_state` with `details.state`. Rider endpoints need
+    the rider role (403 otherwise; a suspended rider role → 403 `rider_suspended`), driver
+    endpoints an approved driver (403 otherwise). No admin endpoint is added: scheduled and
+    shared rides show in the rides-v1 admin views (`kind`).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: ScheduledRides
+  - name: Availability
+  - name: ClaimBoard
+  - name: SharedRides
+  - name: DriverShared
+
+paths:
+  /api/v1/scheduled-rides:
+    post:
+      tags: [ScheduledRides]
+      summary: Schedule a ride for a future pickup time (UC-R-10, transition S1)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleRideRequest' }
+      responses:
+        '201':
+          description: Scheduled — the rides-v1 `Ride` (state `scheduled`) with its `scheduled` block
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideWithExtensions' }
+        '400': { description: Validation }
+        '403': { description: '`rider_suspended`' }
+        '422': { description: '`scheduled_too_soon` (details.minLeadMinutes) | `outside_region` | `too_many_stops` | `service_type_unavailable`' }
+    get:
+      tags: [ScheduledRides]
+      summary: The rider's upcoming scheduled rides with claim status (UC-R-11)
+      description: Rides of kind `scheduled` still in `scheduled`, soonest first.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Upcoming
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RideWithExtensions' }
+
+  /api/v1/driver/availability-windows:
+    get:
+      tags: [Availability]
+      summary: The driver's weekly availability windows (UC-D-05)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The current set, by weekday then start
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvailabilityWindows' }
+    put:
+      tags: [Availability]
+      summary: Replace the whole weekly set (UC-D-05)
+      description: >
+        An empty list clears it (the board is then empty). Existing claims are NOT affected by
+        a change — windows gate the board and new claims only.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvailabilityWindows' }
+      responses:
+        '200':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvailabilityWindows' }
+        '400': { description: 'Bad weekday / time format, or a duplicate window' }
+
+  /api/v1/driver/claim-board:
+    get:
+      tags: [ClaimBoard]
+      summary: Open scheduled rides the driver may claim (UC-D-11)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Soonest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaimBoardPage' }
+
+  /api/v1/driver/scheduled-rides:
+    get:
+      tags: [ClaimBoard]
+      summary: The driver's claimed, not yet converted rides, soonest first (UC-D-12)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Claims
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RideWithExtensions' }
+
+  /api/v1/driver/scheduled-rides/{rideId}/claim:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [ClaimBoard]
+      summary: Claim a board entry (RIDE-S2, UC-D-11)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Claimed — the driver view with the exact pickup and rider summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideWithExtensions' }
+        '404': { description: Unknown ride or not a scheduled ride }
+        '409': { description: '`already_claimed` | `claim_closed` (cancelled, converted or within the fallback lead)' }
+        '422': { description: '`not_eligible` (details.rule = window | service_type | driver)' }
+
+  /api/v1/driver/scheduled-rides/{rideId}/release:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [ClaimBoard]
+      summary: Give a claim back before conversion (UC-D-12 E1)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaimReleaseRequest' }
+      responses:
+        '204': { description: Released; back on the board; rider notified; metric fed }
+        '400': { description: Unknown reason / `other` without note }
+        '403': { description: Not the claiming driver }
+        '409': { description: '`illegal_state` (already converted — use the rides-v1 driver cancel)' }
+
+  /api/v1/shared-rides:
+    post:
+      tags: [SharedRides]
+      summary: Create a public shared ride (UC-R-12, transition P1)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSharedRideRequest' }
+      responses:
+        '201':
+          description: Published (or dispatched at once when the creator's party fills it)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharedRide' }
+        '400': { description: Validation }
+        '403': { description: '`rider_suspended`' }
+        '409': { description: '`active_ride_exists`' }
+        '422': { description: '`outside_region` | `service_type_unavailable` | `seats_unavailable` (details.maxSeats) | `party_too_large` | `departure_in_past`' }
+    get:
+      tags: [SharedRides]
+      summary: Browse open shared rides (UC-R-13 step 1)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: lat, in: query, required: true, description: A point in the region to browse (usually the rider's position), schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: destLat, in: query, schema: { type: number } }
+        - { name: destLng, in: query, schema: { type: number } }
+        - { name: destRadiusM, in: query, schema: { type: integer, minimum: 100, maximum: 20000, default: 1000 } }
+        - { name: departFrom, in: query, schema: { type: string, format: date-time } }
+        - { name: departTo, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Soonest departure first (`when_full` rides after the timed ones, oldest first)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharedRidePage' }
+        '422': { description: '`outside_region`' }
+
+  /api/v1/shared-rides/{rideId}:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [SharedRides]
+      summary: One shared ride (browse detail, or a member's view)
+      description: >
+        Any rider may read a `gathering` ride; after dispatch only its members. Once dispatched,
+        members follow the live ride through rides-v1 (`GET /rides/{id}`, `/rides/active`).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The ride
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharedRide' }
+        '404': { description: Unknown, or not visible to the caller }
+
+  /api/v1/shared-rides/{rideId}/join:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [SharedRides]
+      summary: Join, first-come (UC-R-13)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JoinSharedRideRequest' }
+      responses:
+        '200':
+          description: Joined (the response shows the dispatch if this join filled the ride)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharedRide' }
+        '403': { description: '`rider_suspended`' }
+        '409': { description: '`insufficient_seats` (details.seatsLeft) | `shared_ride_closed` | `already_member` | `active_ride_exists`' }
+
+  /api/v1/shared-rides/{rideId}/leave-quote:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [SharedRides]
+      summary: What leaving costs right now (free before dispatch; RIDE-07 after)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The rides-v1 CancellationQuote shape, for the caller's membership
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CancellationQuote' }
+        '404': { description: Not a live member }
+
+  /api/v1/shared-rides/{rideId}/leave:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [SharedRides]
+      summary: Leave (UC-R-14) — before dispatch free, after dispatch a member cancellation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaveSharedRideRequest' }
+      responses:
+        '200':
+          description: The caller's updated view (their membership `left` or `cancelled`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharedRide' }
+        '400': { description: 'After dispatch: missing/unknown reason, `other` without note' }
+        '404': { description: Not a live member }
+        '409': { description: '`creator_must_cancel` (creator, before dispatch) | `illegal_state` (`in_progress` or ended)' }
+
+  /api/v1/shared-rides/{rideId}/start:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [SharedRides]
+      summary: Creator starts now (UC-R-15, P2 trigger `creator`)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Dispatching
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharedRide' }
+        '403': { description: Not the creator }
+        '409': { description: '`illegal_state` (already dispatched or cancelled)' }
+
+  /api/v1/shared-rides/{rideId}/cancel:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    post:
+      tags: [SharedRides]
+      summary: Creator cancels the group before dispatch (UC-R-15, P3)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RiderCancelRequest' }
+      responses:
+        '200':
+          description: Cancelled; every member notified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SharedRide' }
+        '403': { description: Not the creator }
+        '409': { description: '`illegal_state` (dispatched — use leave)' }
+
+  /api/v1/driver/rides/{rideId}/members/{memberId}/no-show:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+      - { $ref: '#/components/parameters/MemberId' }
+    post:
+      tags: [DriverShared]
+      summary: Mark a member absent at pickup (UC-D-13 E1)
+      description: >
+        `driver_arrived` only, after the region's wait grace (the rides-v1 `rider_no_show`
+        precondition). The member owes the region's cancellation fee; when no `joined` member is
+        left the ride ends `cancelled_by_driver` / `rider_no_show` (no re-dispatch).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The driver view of the ride
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideWithExtensions' }
+        '403': { description: Not the assigned driver }
+        '404': { description: Unknown member of this ride }
+        '409': { description: '`illegal_state` | `wait_grace_running` (details.waitGraceEndsAt) | member not `joined`' }
+
+  /api/v1/driver/rides/{rideId}/members/{memberId}/cash-confirm:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+      - { $ref: '#/components/parameters/MemberId' }
+    post:
+      tags: [DriverShared]
+      summary: Confirm one member's cash (UC-D-13 step 3; rides-v1 cash-confirm per member)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The driver view of the ride
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideWithExtensions' }
+        '403': { description: Not the assigned driver }
+        '409': { description: '`illegal_state` (member payment not `pending`)' }
+
+  /api/v1/driver/rides/{rideId}/members/{memberId}/mark-unpaid:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+      - { $ref: '#/components/parameters/MemberId' }
+    post:
+      tags: [DriverShared]
+      summary: Mark one member's cash unpaid (rides-v1 mark-unpaid per member)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The driver view of the ride
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RideWithExtensions' }
+        '403': { description: Not the assigned driver }
+        '409': { description: '`illegal_state` (member payment not `pending`)' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    RideId:
+      name: rideId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MemberId:
+      name: memberId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    Place:
+      type: object
+      description: As rides-v1 `Place`
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+        label: { type: [string, 'null'], maxLength: 200 }
+    PaymentMethod:
+      type: string
+      enum: [cash, wallet]
+    ScheduleRideRequest:
+      type: object
+      description: rides-v1 `BookRideRequest` without `expectedSurgeMultiplier`, plus `scheduledAt`
+      required: [pickup, destination, serviceTypeId, paymentMethod, scheduledAt]
+      properties:
+        pickup: { $ref: '#/components/schemas/Place' }
+        destination: { $ref: '#/components/schemas/Place' }
+        stops:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/Place' }
+        serviceTypeId: { type: string, format: uuid }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        scheduledAt: { type: string, format: date-time, description: 'Pickup time; ≥ now + minLeadMin, no upper bound' }
+    ScheduledInfo:
+      type: object
+      description: The scheduled extension, on rides of kind `scheduled` (rider and driver views)
+      required: [scheduledAt, claimState, pricedAtRideTime]
+      properties:
+        scheduledAt: { type: string, format: date-time }
+        claimState: { type: string, enum: [open, claimed, converted, fallen_back] }
+        claimedAt: { type: [string, 'null'], format: date-time }
+        pricedAtRideTime: { type: boolean, description: 'true while `scheduled` — the surge is evaluated at execution (RIDE-S1)' }
+        claimedBy:
+          description: Rider view, once claimed — the rides-v1 `DriverSummary` (name, photo, rating, vehicle)
+          type: [object, 'null']
+    SharedInfo:
+      type: object
+      description: The shared extension, on rides of kind `shared`
+      required: [totalSeats, seatsTaken, departure, isCreator]
+      properties:
+        totalSeats: { type: integer, minimum: 2, maximum: 8 }
+        seatsTaken: { type: integer }
+        departure: { $ref: '#/components/schemas/Departure' }
+        dispatchTrigger: { type: [string, 'null'], enum: [creator, full, departure_time, null] }
+        dispatchedAt: { type: [string, 'null'], format: date-time }
+        isCreator: { type: boolean, description: Rider views only }
+        me:
+          description: Rider views — the caller's membership
+          oneOf:
+            - { $ref: '#/components/schemas/MemberView' }
+            - { type: 'null' }
+        members:
+          type: array
+          description: Driver view only (UC-D-13) — every party; `[]` in rider views
+          items: { $ref: '#/components/schemas/MemberView' }
+        split:
+          description: Set at completion (RIDE-P4)
+          oneOf:
+            - { $ref: '#/components/schemas/SplitSummary' }
+            - { type: 'null' }
+    RideWithExtensions:
+      type: object
+      description: >
+        The rides-v1 `Ride` (every rides-v1 field, rider or driver view) with, by kind, ONE of
+        the extension blocks below; `state` additionally takes `scheduled` / `gathering`,
+        `paymentStatus` takes `split` on a completed shared ride, `cancellationReason` takes
+        `shared_expired`. On a shared ride the rider view's money fields (`walletApplied`,
+        `cashDue`, `carriedDues`, `tip`, `cancellationFee`) are the CALLER's member values.
+      required: [id, state, kind]
+      properties:
+        id: { type: string, format: uuid }
+        state:
+          type: string
+          enum: [scheduled, gathering, requested, offering, accepted, driver_arrived,
+                 in_progress, completed, cancelled_by_rider, cancelled_by_driver,
+                 no_driver_found]
+        kind: { type: string, enum: [on_demand, scheduled, shared] }
+        scheduled:
+          oneOf:
+            - { $ref: '#/components/schemas/ScheduledInfo' }
+            - { type: 'null' }
+        shared:
+          oneOf:
+            - { $ref: '#/components/schemas/SharedInfo' }
+            - { type: 'null' }
+    AvailabilityWindow:
+      type: object
+      required: [dayOfWeek, startsAt, endsAt]
+      properties:
+        dayOfWeek: { type: integer, minimum: 1, maximum: 7, description: 'ISO: 1 = Monday' }
+        startsAt: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: 'HH:mm, ride-region local' }
+        endsAt: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: 'Exclusive; < startsAt spans midnight; = startsAt is the whole day' }
+    AvailabilityWindows:
+      type: object
+      required: [windows]
+      properties:
+        windows:
+          type: array
+          maxItems: 50
+          description: Technical cap of 50 rows (7 days × several ranges)
+          items: { $ref: '#/components/schemas/AvailabilityWindow' }
+    ClaimBoardEntry:
+      type: object
+      required: [rideId, scheduledAt, pickupArea, destination, serviceTypeId, serviceTypeNameEn,
+                 serviceTypeNameAr, estimatedFare, currency, pricedAtRideTime, paymentMethod]
+      properties:
+        rideId: { type: string, format: uuid }
+        scheduledAt: { type: string, format: date-time }
+        pickupArea:
+          type: object
+          description: Label + point rounded to 3 decimals (≈ 100 m); exact after claiming
+          required: [lat, lng]
+          properties:
+            lat: { type: number }
+            lng: { type: number }
+            label: { type: [string, 'null'] }
+        destination: { $ref: '#/components/schemas/Place' }
+        stopsCount: { type: integer }
+        serviceTypeId: { type: string, format: uuid }
+        serviceTypeNameEn: { type: string }
+        serviceTypeNameAr: { type: string }
+        estimatedFare: { type: number, description: 'Estimate without surge (priced at ride time)' }
+        currency: { type: string }
+        pricedAtRideTime: { type: boolean, const: true }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        estimateDistanceMeters: { type: integer }
+        estimateDurationSeconds: { type: integer }
+    ClaimBoardPage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ClaimBoardEntry' }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer }
+    ClaimReleaseRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, enum: [vehicle_issue, unsafe_pickup, other] }
+        note: { type: string, maxLength: 500, description: Required for `other` }
+    Departure:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [at_time, when_full] }
+        departAt: { type: [string, 'null'], format: date-time, description: '`at_time` only' }
+        expiresAt: { type: [string, 'null'], format: date-time, description: '`when_full` only — created + 24 h (read-only)' }
+    CreateSharedRideRequest:
+      type: object
+      required: [pickup, destination, serviceTypeId, paymentMethod, totalSeats, partySize, departure]
+      properties:
+        pickup: { $ref: '#/components/schemas/Place' }
+        destination: { $ref: '#/components/schemas/Place' }
+        serviceTypeId: { type: string, format: uuid }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        totalSeats: { type: integer, minimum: 2, maximum: 8 }
+        partySize: { type: integer, minimum: 1, maximum: 8, description: The creator's own party }
+        departure:
+          type: object
+          required: [mode]
+          properties:
+            mode: { type: string, enum: [at_time, when_full] }
+            departAt: { type: [string, 'null'], format: date-time, description: 'Required for `at_time`, in the future' }
+    JoinSharedRideRequest:
+      type: object
+      required: [partySize, paymentMethod]
+      properties:
+        partySize: { type: integer, minimum: 1, maximum: 8 }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+    LeaveSharedRideRequest:
+      type: object
+      description: Ignored before dispatch; required after it (a member cancellation)
+      properties:
+        reason: { type: string, enum: [changed_mind, driver_too_far, wrong_pickup, other] }
+        note: { type: string, maxLength: 500, description: Required for `other` }
+    RiderCancelRequest:
+      type: object
+      description: As rides-v1 `RiderCancelRequest`
+      required: [reason]
+      properties:
+        reason: { type: string, enum: [changed_mind, other] }
+        note: { type: string, maxLength: 500, description: Required for `other` }
+    CancellationQuote:
+      type: object
+      description: As rides-v1 `CancellationQuote`
+      required: [free]
+      properties:
+        free: { type: boolean }
+        fee: { type: [number, 'null'] }
+        currency: { type: [string, 'null'] }
+        graceEndsAt: { type: [string, 'null'], format: date-time }
+    MemberView:
+      type: object
+      description: >
+        One party. Rider views show only the caller's own (`me`); the driver view lists every
+        party with first name (UC-D-13) — never phones.
+      required: [memberId, partySize, status, paymentMethod, isCreator]
+      properties:
+        memberId: { type: string, format: uuid }
+        firstName: { type: [string, 'null'], description: Driver view only }
+        isCreator: { type: boolean }
+        partySize: { type: integer }
+        status: { type: string, enum: [joined, left, cancelled, no_show, completed] }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        joinedAt: { type: string, format: date-time }
+        cancellationFee: { type: [number, 'null'], description: '`cancelled` after the grace, or `no_show`' }
+        shareAmount: { type: [number, 'null'], description: '`completed` only — this party''s part of the fare' }
+        paymentStatus:
+          type: [string, 'null']
+          enum: [pending, paid_cash, paid_wallet, paid_mixed, unpaid, null]
+        walletApplied: { type: [number, 'null'] }
+        cashDue: { type: [number, 'null'], description: 'Share cash part + this member''s cash carried dues (money-v1)' }
+    SplitSummary:
+      type: object
+      description: RIDE-P4 — how the stored fare was divided
+      required: [fareTotal, currency, boardedSeats, perSeatAmount]
+      properties:
+        fareTotal: { type: number }
+        currency: { type: string }
+        boardedSeats: { type: integer }
+        perSeatAmount: { type: number, description: 'F ÷ B, half-up to 2 dp (before the remainder)' }
+    SharedRide:
+      type: object
+      description: Browse card / detail / member view of a shared ride
+      required: [rideId, state, regionId, pickup, destination, serviceTypeId, serviceTypeNameEn,
+                 serviceTypeNameAr, departure, totalSeats, seatsTaken, seatsLeft, estimateTotal,
+                 currency, pricedAtDispatch]
+      properties:
+        rideId: { type: string, format: uuid }
+        state: { type: string, enum: [gathering, requested, offering, accepted, driver_arrived, in_progress, completed, cancelled_by_rider, cancelled_by_driver, no_driver_found] }
+        regionId: { type: string, format: uuid }
+        pickup: { $ref: '#/components/schemas/Place' }
+        destination: { $ref: '#/components/schemas/Place' }
+        serviceTypeId: { type: string, format: uuid }
+        serviceTypeNameEn: { type: string }
+        serviceTypeNameAr: { type: string }
+        departure: { $ref: '#/components/schemas/Departure' }
+        totalSeats: { type: integer }
+        seatsTaken: { type: integer }
+        seatsLeft: { type: integer }
+        estimateTotal: { type: number, description: 'Whole-ride estimate; per-seat basis = fare ÷ boarded seats (RIDE-P4)' }
+        currency: { type: string }
+        pricedAtDispatch: { type: boolean, description: 'true while `gathering` — surge is locked at dispatch' }
+        creatorFirstName: { type: string }
+        isCreator: { type: boolean }
+        me:
+          oneOf:
+            - { $ref: '#/components/schemas/MemberView' }
+            - { type: 'null' }
+        cancellationReason: { type: [string, 'null'], description: 'e.g. `shared_expired` (P3 by the clock job)' }
+    SharedRidePage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SharedRide' }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer }
+    SharedOfferInfo:
+      type: object
+      description: Added to the rides-v1 `RideOffer` of a shared ride (UC-D-13 step 1)
+      required: [seats, parties]
+      properties:
+        seats: { type: integer, description: Seats taken at dispatch (the vehicle has at least this many) }
+        parties: { type: integer, description: Number of joined members }

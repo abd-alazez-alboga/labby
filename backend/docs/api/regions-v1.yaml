@@ -559,6 +559,17 @@ components:
         maxCancellationPercent: { type: number, minimum: 0, maximum: 100, description: 'Default: 15' }
         windowDays: { type: integer, enum: [7, 30], description: 'Default: 30' }
         minSample: { type: integer, minimum: 1, description: 'Default: 20' }
+    ScheduledSettings:
+      type: object
+      description: >
+        RIDE-S timing (M12, scheduled-shared-v1.yaml; SRS §9). Minutes before the scheduled
+        pickup time. Read by the clock job at evaluation, so an edit applies to pending rides.
+      required: [reminderFirstMin, reminderSecondMin, fallbackLeadMin, minLeadMin]
+      properties:
+        reminderFirstMin: { type: integer, minimum: 1, description: 'Default: 1440 (24 h)' }
+        reminderSecondMin: { type: integer, minimum: 1, description: 'Default: 60 (1 h)' }
+        fallbackLeadMin: { type: integer, minimum: 1, description: 'Default: 15 — fallback to live dispatch AND conversion of claimed rides (owner ruling 2026-10-16)' }
+        minLeadMin: { type: integer, minimum: 1, description: 'Default: 30 — earliest bookable lead (owner ruling 2026-10-16)' }
     RegionSummary:
       type: object
       required: [id, name, state]
@@ -611,6 +622,11 @@ components:
           description: 'DRV-07 (M11); null = the SRS defaults 50 / 15 / 30 days / 20'
           oneOf:
             - { $ref: '#/components/schemas/MetricWarnings' }
+            - { type: 'null' }
+        scheduledSettings:
+          description: 'RIDE-S (M12, scheduled-shared-v1.yaml); null = the SRS defaults 1440 / 60 / 15 / 30'
+          oneOf:
+            - { $ref: '#/components/schemas/ScheduledSettings' }
             - { type: 'null' }
         serviceTypeCount: { type: integer }
         surgeZoneCount: { type: integer }
@@ -666,6 +682,15 @@ components:
             `driverBalanceFloor`); a new region starts unset (= the SRS defaults).
           oneOf:
             - { $ref: '#/components/schemas/MetricWarnings' }
+            - { type: 'null' }
+        scheduledSettings:
+          description: >
+            RIDE-S (M12). Omitted or null → the region KEEPS its stored value (same rule as
+            `metricWarnings`); a new region starts unset (= the SRS defaults). Ordering rule:
+            reminderFirstMin > reminderSecondMin > fallbackLeadMin and minLeadMin >
+            fallbackLeadMin (400 otherwise).
+          oneOf:
+            - { $ref: '#/components/schemas/ScheduledSettings' }
             - { type: 'null' }
     ServiceType:
       type: object

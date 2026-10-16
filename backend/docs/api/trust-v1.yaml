@@ -15,6 +15,9 @@ info:
     until the window closes. A rating is immutable — no edit, no delete (V17 trigger). Errors:
     `rating_window_closed` (409), `rating_already_submitted` (409), `ride_not_completed` (409),
     403 for a non-party. Submitting returns 204 with no body: there is nothing to show back.
+    M12 (V19): uniqueness is one rating per ride per rater → rated pair, so on a shared ride each
+    member rates the driver and the driver may rate each member (scheduled-shared-v1.yaml); on a
+    one-rider ride this is the same "once per side" as before.
 
 
     **Aggregates and privacy (RATE-02, USR-02).** Averages are per role and LIFETIME **(ruling)**.

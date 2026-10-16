@@ -6,8 +6,8 @@ info:
     Contract-first spec for milestone M6. The clients (M6-T4) build against this document; the
     backend (M6-T2 notifications, M6-T3 tracking + routing) must implement it exactly — on
     conflict after T2/T3 land, the implementation is the truth. SRS: NTF-01..03, TRK-01, TRK-04,
-    DRV-05 (online/offline toggle; weekly availability windows arrive with their consumer, the
-    scheduled-ride board, in M12), ES-03, ES-04, NFR-A3, NFR-P3 groundwork; UC-S-11/12/25, UC-D-04.
+    DRV-05 (online/offline toggle; the weekly availability windows arrived with their consumer,
+    the scheduled-ride board, in M12: scheduled-shared-v1.yaml), ES-03, ES-04, NFR-A3, NFR-P3 groundwork; UC-S-11/12/25, UC-D-04.
 
 
     **Notification delivery (NTF-01..03, UC-S-25).** Every notification is queued in

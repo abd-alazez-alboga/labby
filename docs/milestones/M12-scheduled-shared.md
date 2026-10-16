@@ -26,8 +26,8 @@ Schedule flow (date/time picker, "priced at ride time" flag), scheduled list wit
 **AC:** UC-R-10…15 flows + exceptions against mocks; tests green.
 
 ### M12-T4 — Driver app: claim board & shared flow
-Claim board (filtered to availability windows; claim/release); claimed-rides list with reminders; conversion to live flow at pickup time; shared-ride offers labeled with party composition; member list at pickup (mark no-show), per-member collection at completion.
-**AC:** UC-D-11…13 flows + exceptions against mocks; tests green.
+Weekly availability-windows screen (UC-D-05, DRV-05 — owner decision 2026-10-16: lives in this ticket); claim board (filtered to availability windows; claim/release); claimed-rides list with reminders; conversion to live flow at pickup time; shared-ride offers labeled with party composition; member list at pickup (mark no-show), per-member collection at completion.
+**AC:** UC-D-05 + UC-D-11…13 flows + exceptions against mocks; tests green.
 
 ### M12-T5 — Integration
 E2e on harness + controlled clock: schedule → claim → reminders → fulfil; schedule → unclaimed → fallback → live match; shared: create → 2 joiners (one cash, one wallet) → auto-start on full → complete → three correct per-seat receipts; member no-show path.

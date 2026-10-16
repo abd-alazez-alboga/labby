@@ -203,6 +203,13 @@ info:
     until M11) and comfort preferences from the offer on; never phone numbers (dial is M10).
 
 
+    **Scheduled and shared rides (M12).** `scheduled-shared-v1.yaml` adds the pre-live states
+    `scheduled` and `gathering` (they hold no driver and never count as the rider's active ride),
+    their transitions into this state machine (S1..S5, P1..P3), the claim board, the per-member
+    rules of shared rides and the `split` payment status. Everything above applies to them once
+    they are live, except where that file says otherwise.
+
+
     Errors use the global ErrorResponse shape from M1 (status, message, fieldErrors?); ride
     errors add a machine `code` and, where listed, a `details` object (both omitted when not
     set). A request the ride's state does not allow is 409 code `illegal_state` with
@@ -315,7 +322,17 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RouteInput' }
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/RouteInput' }
+                - type: object
+                  properties:
+                    scheduledAt:
+                      type: [string, 'null']
+                      format: date-time
+                      description: >
+                        M12 (RIDE-S1): price a scheduled ride — the surcharge window covering
+                        this time, NO surge (1.0); the response says `pricedAtRideTime: true`
       responses:
         '200':
           description: The route once, and an estimate per service type
@@ -764,16 +781,18 @@ components:
   schemas:
     RideState:
       type: string
-      enum: [requested, offering, accepted, driver_arrived, in_progress, completed,
-             cancelled_by_rider, cancelled_by_driver, no_driver_found]
+      enum: [scheduled, gathering, requested, offering, accepted, driver_arrived, in_progress,
+             completed, cancelled_by_rider, cancelled_by_driver, no_driver_found]
+      description: '`scheduled` / `gathering` — M12 pre-live states (scheduled-shared-v1.yaml)'
     PaymentMethod:
       type: string
       enum: [cash, wallet]
       description: '`wallet` accepted from M8 (payment application rules: money-v1.yaml)'
     PaymentStatus:
       type: [string, 'null']
-      enum: [pending, paid_cash, paid_wallet, paid_mixed, unpaid, null]
+      enum: [pending, paid_cash, paid_wallet, paid_mixed, unpaid, split, null]
       description: >
+        `split` (M12) = a completed shared ride, paid per member (scheduled-shared-v1.yaml).
         null until `completed`. M8 (money-v1.yaml): `paid_wallet` = fare fully covered by the
         wallet at completion AND no carried due owed in cash (auto-confirmed); otherwise
         `pending` until the driver cash-confirms — `paid_mixed` when the wallet paid part of the
@@ -906,6 +925,7 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ServiceTypeEstimate' }
         pickupDistanceMode: { $ref: '#/components/schemas/PickupDistanceMode' }
+        pricedAtRideTime: { type: boolean, description: 'M12: true when `scheduledAt` was sent — surge evaluated at execution' }
         pickupFeeRule:
           type: [object, 'null']
           description: Only for `accept_distant_fee` riders (UC-R-04 A3) — the fee a far driver would add
@@ -993,6 +1013,12 @@ components:
         id: { type: string, format: uuid }
         state: { $ref: '#/components/schemas/RideState' }
         kind: { type: string, enum: [on_demand, scheduled, shared] }
+        scheduled:
+          type: [object, 'null']
+          description: 'M12 — kind `scheduled` only: scheduled-shared-v1 `ScheduledInfo`'
+        shared:
+          type: [object, 'null']
+          description: 'M12 — kind `shared` only: scheduled-shared-v1 `SharedInfo`'
         regionId: { type: string, format: uuid }
         serviceTypeId: { type: string, format: uuid }
         serviceTypeNameEn: { type: string }
@@ -1017,11 +1043,12 @@ components:
         cancellationReason:
           type: [string, 'null']
           enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
-                 unsafe_pickup, other, account_suspended, null]
+                 unsafe_pickup, other, account_suspended, shared_expired, null]
           description: >
             `account_suspended` (M11 review ruling 2026-10-16) = the system cancelled a
             pre-acceptance request because an admin suspended the rider's whole account (no fee);
-            never chosen by a party
+            never chosen by a party. `shared_expired` (M12) = the system cancelled a "when full"
+            shared ride left unfilled for 24 h (no fee)
         cancellationFee: { type: [number, 'null'], description: Recorded fee — collected by the M8 money rails (money-v1.yaml rider dues) }
         fare:
           oneOf:
@@ -1113,6 +1140,9 @@ components:
         surge: { type: boolean, description: Surge flag (multiplier > 1.0) }
         paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         rider: { $ref: '#/components/schemas/RiderSummary' }
+        shared:
+          type: [object, 'null']
+          description: 'M12 — shared rides only: scheduled-shared-v1 `SharedOfferInfo` (seats, parties)'
     CancellationQuote:
       type: object
       required: [free]
@@ -1238,7 +1268,7 @@ components:
             cancellationReason:
               type: [string, 'null']
               enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
-                     unsafe_pickup, other, account_suspended, null]
+                     unsafe_pickup, other, account_suspended, shared_expired, null]
               description: Same as `Ride.cancellationReason`; null when not cancelled
     RideSummaryPage:
       type: object

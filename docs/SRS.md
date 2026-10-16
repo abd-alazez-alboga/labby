@@ -129,19 +129,19 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 
 | ID | Requirement | Ver |
 |---|---|---|
-| RIDE-S1 | Schedule for any future time (**no horizon cap**), same booking options; estimate flagged "priced at ride time" (surge evaluated at execution). | V1 |
+| RIDE-S1 | Schedule for any future time (**no horizon cap**), same booking options; estimate flagged "priced at ride time" (surge evaluated at execution). Earliest bookable lead 30 min — sooner is rejected, never converted to on-demand; cancellation is free until the ride converts to live, then RIDE-07 (owner rulings 2026-10-16). | V1 |
 | RIDE-S2 | **Claim board**: scheduled requests visible to drivers whose availability windows cover the slot (same region + service type); claiming locks driver ↔ ride, notifies rider. | V1 |
-| RIDE-S3 | Reminders to both parties (defaults 24 h + 1 h before); claimed rides convert to live flow at pickup time from `accepted`. | V1 |
+| RIDE-S3 | Reminders to both parties (defaults 24 h + 1 h before); claimed rides convert to live flow from `accepted` at T − the fallback lead (default 15 min, owner ruling 2026-10-16). | V1 |
 | RIDE-S4 | Unclaimed shortly before pickup (default 15 min) → normal live dispatch; failing that, rider notified early enough to replan. | V1 |
 
 **Public shared rides (RIDE-P)**
 
 | ID | Requirement | Ver |
 |---|---|---|
-| RIDE-P1 | A rider creates a shared ride: **one pickup point, one destination**, departure time (or "when full"), total seats, own party size. | V1 |
+| RIDE-P1 | A rider creates a shared ride: **one pickup point, one destination**, departure time (or "when full"), total seats, own party size. A timed ride auto-dispatches at its departure time with whoever joined; a "when full" ride auto-cancels after 24 h unfilled, all notified (owner rulings 2026-10-16). | V1 |
 | RIDE-P2 | Riders browse/search open shared rides (region, destination, time) and join **automatically, first-come**, with party size; join blocked when remaining seats < party size. | V1 |
 | RIDE-P3 | Dispatch triggers **manually by the creator** or **automatically when seats fill**; matching requires sufficient vehicle capacity. | V1 |
-| RIDE-P4 | Final metered fare split **per seat**; each party pays via its own method (cash/wallet); individual receipts; each member may rate the driver. | V1 |
+| RIDE-P4 | Final metered fare split **per seat**; each party pays via its own method (cash/wallet); individual receipts; each member may rate the driver. Split over the seats that boarded (2-dp remainder to the creator, else the earliest boarded member); a no-show member pays the region's no-show fee instead of a share; dispatch needs vehicle seats ≥ seats taken (approved 2026-10-16). | V1 |
 | RIDE-P5 | Members may leave before dispatch (seats freed); creator cancel before dispatch cancels the group (all notified). After dispatch, normal cancellation rules per member. | V1 |
 
 ### 4.5 TRK / CHAT / SHARE / NTF — Tracking & Communication
@@ -261,8 +261,8 @@ Conceptual model (entities → PostgreSQL schema at implementation). **Retention
 ### 5.4 Rides
 - **rides** — rider, driver, vehicle, region, service type, kind (`on_demand/scheduled/shared`), state + per-transition timestamps, pickup/destination/stops, locked surge multiplier, payment method, estimate.
 - **ride_offers** — ride × driver, offered_at, response (`accepted/declined/timeout`) — dispatch trail, feeds metrics.
-- **scheduled_ride_ext** — scheduled time, claim state, claiming driver, reminder/fallback timestamps.
-- **shared_ride_ext** — creator, seats, members + party sizes, dispatch trigger, per-seat shares.
+- **scheduled_ride_ext** (`scheduled_rides` + `scheduled_claim_releases`, V19) — scheduled time, claim state, claiming driver, reminder/fallback timestamps.
+- **shared_ride_ext** (`shared_rides` + `shared_ride_members`, V19) — creator, seats, members + party sizes, dispatch trigger, per-seat shares.
 - **ride_traces** — per-ride GPS points (ts, lat/lng).
 - **driver_locations** — current position + updated_at while online.
 - **fares** — stored component breakdown + total + currency.
@@ -396,7 +396,7 @@ All admin-configurable (mostly per region); these are the values V1 ships with.
 | Pickup-distance fee | > 10 km, 0.50/km |
 | Minimum fare | 1.50 |
 | Surge cycle / thresholds / example steps | 2 min; ≥2→1.2×, ≥3→1.5×, ≥5→2.0×, region cap |
-| Scheduled reminders / fallback | 24 h + 1 h / 15 min before pickup |
+| Scheduled reminders / fallback (= claimed conversion) / earliest booking | 24 h + 1 h / 15 min / 30 min before pickup (per region) |
 | Chat window after completion | 24 h |
 | Driver stale-stream exclusion | 30 s |
 | Auto-suspend rating | driver < 3.0 @ ≥ 20 rides; rider < 2.5 @ ≥ 10 |
