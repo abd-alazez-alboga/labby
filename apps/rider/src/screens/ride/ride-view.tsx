@@ -22,7 +22,7 @@
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -64,7 +64,11 @@ import {
 import { colors, radius, spacing } from "../../theme/tokens";
 import { TipSheet } from "../wallet/tip-sheet";
 import { CancelSheet } from "./cancel-sheet";
-import { markRatingPrompted } from "../../trust/rating-prompts";
+import {
+  markColdStartChecked,
+  markRatingPrompted,
+} from "../../trust/rating-prompts";
+import { useAccountSuspended } from "../../trust/suspension";
 import { ratingRideLine, RatingView } from "../trust/rating-view";
 import { SafetyActionsRow, SosConfirmSheet, SosPill } from "./safety-actions";
 import { type SurgeChange, SurgeChangedSheet } from "./surge-changed-sheet";
@@ -137,9 +141,22 @@ export function RideView({
   const [alreadyTipped, setAlreadyTipped] = useState(false);
   // M11 post-ride rating prompt: answered or skipped in this view.
   const [ratingDone, setRatingDone] = useState(false);
+  const accountSuspended = useAccountSuspended();
   const region = useOptionalRegion();
 
   const driver = ride.driver ?? null;
+  // RATE-01 post-ride prompt — never for a suspended account (refused).
+  const ratingPrompt =
+    ride.state === "completed" &&
+    !!ride.fare &&
+    !!driver &&
+    ride.myRating?.state === "pending" &&
+    !ratingDone &&
+    !accountSuspended;
+  // At most one prompt per launch: this one counts as the cold-start one.
+  useEffect(() => {
+    if (ratingPrompt) markColdStartChecked();
+  }, [ratingPrompt]);
   // PAY-04: one tip per ride — the recorded one or the one just sent.
   const tipAmount = tipSent?.amount ?? ride.tip ?? null;
   const name = serviceName(
@@ -238,13 +255,7 @@ export function RideView({
   // ------------------------------------------- post-ride rating (M11)
   // RATE-01 / UC-S-17: right after completion the skippable rating screen
   // comes first (approved artboard RiderRate: Skip → RiderComplete).
-  if (
-    ride.state === "completed" &&
-    ride.fare &&
-    driver &&
-    ride.myRating?.state === "pending" &&
-    !ratingDone
-  ) {
+  if (ratingPrompt && driver && ride.myRating) {
     return (
       <RatingView
         rideId={ride.id}
@@ -749,11 +760,18 @@ export function RideView({
       <BottomSheet testID="ride-ended">
         <IconWell name="close" />
         <View style={styles.titleBlock}>
-          <AppText variant="title">
-            {ride.state === "cancelled_by_driver"
-              ? t("ride.cancelledByDriverTitle")
-              : t("ride.cancelledByRiderTitle")}
+          <AppText variant="title" testID="ride-ended-title">
+            {ride.cancellationReason === "account_suspended"
+              ? t("suspended.rideCancelledTitle")
+              : ride.state === "cancelled_by_driver"
+                ? t("ride.cancelledByDriverTitle")
+                : t("ride.cancelledByRiderTitle")}
           </AppText>
+          {ride.cancellationReason === "account_suspended" ? (
+            <AppText variant="body" tone="secondary" testID="ride-ended-suspended">
+              {t("suspended.rideCancelledBody")}
+            </AppText>
+          ) : null}
           {ride.cancellationReason === "rider_no_show" ? (
             <AppText variant="body" tone="secondary">
               {t("ride.noShowBody")}

@@ -24,8 +24,26 @@ import {
   seedSession,
 } from "../test-utils/contract";
 import type { MockResponse } from "../test-utils/contract";
-import { inProgressRide } from "../test-utils/rides";
-import { coded, ok, PERFORMANCE, performanceFixture } from "../test-utils/trust";
+import { inProgressRide, RIDE_ID } from "../test-utils/rides";
+import { todayIso } from "../onboarding/dates";
+import {
+  EARNINGS,
+  earningPage,
+  summaryFixture,
+  summaryRoute,
+  tripEarningFixture,
+} from "../test-utils/money";
+import {
+  coded,
+  MY_REPORTS,
+  ok,
+  PENDING,
+  pendingFixture,
+  PERFORMANCE,
+  performanceFixture,
+  RATE,
+  reportFixture,
+} from "../test-utils/trust";
 
 // A dev/production build (not Expo Go) so foreground pushes are delivered.
 jest.mock("expo", () => ({
@@ -77,7 +95,7 @@ describe("suspended states (USR-04..06)", () => {
     const contract = await openApp(suspendedDriver({ suspensionReason: "low_rating" }), {
       [PERFORMANCE]: ok(
         performanceFixture({
-          rating: { role: "driver", average: 2.94, ratingCount: 23, snapshotAt: null },
+          rating: { role: "driver", average: 2.94, snapshotAt: null },
         }),
       ),
     });
@@ -89,7 +107,7 @@ describe("suspended states (USR-04..06)", () => {
       "You can't go online or receive offers. Your earnings and balance are unchanged.",
     );
     expect(await screen.findByTestId("gate-reason-text")).toHaveTextContent(
-      "Your average rating fell below 3.0 after 20 or more rated rides (2.94 from 23 ratings).",
+      "Your average rating fell below 3.0 after 20 or more rated rides (your average: 2.94).",
     );
     expect(screen.getByTestId("gate-reason")).toHaveTextContent("Reason", { exact: false });
     expect(screen.getByTestId("gate-riding-text")).toHaveTextContent(
@@ -105,6 +123,72 @@ describe("suspended states (USR-04..06)", () => {
     fireEvent.press(screen.getByTestId("gate-view-money"));
     expect(await screen.findByTestId("earnings-screen")).toBeTruthy();
     expect(contract.requestsTo(PERFORMANCE)).toHaveLength(1);
+  });
+
+  it("low_rating without a snapshot average: the rule only, no suffix", async () => {
+    await openApp(suspendedDriver({ suspensionReason: "low_rating" }), {
+      [PERFORMANCE]: ok(
+        performanceFixture({ rating: { role: "driver", average: null, snapshotAt: null } }),
+      ),
+    });
+    expect(await screen.findByTestId("gate-reason-text")).toHaveTextContent(
+      "Your average rating fell below 3.0 after 20 or more rated rides.",
+    );
+  });
+
+  it("role suspension keeps \"Your reports\" reachable (D-W1)", async () => {
+    await openApp(suspendedDriver({ suspensionReason: "low_rating" }), {
+      [PERFORMANCE]: { status: 500, body: {} },
+      [MY_REPORTS]: ok({
+        items: [reportFixture({ id: "r1", status: "substantiated", resolvedAt: "2026-10-15T10:00:00Z" })],
+        page: 0,
+        size: 20,
+        totalElements: 1,
+      }),
+    });
+    fireEvent.press(await screen.findByTestId("gate-reports"));
+    expect(await screen.findByTestId("report-status-r1")).toHaveTextContent("Action taken");
+  });
+
+  it("role suspension keeps rating: the prompt shows on the gate (\"Submit rating\", no going online)", async () => {
+    const contract = await openApp(suspendedDriver({ suspensionReason: "manual", suspensionNote: "n" }), {
+      [PENDING]: ok([pendingFixture()]),
+      [RATE]: { status: 204 },
+    });
+    expect(await screen.findByTestId("rate-rider-screen")).toBeTruthy();
+    expect(screen.getByTestId("rate-submit")).toHaveTextContent("Submit rating");
+    fireEvent.press(screen.getByTestId("rate-star-4"));
+    fireEvent.press(screen.getByTestId("rate-submit"));
+
+    expect(await screen.findByTestId("gate-title")).toHaveTextContent(
+      "Your driver account is suspended",
+    );
+    expect(contract.requestsTo(RATE)[0].body).toEqual({ score: 4, comment: null });
+    expect(contract.requestsTo("PUT /api/v1/driver/availability")).toHaveLength(0);
+  });
+
+  it("role suspension keeps the Trips rating chip (skip → earnings → chip)", async () => {
+    await openApp(suspendedDriver({ suspensionReason: "manual", suspensionNote: "n" }), {
+      [PENDING]: ok([pendingFixture()]),
+      [summaryRoute("weekly", todayIso())]: ok(summaryFixture()),
+      [EARNINGS]: ok(earningPage([tripEarningFixture()])),
+    });
+    fireEvent.press(await screen.findByTestId("rate-skip"));
+    fireEvent.press(await screen.findByTestId("gate-view-money"));
+    expect(await screen.findByTestId(`trip-rate-${RIDE_ID}`)).toHaveTextContent(
+      "Rate Rana",
+      { exact: false },
+    );
+  });
+
+  it("whole-account suspension: no rating prompt at all", async () => {
+    const contract = await openApp(driverUser({ state: "suspended", suspensionNote: "n" }), {
+      [PENDING]: ok([pendingFixture()]),
+    });
+    expect(await screen.findByTestId("gate-title")).toHaveTextContent("Your account is suspended");
+    expect(screen.queryByTestId("rate-rider-screen")).toBeNull();
+    expect(screen.queryByTestId("gate-reports")).toBeNull();
+    expect(contract.requestsTo(PENDING)).toHaveLength(0);
   });
 
   it("low_rating without a readable rule falls back to a generic reason", async () => {
@@ -153,6 +237,8 @@ describe("suspended states (USR-04..06)", () => {
     );
     expect(screen.getByTestId("gate-renew")).toBeTruthy();
     expect(screen.queryByTestId("gate-view-money")).toBeNull();
+    // D-W1: reporting stays allowed on a role suspension.
+    expect(screen.getByTestId("gate-reports")).toBeTruthy();
   });
 
   it("whole-account suspension: the note, no earnings link, no riding card", async () => {

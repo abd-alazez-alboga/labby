@@ -41,10 +41,6 @@ export async function markRatingPrompted(rideId: string): Promise<void> {
   }
 }
 
-export async function wasRatingPrompted(rideId: string): Promise<boolean> {
-  return (await readPrompted()).includes(rideId);
-}
-
 /** The newest pending ride never prompted on this device, or null. */
 export async function nextRatingPrompt(): Promise<string | null> {
   try {
@@ -60,6 +56,14 @@ export async function nextRatingPrompt(): Promise<string | null> {
 /** Once per app process: the cold-start check. */
 let checkedThisLaunch = false;
 
+/**
+ * The launch already showed a rating prompt (the post-ride one): the
+ * cold-start check must not open a second one (at most one per launch).
+ */
+export function markColdStartChecked(): void {
+  checkedThisLaunch = true;
+}
+
 /** Test hook: forget the once-per-launch flag. */
 export function resetRatingPromptCheck(): void {
   checkedThisLaunch = false;
@@ -68,7 +72,7 @@ export function resetRatingPromptCheck(): void {
 /**
  * On the first home mount of a launch, opens the rating screen for the
  * newest unprompted pending ride. `enabled` is false while a ride is on
- * screen or the rider is suspended.
+ * screen or the whole account is suspended.
  */
 export function useColdStartRatingPrompt(enabled: boolean): void {
   const router = useRouter();

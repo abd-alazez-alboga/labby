@@ -9,6 +9,7 @@ import { fireEvent, waitFor } from "@testing-library/react-native";
 import { screen } from "expo-router/testing-library";
 
 import { clearSession } from "../auth/session";
+import { driverUser } from "../test-utils/contract";
 import { initI18n, setAppLanguage } from "../i18n";
 import { mockLibraryPick } from "../test-utils/onboarding";
 import { inProgressRide, RIDE_ID } from "../test-utils/rides";
@@ -203,6 +204,33 @@ describe("reporting the rider (UC-S-18)", () => {
     expect(await screen.findByTestId("report-error-already")).toHaveTextContent(
       "You've already reported this trip — you'll find it under Your reports.",
     );
+    expect(screen.getByTestId("report-send").props.accessibilityState.disabled).toBe(true);
+  });
+
+  it("403 account_suspended on upload and on send: final notice, Send stays disabled (D-W2)", async () => {
+    await renderTrustApp(
+      {
+        [REPORT_FILES]: coded(403, "account_suspended"),
+        [REPORT]: coded(403, "account_suspended"),
+        "GET /api/v1/users/me": ok(driverUser()),
+      },
+      { initialUrl: reportPath },
+    );
+    await screen.findByTestId("report-rider-screen");
+    mockLibraryPick();
+    fireEvent.press(screen.getByTestId("report-add-photo"));
+    expect(await screen.findByTestId("report-photo-error")).toHaveTextContent(
+      "Your account is suspended, so this isn't available.",
+    );
+
+    fireEvent.press(screen.getByTestId("report-category-other"));
+    fireEvent.press(screen.getByTestId("report-send"));
+    expect(await screen.findByTestId("report-error-accountSuspended")).toHaveTextContent(
+      "Your account is suspended, so this isn't available.",
+    );
+    expect(screen.getByTestId("report-send").props.accessibilityState.disabled).toBe(true);
+    // Picking another category does not re-enable a refused report.
+    fireEvent.press(screen.getByTestId("report-category-unsafe_behavior"));
     expect(screen.getByTestId("report-send").props.accessibilityState.disabled).toBe(true);
   });
 

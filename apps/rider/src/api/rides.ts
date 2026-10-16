@@ -201,7 +201,12 @@ export type CancellationReason =
   | "rider_no_show"
   | "vehicle_issue"
   | "unsafe_pickup"
-  | "other";
+  | "other"
+  /**
+   * M11: a searching ride the system cancelled because the whole account
+   * was suspended (state `cancelled_by_rider`, no fee).
+   */
+  | "account_suspended";
 
 export interface FinalFare {
   distanceMeters: number;
@@ -299,6 +304,12 @@ export interface RideSummary {
   myRating?: MyRating | null;
   /** M11: the driver's first name (null when no driver was assigned). */
   counterpartFirstName?: string | null;
+  /**
+   * Why the ride was cancelled — read only for M11's `account_suspended`
+   * (rendered instead of "Cancelled by you"); absent until the history
+   * contract carries it.
+   */
+  cancellationReason?: CancellationReason | null;
 }
 
 export interface RideSummaryPage {

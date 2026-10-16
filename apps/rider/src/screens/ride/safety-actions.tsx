@@ -52,6 +52,7 @@ import { useLocale } from "../../i18n/locale-context";
 import { UnreadBadge } from "../../notifications/unread-badge";
 import { useOptionalRegion } from "../../region/region-context";
 import { colors, radius, spacing, touchTarget } from "../../theme/tokens";
+import { useAccountSuspended } from "../../trust/suspension";
 
 /** Owner-approved functional safety red (RiderSafetyActions / RiderSosConfirm). */
 export const SAFETY_RED = "#D92D20";
@@ -181,6 +182,8 @@ export function SafetyActionsRow({ ride }: { ride: Ride }) {
   const chat = useOptionalChat();
   const [notice, setNotice] = useState<string | null>(null);
   const sharing = useRef(false);
+  // Reports are refused for a suspended account (M11): no Report link.
+  const accountSuspended = useAccountSuspended();
 
   const thread = chat?.thread?.rideId === ride.id ? chat.thread : null;
   const phone = thread?.counterpart.phone ?? null;
@@ -262,7 +265,7 @@ export function SafetyActionsRow({ ride }: { ride: Ride }) {
       {notice ? (
         <Banner tone="neutral" message={notice} testID="safety-share-notice" />
       ) : null}
-      {ride.driver ? (
+      {ride.driver && !accountSuspended ? (
         <TextButton
           label={t("report.title", { name: ride.driver.firstName })}
           onPress={() =>

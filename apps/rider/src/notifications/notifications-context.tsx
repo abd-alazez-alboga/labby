@@ -15,7 +15,9 @@
  *   cold-started the app, which waits until the signed-in stack is mounted
  *   (navigation-settled.ts) so the deep link is not dropped;
  * - foreground presentation: banners for every push, except a chat push for
- *   the chat screen that is open on that same ride (open-chat.ts).
+ *   the chat screen that is open on that same ride (open-chat.ts);
+ * - M11: an account-state push (suspended / reactivated, received or
+ *   tapped) re-reads the profile so the suspended screen follows it.
  */
 import type * as ExpoNotifications from "expo-notifications";
 import { useNavigationContainerRef, useRouter } from "expo-router";
@@ -31,6 +33,7 @@ import React, {
 import { AppState } from "react-native";
 
 import { getUnreadCount, markNotificationRead } from "../api/notifications";
+import { ACCOUNT_STATE_EVENTS, useOptionalAuth } from "../auth/auth-context";
 import { openChatRideId } from "../chat/open-chat";
 import { notifications } from "./notifications-module";
 import { parsePushPayload, resolveDeepLink } from "./deep-links";
@@ -127,6 +130,21 @@ export function NotificationsProvider({
   const navigationRef = useNavigationContainerRef();
   const [unread, setUnreadState] = useState<number | null>(null);
   const mounted = useRef(true);
+  const auth = useOptionalAuth();
+  const refreshProfile = auth?.refreshProfile;
+
+  // M11: an account-state push re-reads the profile (suspended screen).
+  const followAccountState = useCallback(
+    (data: Record<string, unknown>) => {
+      if (
+        typeof data.event === "string" &&
+        ACCOUNT_STATE_EVENTS.includes(data.event)
+      ) {
+        void refreshProfile?.();
+      }
+    },
+    [refreshProfile],
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -204,7 +222,9 @@ export function NotificationsProvider({
       const id = response.notification.request.identifier;
       if (handledResponses.has(id)) return;
       handledResponses.add(id);
-      const { notificationId, link } = parsePushPayload(responseData(response));
+      const data = responseData(response);
+      followAccountState(data);
+      const { notificationId, link } = parsePushPayload(data);
       if (notificationId) {
         markNotificationRead(notificationId)
           .catch(() => {})
@@ -217,7 +237,7 @@ export function NotificationsProvider({
         router.push(href);
       });
     },
-    [navigationRef, refreshUnread, router],
+    [navigationRef, refreshUnread, router, followAccountState],
   );
 
   // Taps on pushes (warm) and the tap that launched the app (cold).
@@ -246,14 +266,17 @@ export function NotificationsProvider({
   useEffect(() => {
     let subscription: { remove: () => void } | null = null;
     try {
-      subscription = notifications().addNotificationReceivedListener(() =>
-        refreshUnread(),
+      subscription = notifications().addNotificationReceivedListener(
+        (notification) => {
+          refreshUnread();
+          followAccountState(notificationData(notification));
+        },
       );
     } catch {
       // unsupported runtime
     }
     return () => subscription?.remove();
-  }, [refreshUnread]);
+  }, [refreshUnread, followAccountState]);
 
   const value = useMemo<NotificationsContextValue>(
     () => ({ unread, setUnread, refreshUnread }),

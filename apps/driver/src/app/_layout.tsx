@@ -94,19 +94,6 @@ function AppStack() {
         />
         {/* Per-ride chat (M10, UC-S-13/14). */}
         <Stack.Screen name="chat" options={{ title: t("chat.title") }} />
-        {/* Rate / report the rider and the driver's reports (M11, UC-S-17/18). */}
-        <Stack.Screen
-          name="rate-rider"
-          options={{ title: t("trust.rate.submit") }}
-        />
-        <Stack.Screen
-          name="report-rider"
-          options={{ title: t("trust.report.send") }}
-        />
-        <Stack.Screen
-          name="reports"
-          options={{ title: t("trust.reports.title") }}
-        />
       </Stack.Protected>
 
       {/* The driver gate: signed in, but no active driver role (M2-T4). */}
@@ -126,8 +113,9 @@ function AppStack() {
         />
       </Stack.Protected>
 
-      {/* Earnings & balance (M8, UC-D-15/16) and performance (M11, UC-D-20)
-          — active drivers AND a suspended driver role. Declared after the
+      {/* Earnings & balance (M8, UC-D-15/16), performance (M11, UC-D-20)
+          and rating / reporting (M11) — active drivers AND a suspended
+          driver role. Declared after the
           gate so a suspended driver lands on the gate, not here. */}
       <Stack.Protected guard={signedIn && driverTools}>
         <Stack.Screen
@@ -141,6 +129,21 @@ function AppStack() {
         <Stack.Screen
           name="performance"
           options={{ title: t("trust.performance.title") }}
+        />
+        {/* Rate / report the rider and the driver's reports (M11,
+            UC-S-17/18) — the backend allows them on a ROLE suspension;
+            only a whole-account suspension refuses them. */}
+        <Stack.Screen
+          name="rate-rider"
+          options={{ title: t("trust.rate.submit") }}
+        />
+        <Stack.Screen
+          name="report-rider"
+          options={{ title: t("trust.report.send") }}
+        />
+        <Stack.Screen
+          name="reports"
+          options={{ title: t("trust.reports.title") }}
         />
       </Stack.Protected>
 

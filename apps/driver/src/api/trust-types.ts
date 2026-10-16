@@ -26,13 +26,14 @@ export interface PendingRating {
   destinationLabel?: string | null;
 }
 
-/** The caller's own per-role average (exposed view: daily snapshot, ≥ 5 ratings). */
+/**
+ * The caller's own per-role average (exposed view: daily snapshot, ≥ 5
+ * ratings). No rating count (contract change 2026-10-16).
+ */
 export interface OwnRatingAggregate {
   role: PartyRole;
   /** Snapshot average (2 decimals); null below 5 ratings. */
   average?: number | null;
-  /** As of the snapshot (0 when there is none yet). */
-  ratingCount: number;
   snapshotAt?: string | null;
 }
 

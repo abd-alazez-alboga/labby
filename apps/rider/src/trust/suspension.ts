@@ -13,6 +13,7 @@
  * not this state, while one is in flight.
  */
 import type { SuspensionReason, UserProfile } from "../api/auth";
+import { useOptionalAuth } from "../auth/auth-context";
 import type { SuspensionCode } from "../auth/suspension-signal";
 
 export interface RiderSuspension {
@@ -51,4 +52,22 @@ export function riderSuspension(
     return { scope: "role", reason: null, note: null };
   }
   return null;
+}
+
+/**
+ * True while the WHOLE account is suspended (profile state, or a 403
+ * `account_suspended` met since the last profile read). Rating and
+ * reporting are refused then, so the app does not offer them; a role-only
+ * rider suspension keeps both (the backend still accepts them).
+ */
+export function isAccountSuspended(
+  user: UserProfile | null,
+  signal: SuspensionCode | null = null,
+): boolean {
+  return riderSuspension(user, signal)?.scope === "account";
+}
+
+export function useAccountSuspended(): boolean {
+  const auth = useOptionalAuth();
+  return isAccountSuspended(auth?.user ?? null, auth?.suspensionSignal ?? null);
 }

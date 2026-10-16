@@ -10,6 +10,7 @@ import { fireEvent, waitFor } from "@testing-library/react-native";
 import { screen } from "expo-router/testing-library";
 
 import { clearSession } from "../auth/session";
+import { driverUser } from "../test-utils/contract";
 import { initI18n, setAppLanguage } from "../i18n";
 import { todayIso } from "../onboarding/dates";
 import { RATING_SKIPS_KEY } from "../trust/RatingPromptProvider";
@@ -161,6 +162,25 @@ describe("rating the rider (UC-S-17)", () => {
     );
     // Stars are locked once the rating is closed.
     expect(screen.getByTestId("rate-star-5").props.accessibilityState.disabled).toBe(true);
+  });
+
+  it("403 account_suspended: a clear final notice, no retry (D-W2)", async () => {
+    const contract = await renderTrustApp({
+      [PENDING]: ok([pendingFixture()]),
+      [RATE]: coded(403, "account_suspended"),
+      "GET /api/v1/users/me": ok(driverUser()),
+    });
+    await screen.findByTestId("rate-rider-screen");
+    fireEvent.press(screen.getByTestId("rate-star-5"));
+    fireEvent.press(screen.getByTestId("rate-submit"));
+
+    expect(await screen.findByTestId("rate-error-accountSuspended")).toHaveTextContent(
+      "Your account is suspended, so this isn't available.",
+    );
+    expect(screen.queryByTestId("rate-submit")).toBeNull();
+    fireEvent.press(screen.getByTestId("rate-done"));
+    expect(await screen.findByTestId("home-screen")).toBeTruthy();
+    expect(contract.requestsTo(RATE)).toHaveLength(1);
   });
 
   it("a network failure keeps the score and can be retried", async () => {

@@ -8,8 +8,8 @@
  * from Your rides until …" line.
  *
  * Submitting answers 204 — nothing comes back. The contract's 409s each get
- * their own copy (window closed / already rated / not completed) and turn
- * the screen into a closable notice; any other failure keeps the form for
+ * their own copy (window closed / already rated / not completed), as does a
+ * 403 `account_suspended`, and turn the screen into a closable notice; any other failure keeps the form for
  * another try. Used embedded right after a ride completes (RideView) and as
  * the /rate/{rideId} route (history, cold-start prompt).
  */
@@ -45,6 +45,8 @@ export const RATING_BLOCKING_CODES = [
   "rating_window_closed",
   "rating_already_submitted",
   "ride_not_completed",
+  // 403 — the whole account is suspended: nothing to retry.
+  "account_suspended",
 ] as const;
 export type RatingBlock = (typeof RATING_BLOCKING_CODES)[number];
 

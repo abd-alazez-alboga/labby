@@ -20,6 +20,7 @@ import { reloadIfDirectionChanged, useLocale } from "../i18n/locale-context";
 import { useOptionalNotifications } from "../notifications/notifications-context";
 import { UnreadBadge } from "../notifications/unread-badge";
 import { colors, radius, spacing } from "../theme/tokens";
+import { isAccountSuspended } from "../trust/suspension";
 
 const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
   en: "settings.english",
@@ -35,7 +36,9 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = {
 export default function SettingsScreen() {
   const { t, locale, direction, setLocale } = useLocale();
   const { row } = useDirection();
-  const { user, setUser, signOut } = useAuth();
+  const { user, setUser, signOut, suspensionSignal } = useAuth();
+  // GET /reports/mine is refused while the WHOLE account is suspended (M11).
+  const accountSuspended = isAccountSuspended(user, suspensionSignal);
   const router = useRouter();
   const notifications = useOptionalNotifications();
 
@@ -111,13 +114,18 @@ export default function SettingsScreen() {
       icon: "car-outline",
       href: "/rides",
     },
-    // M11 (REP-02): the outcome of the reports the rider sent.
-    {
-      key: "reports",
-      label: t("reports.title"),
-      icon: "flag-outline",
-      href: "/reports",
-    },
+    // M11 (REP-02): the outcome of the reports the rider sent — not
+    // while the whole account is suspended (a role-only one keeps it).
+    ...(accountSuspended
+      ? []
+      : [
+          {
+            key: "reports",
+            label: t("reports.title"),
+            icon: "flag-outline" as IconName,
+            href: "/reports" as const,
+          },
+        ]),
     {
       key: "saved-places",
       label: t("settings.savedPlaces"),

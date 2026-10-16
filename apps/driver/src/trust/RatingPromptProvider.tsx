@@ -1,6 +1,7 @@
 /**
  * The post-trip rating prompt facade (UC-S-17, RATE-01) — mounted at the
- * root inside the ride facade; active only for a driver who can drive.
+ * root inside the ride facade; active for a driver who can drive and for a
+ * suspended driver ROLE (never for a whole-account suspension).
  *
  * - `pending` mirrors `GET /ratings/pending?as=driver` (completed rides still
  *   inside the 7-day window and not rated yet, newest first). The earnings
@@ -105,8 +106,11 @@ export function RatingPromptProvider({
   children: React.ReactNode;
 }) {
   const { status, driverAccess } = useAuth();
-  // Ratings are refused on a suspended account — prompt only real drivers.
-  const active = status === "signedIn" && driverAccess === "active";
+  // Ratings stay allowed on a ROLE suspension (the suspended gate shows the
+  // prompt); a whole-account suspension refuses them — no prompt at all.
+  const active =
+    status === "signedIn" &&
+    (driverAccess === "active" || driverAccess === "roleSuspended");
   const rides = useOptionalDriverRide();
 
   const [pending, setPending] = useState<PendingRating[]>([]);

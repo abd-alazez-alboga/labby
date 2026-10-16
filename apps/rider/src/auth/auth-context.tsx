@@ -16,6 +16,11 @@
  *   re-reads the profile so its suspension state + reason drive the
  *   suspended screen; until a fresh profile arrives the code itself is
  *   kept as `suspensionSignal`.
+ * - `refreshProfile` re-reads `/users/me`: called for the account-state
+ *   pushes (suspended / reactivated, received or tapped — see
+ *   ACCOUNT_STATE_EVENTS) and, by the provider itself, whenever the app
+ *   returns to the foreground while the profile is suspended, so a
+ *   reactivated rider leaves the suspended screen without a relaunch.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
@@ -34,6 +39,8 @@ import {
   type AuthTokensResponse,
   type UserProfile,
 } from "../api/auth";
+import { AppState } from "react-native";
+
 import { ApiError } from "../api/http-client";
 import {
   forgetPushToken,
@@ -51,6 +58,29 @@ import {
 } from "./suspension-signal";
 
 export const PROFILE_CACHE_KEY = "labby.rider.profile";
+
+/** Push events that change the account / role state (trust-v1, M11). */
+export const ACCOUNT_STATE_EVENTS: readonly string[] = [
+  "account.suspended",
+  "account.reactivated",
+  "account.role_suspended",
+  "account.role_reactivated",
+];
+
+/** Whether the profile (or the last 403 met) says something is suspended. */
+function profileSuspended(
+  user: UserProfile | null,
+  signal: SuspensionCode | null,
+): boolean {
+  return (
+    signal !== null ||
+    user?.state === "suspended" ||
+    !!user?.roles.some(
+      (assignment) =>
+        assignment.role === "rider" && assignment.state === "suspended",
+    )
+  );
+}
 
 export type AuthStatus = "loading" | "signedOut" | "signedIn";
 
@@ -74,6 +104,8 @@ export interface AuthContextValue {
    * says otherwise; null once a profile was read after it.
    */
   suspensionSignal: SuspensionCode | null;
+  /** Re-reads `/users/me` (best effort) into the cached profile. */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -204,6 +236,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    try {
+      const fresh = await getMe();
+      if (!mounted.current) return;
+      setUserState(fresh);
+      setSuspensionSignal(null);
+      void writeCachedProfile(fresh);
+    } catch {
+      // Offline / transient — the next event or foreground tries again.
+    }
+  }, []);
+
+  // Back in the foreground while suspended: the state may have been lifted.
+  const suspendedNow = status === "signedIn" && profileSuspended(user, suspensionSignal);
+  useEffect(() => {
+    if (!suspendedNow) return;
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && previous !== "active") void refreshProfile();
+      previous = next;
+    });
+    return () => subscription.remove();
+  }, [suspendedNow, refreshProfile]);
+
   const signIn = useCallback(async (tokens: AuthTokensResponse) => {
     await saveTokens({
       accessToken: tokens.accessToken,
@@ -261,6 +317,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOutAfterDeletion,
       setUser,
       suspensionSignal,
+      refreshProfile,
     }),
     [
       status,
@@ -271,6 +328,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOutAfterDeletion,
       setUser,
       suspensionSignal,
+      refreshProfile,
     ],
   );
 

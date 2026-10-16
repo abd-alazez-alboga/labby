@@ -35,6 +35,7 @@ import {
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 import { addRatingSubmittedListener } from "../../trust/rating-events";
+import { useAccountSuspended } from "../../trust/suspension";
 
 /** What a completed row knows about its own rating (from the summary). */
 interface RatingInfo {
@@ -73,9 +74,12 @@ function RatingLine({
   const { t } = useLocale();
   const { row } = useDirection();
   const router = useRouter();
+  const accountSuspended = useAccountSuspended();
   const rating = info.myRating;
   if (!rating) return null;
   if (rating.state === "pending") {
+    // A suspended account cannot rate (403): no "Rate" pill then.
+    if (accountSuspended) return null;
     const days = ratingDaysLeft(rating.windowEndsAt);
     if (days === null || !info.driverName) return null;
     return (
@@ -158,7 +162,13 @@ function HistoryRow({
           service,
         })
       : t("history.line", { date, service })
-    : t("history.line", { date, service: t(`history.states.${item.state}`) });
+    : t("history.line", {
+        date,
+        service:
+          item.cancellationReason === "account_suspended"
+            ? t("suspended.historyCancelled")
+            : t(`history.states.${item.state}`),
+      });
   const fee =
     item.cancellationFee != null && item.cancellationFee > 0
       ? item.cancellationFee

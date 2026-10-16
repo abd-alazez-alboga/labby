@@ -883,9 +883,30 @@
       "cancellation": "Cancellation",
       "onTime": "On time",
       "trips": "Trips",
-      "acceptanceOf": "{{n}} of {{d}} offers",
-      "cancellationOf": "{{n}} of {{d}} accepted",
-      "onTimeOf": "{{n}} of {{d}} pickups",
+      "acceptanceOf": {
+        "zero": "{{n}} of {{d}} offers",
+        "one": "{{n}} of {{d}} offer",
+        "two": "{{n}} of {{d}} offers",
+        "few": "{{n}} of {{d}} offers",
+        "many": "{{n}} of {{d}} offers",
+        "other": "{{n}} of {{d}} offers"
+      },
+      "cancellationOf": {
+        "zero": "{{n}} of {{d}} accepted",
+        "one": "{{n}} of {{d}} accepted",
+        "two": "{{n}} of {{d}} accepted",
+        "few": "{{n}} of {{d}} accepted",
+        "many": "{{n}} of {{d}} accepted",
+        "other": "{{n}} of {{d}} accepted"
+      },
+      "onTimeOf": {
+        "zero": "{{n}} of {{d}} pickups",
+        "one": "{{n}} of {{d}} pickup",
+        "two": "{{n}} of {{d}} pickups",
+        "few": "{{n}} of {{d}} pickups",
+        "many": "{{n}} of {{d}} pickups",
+        "other": "{{n}} of {{d}} pickups"
+      },
       "noOffers": "No offers yet",
       "noAccepted": "No accepted rides yet",
       "noPickups": "No pickups yet",
@@ -894,38 +915,62 @@
       "warning": {
         "acceptanceTitle": "Acceptance below {{threshold}}",
         "cancellationTitle": "Cancellation above {{threshold}}",
-        "acceptanceBody": "You accepted {{value}} of {{sample}} offers in the last {{days}} days. Warnings never suspend your account — accept more offers to clear it.",
-        "cancellationBody": "You cancelled {{value}} of {{sample}} accepted rides in the last {{days}} days. Warnings never suspend your account — cancel fewer rides to clear it."
+        "acceptanceBody": "You accepted {{value}} of {{offers}} in the last {{days}}. Warnings never suspend your account — accept more offers to clear it.",
+        "cancellationBody": "You cancelled {{value}} of {{rides}} in the last {{days}}. Warnings never suspend your account — cancel fewer rides to clear it."
       },
       "averageLabel": "average rating",
-      "ratingMeta": "All-time · {{count}} · updated daily",
-      "ratingCount": {
-        "zero": "{{value}} ratings",
-        "one": "{{value}} rating",
-        "two": "{{value}} ratings",
-        "few": "{{value}} ratings",
-        "many": "{{value}} ratings",
-        "other": "{{value}} ratings"
-      },
+      "ratingMeta": "All-time · updated daily",
       "ratingNone": "Your average shows after 5 ratings · updated daily",
       "ratingWarning": {
         "title": "Your rating is close to the limit",
-        "body": "Your average is {{average}}. In {{region}}, driver accounts are suspended when the average falls below {{min}} after {{count}} or more rated rides.",
-        "bodyNoRegion": "Your average is {{average}}. Driver accounts are suspended when the average falls below {{min}} after {{count}} or more rated rides.",
+        "body": "Your average is {{average}}. In {{region}}, driver accounts are suspended when the average falls below {{min}} after {{rides}}.",
+        "bodyNoRegion": "Your average is {{average}}. Driver accounts are suspended when the average falls below {{min}} after {{rides}}.",
         "tips": "Being on time, keeping the car clean and taking the shortest route help the most.",
         "whereYouStand": "Where you stand",
         "limit": "{{min}} limit"
       },
       "onTimeNote": "On time = you arrived no more than 5 min after the pickup time shown when you accepted.",
-      "unavailable": "Your performance shows once you're an approved driver."
+      "unavailable": "Your performance shows once you're an approved driver.",
+      "offerCount": {
+        "zero": "{{value}} offers",
+        "one": "{{value}} offer",
+        "two": "{{value}} offers",
+        "few": "{{value}} offers",
+        "many": "{{value}} offers",
+        "other": "{{value}} offers"
+      },
+      "acceptedRideCount": {
+        "zero": "{{value}} accepted rides",
+        "one": "{{value}} accepted ride",
+        "two": "{{value}} accepted rides",
+        "few": "{{value}} accepted rides",
+        "many": "{{value}} accepted rides",
+        "other": "{{value}} accepted rides"
+      },
+      "dayCount": {
+        "zero": "{{value}} days",
+        "one": "{{value}} day",
+        "two": "{{value}} days",
+        "few": "{{value}} days",
+        "many": "{{value}} days",
+        "other": "{{value}} days"
+      },
+      "ratedRides": {
+        "zero": "{{value}} or more rated rides",
+        "one": "{{value}} or more rated rides",
+        "two": "{{value}} or more rated rides",
+        "few": "{{value}} or more rated rides",
+        "many": "{{value}} or more rated rides",
+        "other": "{{value}} or more rated rides"
+      }
     },
     "suspended": {
       "title": "Your driver account is suspended",
       "body": "You can't go online or receive offers. Your earnings and balance are unchanged.",
       "reason": "Reason",
       "reasonFromTeam": "Reason · from the Labby team",
-      "lowRatingRule": "Your average rating fell below {{min}} after {{count}} or more rated rides.",
-      "lowRatingRuleWith": "Your average rating fell below {{min}} after {{count}} or more rated rides ({{average}} from {{ratings}}).",
+      "lowRatingRule": "Your average rating fell below {{min}} after {{rides}}.",
+      "lowRatingRuleWith": "Your average rating fell below {{min}} after {{rides}} (your average: {{average}}).",
       "lowRatingGeneric": "Your average rating fell below the minimum for your region.",
       "note": "“{{note}}”",
       "ridingTitle": "Riding still works",
@@ -936,6 +981,9 @@
       "accountTitle": "Your account is suspended",
       "accountBody": "You can't drive or book rides while your account is suspended."
     },
-    "offerRiderRating": "rider rating {{rating}} ★"
+    "offerRiderRating": "rider rating {{rating}} ★",
+    "errors": {
+      "accountSuspended": "Your account is suspended, so this isn't available."
+    }
   }
 }

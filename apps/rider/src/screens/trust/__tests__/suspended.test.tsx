@@ -109,8 +109,10 @@ describe("suspended screen (USR-04..06)", () => {
         "Your account will be reactivated if our team reviews it. You'll get a notification when that happens.",
       ),
     ).toBeOnTheScreen();
-    // No rating prompt is fetched while suspended.
-    expect(api.callsTo("GET", "/api/v1/ratings/pending")).toHaveLength(0);
+    // A role-only suspension still rates (R-W2): the cold-start check runs.
+    await waitFor(() =>
+      expect(api.callsTo("GET", "/api/v1/ratings/pending")).toHaveLength(1),
+    );
 
     await fireEvent.press(screen.getByTestId("suspended-settings"));
     expect(mockPush).toHaveBeenCalledWith("/settings");

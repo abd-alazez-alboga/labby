@@ -12,7 +12,7 @@ import type {
   RatingRule,
   WindowDays,
 } from "../../api/trust-types";
-import { formatMoney } from "../../money/format";
+import { formatMoney, pluralCategory } from "../../money/format";
 import { useRemote } from "../../onboarding/use-remote";
 import { useOptionalRegion } from "../../region/RegionProvider";
 import { colors, radius, spacing } from "../../theme/tokens";
@@ -103,8 +103,14 @@ function WarningCard({ warning }: { warning: MetricWarning }) {
   const values = {
     threshold: formatPercent(warning.thresholdPercent, language),
     value: formatPercent(warning.valuePercent, language),
-    sample: formatCount(warning.sampleSize, language),
-    days: formatCount(warning.windowDays, language),
+    offers: countCopy(t, "trust.performance.offerCount", warning.sampleSize, language),
+    rides: countCopy(
+      t,
+      "trust.performance.acceptedRideCount",
+      warning.sampleSize,
+      language,
+    ),
+    days: countCopy(t, "trust.performance.dayCount", warning.windowDays, language),
   };
   return (
     <View style={styles.warning} testID={`performance-warning-${warning.metric}`}>
@@ -132,7 +138,8 @@ function percentTile(
   }
   return {
     big: formatPercent(value.percent, language),
-    small: t(OF_KEYS[metric], {
+    // Plural-correct by the denominator ("1 of 1 offer", «24 من 52 عرضاً»).
+    small: t(`${OF_KEYS[metric]}.${pluralCategory(value.denominator, language)}`, {
       n: formatCount(value.numerator, language),
       d: formatCount(value.denominator, language),
     }),
@@ -219,7 +226,10 @@ function Tiles({
   );
 }
 
-/** The LIFETIME snapshot average (never per window) — RATE-02. */
+/**
+ * The LIFETIME snapshot average (never per window) — RATE-02. No rating
+ * count: the contract drops it (a moving count would date ratings).
+ */
 function RatingCard({
   rating,
   large,
@@ -247,9 +257,7 @@ function RatingCard({
         </AppText>
         <AppText variant="caption" weight="400" color={colors.textMuted} testID="performance-rating-meta">
           {average !== null && average !== undefined
-            ? t("trust.performance.ratingMeta", {
-                count: countCopy(t, "trust.performance.ratingCount", rating.ratingCount, language),
-              })
+            ? t("trust.performance.ratingMeta")
             : t("trust.performance.ratingNone")}
         </AppText>
       </View>
@@ -273,7 +281,7 @@ function RatingWarning({
   const values = {
     average: formatRating(average, language),
     min: formatThreshold(rule.minAvgRating, language),
-    count: formatCount(rule.minRatedRides, language),
+    rides: countCopy(t, "trust.performance.ratedRides", rule.minRatedRides, language),
     region: regionName,
   };
   return (

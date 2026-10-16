@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import type { Ride } from "../../api/ride-types";
+import { useOptionalAuth } from "../../auth/AuthProvider";
 import { chatWritable, useOptionalChat } from "../../chat/ChatProvider";
 import { useOptionalAvailability } from "../../realtime/AvailabilityProvider";
 import { useOptionalRegion } from "../../region/RegionProvider";
@@ -107,6 +108,8 @@ export function SafetyRow({ ride }: { ride: Ride }) {
   >(null);
 
   const riderName = ride.rider?.firstName?.trim() || t("ride.theRider");
+  const accountSuspended =
+    useOptionalAuth()?.driverAccess === "accountSuspended";
   const reportWhen =
     ride.timeline.startedAt ?? ride.timeline.acceptedAt ?? null;
   const reportPlace = ride.destination.label?.trim() || null;
@@ -171,22 +174,25 @@ export function SafetyRow({ ride }: { ride: Ride }) {
         />
       ) : null}
       {/* M11 (UC-S-18): the rider can be reported from acceptance on —
-          during the ride too (same text link as the rider app). */}
-      <TextButton
-        title={t("trust.report.title", { name: riderName })}
-        onPress={() =>
-          router.push({
-            pathname: "/report-rider",
-            params: {
-              rideId: ride.id,
-              name: ride.rider?.firstName ?? "",
-              ...(reportWhen ? { when: reportWhen } : {}),
-              ...(reportPlace ? { place: reportPlace } : {}),
-            },
-          })
-        }
-        testID="safety-report"
-      />
+          during the ride too (same text link as the rider app); never on a
+          whole-account suspension, which refuses reports. */}
+      {accountSuspended ? null : (
+        <TextButton
+          title={t("trust.report.title", { name: riderName })}
+          onPress={() =>
+            router.push({
+              pathname: "/report-rider",
+              params: {
+                rideId: ride.id,
+                name: ride.rider?.firstName ?? "",
+                ...(reportWhen ? { when: reportWhen } : {}),
+                ...(reportPlace ? { place: reportPlace } : {}),
+              },
+            })
+          }
+          testID="safety-report"
+        />
+      )}
     </View>
   );
 }

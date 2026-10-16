@@ -81,7 +81,7 @@ describe("performance dashboard (UC-D-20)", () => {
     expect(screen.getByTestId("tile-trips-detail")).toHaveTextContent("SYP 512,000 earned");
     expect(screen.getByTestId("performance-rating-value")).toHaveTextContent("4.62");
     expect(screen.getByTestId("performance-rating-meta")).toHaveTextContent(
-      "All-time · 128 ratings · updated daily",
+      "All-time · updated daily",
     );
     expect(screen.getByTestId("performance-on-time-note")).toHaveTextContent(
       "On time = you arrived no more than 5 min after the pickup time shown when you accepted.",
@@ -120,7 +120,7 @@ describe("performance dashboard (UC-D-20)", () => {
                 earnings: [],
               }),
             ],
-            rating: { role: "driver", average: null, ratingCount: 3, snapshotAt: null },
+            rating: { role: "driver", average: null, snapshotAt: null },
             ratingRule: null,
           }),
         ),
@@ -138,6 +138,44 @@ describe("performance dashboard (UC-D-20)", () => {
     expect(screen.getByTestId("performance-rating-value")).toHaveTextContent("—");
     expect(screen.getByTestId("performance-rating-meta")).toHaveTextContent(
       "Your average shows after 5 ratings · updated daily",
+    );
+  });
+
+  it("counts are plural-correct in English and Arabic (D-I4)", async () => {
+    const small = performanceFixture({
+      windows: [
+        windowFixture(7),
+        windowFixture(30, {
+          acceptance: { percent: 100, numerator: 1, denominator: 1 },
+          cancellation: { percent: 50, numerator: 1, denominator: 2 },
+          onTime: { percent: 60, numerator: 3, denominator: 5 },
+        }),
+      ],
+      warnings: [{ ...warning, sampleSize: 1, windowDays: 1 }],
+    });
+    await renderTrustApp({ [PERFORMANCE]: ok(small) }, { initialUrl: "/performance" });
+    expect(await screen.findByTestId("tile-acceptance-detail")).toHaveTextContent(
+      "1 of 1 offer",
+    );
+    expect(screen.getByTestId("tile-on-time-detail")).toHaveTextContent("3 of 5 pickups");
+    expect(screen.getByTestId("performance-warning-acceptance")).toHaveTextContent(
+      "You accepted 46.2% of 1 offer in the last 1 day.",
+      { exact: false },
+    );
+
+    screen.unmount();
+    await setAppLanguage("ar");
+    await renderTrustApp(
+      { [PERFORMANCE]: ok(small) },
+      { initialUrl: "/performance", language: "ar" },
+    );
+    await screen.findByTestId("tile-acceptance-detail");
+    expect(text("tile-acceptance-detail")).toBe("⁦1⁩ من عرض واحد");
+    expect(text("tile-cancellation-detail")).toBe("⁦1⁩ من رحلتين مقبولتين");
+    expect(text("tile-on-time-detail")).toBe("⁦3⁩ من ⁦5⁩ مرات وصول");
+    expect(screen.getByTestId("performance-warning-acceptance")).toHaveTextContent(
+      "من عرض واحد خلال آخر يوم واحد",
+      { exact: false },
     );
   });
 
@@ -190,7 +228,7 @@ describe("performance dashboard (UC-D-20)", () => {
       {
         [PERFORMANCE]: ok(
           performanceFixture({
-            rating: { role: "driver", average: 3.38, ratingCount: 34, snapshotAt: null },
+            rating: { role: "driver", average: 3.38, snapshotAt: null },
             ratingWarning: true,
           }),
         ),
@@ -204,7 +242,7 @@ describe("performance dashboard (UC-D-20)", () => {
       "Your average is 3.38. Driver accounts are suspended when the average falls below 3.0 after 20 or more rated rides.",
     );
     expect(screen.getByTestId("performance-rating-meta")).toHaveTextContent(
-      "All-time · 34 ratings · updated daily",
+      "All-time · updated daily",
     );
     expect(screen.getByTestId("performance-standing")).toHaveTextContent("3.0 limit", {
       exact: false,

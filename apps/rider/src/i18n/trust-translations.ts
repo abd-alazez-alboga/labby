@@ -39,6 +39,8 @@ export const trustEn = {
       rating_already_submitted:
         "You've already rated this ride. Ratings can't be changed.",
       ride_not_completed: "Only completed rides can be rated.",
+      account_suspended:
+        "Your account is suspended, so this ride can't be rated.",
       generic: "Couldn't send your rating. Please try again.",
     },
   },
@@ -74,6 +76,8 @@ export const trustEn = {
       report_already_submitted:
         "You've already reported this ride. You can follow it in Your reports.",
       no_counterpart: "This ride had no driver, so there's no one to report.",
+      account_suspended:
+        "Your account is suspended, so reports can't be sent.",
       photoType: "Use a JPEG or PNG photo.",
       photoTooLarge: "This photo is too large. Choose a smaller one.",
       photoCap:
@@ -110,6 +114,9 @@ export const trustEn = {
       "Your average rider rating fell below the minimum allowed in your area.",
     footer:
       "Your account will be reactivated if our team reviews it. You'll get a notification when that happens.",
+    rideCancelledTitle: "Ride cancelled",
+    rideCancelledBody: "Cancelled because your account was suspended.",
+    historyCancelled: "Cancelled · account suspended",
   },
   driverRating: {
     label: "Rated {{rating}} out of 5",
@@ -148,6 +155,7 @@ export const trustAr: typeof trustEn = {
         "انتهت مهلة تقييم هذه الرحلة — يمكن تقييم الرحلات خلال 7 أيام من انتهائها.",
       rating_already_submitted: "سبق أن قيّمت هذه الرحلة. لا يمكن تغيير التقييم.",
       ride_not_completed: "يمكن تقييم الرحلات المكتملة فقط.",
+      account_suspended: "حسابك موقوف، لذا لا يمكن تقييم هذه الرحلة.",
       generic: "تعذّر إرسال تقييمك. حاول مرة أخرى.",
     },
   },
@@ -183,6 +191,7 @@ export const trustAr: typeof trustEn = {
       report_already_submitted:
         "سبق أن أبلغت عن هذه الرحلة. يمكنك متابعة البلاغ في «بلاغاتك».",
       no_counterpart: "لم يكن لهذه الرحلة سائق، فلا يوجد من يُبلَّغ عنه.",
+      account_suspended: "حسابك موقوف، لذا لا يمكن إرسال البلاغات.",
       photoType: "استخدم صورة بصيغة JPEG أو PNG.",
       photoTooLarge: "هذه الصورة كبيرة جداً. اختر صورة أصغر.",
       photoCap:
@@ -218,6 +227,9 @@ export const trustAr: typeof trustEn = {
     lowRating: "انخفض متوسط تقييمك كراكب عن الحد الأدنى المسموح به في منطقتك.",
     footer:
       "سيُعاد تفعيل حسابك إذا راجعه فريقنا. سيصلك إشعار عند حدوث ذلك.",
+    rideCancelledTitle: "أُلغيت الرحلة",
+    rideCancelledBody: "أُلغيت لأن حسابك موقوف.",
+    historyCancelled: "أُلغيت · الحساب موقوف",
   },
   driverRating: {
     label: "التقييم {{rating}} من 5",

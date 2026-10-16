@@ -48,8 +48,9 @@ const HOME_SAVED_PLACES = 3;
  * M11: while the rider role or the whole account is suspended, the
  * suspended screen replaces booking — but a ride already in flight keeps
  * showing (SOS + finishing the ride stay available, owner ruling
- * 2026-10-15). With neither, the first home of a launch opens the rating
- * prompt for the newest pending ride never prompted (cold start, RATE-01).
+ * 2026-10-15). Unless the whole account is suspended, the first home of a
+ * launch opens the rating prompt for the newest pending ride never
+ * prompted (cold start, RATE-01).
  */
 export default function HomeScreen() {
   const rides = useOptionalActiveRide();
@@ -58,8 +59,9 @@ export default function HomeScreen() {
     auth?.user ?? null,
     auth?.suspensionSignal ?? null,
   );
+  // Rating stays open to a role-only suspension; never to a suspended account.
   useColdStartRatingPrompt(
-    !!rides && !rides.loading && !rides.ride && !suspension,
+    !!rides && !rides.loading && !rides.ride && suspension?.scope !== "account",
   );
   if (rides?.ride) {
     return <RideView ride={rides.ride} onDone={() => {}} />;

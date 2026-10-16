@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 
-import { ApiError } from "../../api/client";
+import { ApiError, isAccountSuspendedError } from "../../api/client";
 import { rideErrorOf } from "../../api/rides";
 import { submitReport, uploadReportFile } from "../../api/trust";
 import {
@@ -37,9 +37,22 @@ interface Photo {
   uri: string;
 }
 
-type SendError = "already" | "noCounterpart" | "invalid" | "network" | "server";
+type SendError =
+  | "already"
+  | "noCounterpart"
+  | "invalid"
+  | "network"
+  | "server"
+  /** 403 `account_suspended` (USR-06) — final, never retried. */
+  | "accountSuspended";
+
+/** Refusals that end the report for good: Send stays disabled. */
+function isFinal(error: SendError | null): boolean {
+  return error === "already" || error === "accountSuspended";
+}
 
 function sendErrorOf(caught: unknown): SendError {
+  if (isAccountSuspendedError(caught)) return "accountSuspended";
   const coded = rideErrorOf(caught);
   if (!coded) return "network";
   if (coded.status === 409) {
@@ -51,6 +64,7 @@ function sendErrorOf(caught: unknown): SendError {
 
 /** Upload failures → i18n keys (400 type/unreadable, 413 size, 429 daily cap). */
 function uploadErrorKey(error: unknown): string {
+  if (isAccountSuspendedError(error)) return "trust.errors.accountSuspended";
   if (error instanceof ApiError) {
     if (error.status === 400) return "onboarding.file.rejected";
     if (error.status === 413) return "onboarding.file.tooLarge";
@@ -153,7 +167,7 @@ export function ReportRiderScreen({
           <PrimaryButton
             title={t("trust.report.send")}
             onPress={() => void send()}
-            disabled={!category || uploading || error === "already"}
+            disabled={!category || uploading || isFinal(error)}
             busy={sending}
             testID="report-send"
           />
@@ -185,7 +199,7 @@ export function ReportRiderScreen({
               onPress={() => {
                 if (sending) return;
                 setCategory(option);
-                if (error !== "already") setError(null);
+                if (!isFinal(error)) setError(null);
               }}
               style={[
                 styles.option,
@@ -275,8 +289,12 @@ export function ReportRiderScreen({
 
       {error ? (
         <Banner
-          tone={error === "already" ? "neutral" : "danger"}
-          message={t(`trust.report.errors.${error}`)}
+          tone={isFinal(error) ? "neutral" : "danger"}
+          message={t(
+            error === "accountSuspended"
+              ? "trust.errors.accountSuspended"
+              : `trust.report.errors.${error}`,
+          )}
           testID={`report-error-${error}`}
         />
       ) : null}

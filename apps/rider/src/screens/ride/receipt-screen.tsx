@@ -35,6 +35,7 @@ import {
   serviceName,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { useAccountSuspended } from "../../trust/suspension";
 import { TipSheet } from "../wallet/tip-sheet";
 import {
   FareBreakdown,
@@ -52,6 +53,8 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
   const [failure, setFailure] = useState<FailureKind | null>(null);
   const [tipOpen, setTipOpen] = useState(false);
   const [tipSent, setTipSent] = useState<TipResponse | null>(null);
+  // Reports are refused for a suspended account (M11): no Report link.
+  const accountSuspended = useAccountSuspended();
 
   const load = useCallback(async () => {
     setFailure(null);
@@ -247,7 +250,7 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
             />
           ) : null}
         </View>
-        {receipt.driver ? (
+        {receipt.driver && !accountSuspended ? (
           <TextButton
             label={t("report.title", { name: receipt.driver.firstName })}
             onPress={() =>

@@ -10,7 +10,8 @@
  * its own message. Sending files the report with the uploaded ids and
  * replaces this screen with "Report sent · Your reports". A 409
  * `report_already_submitted` (one report per ride) points to Your reports;
- * `no_counterpart` explains there is no driver to report.
+ * `no_counterpart` explains there is no driver to report; a 403
+ * `account_suspended` (send or photo upload) is a final, non-retry notice.
  */
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -60,7 +61,10 @@ interface PickedPhoto {
   fileId: string | null;
 }
 
-type SendBlock = "report_already_submitted" | "no_counterpart";
+type SendBlock =
+  | "report_already_submitted"
+  | "no_counterpart"
+  | "account_suspended";
 
 /** The copy key for a failed photo upload (report-files 400 / 413 / 429). */
 function photoErrorKey(error: unknown): string {
@@ -135,7 +139,11 @@ export default function ReportScreen({ rideId }: { rideId: string }) {
       );
     } catch (error) {
       setPhotos((list) => list.filter((photo) => photo.key !== key));
-      setPhotoError(t(photoErrorKey(error)));
+      if (trustErrorCode(error) === "account_suspended") {
+        setBlock("account_suspended");
+      } else {
+        setPhotoError(t(photoErrorKey(error)));
+      }
     }
   };
 
@@ -161,7 +169,11 @@ export default function ReportScreen({ rideId }: { rideId: string }) {
       router.replace("/reports?sent=1" as never);
     } catch (error) {
       const code = trustErrorCode(error);
-      if (code === "report_already_submitted" || code === "no_counterpart") {
+      if (
+        code === "report_already_submitted" ||
+        code === "no_counterpart" ||
+        code === "account_suspended"
+      ) {
         setBlock(code);
       } else if (error instanceof ApiError) {
         setSendError(t("report.errors.generic"));
@@ -282,7 +294,7 @@ export default function ReportScreen({ rideId }: { rideId: string }) {
                 )}
               </View>
             ))}
-            {photos.length < REPORT_MAX_PHOTOS ? (
+            {photos.length < REPORT_MAX_PHOTOS && block === null ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("report.addPhoto")}

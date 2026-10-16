@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { isAccountSuspendedError } from "../../api/client";
 import { submitRating } from "../../api/trust";
+import { useOptionalAuth } from "../../auth/AuthProvider";
 import { rideErrorOf } from "../../api/rides";
 import { RATING_COMMENT_MAX } from "../../api/trust-types";
 import type { PendingRating } from "../../api/trust-types";
@@ -24,11 +26,15 @@ import {
 
 const SCORES = [1, 2, 3, 4, 5] as const;
 
-/** 409 codes that end the rating for good (UC-S-17 E1/E2). */
-type Closed = "windowClosed" | "alreadyRated" | "notCompleted";
+/**
+ * Refusals that end the rating for good: the 409s (UC-S-17 E1/E2) and a
+ * 403 `account_suspended` (whole-account suspension, USR-06).
+ */
+type Closed = "windowClosed" | "alreadyRated" | "notCompleted" | "accountSuspended";
 type RateError = Closed | "network" | "server";
 
 function errorOf(caught: unknown): RateError {
+  if (isAccountSuspendedError(caught)) return "accountSuspended";
   const coded = rideErrorOf(caught);
   if (!coded) return "network";
   if (coded.status === 409) {
@@ -43,7 +49,8 @@ function isClosed(error: RateError | null): error is Closed {
   return (
     error === "windowClosed" ||
     error === "alreadyRated" ||
-    error === "notCompleted"
+    error === "notCompleted" ||
+    error === "accountSuspended"
   );
 }
 
@@ -83,6 +90,8 @@ export function RateRiderScreen({
   const { language, flipRows } = useDirection();
   const bottom = useSafeBottomBar();
   const availability = useOptionalAvailability();
+  // A suspended driver ROLE still rates, but can't go online afterwards.
+  const canDrive = (useOptionalAuth()?.driverAccess ?? "active") === "active";
   const [score, setScore] = useState(0);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -104,6 +113,7 @@ export function RateRiderScreen({
       const load = availability?.load;
       if (
         mode === "prompt" &&
+        canDrive &&
         load?.status === "loaded" &&
         !load.data.online &&
         load.data.canGoOnline
@@ -227,7 +237,11 @@ export function RateRiderScreen({
         {error ? (
           <Banner
             tone={closed ? "neutral" : "danger"}
-            message={t(`trust.rate.errors.${error}`)}
+            message={t(
+              error === "accountSuspended"
+                ? "trust.errors.accountSuspended"
+                : `trust.rate.errors.${error}`,
+            )}
             testID={`rate-error-${error}`}
           />
         ) : null}
@@ -243,7 +257,7 @@ export function RateRiderScreen({
         ) : (
           <PrimaryButton
             title={t(
-              mode === "prompt"
+              mode === "prompt" && canDrive
                 ? "trust.rate.submitAndGoOnline"
                 : "trust.rate.submit",
             )}

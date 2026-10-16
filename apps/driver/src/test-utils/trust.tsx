@@ -96,7 +96,6 @@ export function performanceFixture(
     rating: {
       role: "driver",
       average: 4.62,
-      ratingCount: 128,
       snapshotAt: "2026-10-15T00:00:00Z",
     },
     warnings: [],

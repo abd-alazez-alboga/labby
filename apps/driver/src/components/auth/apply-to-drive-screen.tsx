@@ -16,12 +16,7 @@ import { useAuth } from "../../auth/AuthProvider";
 import { failureKindOf } from "../../onboarding/server-errors";
 import { useRemote } from "../../onboarding/use-remote";
 import { colors, radius, spacing } from "../../theme/tokens";
-import {
-  countCopy,
-  formatCount,
-  formatRating,
-  formatThreshold,
-} from "../../trust/format";
+import { countCopy, formatRating, formatThreshold } from "../../trust/format";
 import { NotificationsBell } from "../notifications/notifications-bell";
 import {
   ApplicationTracker,
@@ -42,8 +37,11 @@ import {
   Screen,
   SecondaryButton,
   SectionLabel,
+  TextButton,
   useDirection,
 } from "../ui";
+import { RateRiderScreen, reportHrefFor } from "../trust/rate-rider-screen";
+import { useOptionalRatingPrompt } from "../../trust/RatingPromptProvider";
 
 // Brand asset copied from /assets/images/labby-logo.png (source of truth).
 const logo = require("../../../assets/images/labby-logo.png");
@@ -145,6 +143,23 @@ function GateLayout({
   );
 }
 
+/**
+ * M11 (D-W1): a suspended driver ROLE may still report riders and read the
+ * outcomes — "Your reports" stays one tap away on its suspended screens.
+ */
+function ReportsLink() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  return (
+    <TextButton
+      title={t("trust.links.reports")}
+      icon="flag-outline"
+      onPress={() => router.push("/reports")}
+      testID="gate-reports"
+    />
+  );
+}
+
 /** The round "ban" mark of the M11 suspended screens. */
 function SuspendedMark() {
   return (
@@ -186,7 +201,8 @@ function GateCard({
 /**
  * USR-05 reason copy: the region's rule from `GET /driver/performance`
  * (readable while the role is suspended), with the snapshot average when it
- * agrees with the suspension; a generic line when the rule is unavailable.
+ * agrees with the suspension (no suffix without one); a generic line when
+ * the rule is unavailable.
  */
 function useLowRatingReason(enabled: boolean): string {
   const { t } = useTranslation();
@@ -210,19 +226,18 @@ function useLowRatingReason(enabled: boolean): string {
   if (!rule) return t("trust.suspended.lowRatingGeneric");
   const values = {
     min: formatThreshold(rule.minAvgRating, language),
-    count: formatCount(rule.minRatedRides, language),
+    rides: countCopy(
+      t,
+      "trust.performance.ratedRides",
+      rule.minRatedRides,
+      language,
+    ),
   };
   const average = performance?.rating.average;
   if (typeof average === "number" && average < rule.minAvgRating) {
     return t("trust.suspended.lowRatingRuleWith", {
       ...values,
       average: formatRating(average, language),
-      ratings: countCopy(
-        t,
-        "trust.performance.ratingCount",
-        performance?.rating.ratingCount ?? 0,
-        language,
-      ),
     });
   }
   return t("trust.suspended.lowRatingRule", values);
@@ -299,6 +314,7 @@ function RoleSuspendedGate({
           testID="gate-riding"
         />
       ) : null}
+      <ReportsLink />
     </GateLayout>
   );
 }
@@ -355,7 +371,9 @@ function SuspendedGate({ expired }: { expired: boolean }) {
       <GateLayout
         title={t("gate.suspendedTitle")}
         body={t("gate.suspendedBody")}
-      />
+      >
+        <ReportsLink />
+      </GateLayout>
     );
   }
   return (
@@ -384,6 +402,7 @@ function SuspendedGate({ expired }: { expired: boolean }) {
         testID="gate-check-status"
       />
       {profile.errorKey ? <FieldError>{t(profile.errorKey)}</FieldError> : null}
+      <ReportsLink />
     </GateLayout>
   );
 }
@@ -497,8 +516,25 @@ function ApplicationGate() {
  * (USR-04, DRV-04; M11 USR-05/06).
  */
 export function ApplyToDriveScreen() {
-  const { user } = useAuth();
+  const { user, driverAccess } = useAuth();
+  const router = useRouter();
+  const ratings = useOptionalRatingPrompt();
   const driverRole = user ? driverRoleOf(user) : null;
+  // M11 (D-W1): a suspended driver ROLE still rates — the post-trip /
+  // cold-start prompt shows here once the ride hold has released.
+  if (driverAccess === "roleSuspended" && ratings?.prompt) {
+    const { target, payment } = ratings.prompt;
+    return (
+      <RateRiderScreen
+        target={target}
+        payment={payment}
+        mode="prompt"
+        onSkip={ratings.skip}
+        onDone={ratings.finish}
+        onReport={() => router.push(reportHrefFor(target))}
+      />
+    );
+  }
   if (user?.state === "suspended") {
     return <AccountSuspendedGate note={user.suspensionNote ?? null} />;
   }
