@@ -11,7 +11,12 @@ public enum CancellationReason {
   RIDER_NO_SHOW("rider_no_show"),
   VEHICLE_ISSUE("vehicle_issue"),
   UNSAFE_PICKUP("unsafe_pickup"),
-  OTHER("other");
+  OTHER("other"),
+  /**
+   * M11 (review ruling 2026-10-16, USR-06): the system cancelled a pre-acceptance request because
+   * an admin suspended the rider's whole account. Never chosen by a party.
+   */
+  ACCOUNT_SUSPENDED("account_suspended");
 
   private final String value;
 

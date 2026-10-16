@@ -1,6 +1,7 @@
 package com.labby.backend.service;
 
 import com.labby.backend.enums.AccountState;
+import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.PaymentStatus;
 import com.labby.backend.enums.RideParty;
@@ -20,6 +21,7 @@ import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +36,16 @@ public class SuspensionServiceImpl implements SuspensionService {
 
   private static final String TARGET_TYPE_USER = "user";
 
+  /** A request not yet accepted by a driver. */
+  private static final List<RideState> PRE_ACCEPTANCE =
+      List.of(RideState.REQUESTED, RideState.OFFERING);
+
   private final UserRepository userRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final RideRepository rideRepository;
+  private final RideLifecycle rideLifecycle;
+  private final RideEvents rideEvents;
+  private final DriverRoleService driverRoleService;
   private final DriverProfileRepository driverProfileRepository;
   private final DriverDutyGates driverDutyGates;
   private final NotificationService notificationService;
@@ -97,10 +106,28 @@ public class SuspensionServiceImpl implements SuspensionService {
           "A document-expiry suspension is lifted only by an approved renewal", "document_expired");
     }
     Map<String, Object> before = roleSnapshot(assignment);
+    if (role == RideParty.DRIVER && driverRoleService.hasExpiredCurrentDocument(userId)) {
+      // Review B-W4 (owner ruling 2026-10-16): DRV-04 wins — the role stays suspended, now for the
+      // expired document, lifted only by an approved renewal. Audited as the attempt it was.
+      assignment.setSuspensionReason(SuspensionReason.DOCUMENT_EXPIRED);
+      assignment.setSuspensionNote(null);
+      roleAssignmentRepository.save(assignment);
+      Map<String, Object> after = roleSnapshot(assignment);
+      after.put("note", note);
+      after.put("result", SuspensionReason.DOCUMENT_EXPIRED.getValue());
+      auditService.record(
+          actorUserId, "user.role_reactivate", TARGET_TYPE_USER, userId.toString(), before, after);
+      notificationService.queue(
+          userId,
+          NotificationEvent.DRIVER_SUSPENDED,
+          Map.of("reason", SuspensionReason.DOCUMENT_EXPIRED.getValue()));
+      return;
+    }
     assignment.setState(RoleState.ACTIVE);
     assignment.setSuspensionReason(null);
     assignment.setSuspensionNote(null);
     assignment.setSuspendedAt(null);
+    assignment.setReactivatedAt(calendar.now());
     roleAssignmentRepository.save(assignment);
     Map<String, Object> after = roleSnapshot(assignment);
     after.put("note", note);
@@ -127,6 +154,7 @@ public class SuspensionServiceImpl implements SuspensionService {
     user.setSuspendedAt(calendar.now());
     userRepository.save(user);
     forceOfflineUnlessOnRide(userId, calendar.now());
+    cancelPendingRequests(userId, calendar.now());
     auditService.record(
         actorUserId,
         "user.suspend",
@@ -201,6 +229,28 @@ public class SuspensionServiceImpl implements SuspensionService {
         .filter(ride -> ride.getPaymentStatus() == PaymentStatus.PENDING)
         .filter(ride -> driverUserId.equals(ride.getDriverUserId()))
         .isPresent();
+  }
+
+  /**
+   * Review B-W5 (owner ruling 2026-10-16): the account's pre-acceptance request (requested /
+   * offering, as rider) is system-cancelled — {@code cancelled_by_rider} with reason {@code
+   * account_suspended}, no fee, its open offer withdrawn — so it is never dispatched to a driver
+   * the rider can no longer cancel for. Accepted rides go on (the finish-the-ride exemption).
+   */
+  private void cancelPendingRequests(UUID userId, Instant now) {
+    rideRepository
+        .findFirstByRiderUserIdAndStateIn(userId, PRE_ACCEPTANCE)
+        .flatMap(ride -> rideRepository.findForUpdate(ride.getId()))
+        .filter(ride -> PRE_ACCEPTANCE.contains(ride.getState()))
+        .ifPresent(
+            ride -> {
+              rideLifecycle.withdrawOpenOffer(ride, now);
+              ride.setState(RideState.CANCELLED_BY_RIDER);
+              ride.setCancelledAt(now);
+              ride.setCancellationReason(CancellationReason.ACCOUNT_SUSPENDED);
+              ride.setCancellationFee(null);
+              rideEvents.stateChanged(rideRepository.saveAndFlush(ride));
+            });
   }
 
   private void suspend(RoleAssignment assignment, SuspensionReason reason, String note) {

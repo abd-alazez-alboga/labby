@@ -15,6 +15,12 @@ public final class TrustRules {
   /** RATE-02: the exposed average is shown only from this many ratings on (owner ruling). */
   public static final int MIN_EXPOSED_RATINGS = 5;
 
+  /**
+   * RATE-02 (review B-W1, owner ruling 2026-10-16): a stored snapshot is rewritten only after at
+   * least this many new ratings (or on the first exposure).
+   */
+  public static final int MIN_NEW_FOR_SNAPSHOT = 3;
+
   /** RATE-01: the rating window after completion. */
   public static final int RATING_WINDOW_DAYS = 7;
 

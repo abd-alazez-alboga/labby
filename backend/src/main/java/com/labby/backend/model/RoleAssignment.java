@@ -62,6 +62,13 @@ public class RoleAssignment {
   @Column(name = "suspended_at")
   private Instant suspendedAt;
 
+  /**
+   * The last admin reactivation (M11 review B-H1): the daily USR-05 evaluation suspends the role
+   * again only once a rating was stored after this moment.
+   */
+  @Column(name = "reactivated_at")
+  private Instant reactivatedAt;
+
   @Column(name = "granted_at", nullable = false)
   private Instant grantedAt;
 

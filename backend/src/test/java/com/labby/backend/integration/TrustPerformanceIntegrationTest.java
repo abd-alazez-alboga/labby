@@ -110,7 +110,7 @@ class TrustPerformanceIntegrationTest extends AbstractTrustIntegrationTest {
     ratingService.refreshSnapshots();
     JsonNode after = ok(get("/api/v1/driver/performance", driver.token()), HttpStatus.OK);
     assertThat(after.get("rating").get("average").decimalValue()).isEqualByComparingTo("3.40");
-    assertThat(after.get("rating").get("ratingCount").asInt()).isEqualTo(5);
+    assertThat(after.get("rating").has("ratingCount")).isFalse();
     JsonNode rule = after.get("ratingRule");
     assertThat(rule.get("minAvgRating").decimalValue()).isEqualByComparingTo("3.0");
     assertThat(rule.get("minRatedRides").asInt()).isEqualTo(20);
@@ -214,6 +214,29 @@ class TrustPerformanceIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(warning.get("valuePercent").decimalValue()).isEqualByComparingTo("19.05");
     assertThat(warning.get("sampleSize").asInt()).isEqualTo(21);
     assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
+  }
+
+  @Test
+  @DisplayName(
+      "DRV-06/07 (review B-W6): a rider_no_show cancellation counts in neither the cancellations"
+          + " nor their base")
+  void shouldExcludeNoShowsFromTheCancellationRate() {
+    Account driver = newDriver();
+    Account rider = newRider();
+    Instant day = CLOCK.instant().minus(Duration.ofDays(1));
+    acceptedRide(rider, driver, "completed", day, 60);
+    acceptedRide(rider, driver, "cancelled_by_driver", day, null);
+    acceptedRide(rider, driver, "cancelled_by_driver", day, 60);
+    jdbcTemplate.update(
+        "UPDATE rides SET cancellation_reason = 'rider_no_show' WHERE driver_user_id = ?"
+            + " AND state = 'cancelled_by_driver' AND driver_arrived_at IS NOT NULL",
+        driver.userId());
+    JsonNode week =
+        ok(get("/api/v1/driver/performance", driver.token()), HttpStatus.OK).get("windows").get(0);
+    assertPercentage(week.get("cancellation"), 1, 2, "50.0");
+    // The no-show still counts where the contract counts it: an accepted offer, an arrival.
+    assertPercentage(week.get("acceptance"), 3, 3, "100.0");
+    assertPercentage(week.get("onTime"), 2, 2, "100.0");
   }
 
   @Test

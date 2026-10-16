@@ -141,8 +141,8 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     ratingService.refreshSnapshots();
 
     JsonNode own = ownDriverAggregate(driver);
+    assertThat(own.has("ratingCount")).isFalse(); // no count is ever exposed (review B-W1)
     assertThat(own.get("average").isNull()).isTrue(); // 4 ratings: below the exposure minimum
-    assertThat(own.get("ratingCount").asInt()).isEqualTo(4);
     assertThat(own.get("snapshotAt").isNull()).isFalse();
     assertThat(liveDriverAverage(driver).decimalValue()).isEqualByComparingTo("4.75");
 
@@ -150,7 +150,6 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     rateOk(rider, fifth, 3); // 22 / 5 = 4.40 live
     // Not moving until the job runs — the timing side-channel mitigation.
     assertThat(ownDriverAggregate(driver).get("average").isNull()).isTrue();
-    assertThat(ownDriverAggregate(driver).get("ratingCount").asInt()).isEqualTo(4);
     assertThat(riderRide(rider, fifth).get("driver").get("rating").isNull()).isTrue();
     assertThat(liveDriverAverage(driver).decimalValue()).isEqualByComparingTo("4.40");
 
@@ -158,7 +157,6 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     ratingService.refreshSnapshots();
     assertThat(ownDriverAggregate(driver).get("average").decimalValue())
         .isEqualByComparingTo("4.40");
-    assertThat(ownDriverAggregate(driver).get("ratingCount").asInt()).isEqualTo(5);
     // The counterpart sees the same exposed value in the ride's driver card.
     assertThat(riderRide(rider, fifth).get("driver").get("rating").decimalValue())
         .isEqualByComparingTo("4.40");
@@ -166,6 +164,10 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     // 33 / 8 = 4.125 -> HALF_UP 4.13 (never the HALF_EVEN 4.12).
     rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 4);
     rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 4);
+    // Review B-W1: fewer than 3 new ratings never rewrite an exposed snapshot.
+    ratingService.refreshSnapshots();
+    assertThat(ownDriverAggregate(driver).get("average").decimalValue())
+        .isEqualByComparingTo("4.40");
     rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 3);
     ratingService.refreshSnapshots();
     assertThat(ownDriverAggregate(driver).get("average").decimalValue())
@@ -173,7 +175,6 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     // Ratings are per role: the driver's rider role has none.
     JsonNode riderRole = ownAggregate(driver, "rider");
     assertThat(riderRole.get("average").isNull()).isTrue();
-    assertThat(riderRole.get("ratingCount").asInt()).isZero();
   }
 
   @Test
@@ -184,12 +185,12 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     Account rider = newRider();
     Account driver = newDriver();
     driverRatedTimes(rider, driver, 18, 3);
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
     // 19 ratings averaging 2.89: below both levels, but one short of the minimum count.
     assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
     assertThat(flags(driver.userId())).isEmpty();
 
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 5);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 5);
     // 20 ratings averaging exactly 3.00: not below 3.0 (strict), below the 3.5 warning level.
     assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
     assertThat(flags(driver.userId())).hasSize(1);
@@ -202,7 +203,10 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(outboxParams(driver.userId(), "account.role_suspended")).isEmpty();
 
     rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 2);
-    // 62 / 21 = 2.95 < 3.0 -> suspended for low rating, notified with the rule.
+    // 62 / 21 = 2.95 < 3.0 — but a rating never suspends by itself (review B-H1): the rater of the
+    // ride that just ended would be identified. The daily pass does.
+    assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
+    dailyJob();
     Map<String, Object> role = roleRow(driver.userId(), "driver");
     assertThat(role.get("state")).isEqualTo("suspended");
     assertThat(role.get("suspension_reason")).isEqualTo("low_rating");
@@ -237,28 +241,29 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     Account rider = newRider();
     Account driver = newDriver();
     driverRatedTimes(rider, driver, 4, 4);
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 4);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 4);
     // 5 ratings at exactly 4.0: flagged (below 4.2), not suspended.
     assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
     assertThat(flags(driver.userId()))
         .extracting(row -> row.get("kind"))
         .containsExactly("low_rating");
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 3);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 3);
     assertThat(roleRow(driver.userId(), "driver").get("suspension_reason")).isEqualTo("low_rating");
 
     Account rider2 = newRider();
     Account driver2 = newDriver();
     riderRatedTimes(rider2, driver2, 9, 3);
-    rateOk(driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 3);
+    rateAndEvaluate(driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 3);
     assertThat(flags(rider2.userId())).isEmpty(); // exactly 3.0 = the default warning level
-    rateOk(driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 1);
+    rateAndEvaluate(driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 1);
     assertThat(flags(rider2.userId())).extracting(row -> row.get("role")).containsExactly("rider");
     for (int i = 0; i < 2; i++) {
-      rateOk(driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 1);
+      rateAndEvaluate(
+          driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 1);
     }
     // 33 / 13 = 2.54: still not below 2.5.
     assertThat(roleRow(rider2.userId(), "rider").get("state")).isEqualTo("active");
-    rateOk(driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 1);
+    rateAndEvaluate(driver2, completedRide(rider2.userId(), driver2.userId(), CLOCK.instant()), 1);
     // 34 / 14 = 2.43 -> the rider role is suspended; booking is refused with the reason.
     assertThat(roleRow(rider2.userId(), "rider").get("suspension_reason")).isEqualTo("low_rating");
     ResponseEntity<JsonNode> booking = tryBook(rider2, booking(List.of()));
@@ -277,7 +282,7 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     Account rider = newRider();
     Account driver = newDriver();
     driverRatedTimes(rider, driver, 19, 1);
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
     assertThat(roleRow(driver.userId(), "driver").get("suspension_reason")).isEqualTo("low_rating");
 
     JsonNode trust =
@@ -302,13 +307,23 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
             admin);
     assertThat(notSuspended.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(code(notSuspended)).isEqualTo("not_suspended");
-    // Reactivation itself never re-suspends; the next stored rating does (still below 3.0).
+    // Reactivation itself never re-suspends, nor does the daily pass without a newer rating; the
+    // next stored rating does (still below 3.0) at the following pass.
+    dailyJob();
     assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 5);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT reactivated_at IS NOT NULL FROM role_assignments WHERE user_id = ? AND"
+                    + " role = 'driver'",
+                Boolean.class,
+                driver.userId()))
+        .isTrue();
+    advance(Duration.ofMinutes(1));
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 5);
     assertThat(roleRow(driver.userId(), "driver").get("suspension_reason")).isEqualTo("low_rating");
     assertThat(outboxParams(driver.userId(), "account.role_suspended")).hasSize(2);
     // While suspended, further ratings never notify again.
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
     assertThat(outboxParams(driver.userId(), "account.role_suspended")).hasSize(2);
 
     jdbcTemplate.update(
@@ -327,12 +342,12 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
   @Test
   @DisplayName(
       "RATE-03: the low_rating flag is listed with its rule, closed with a note once, and a"
-          + " condition still true opens a NEW flag on its next evaluation")
+          + " closed flag reopens only after a newer rating")
   void shouldQueueAndResolveLowRatingFlags() {
     Account rider = newRider();
     Account driver = newDriver();
     driverRatedTimes(rider, driver, 19, 3);
-    rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 3);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 3);
     String support = supportAdmin("+963937650001");
 
     JsonNode queue = ok(get("/api/v1/admin/flags?kind=low_rating", support), HttpStatus.OK);
@@ -379,9 +394,18 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(ok(get("/api/v1/admin/flags", admin), HttpStatus.OK).get("totalElements").asInt())
         .isZero();
 
+    // Ruling 2026-10-16: the nightly pass alone never reopens a closed flag, though the average
+    // is still below 3.5 — only a rating stored after the closing does.
+    advance(Duration.ofDays(1));
+    dailyJob();
+    assertThat(flags(driver.userId()))
+        .extracting(row -> row.get("status"))
+        .containsExactly("dismissed");
     advance(Duration.ofMinutes(1));
     rateOk(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 4);
-    // 64 / 21 = 3.05: still below 3.5 -> a new open flag.
+    assertThat(flags(driver.userId())).hasSize(1); // never on the rating itself
+    dailyJob();
+    // 64 / 21 = 3.05: still below 3.5, with a newer rating -> the next pass opens a new flag.
     assertThat(flags(driver.userId()))
         .extracting(row -> row.get("status"))
         .containsExactly("dismissed", "open");
@@ -420,6 +444,8 @@ class TrustRatingsIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(cancelled.get("myRating").get("state").asText()).isEqualTo("not_applicable");
     assertThat(cancelled.get("myRating").get("windowEndsAt").isNull()).isTrue();
     assertThat(cancelled.get("counterpartFirstName").isNull()).isTrue();
+    assertThat(cancelled.get("cancellationReason").asText()).isEqualTo("changed_mind");
+    assertThat(riderRows.get(rated.toString()).get("cancellationReason").isNull()).isTrue();
 
     // The driver's side: their own (absent) ratings, the rider's first name.
     Map<String, JsonNode> driverRows = rows(get("/api/v1/driver/rides?size=20", driver.token()));

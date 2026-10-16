@@ -261,7 +261,8 @@ public class RideLifecycle {
         ride.getCancellationFee(),
         ride.getCurrency(),
         myRating,
-        counterpartFirstName);
+        counterpartFirstName,
+        ride.getCancellationReason());
   }
 
   /**

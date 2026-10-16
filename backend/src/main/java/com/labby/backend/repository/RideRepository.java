@@ -212,10 +212,11 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   /**
    * DRV-06 ride metrics of one driver for the window {@code [from, to]} (trust-v1.yaml): rides
-   * accepted in the window (by {@code accepted_at}), of them cancelled by the driver, of them that
-   * reached {@code driver_arrived}, of those the on-time ones (arrived at most the accepted offer's
-   * quoted pickup ETA + 5 min after acceptance), and rides completed in the window (by {@code
-   * completed_at}).
+   * accepted in the window (by {@code accepted_at}), of them cancelled by the driver — a {@code
+   * rider_no_show} cancellation counts in neither the cancellations nor their base (review B-W6) —,
+   * of them that reached {@code driver_arrived}, of those the on-time ones (arrived at most the
+   * accepted offer's quoted pickup ETA + 5 min after acceptance), and rides completed in the window
+   * (by {@code completed_at}).
    */
   @Query(
       value =
@@ -223,7 +224,12 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
           SELECT
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to) AS accepted,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
-                             AND r.state = 'cancelled_by_driver') AS cancelledByDriver,
+                             AND r.state = 'cancelled_by_driver'
+                             AND r.cancellation_reason <> 'rider_no_show') AS cancelledByDriver,
+            COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
+                             AND (r.state <> 'cancelled_by_driver'
+                                  OR r.cancellation_reason <> 'rider_no_show'))
+              AS cancellationBase,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND r.driver_arrived_at IS NOT NULL) AS arrived,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
@@ -267,6 +273,9 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
     long getAccepted();
 
     long getCancelledByDriver();
+
+    /** Accepted rides minus the driver's {@code rider_no_show} cancellations (review B-W6). */
+    long getCancellationBase();
 
     long getArrived();
 

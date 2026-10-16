@@ -1,9 +1,12 @@
 package com.labby.backend.repository;
 
+import com.labby.backend.enums.FlagKind;
 import com.labby.backend.enums.FlagStatus;
+import com.labby.backend.enums.RideParty;
 import com.labby.backend.model.AccountFlag;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -68,6 +71,18 @@ public interface AccountFlagRepository extends JpaRepository<AccountFlag, UUID> 
       @Param("kind") String kind,
       @Param("userId") String userId,
       Pageable pageable);
+
+  /**
+   * When the user x role's latest CLOSED flag of a kind was closed — the RATE-03 reopen rule (owner
+   * ruling 2026-10-16): a closed low_rating flag reopens only after a newer rating.
+   *
+   * @return the latest resolution moment, or empty when none was ever closed
+   */
+  @Query(
+      "SELECT MAX(f.resolvedAt) FROM AccountFlag f WHERE f.userId = :userId AND f.role = :role"
+          + " AND f.kind = :kind AND f.status <> com.labby.backend.enums.FlagStatus.OPEN")
+  Optional<Instant> latestClosedAt(
+      @Param("userId") UUID userId, @Param("role") RideParty role, @Param("kind") FlagKind kind);
 
   /** A user's flags in one state, oldest first (the trust profile shows the open ones). */
   List<AccountFlag> findByUserIdAndStatusOrderByRaisedAtAsc(UUID userId, FlagStatus status);

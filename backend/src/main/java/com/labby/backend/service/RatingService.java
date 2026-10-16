@@ -13,14 +13,14 @@ import java.util.UUID;
 
 /**
  * Ratings (RATE-01..03, USR-05; trust-v1.yaml): rating a completed ride's counterpart within 7
- * days, once, immutably; the exposed daily-snapshot averages (RATE-02); the live re-evaluation of
- * the RATE-03 flag and USR-05 auto-suspension on every stored rating.
+ * days, once, immutably; the exposed snapshot averages (RATE-02). The RATE-03 flag and USR-05
+ * auto-suspension run in the daily job ({@link RatingEvaluationService}).
  */
 public interface RatingService {
 
   /**
-   * Stores the caller's rating of the ride's counterpart and re-evaluates the rated user's role on
-   * the LIVE lifetime average against the ride region's rule.
+   * Stores the caller's rating of the ride's counterpart. USR-05 / RATE-03 are NOT evaluated here
+   * (review B-H1) — the daily {@link RatingSnapshotJob} does.
    *
    * @param userId the caller (the ride's rider or driver)
    * @param rideId the ride
@@ -87,7 +87,8 @@ public interface RatingService {
   Map<UUID, MyRatingDto> myRatings(List<Ride> rides, RideParty side);
 
   /**
-   * Rewrites every RATE-02 snapshot from the live aggregates (the daily job).
+   * Rewrites the RATE-02 snapshots the refresh rule allows (the daily job; review B-W1): none yet,
+   * at least 3 new ratings, or the first exposure.
    *
    * @return the snapshots written
    */

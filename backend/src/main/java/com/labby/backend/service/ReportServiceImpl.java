@@ -17,6 +17,7 @@ import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.ReportCategory;
 import com.labby.backend.enums.ReportStatus;
 import com.labby.backend.enums.RideParty;
+import com.labby.backend.enums.Role;
 import com.labby.backend.enums.StoredFileKind;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ForbiddenException;
@@ -30,6 +31,7 @@ import com.labby.backend.model.User;
 import com.labby.backend.repository.ReportPhotoRepository;
 import com.labby.backend.repository.ReportRepository;
 import com.labby.backend.repository.RideRepository;
+import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.StoredFileRepository;
 import com.labby.backend.repository.UserRepository;
 import java.time.Clock;
@@ -74,6 +76,7 @@ public class ReportServiceImpl implements ReportService {
               ReportCategory.OTHER));
 
   private final ReportRepository reportRepository;
+  private final RoleAssignmentRepository roleAssignmentRepository;
   private final ReportPhotoRepository reportPhotoRepository;
   private final RideRepository rideRepository;
   private final UserRepository userRepository;
@@ -258,6 +261,10 @@ public class ReportServiceImpl implements ReportService {
 
   /** REP-03: the sliding window on the resolution moment; flag only, never a suspension. */
   private void evaluateReportThreshold(UUID userId, RideParty role, Instant now) {
+    // Review B-W3: lock the reported role first, so two concurrent substantiations serialize and
+    // the second one counts the first (a crossing is never missed).
+    roleAssignmentRepository.findForUpdate(
+        userId, role == RideParty.DRIVER ? Role.DRIVER : Role.RIDER);
     int days = trustProperties.reportFlagDays();
     List<Report> recent =
         reportRepository.findSubstantiatedSince(userId, role, now.minus(Duration.ofDays(days)));

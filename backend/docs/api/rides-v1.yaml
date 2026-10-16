@@ -1017,7 +1017,11 @@ components:
         cancellationReason:
           type: [string, 'null']
           enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
-                 unsafe_pickup, other, null]
+                 unsafe_pickup, other, account_suspended, null]
+          description: >
+            `account_suspended` (M11 review ruling 2026-10-16) = the system cancelled a
+            pre-acceptance request because an admin suspended the rider's whole account (no fee);
+            never chosen by a party
         cancellationFee: { type: [number, 'null'], description: Recorded fee — collected by the M8 money rails (money-v1.yaml rider dues) }
         fare:
           oneOf:
@@ -1216,7 +1220,7 @@ components:
       allOf:
         - { $ref: '#/components/schemas/RideSummary' }
         - type: object
-          required: [myRating, counterpartFirstName]
+          required: [myRating, counterpartFirstName, cancellationReason]
           properties:
             myRating:
               description: The caller's own rating state for the ride — same object as `Ride.myRating`
@@ -1231,6 +1235,11 @@ components:
               description: >
                 The driver's first name in the rider's history, the rider's first name in the
                 driver's history; null when the ride never had a driver
+            cancellationReason:
+              type: [string, 'null']
+              enum: [changed_mind, driver_too_far, wrong_pickup, rider_no_show, vehicle_issue,
+                     unsafe_pickup, other, account_suspended, null]
+              description: Same as `Ride.cancellationReason`; null when not cancelled
     RideSummaryPage:
       type: object
       required: [items, page, size, totalItems]

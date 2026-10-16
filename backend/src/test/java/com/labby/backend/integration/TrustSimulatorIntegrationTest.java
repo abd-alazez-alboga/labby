@@ -11,7 +11,6 @@ import com.labby.backend.service.NotificationDispatchService;
 import com.labby.backend.service.PushSender;
 import com.labby.backend.service.PushSender.PushMessage;
 import com.labby.backend.service.PushSender.PushResult;
-import com.labby.backend.service.RatingSnapshotJob;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -55,7 +54,6 @@ class TrustSimulatorIntegrationTest extends AbstractTrustIntegrationTest {
   @MockitoBean private PushSender pushSender;
 
   @Autowired private NotificationDispatchService notificationDispatchService;
-  @Autowired private RatingSnapshotJob ratingSnapshotJob;
   @Autowired private MetricWarningJob metricWarningJob;
 
   private final List<PushMessage> pushes = new CopyOnWriteArrayList<>();
@@ -93,7 +91,7 @@ class TrustSimulatorIntegrationTest extends AbstractTrustIntegrationTest {
     ratingSnapshotJob.run();
     // 4 ratings: below the exposure minimum on both sides.
     assertThat(own(driver, "driver").get("average").isNull()).isTrue();
-    assertThat(own(driver, "driver").get("ratingCount").asInt()).isEqualTo(4);
+    assertThat(own(driver, "driver").has("ratingCount")).isFalse();
     assertThat(own(rider, "rider").get("average").isNull()).isTrue();
 
     UUID fifth = completeRide(rider, driver, "cash");
@@ -116,7 +114,6 @@ class TrustSimulatorIntegrationTest extends AbstractTrustIntegrationTest {
     advance(Duration.ofDays(1));
     ratingSnapshotJob.run();
     assertThat(own(driver, "driver").get("average").decimalValue()).isEqualByComparingTo("4.60");
-    assertThat(own(driver, "driver").get("ratingCount").asInt()).isEqualTo(5);
     assertThat(own(rider, "rider").get("average").decimalValue()).isEqualByComparingTo("4.80");
     // The offer summary the driver sees, then the driver card the rider sees.
     position(driver, PICKUP_LAT, PICKUP_LNG);
@@ -148,6 +145,9 @@ class TrustSimulatorIntegrationTest extends AbstractTrustIntegrationTest {
 
     UUID rideId = completeRide(rider, driver, "cash");
     rateOk(rider, rideId, 1); // 58 / 20 = 2.90 < 3.0 with the 20-ride minimum reached
+    // Never on the rating itself (review B-H1): the night's pass suspends.
+    assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
+    ratingSnapshotJob.run();
     assertThat(roleRow(driver.userId(), "driver").get("suspension_reason")).isEqualTo("low_rating");
     notificationDispatchService.dispatchPending();
     JsonNode notice = latestNotification(driver, "driver", "account.role_suspended");
@@ -200,6 +200,7 @@ class TrustSimulatorIntegrationTest extends AbstractTrustIntegrationTest {
     // The next real low rating re-suspends (60 / 21 = 2.86).
     UUID next = completeRide(rider, driver, "cash");
     rateOk(rider, next, 2);
+    ratingSnapshotJob.run();
     assertThat(roleRow(driver.userId(), "driver").get("suspension_reason")).isEqualTo("low_rating");
     assertThat(outboxParams(driver.userId(), "account.role_suspended")).hasSize(2);
   }

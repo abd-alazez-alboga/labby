@@ -26,7 +26,12 @@ info:
     | live | suspension (USR-05), flags (RATE-03), admins | `ratings` | always exact |
 
     The daily snapshot is the documented mitigation of the timing side channel: a rated user can
-    never watch the number move right after a given ride (M11-T6 privacy review). No endpoint
+    never watch the number move right after a given ride (M11-T6 privacy review). Review rulings
+    **2026-10-16** (B-W1): no exposed view carries a rating COUNT, and the daily job rewrites a
+    user × role snapshot only when no snapshot exists, when at least 3 ratings arrived since the
+    stored one, or on the first exposure (stored count < 5 ≤ live count) — so a diff of two
+    snapshots never isolates a single new score. Counterpart summaries read the same snapshot;
+    admin views keep the live average and count. No endpoint
     for riders or drivers ever returns an individual rating received, its ride, its rater or its
     text; a user sees only the ratings they GAVE (`myRating`). The 2 decimals of the average
     are rounded HALF_UP.
@@ -37,11 +42,16 @@ info:
     driver 3.0 / 20, rider 2.5 / 10) and `warnAvgRating` (the RATE-03 admin flag; optional,
     absent = `minAvgRating + 0.5` → driver 3.5, rider 3.0 **(ruling)**; must be > `minAvgRating`).
     Both rules need `rating_count ≥ minRatedRides` and compare the LIVE lifetime average with a
-    strict `<`. They are evaluated each time a rating is stored, against the region of the
-    rated ride. Crossing `warnAvgRating` opens a `low_rating` flag (one open flag per user ×
-    role × kind). Crossing `minAvgRating` suspends the role with reason `low_rating` (only if it
-    is `active`) and notifies the user (category `account`, with the rule). After an admin
-    reactivates a rating suspension, the rule re-fires only on the NEXT rating stored.
+    strict `<`. Review ruling **2026-10-16** (B-H1): they are NEVER evaluated when a rating is
+    stored — a suspension right after a ride would identify its rater — but once a day by the
+    snapshot job, for every rated user × role (role assignment locked first), against the region
+    of the ride of the user × role's latest rating. Crossing `warnAvgRating` opens a
+    `low_rating` flag (one open flag per user × role × kind); once such a flag was closed
+    (dismissed or actioned), a new one opens only after a rating stored after its closing
+    **(ruling 2026-10-16)**. Crossing `minAvgRating` suspends the
+    role with reason `low_rating` (only if it is `active`) and notifies the user (category
+    `account`, with the rule). After an admin reactivates the role, the job suspends it again only
+    if at least one rating was stored after the reactivation moment.
 
 
     **Reports (REP-01..03).** A party reports the counterpart of a ride from acceptance on —
@@ -66,7 +76,7 @@ info:
     | Metric | Numerator | Denominator (counted in the window by) |
     |---|---|---|
     | acceptance | offers `accepted` | offers `accepted` + `declined` + `expired` (`withdrawn` excluded) — by `offeredAt` |
-    | cancellation | rides `cancelled_by_driver` after acceptance | rides the driver accepted — by `acceptedAt` |
+    | cancellation | rides `cancelled_by_driver` after acceptance, except `rider_no_show` | rides the driver accepted, except those `rider_no_show` cancellations — by `acceptedAt` (review ruling 2026-10-16, B-W6) |
     | on-time | rides with `driverArrivedAt ≤ acceptedAt + accepted offer's pickupEtaSeconds + 5 min` | accepted rides that reached `driver_arrived` — by `acceptedAt` |
 
     plus completed trips and earnings (driver ledger fare earnings, per currency) per window. A
@@ -106,7 +116,14 @@ info:
     Manual suspension of a role already suspended for an automatic reason REPLACES the reason
     with `manual`; suspending an already manually suspended role is 409 `already_suspended`.
     Reactivating lifts `low_rating` and `manual`; a `document_expired` suspension is lifted only
-    by an approved renewal (409 `document_expired`).
+    by an approved renewal (409 `document_expired`). Review rulings **2026-10-16**: (B-W4)
+    reactivating a DRIVER role while a current document (approved ID / licence, the active
+    vehicle's registration / insurance) is expired leaves the role suspended with reason
+    `document_expired` — audited as the attempted reactivation (`result: document_expired`),
+    notified with DRV-04's `driver.suspended` instead of the reactivation, 200 with the resulting
+    state; (B-W5) suspending a whole account system-cancels its pre-acceptance request
+    (`requested` / `offering`, as rider): `cancelled_by_rider` with reason `account_suspended`,
+    no fee, the open offer withdrawn.
 
 
     **Permissions.** New: `reports:view` (queue + detail) and `reports:handle` (resolve), both
@@ -134,8 +151,8 @@ paths:
       tags: [Ratings]
       summary: Rate the counterpart of a completed ride (UC-S-17)
       description: >
-        The caller's side (rider or driver) is derived from the ride. Re-evaluates USR-05 /
-        RATE-03 for the rated user's role on the live average.
+        The caller's side (rider or driver) is derived from the ride. Never evaluates USR-05 /
+        RATE-03 (review ruling 2026-10-16, B-H1): the daily job does.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/RideId' }]
       requestBody:
@@ -356,7 +373,9 @@ paths:
       summary: Close a flag — `actioned` (warned via support / suspended) or `dismissed` — with a note
       description: >
         Audit-logged. Suspending is a separate call (below); this only closes the flag. A
-        condition that is still true later opens a NEW flag on its next evaluation.
+        condition that is still true later opens a NEW flag on its next evaluation — for
+        `low_rating` only once a rating was stored after this closing (ruling 2026-10-16; the
+        daily evaluation would otherwise reopen it every night).
       security: [{ bearerAuth: [] }]
       x-required-permission: 'users:suspend'
       parameters: [{ $ref: '#/components/parameters/FlagId' }]
@@ -570,15 +589,13 @@ components:
         destinationLabel: { type: [string, 'null'] }
     OwnRatingAggregate:
       type: object
-      required: [role, ratingCount]
+      required: [role]
+      description: No count is exposed (review ruling 2026-10-16, B-W1)
       properties:
         role: { $ref: '#/components/schemas/PartyRole' }
         average:
           type: [number, 'null']
-          description: Snapshot average (2 decimals); null below 5 ratings
-        ratingCount:
-          type: integer
-          description: As of the snapshot (0 when there is none yet)
+          description: Snapshot average (2 decimals); null until the snapshot holds 5 ratings
         snapshotAt: { type: [string, 'null'], format: date-time }
     ReportCategory:
       type: string

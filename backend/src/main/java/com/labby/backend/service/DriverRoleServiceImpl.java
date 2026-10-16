@@ -132,7 +132,9 @@ public class DriverRoleServiceImpl implements DriverRoleService {
   }
 
   /** Current = approved ID/licence + the ACTIVE vehicle's approved registration/insurance. */
-  private boolean hasExpiredCurrentDocument(UUID userId) {
+  @Override
+  @Transactional(readOnly = true)
+  public boolean hasExpiredCurrentDocument(UUID userId) {
     LocalDate today = calendar.today();
     UUID activeVehicleId =
         vehicleRepository.findByDriverUserIdAndActiveTrue(userId).map(Vehicle::getId).orElse(null);

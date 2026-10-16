@@ -51,4 +51,14 @@ public interface DriverRoleService {
    * @return true when suspended
    */
   boolean isSuspended(UUID userId);
+
+  /**
+   * Whether a current document (approved ID/licence, the active vehicle's registration/insurance)
+   * is expired today — DRV-04's condition, also checked when an admin reactivates the driver role
+   * (M11 review B-W4).
+   *
+   * @param userId the driver
+   * @return true when a current document is expired
+   */
+  boolean hasExpiredCurrentDocument(UUID userId);
 }

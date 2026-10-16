@@ -103,7 +103,7 @@ public class DriverPerformanceServiceImpl implements DriverPerformanceService {
     return new MetricWindowDto(
         days,
         percentage(offers.getAccepted(), offers.getDecided()),
-        percentage(rides.getCancelledByDriver(), rides.getAccepted()),
+        percentage(rides.getCancelledByDriver(), rides.getCancellationBase()),
         percentage(rides.getOnTime(), rides.getArrived()),
         rides.getTrips(),
         earnings);
@@ -161,9 +161,9 @@ public class DriverPerformanceServiceImpl implements DriverPerformanceService {
             driverUserId,
             DriverMetric.CANCELLATION,
             TrustRules.cancellationBreached(
-                rides.getCancelledByDriver(), rides.getAccepted(), rule),
+                rides.getCancelledByDriver(), rides.getCancellationBase(), rule),
             rides.getCancelledByDriver(),
-            rides.getAccepted(),
+            rides.getCancellationBase(),
             rule.maxCancellationPercent(),
             rule.windowDays(),
             now);

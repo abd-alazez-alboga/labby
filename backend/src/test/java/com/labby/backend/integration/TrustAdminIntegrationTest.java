@@ -293,6 +293,81 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "Review B-W4: reactivating a driver whose current document expired keeps the role suspended"
+          + " for document_expired, audited, with the DRV-04 notice instead of the reactivation")
+  void shouldKeepAnExpiredDocumentDriverSuspendedOnReactivation() {
+    Account driver = newDriver();
+    String path = "/api/v1/admin/users/" + driver.userId() + "/roles/driver";
+    ok(post(path + "/suspend", Map.of("note", "Complaints"), admin), HttpStatus.OK);
+    jdbcTemplate.update(
+        "UPDATE documents SET expires_on = CURRENT_DATE - 2 WHERE driver_user_id = ?"
+            + " AND type = 'drivers_license'",
+        driver.userId());
+
+    JsonNode trust =
+        ok(post(path + "/reactivate", Map.of("note", "Resolved"), admin), HttpStatus.OK);
+    JsonNode role = TrustRatingsIntegrationTest.roleTrust(trust, "driver");
+    assertThat(role.get("state").asText()).isEqualTo("suspended");
+    assertThat(role.get("suspensionReason").asText()).isEqualTo("document_expired");
+    assertThat(role.get("suspensionNote").isNull()).isTrue();
+    assertThat(outboxParams(driver.userId(), "driver.suspended"))
+        .singleElement()
+        .satisfies(params -> assertThat(params).contains("\"reason\": \"document_expired\""));
+    assertThat(outboxParams(driver.userId(), "account.role_reactivated")).isEmpty();
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT after_state::text FROM audit_log WHERE target_id = ? AND action ="
+                    + " 'user.role_reactivate'",
+                String.class,
+                driver.userId().toString()))
+        .contains("\"result\": \"document_expired\"", "Resolved");
+    // From here only an approved renewal lifts it.
+    ResponseEntity<JsonNode> again = post(path + "/reactivate", Map.of("note", "n"), admin);
+    assertThat(code(again)).isEqualTo("document_expired");
+  }
+
+  @Test
+  @DisplayName(
+      "Review B-W5: a whole-account suspension system-cancels the rider's pre-acceptance request"
+          + " (reason account_suspended, no fee) and withdraws its open offer")
+  void shouldCancelPendingRequestsOnAccountSuspension() {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    Account rider = rider();
+    UUID rideId = book(rider);
+    dispatch();
+    assertThat(stateOf(rideId)).isEqualTo("offering");
+    assertThat(hasOpenOffer(driver)).isTrue();
+
+    ok(
+        post("/api/v1/admin/users/" + rider.userId() + "/suspend", Map.of("note", "Fraud"), admin),
+        HttpStatus.OK);
+    Map<String, Object> ride =
+        jdbcTemplate.queryForMap(
+            "SELECT state, cancellation_reason, cancellation_fee, cancelled_at FROM rides"
+                + " WHERE ride_id = ?",
+            rideId);
+    assertThat(ride.get("state")).isEqualTo("cancelled_by_rider");
+    assertThat(ride.get("cancellation_reason")).isEqualTo("account_suspended");
+    assertThat(ride.get("cancellation_fee")).isNull();
+    assertThat(ride.get("cancelled_at")).isNotNull();
+    assertThat(offerResponses(rideId)).containsExactly("withdrawn");
+    assertThat(hasOpenOffer(driver)).isFalse();
+    dispatch(); // nothing left to dispatch
+    assertThat(hasOpenOffer(driver)).isFalse();
+    // The rider's history row says why (read after reactivation: history is a feature path).
+    ok(
+        post(
+            "/api/v1/admin/users/" + rider.userId() + "/reactivate",
+            Map.of("note", "Cleared"),
+            admin),
+        HttpStatus.OK);
+    JsonNode row = ok(get("/api/v1/rides", rider.token()), HttpStatus.OK).get("items").get(0);
+    assertThat(row.get("id").asText()).isEqualTo(rideId.toString());
+    assertThat(row.get("cancellationReason").asText()).isEqualTo("account_suspended");
+  }
+
+  @Test
   @DisplayName("RBAC: the trust profile needs users:view, every suspend/reactivate users:suspend")
   void shouldGateTheTrustEndpoints() {
     Account rider = newRider();

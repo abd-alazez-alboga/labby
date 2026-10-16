@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.service.DriverPerformanceService;
 import com.labby.backend.service.RatingService;
+import com.labby.backend.service.RatingSnapshotJob;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +27,7 @@ abstract class AbstractTrustIntegrationTest extends AbstractMoneyIntegrationTest
 
   @Autowired protected RatingService ratingService;
   @Autowired protected DriverPerformanceService driverPerformanceService;
+  @Autowired protected RatingSnapshotJob ratingSnapshotJob;
 
   private int trustPhoneSequence;
   private int trustPlateSequence;
@@ -180,6 +182,20 @@ abstract class AbstractTrustIntegrationTest extends AbstractMoneyIntegrationTest
     assertThat(response.getStatusCode())
         .as("%s", response.getBody())
         .isEqualTo(HttpStatus.NO_CONTENT);
+  }
+
+  /**
+   * The daily trust pass (snapshots + USR-05 / RATE-03): since review B-H1 the rules never run on a
+   * stored rating, only here.
+   */
+  protected void dailyJob() {
+    ratingSnapshotJob.run();
+  }
+
+  /** Rates via the API, then runs the daily pass — the earliest moment the rules can fire. */
+  protected void rateAndEvaluate(Account caller, UUID rideId, int score) {
+    rateOk(caller, rideId, score);
+    dailyJob();
   }
 
   protected Map<String, Object> roleRow(UUID userId, String role) {

@@ -5,7 +5,6 @@ import com.labby.backend.dto.MyRatingDto;
 import com.labby.backend.dto.OwnRatingAggregateDto;
 import com.labby.backend.dto.PendingRatingDto;
 import com.labby.backend.dto.RatingRequestDto;
-import com.labby.backend.enums.FlagKind;
 import com.labby.backend.enums.MyRatingState;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
@@ -16,17 +15,14 @@ import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Rating;
 import com.labby.backend.model.RatingSnapshot;
-import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.RatingRepository;
 import com.labby.backend.repository.RatingSnapshotRepository;
-import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -53,12 +49,9 @@ public class RatingServiceImpl implements RatingService {
   private final RatingRepository ratingRepository;
   private final RatingSnapshotRepository ratingSnapshotRepository;
   private final RideRepository rideRepository;
-  private final RegionRepository regionRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final UserRepository userRepository;
   private final OnboardingAssembler onboardingAssembler;
-  private final SuspensionService suspensionService;
-  private final AccountFlagService accountFlagService;
   private final Clock clock;
 
   @Override
@@ -101,34 +94,8 @@ public class RatingServiceImpl implements RatingService {
     } catch (DataIntegrityViolationException ex) {
       throw alreadyRated(); // a concurrent submission of the same side won the unique constraint
     }
-    evaluate(ratedUserId, ratedRole, ride.getRegionId());
-  }
-
-  /**
-   * RATE-03 + USR-05 on the LIVE lifetime average against the rated ride's region: both need the
-   * minimum count and a strictly lower average. Re-run on every stored rating, so a reactivated
-   * role is suspended again only by the next rating.
-   */
-  private void evaluate(UUID userId, RideParty role, UUID regionId) {
-    Region region = regionRepository.findById(regionId).orElse(null);
-    TrustRules.RatingRule rule =
-        TrustRules.ratingRule(region == null ? null : region.getSuspensionThresholds(), role);
-    RatingRepository.LiveAggregate aggregate =
-        ratingRepository.liveAggregate(userId, role.getValue());
-    long count = aggregate.getRatingCount();
-    BigDecimal average = aggregate.getAverage();
-    if (TrustRules.below(average, count, rule.warnAvgRating(), rule.minRatedRides())) {
-      Map<String, Object> details = new LinkedHashMap<>();
-      details.put("average", average.setScale(2, RoundingMode.HALF_UP));
-      details.put("ratingCount", count);
-      details.put("warnAvgRating", rule.warnAvgRating());
-      details.put("minRatedRides", rule.minRatedRides());
-      details.put("regionId", regionId.toString());
-      accountFlagService.open(userId, role, FlagKind.LOW_RATING, details);
-    }
-    if (TrustRules.below(average, count, rule.minAvgRating(), rule.minRatedRides())) {
-      suspensionService.suspendForLowRating(userId, role, rule);
-    }
+    // USR-05 / RATE-03 are NEVER evaluated here (review B-H1): a suspension right after a ride
+    // would identify its rater. The daily RatingSnapshotJob evaluates them.
   }
 
   @Override
@@ -195,9 +162,8 @@ public class RatingServiceImpl implements RatingService {
                 new OwnRatingAggregateDto(
                     role,
                     TrustRules.exposed(snapshot.getAvgScore(), snapshot.getRatingCount()),
-                    snapshot.getRatingCount(),
                     snapshot.getComputedAt()))
-        .orElseGet(() -> new OwnRatingAggregateDto(role, null, 0, null));
+        .orElseGet(() -> new OwnRatingAggregateDto(role, null, null));
   }
 
   @Override
@@ -253,7 +219,8 @@ public class RatingServiceImpl implements RatingService {
 
   @Override
   public int refreshSnapshots() {
-    return ratingRepository.rewriteSnapshots(clock.instant());
+    return ratingRepository.rewriteSnapshots(
+        clock.instant(), TrustRules.MIN_NEW_FOR_SNAPSHOT, TrustRules.MIN_EXPOSED_RATINGS);
   }
 
   private static RideParty sideOf(Ride ride, UUID userId) {

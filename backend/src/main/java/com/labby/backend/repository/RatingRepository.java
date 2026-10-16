@@ -42,10 +42,16 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
   LiveAggregate liveAggregate(@Param("userId") UUID userId, @Param("role") String role);
 
   /**
-   * Rewrites every RATE-02 snapshot from the live lifetime aggregates (2 decimals, half up — PG
-   * {@code ROUND} on numeric rounds half away from zero, i.e. half up for positive averages).
+   * Rewrites the RATE-02 snapshots from the live lifetime aggregates (2 decimals, half up — PG
+   * {@code ROUND} on numeric rounds half away from zero, i.e. half up for positive averages) — only
+   * where the review B-W1 rule allows (owner ruling 2026-10-16): no snapshot yet, at least {@code
+   * minNew} new ratings since the stored one, or the first exposure (stored below {@code
+   * exposeFrom}, live at or above it). A single new rating therefore never moves the exposed
+   * average.
    *
    * @param now the snapshot moment
+   * @param minNew the minimum new ratings for a rewrite (3)
+   * @param exposeFrom the exposure minimum (5)
    * @return the rows written
    */
   @Modifying
@@ -53,16 +59,56 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
       value =
           """
           INSERT INTO rating_snapshots (user_id, role, avg_score, rating_count, computed_at)
-          SELECT rated_user_id, rated_role, ROUND(AVG(score), 2), COUNT(*), :now
-          FROM ratings
-          GROUP BY rated_user_id, rated_role
+          SELECT a.user_id, a.role, a.avg_score, a.rating_count, :now
+          FROM (SELECT rated_user_id AS user_id, rated_role AS role,
+                       ROUND(AVG(score), 2) AS avg_score, COUNT(*) AS rating_count
+                FROM ratings GROUP BY rated_user_id, rated_role) a
+          LEFT JOIN rating_snapshots s ON s.user_id = a.user_id AND s.role = a.role
+          WHERE s.user_id IS NULL
+             OR a.rating_count - s.rating_count >= :minNew
+             OR (s.rating_count < :exposeFrom AND a.rating_count >= :exposeFrom)
           ON CONFLICT (user_id, role) DO UPDATE
             SET avg_score = EXCLUDED.avg_score,
                 rating_count = EXCLUDED.rating_count,
                 computed_at = EXCLUDED.computed_at
           """,
       nativeQuery = true)
-  int rewriteSnapshots(@Param("now") Instant now);
+  int rewriteSnapshots(
+      @Param("now") Instant now, @Param("minNew") int minNew, @Param("exposeFrom") int exposeFrom);
+
+  /** Every rated user x role — the daily USR-05 / RATE-03 evaluation's candidates. */
+  @Query(
+      value = "SELECT DISTINCT rated_user_id AS userId, rated_role AS role FROM ratings",
+      nativeQuery = true)
+  List<RatedPair> findRatedPairs();
+
+  /** Whether a rating of the user x role was stored after the instant (the re-fire rule). */
+  boolean existsByRatedUserIdAndRatedRoleAndCreatedAtAfter(
+      UUID ratedUserId, RideParty ratedRole, Instant after);
+
+  /**
+   * The region of the ride of the user x role's latest rating — whose rule applies.
+   *
+   * @param userId the rated user
+   * @param role the rated role
+   * @return the region
+   */
+  @Query(
+      value =
+          """
+          SELECT r.region_id FROM ratings g JOIN rides r ON r.ride_id = g.ride_id
+          WHERE g.rated_user_id = :userId AND g.rated_role = :role
+          ORDER BY g.created_at DESC, g.rating_id DESC LIMIT 1
+          """,
+      nativeQuery = true)
+  Optional<UUID> latestRatedRegion(@Param("userId") UUID userId, @Param("role") String role);
+
+  /** A rated user x role. */
+  interface RatedPair {
+    UUID getUserId();
+
+    String getRole();
+  }
 
   /** One user x role's live aggregate. */
   interface LiveAggregate {
