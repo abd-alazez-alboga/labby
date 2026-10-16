@@ -30,8 +30,15 @@ export function UserLookup({ mode }: { mode: 'wallet' | 'ledger' }) {
   const [failure, setFailure] = useState<FailureKind | null>(null);
   const [results, setResults] = useState<ReturnType<typeof candidatesFromRides> | null>(null);
 
+  // The Users section opens the trust profile when the admin may see it
+  // (users:view, M11), the wallet otherwise; both are tabs of one profile.
+  const openTrust = mode === 'wallet' && can('users:view');
   const target = (userId: string) =>
-    mode === 'wallet' ? `/users/${userId}/wallet` : `/driver-ledgers/${userId}`;
+    mode === 'ledger'
+      ? `/driver-ledgers/${userId}`
+      : openTrust
+        ? `/users/${userId}/trust`
+        : `/users/${userId}/wallet`;
 
   async function search(event: FormEvent) {
     event.preventDefault();
@@ -66,7 +73,11 @@ export function UserLookup({ mode }: { mode: 'wallet' | 'ledger' }) {
       <PageHeader
         title={t(mode === 'wallet' ? 'money.lookup.usersTitle' : 'money.lookup.ledgersTitle')}
         description={t(
-          mode === 'wallet' ? 'money.lookup.usersSubtitle' : 'money.lookup.ledgersSubtitle',
+          mode === 'ledger'
+            ? 'money.lookup.ledgersSubtitle'
+            : openTrust
+              ? 'money.lookup.usersSubtitleProfile'
+              : 'money.lookup.usersSubtitle',
         )}
       />
 
@@ -127,7 +138,13 @@ export function UserLookup({ mode }: { mode: 'wallet' | 'ledger' }) {
                       navigate(target(candidate.userId), { state: { name: candidate.name } })
                     }
                   >
-                    {t(mode === 'wallet' ? 'money.lookup.openWallet' : 'money.lookup.openLedger')}
+                    {t(
+                      mode === 'ledger'
+                        ? 'money.lookup.openLedger'
+                        : openTrust
+                          ? 'money.lookup.openProfile'
+                          : 'money.lookup.openWallet',
+                    )}
                   </button>
                 </td>
               </tr>

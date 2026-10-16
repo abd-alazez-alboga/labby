@@ -15,7 +15,10 @@
     "driverLedgers": "سجلات السائقين",
     "admins": "المشرفون",
     "roles": "الأدوار",
-    "auditLog": "سجل التدقيق"
+    "auditLog": "سجل التدقيق",
+    "reports": "البلاغات",
+    "flags": "الحسابات المُعلَّمة",
+    "openCount": "{{count}} مفتوحة"
   },
   "api": {
     "checking": "جارٍ فحص الخادم…",
@@ -230,7 +233,15 @@
       "driverMinAvgRating": "السائق: الحد الأدنى لمتوسط التقييم",
       "driverMinRatedRides": "السائق: الحد الأدنى للرحلات المقيَّمة",
       "riderMinAvgRating": "الراكب: الحد الأدنى لمتوسط التقييم",
-      "riderMinRatedRides": "الراكب: الحد الأدنى للرحلات المقيَّمة"
+      "riderMinRatedRides": "الراكب: الحد الأدنى للرحلات المقيَّمة",
+      "driverWarnAvgRating": "تعليم السائق تحت (متوسط التقييم)",
+      "riderWarnAvgRating": "تعليم الراكب تحت (متوسط التقييم)",
+      "minAcceptancePercent": "تحذير عند قبول أقل من (%)",
+      "maxCancellationPercent": "تحذير عند إلغاء أكثر من (%)",
+      "metricWindowDays": "الفترة",
+      "metricWindowUnset": "غير محددة",
+      "metricWindowOption": "{{days}} يومًا",
+      "metricMinSample": "الحد الأدنى للعيّنة"
     },
     "activation": {
       "title": "التفعيل",
@@ -267,8 +278,13 @@
       "incompleteIncentives": "تُحفظ الحوافز كوحدة واحدة — املأ كل حقول الحوافز (وكل صف مكافأة) أو أفرغها جميعًا.",
       "incompleteSuspension": "تُحفظ حدود الإيقاف كوحدة واحدة — املأ القيم الأربع أو أفرغها جميعًا.",
       "validation": "رُفض الطلب — تحقق من القيم وحاول مجددًا.",
-      "generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
-    }
+      "generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      "warnNotAboveMin": "يجب أن يكون مستوى التعليم أعلى من مستوى الإيقاف للدور نفسه.",
+      "incompleteMetricWarnings": "املأ حقول تحذيرات الأداء الأربعة، أو اتركها كلها فارغة."
+    },
+    "warnHint": "مستويات التعليم (اختيارية): تحت هذا المتوسط المباشر يُعلَّم الحساب للمراجعة — دون إيقاف. يجب أن تكون أعلى من مستوى الإيقاف؛ فارغ = مستوى الإيقاف + 0.5.",
+    "metricWarningsTitle": "تحذيرات أداء السائقين",
+    "metricWarningsHint": "تحذير فقط، دون إيقاف. فارغ = القيم الافتراضية: قبول أقل من 50% أو إلغاء أكثر من 15% خلال 30 يومًا، مع 20 عرضًا أو رحلة على الأقل."
   },
   "serviceTypes": {
     "title": "أنواع الخدمة",
@@ -657,7 +673,8 @@
     "analytics": "التحليلات",
     "audit": "التدقيق",
     "admins": "حسابات المشرفين",
-    "roles": "الأدوار"
+    "roles": "الأدوار",
+    "reports": "البلاغات"
   },
   "permissionCodes": {
     "users": {
@@ -709,6 +726,10 @@
     "roles": {
       "view": "عرض الأدوار",
       "manage": "إدارة الأدوار"
+    },
+    "reports": {
+      "view": "عرض بلاغات المستخدمين",
+      "handle": "البتّ في بلاغات المستخدمين"
     }
   },
   "toast": {
@@ -861,7 +882,9 @@
         "both": "راكب وسائق"
       },
       "openWallet": "فتح المحفظة",
-      "openLedger": "فتح السجل"
+      "openLedger": "فتح السجل",
+      "usersSubtitleProfile": "ابحث عن مستخدم لمراجعة تقييماته وبلاغاته وعلاماته، أو محفظته.",
+      "openProfile": "فتح الملف"
     },
     "wallet": {
       "back": "عودة إلى المستخدمين",
@@ -1222,6 +1245,235 @@
     "errors": {
       "notFound": "لا توجد رحلة بهذا المعرّف.",
       "loadFailed": "تعذّر تحميل الرحلة."
+    }
+  },
+  "reports": {
+    "title": "البلاغات",
+    "subtitle": "الأقدم أولًا. احسم كل بلاغ بأنه ثابت أو غير ثابت، مع ملاحظات.",
+    "statusLabel": "الحالة",
+    "tabs": {
+      "open": "مفتوحة",
+      "openCount": "مفتوحة · {{count}}",
+      "substantiated": "ثابتة",
+      "unsubstantiated": "غير ثابتة"
+    },
+    "empty": {
+      "open": "لا بلاغات مفتوحة. أنجزت كل شيء.",
+      "substantiated": "لا بلاغات ثابتة بعد.",
+      "unsubstantiated": "لا بلاغات غير ثابتة بعد."
+    },
+    "columns": {
+      "category": "الفئة",
+      "reported": "المُبلَّغ عنه",
+      "by": "المُبلِّغ",
+      "ride": "الرحلة",
+      "evidence": "الأدلة",
+      "waiting": "الانتظار",
+      "resolved": "تاريخ الحسم",
+      "action": "إجراء"
+    },
+    "category": {
+      "unsafe_driving": "قيادة غير آمنة",
+      "unsafe_behavior": "سلوك غير آمن",
+      "inappropriate_behavior": "سلوك غير لائق",
+      "vehicle_condition": "حالة المركبة",
+      "vehicle_damage": "ضرر بالمركبة",
+      "other": "أخرى"
+    },
+    "status": {
+      "open": "مفتوح",
+      "substantiated": "ثابت",
+      "unsubstantiated": "غير ثابت"
+    },
+    "evidenceNoPhotos": "نص",
+    "evidenceOnePhoto": "نص · صورة واحدة",
+    "evidencePhotos": "نص · {{count}} صور",
+    "waiting": {
+      "minutes": "{{count}} د",
+      "hours": "{{count}} س",
+      "days": "{{count}} ي"
+    },
+    "investigate": "تحقيق",
+    "view": "عرض",
+    "investigateFor": "التحقيق في بلاغ {{category}} ضد {{name}}"
+  },
+  "reportDetail": {
+    "notFound": "هذا البلاغ غير موجود.",
+    "filed": "قُدِّم {{when}}",
+    "resolvedOn": "حُسم {{when}}",
+    "partiesLabel": "الطرفان",
+    "reported": "المُبلَّغ عنه · {{role}}",
+    "reporter": "المُبلِّغ · {{role}}",
+    "history": "{{against}} بلاغات ضده · {{substantiated}} ثابتة · {{filed}} مقدَّمة منه",
+    "wrote": "ما كتبه ال{{role}}",
+    "noText": "لا نص — الفئة فقط.",
+    "photo": "صورة البلاغ {{n}}",
+    "decisionTitle": "القرار",
+    "decidedBy": "بواسطة {{name}} · {{when}}. نهائي.",
+    "ride": {
+      "titleBare": "الرحلة {{ref}}",
+      "needsRides": "تفاصيل الرحلة ومسار GPS تتطلب صلاحية «عرض الرحلات».",
+      "open": "فتح تفاصيل الرحلة",
+      "accepted": "القبول",
+      "arrived": "الوصول",
+      "completed": "الإكمال",
+      "cancelled": "الإلغاء",
+      "km": "{{km}} كم",
+      "sos": "استغاثة",
+      "sosNone": "لا يوجد"
+    },
+    "chat": {
+      "needsSupport": "سجل المحادثة يتطلب صلاحية «عرض تذاكر الدعم»."
+    },
+    "resolve": {
+      "title": "الحسم",
+      "outcomeLabel": "النتيجة",
+      "noteLabel": "ملاحظات · مطلوبة، داخلية فقط",
+      "submit": {
+        "substantiated": "حسم كبلاغ ثابت",
+        "unsubstantiated": "حسم كبلاغ غير ثابت"
+      },
+      "submitBare": "حسم",
+      "finalHint": "نهائي بعد الحفظ. يُبلَّغ {{name}} بالنتيجة فقط؛ وتبقى الملاحظات داخلية. يُسجَّل باسمك.",
+      "outcomeRequired": "اختر النتيجة.",
+      "noteRequired": "اكتب ملاحظة — إنها مطلوبة وتبقى داخلية.",
+      "alreadyResolved": "حسم مشرف آخر هذا البلاغ مسبقًا. قراره معروض أدناه.",
+      "done": "حُسم البلاغ: {{outcome}}. أُبلغ المُبلِّغ بالنتيجة."
+    }
+  },
+  "flags": {
+    "title": "الحسابات المُعلَّمة",
+    "subtitle": "العلامات لا توقف أحدًا — القرار لك. الأقدم أولًا.",
+    "kindLabel": "النوع",
+    "filter": {
+      "all": "الكل",
+      "low_rating": "تقييم منخفض",
+      "metric_warning": "تحذير أداء",
+      "report_threshold": "حد البلاغات"
+    },
+    "filterCount": "{{label}} · {{count}}",
+    "kind": {
+      "low_rating": "تقييم منخفض",
+      "metric_warning": "تحذير أداء",
+      "report_threshold": "حد البلاغات"
+    },
+    "columns": {
+      "account": "الحساب",
+      "flag": "العلامة",
+      "rule": "القاعدة المُطلِقة",
+      "raised": "التاريخ"
+    },
+    "selectFor": "اختيار علامة {{kind}} للمستخدم {{name}}",
+    "empty": "لا علامات مفتوحة.",
+    "emptyKind": "لا علامات مفتوحة من هذا النوع.",
+    "closed": {
+      "actioned": "عُلِّمت العلامة كمُعالَجة.",
+      "dismissed": "رُفضت العلامة."
+    },
+    "errors": {
+      "alreadyResolved": "أغلق مشرف آخر هذه العلامة مسبقًا. حُدِّثت القائمة."
+    },
+    "panel": {
+      "label": "العلامة المختارة",
+      "heading": "{{name}} · {{kind}}",
+      "reportsTitle": "البلاغات الثابتة",
+      "report": "البلاغ {{ref}}",
+      "openProfileToSuspend": "فتح الملف للإيقاف",
+      "openProfile": "فتح الملف",
+      "noteLabel": "إغلاق العلامة · الملاحظة مطلوبة",
+      "noteRequired": "اكتب ملاحظة قبل إغلاق العلامة.",
+      "markActioned": "تمت المعالجة",
+      "dismiss": "رفض",
+      "audited": "الإغلاق يغلق العلامة فقط. يُسجَّل باسمك."
+    }
+  },
+  "trust": {
+    "back": "عودة إلى المستخدمين",
+    "notFound": "هذا المستخدم غير موجود.",
+    "tabs": {
+      "label": "أقسام الملف",
+      "trust": "التقييمات والبلاغات والعلامات",
+      "wallet": "المحفظة"
+    },
+    "role": {
+      "rider": "راكب",
+      "driver": "سائق"
+    },
+    "account": {
+      "active": "الحساب نشط",
+      "suspended": "الحساب موقوف",
+      "deleted": "الحساب محذوف"
+    },
+    "accountSuspendedBanner": "الحساب كله موقوف منذ {{when}}. السبب المعروض للمستخدم:",
+    "noRoles": "لا يملك هذا الحساب دور راكب أو سائق.",
+    "reason": {
+      "low_rating": "تقييم منخفض",
+      "document_expired": "وثيقة منتهية",
+      "manual": "من مشرف"
+    },
+    "metric": {
+      "acceptance": "القبول",
+      "cancellation": "الإلغاء"
+    },
+    "rule": {
+      "lowRating": "متوسط {{average}} < {{warn}} بعد {{count}} تقييمًا",
+      "acceptance": "القبول {{value}}% < {{threshold}}% · {{sample}} عرضًا / {{days}} ي",
+      "cancellation": "الإلغاء {{value}}% > {{threshold}}% · {{sample}} رحلة / {{days}} ي",
+      "reportThreshold": "{{count}} بلاغات ثابتة خلال {{days}} يومًا (الحد {{threshold}})"
+    },
+    "roleCard": {
+      "title": {
+        "rider": "دور الراكب",
+        "driver": "دور السائق"
+      },
+      "active": "نشط",
+      "suspended": "موقوف",
+      "suspendedChip": "موقوف · {{reason}}",
+      "live": "مباشر · {{count}} تقييمًا",
+      "noRatings": "لا تقييمات بعد",
+      "noFlags": "لا علامات · {{against}} بلاغات ضده",
+      "flags": "{{flags}} علامات مفتوحة · {{against}} بلاغات ضده",
+      "rule": {
+        "low_rating": "أُوقف تلقائيًا في {{when}}: انخفض المتوسط المباشر عن الحد الأدنى للمنطقة بعد بلوغ الحد الأدنى من الرحلات المقيَّمة. إعادة التفعيل قرارك — ولا تُطبَّق القاعدة مجددًا إلا عند التقييم التالي.",
+        "document_expired": "أُوقف تلقائيًا في {{when}}: انتهت صلاحية وثيقة مطلوبة. لا يرفع الإيقاف إلا تجديد معتمد.",
+        "manual": "أوقفه مشرف في {{when}}. السبب المعروض للمستخدم:"
+      }
+    },
+    "sections": {
+      "flags": "العلامات المفتوحة · {{role}}",
+      "warnings": "تحذيرات الأداء · {{role}}",
+      "reports": "البلاغات ضده · {{role}}",
+      "reportsCount": "{{total}} إجمالًا · {{substantiated}} ثابتة"
+    },
+    "actions": {
+      "reactivateRole": "إعادة تفعيل دور ال{{role}}",
+      "suspendRole": "إيقاف دور ال{{role}}",
+      "suspendAccount": "إيقاف الحساب كله",
+      "reactivateAccount": "إعادة تفعيل الحساب"
+    },
+    "panel": {
+      "reasonLabel": "السبب · مطلوب، يظهر للمستخدم",
+      "reasonRequired": "اكتب السبب — سيراه المستخدم.",
+      "notified": "يُبلَّغ المستخدم بالسبب الذي تكتبه؛ ويُسجَّل باسمك.",
+      "otherActions": "إجراءات أخرى",
+      "more": "{{action}}…",
+      "confirmAccount": "إيقاف حساب {{name}} كله؟ تتوقف كل ميزات الراكب والسائق، باستثناء الاستغاثة وإنهاء رحلة جارية.",
+      "confirmAccountButton": "نعم، أوقف الحساب"
+    },
+    "done": {
+      "reactivateRole": "أُعيد تفعيل الدور. أُبلغ المستخدم.",
+      "suspendRole": "أُوقف الدور. أُبلغ المستخدم بالسبب.",
+      "suspendAccount": "أُوقف الحساب. أُبلغ المستخدم بالسبب.",
+      "reactivateAccount": "أُعيد تفعيل الحساب. أُبلغ المستخدم."
+    },
+    "errors": {
+      "already_suspended": "موقوف مسبقًا من مشرف — لم يتغيّر شيء. حُدِّث الملف.",
+      "not_suspended": "لم يعد موقوفًا — لا شيء لإعادة تفعيله. حُدِّث الملف.",
+      "document_expired": "هذا الإيقاف ناتج عن وثيقة منتهية. لا يرفعه إلا تجديد وثيقة معتمد.",
+      "admin_account": "هذا حساب مشرف. عطّل المشرفين من صفحة «المشرفون» بدلًا من ذلك.",
+      "account_deleted": "هذا الحساب محذوف ولا يمكن إيقافه.",
+      "validation": "رفض الخادم الطلب. تحقق من النص المطلوب وطوله.",
+      "conflict": "تغيّر هذا في الأثناء. حُدِّثت الصفحة."
     }
   }
 }

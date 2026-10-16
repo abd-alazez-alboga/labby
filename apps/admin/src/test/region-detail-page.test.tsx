@@ -179,6 +179,62 @@ describe('region detail page', () => {
     expect(fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')).toBeUndefined();
   });
 
+  it('saves the M11 flag levels and metric warnings with the thresholds', async () => {
+    seedStoredSession(sessionFor(FULL_ACCESS));
+    const fetchMock = stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION, (method, path) =>
+      method === 'PUT' && path === '/api/v1/admin/regions/region-1'
+        ? jsonResponse(200, COMPLETE_REGION)
+        : null,
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.type(await screen.findByLabelText('Driver flag below (avg rating)'), '3.6');
+    await user.type(screen.getByLabelText('Warn when acceptance below (%)'), '45');
+    await user.type(screen.getByLabelText('Warn when cancellation above (%)'), '20');
+    await user.selectOptions(screen.getByLabelText('Window'), '7');
+    await user.type(screen.getByLabelText('Minimum sample'), '10');
+    await user.click(screen.getByRole('button', { name: 'Save bundle' }));
+
+    expect(await screen.findByText('Region saved.')).toBeInTheDocument();
+    const putCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
+    const body = JSON.parse(String(putCall?.[1]?.body)) as Record<string, unknown>;
+    // A blank rider flag level is omitted (server default: min + 0.5).
+    expect(body.suspensionThresholds).toEqual({
+      driver: { minAvgRating: 3, minRatedRides: 20, warnAvgRating: 3.6 },
+      rider: { minAvgRating: 2.5, minRatedRides: 10 },
+    });
+    expect(body.metricWarnings).toEqual({
+      minAcceptancePercent: 45,
+      maxCancellationPercent: 20,
+      windowDays: 7,
+      minSample: 10,
+    });
+  });
+
+  it('blocks a flag level at or below the suspension level and half-filled metric warnings', async () => {
+    seedStoredSession(sessionFor(FULL_ACCESS));
+    const fetchMock = stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION);
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.type(await screen.findByLabelText('Rider flag below (avg rating)'), '2.5');
+    await user.click(screen.getByRole('button', { name: 'Save bundle' }));
+    expect(
+      await screen.findByText(
+        'A flag level must be higher than the suspension level of the same role.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Rider flag below (avg rating)'));
+    await user.type(screen.getByLabelText('Minimum sample'), '10');
+    await user.click(screen.getByRole('button', { name: 'Save bundle' }));
+    expect(
+      await screen.findByText('Fill in all four metric warning fields, or leave them all blank.'),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')).toBeUndefined();
+  });
+
   it('renders the bundle read-only without regions:edit', async () => {
     seedStoredSession(sessionFor(PRICING_VIEWER));
     stubRegionRoutes(PRICING_VIEWER, COMPLETE_REGION);

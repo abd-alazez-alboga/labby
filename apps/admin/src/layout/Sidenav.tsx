@@ -5,6 +5,7 @@ import { usePermissions } from '../auth/usePermissions';
 import { useSosAlerts } from '../sos/SosAlertsProvider';
 import { ApiStatus } from './ApiStatus';
 import { BrandMark } from './BrandMark';
+import { useTrustQueueCounts } from './useTrustQueueCounts';
 
 function linkClass({ isActive }: { isActive: boolean }): string {
   return isActive ? 'sidenav__link sidenav__link--active' : 'sidenav__link';
@@ -21,6 +22,7 @@ export function Sidenav() {
   const { t } = useTranslation();
   const { can } = usePermissions();
   const { openCount } = useSosAlerts();
+  const queueCounts = useTrustQueueCounts();
   const showAdminGroup = can('admins:view') || can('roles:view') || can('audit:view');
 
   return (
@@ -48,9 +50,35 @@ export function Sidenav() {
             </NavLink>
           </>
         ) : null}
-        {can('wallets:view') ? (
+        {can('users:view') || can('wallets:view') ? (
           <NavLink to="/users" className={linkClass}>
             {t('nav.users')}
+          </NavLink>
+        ) : null}
+        {can('reports:view') ? (
+          <NavLink to="/reports" className={linkClass}>
+            {t('nav.reports')}
+            {queueCounts.reports ? (
+              <span
+                className="sidenav__count"
+                aria-label={t('nav.openCount', { count: queueCounts.reports })}
+              >
+                {queueCounts.reports}
+              </span>
+            ) : null}
+          </NavLink>
+        ) : null}
+        {can('users:view') ? (
+          <NavLink to="/flags" className={linkClass}>
+            {t('nav.flags')}
+            {queueCounts.flags ? (
+              <span
+                className="sidenav__count"
+                aria-label={t('nav.openCount', { count: queueCounts.flags })}
+              >
+                {queueCounts.flags}
+              </span>
+            ) : null}
           </NavLink>
         ) : null}
         {can('driver-review:view') ? (

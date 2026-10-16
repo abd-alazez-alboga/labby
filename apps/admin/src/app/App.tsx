@@ -32,6 +32,10 @@ const DriverLedgerPage = lazy(() => import('../pages/DriverLedgerPage'));
 const LiveOpsPage = lazy(() => import('../pages/LiveOpsPage'));
 const RidesPage = lazy(() => import('../pages/RidesPage'));
 const RideDetailPage = lazy(() => import('../pages/RideDetailPage'));
+const ReportsPage = lazy(() => import('../pages/ReportsPage'));
+const ReportDetailPage = lazy(() => import('../pages/ReportDetailPage'));
+const FlagsPage = lazy(() => import('../pages/FlagsPage'));
+const UserTrustPage = lazy(() => import('../pages/UserTrustPage'));
 
 export function App() {
   return (
@@ -143,11 +147,52 @@ export function App() {
                   }
                 />
                 <Route
+                  path="reports"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="reports:view">
+                        <ReportsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="reports/:reportId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="reports:view">
+                        <ReportDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="flags"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="users:view">
+                        <FlagsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* The Users section: trust tab (users:view) and wallet tab (wallets:view). */}
+                <Route
                   path="users"
                   element={
                     <Suspense fallback={<div className="loading" />}>
-                      <RequirePermission permission="wallets:view">
+                      <RequirePermission permission={['users:view', 'wallets:view']}>
                         <UsersPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="users/:userId/trust"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="users:view">
+                        <UserTrustPage />
                       </RequirePermission>
                     </Suspense>
                   }

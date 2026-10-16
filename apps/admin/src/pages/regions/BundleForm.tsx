@@ -117,6 +117,27 @@ export function BundleForm({
   const [riderMinRatedRides, setRiderMinRatedRides] = useState(
     toInput(region.suspensionThresholds?.rider.minRatedRides ?? null),
   );
+  // RATE-03 flag levels (M11) — optional inside the thresholds group.
+  const [driverWarnAvgRating, setDriverWarnAvgRating] = useState(
+    toInput(region.suspensionThresholds?.driver.warnAvgRating ?? null),
+  );
+  const [riderWarnAvgRating, setRiderWarnAvgRating] = useState(
+    toInput(region.suspensionThresholds?.rider.warnAvgRating ?? null),
+  );
+
+  // DRV-07 metric warnings (M11) — all four or none.
+  const [minAcceptancePercent, setMinAcceptancePercent] = useState(
+    toInput(region.metricWarnings?.minAcceptancePercent ?? null),
+  );
+  const [maxCancellationPercent, setMaxCancellationPercent] = useState(
+    toInput(region.metricWarnings?.maxCancellationPercent ?? null),
+  );
+  const [metricWindowDays, setMetricWindowDays] = useState(
+    toInput(region.metricWarnings?.windowDays ?? null),
+  );
+  const [metricMinSample, setMetricMinSample] = useState(
+    toInput(region.metricWarnings?.minSample ?? null),
+  );
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -165,6 +186,31 @@ export function BundleForm({
       setSaveError('regionDetail.errors.incompleteSuspension');
       return null;
     }
+    const warnLevels: [string, string][] = [
+      [driverWarnAvgRating, driverMinAvgRating],
+      [riderWarnAvgRating, riderMinAvgRating],
+    ];
+    if (warnLevels.some(([warn]) => warn.trim() !== '') && !suspensionComplete) {
+      setSaveError('regionDetail.errors.incompleteSuspension');
+      return null;
+    }
+    // The flag level must sit above the suspension level (contract).
+    if (warnLevels.some(([warn, min]) => warn.trim() !== '' && Number(warn) <= Number(min))) {
+      setSaveError('regionDetail.errors.warnNotAboveMin');
+      return null;
+    }
+
+    const metricFields = [
+      minAcceptancePercent,
+      maxCancellationPercent,
+      metricWindowDays,
+      metricMinSample,
+    ];
+    const metricsTouched = metricFields.some((field) => field.trim() !== '');
+    if (metricsTouched && !metricFields.every((field) => field.trim() !== '')) {
+      setSaveError('regionDetail.errors.incompleteMetricWarnings');
+      return null;
+    }
 
     return {
       name: name.trim(),
@@ -204,13 +250,30 @@ export function BundleForm({
             driver: {
               minAvgRating: Number(driverMinAvgRating),
               minRatedRides: Number(driverMinRatedRides),
+              // Optional: omitted = minAvgRating + 0.5 on the server.
+              ...(driverWarnAvgRating.trim() === ''
+                ? {}
+                : { warnAvgRating: Number(driverWarnAvgRating) }),
             },
             rider: {
               minAvgRating: Number(riderMinAvgRating),
               minRatedRides: Number(riderMinRatedRides),
+              // Optional: omitted = minAvgRating + 0.5 on the server.
+              ...(riderWarnAvgRating.trim() === ''
+                ? {}
+                : { warnAvgRating: Number(riderWarnAvgRating) }),
             },
           }
         : null,
+      // Omitted keeps the stored value (contract) — only a full group is sent.
+      metricWarnings: metricsTouched
+        ? {
+            minAcceptancePercent: Number(minAcceptancePercent),
+            maxCancellationPercent: Number(maxCancellationPercent),
+            windowDays: Number(metricWindowDays) === 7 ? 7 : 30,
+            minSample: Number(metricMinSample),
+          }
+        : undefined,
     };
   }
 
@@ -483,6 +546,63 @@ export function BundleForm({
             'regionDetail.fields.riderMinRatedRides',
             riderMinRatedRides,
             setRiderMinRatedRides,
+            { min: 1, step: '1' },
+          )}
+        </div>
+        <p className="panel__hint">{t('regionDetail.warnHint')}</p>
+        <div className="panel__row">
+          {numberField(
+            'bundle-driver-warn-avg',
+            'regionDetail.fields.driverWarnAvgRating',
+            driverWarnAvgRating,
+            setDriverWarnAvgRating,
+            { min: 1, step: '0.1' },
+          )}
+          {numberField(
+            'bundle-rider-warn-avg',
+            'regionDetail.fields.riderWarnAvgRating',
+            riderWarnAvgRating,
+            setRiderWarnAvgRating,
+            { min: 1, step: '0.1' },
+          )}
+        </div>
+
+        <h3 className="bundle__section">{t('regionDetail.metricWarningsTitle')}</h3>
+        <p className="panel__hint">{t('regionDetail.metricWarningsHint')}</p>
+        <div className="panel__row">
+          {numberField(
+            'bundle-min-acceptance',
+            'regionDetail.fields.minAcceptancePercent',
+            minAcceptancePercent,
+            setMinAcceptancePercent,
+          )}
+          {numberField(
+            'bundle-max-cancellation',
+            'regionDetail.fields.maxCancellationPercent',
+            maxCancellationPercent,
+            setMaxCancellationPercent,
+          )}
+          <div className="form-field">
+            <label htmlFor="bundle-metric-window">
+              {t('regionDetail.fields.metricWindowDays')}
+            </label>
+            <select
+              id="bundle-metric-window"
+              value={metricWindowDays}
+              onChange={(event) => setMetricWindowDays(event.target.value)}
+            >
+              <option value="">{t('regionDetail.fields.metricWindowUnset')}</option>
+              <option value="7">{t('regionDetail.fields.metricWindowOption', { days: 7 })}</option>
+              <option value="30">
+                {t('regionDetail.fields.metricWindowOption', { days: 30 })}
+              </option>
+            </select>
+          </div>
+          {numberField(
+            'bundle-metric-min-sample',
+            'regionDetail.fields.metricMinSample',
+            metricMinSample,
+            setMetricMinSample,
             { min: 1, step: '1' },
           )}
         </div>

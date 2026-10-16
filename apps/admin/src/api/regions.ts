@@ -40,6 +40,19 @@ export interface IncentiveValues {
 export interface SuspensionThreshold {
   minAvgRating: number;
   minRatedRides: number;
+  /**
+   * RATE-03 admin flag level (M11). Must be greater than `minAvgRating`;
+   * omitted/null = `minAvgRating + 0.5`.
+   */
+  warnAvgRating?: number | null;
+}
+
+/** DRV-07 driver metric warnings (M11) — warn only, never suspend. */
+export interface MetricWarnings {
+  minAcceptancePercent: number;
+  maxCancellationPercent: number;
+  windowDays: 7 | 30;
+  minSample: number;
 }
 
 export interface SuspensionThresholds {
@@ -74,6 +87,8 @@ export interface Region {
   commissionTiers?: CommissionTier[] | null;
   incentiveValues?: IncentiveValues | null;
   suspensionThresholds?: SuspensionThresholds | null;
+  /** Null = the SRS defaults 50 / 15 / 30 days / 20. */
+  metricWarnings?: MetricWarnings | null;
   serviceTypeCount: number;
   surgeZoneCount: number;
 }
@@ -94,6 +109,8 @@ export interface RegionUpsertRequest {
   commissionTiers?: CommissionTier[] | null;
   incentiveValues?: IncentiveValues | null;
   suspensionThresholds?: SuspensionThresholds | null;
+  /** Omitted/null KEEPS the stored value (contract); a new region starts unset. */
+  metricWarnings?: MetricWarnings | null;
 }
 
 export interface ServiceType {

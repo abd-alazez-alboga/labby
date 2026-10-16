@@ -17,6 +17,7 @@ import { BackLink, DataTable, KpiRow, KpiTile, PageHeader, ReviewLayout, TablePa
 import { GrantRefundPanel } from './money/GrantRefundPanel';
 import { formatDay, formatSigned } from './money/money-format';
 import { Money, RideRef } from './money/MoneyUi';
+import { UserProfileTabs } from './trust/TrustUi';
 import { useCurrencyLabel } from './money/use-currency-label';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
@@ -186,6 +187,7 @@ export default function UserWalletPage() {
         title={passedName ?? t('money.wallet.title')}
         description={<span dir="ltr">{userId}</span>}
       />
+      <UserProfileTabs userId={userId} name={passedName} />
 
       <ReviewLayout
         aside={

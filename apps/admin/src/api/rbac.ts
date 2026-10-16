@@ -20,6 +20,8 @@ export type PermissionCode =
   | 'driver-review:decide'
   | 'support:view'
   | 'support:handle'
+  | 'reports:view'
+  | 'reports:handle'
   | 'settlements:view'
   | 'settlements:record'
   | 'wallets:view'

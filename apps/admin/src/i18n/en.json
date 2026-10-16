@@ -15,7 +15,10 @@
     "driverLedgers": "Driver ledgers",
     "admins": "Admins",
     "roles": "Roles",
-    "auditLog": "Audit log"
+    "auditLog": "Audit log",
+    "reports": "Reports",
+    "flags": "Flagged accounts",
+    "openCount": "{{count}} open"
   },
   "api": {
     "checking": "Checking API…",
@@ -230,7 +233,15 @@
       "driverMinAvgRating": "Driver: min average rating",
       "driverMinRatedRides": "Driver: min rated rides",
       "riderMinAvgRating": "Rider: min average rating",
-      "riderMinRatedRides": "Rider: min rated rides"
+      "riderMinRatedRides": "Rider: min rated rides",
+      "driverWarnAvgRating": "Driver flag below (avg rating)",
+      "riderWarnAvgRating": "Rider flag below (avg rating)",
+      "minAcceptancePercent": "Warn when acceptance below (%)",
+      "maxCancellationPercent": "Warn when cancellation above (%)",
+      "metricWindowDays": "Window",
+      "metricWindowUnset": "Not set",
+      "metricWindowOption": "{{days}} days",
+      "metricMinSample": "Minimum sample"
     },
     "activation": {
       "title": "Activation",
@@ -267,8 +278,13 @@
       "incompleteIncentives": "Incentives are saved as a whole — fill every incentive field (and each bonus row) or clear them all.",
       "incompleteSuspension": "Suspension thresholds are saved as a whole — fill all four values or clear them all.",
       "validation": "The request was rejected — check the values and try again.",
-      "generic": "Something went wrong. Please try again."
-    }
+      "generic": "Something went wrong. Please try again.",
+      "warnNotAboveMin": "A flag level must be higher than the suspension level of the same role.",
+      "incompleteMetricWarnings": "Fill in all four metric warning fields, or leave them all blank."
+    },
+    "warnHint": "Flag levels (optional): below this live average an account is flagged for review — never suspended. Must be above the suspension level; blank = suspension level + 0.5.",
+    "metricWarningsTitle": "Driver metric warnings",
+    "metricWarningsHint": "Warn only, never suspend. Blank = the defaults: acceptance below 50%, cancellation above 15%, over 30 days, with at least 20 offers or rides."
   },
   "serviceTypes": {
     "title": "Service types",
@@ -657,7 +673,8 @@
     "analytics": "Analytics",
     "audit": "Audit",
     "admins": "Admin accounts",
-    "roles": "Roles"
+    "roles": "Roles",
+    "reports": "Reports"
   },
   "permissionCodes": {
     "users": {
@@ -709,6 +726,10 @@
     "roles": {
       "view": "View roles",
       "manage": "Manage roles"
+    },
+    "reports": {
+      "view": "View user reports",
+      "handle": "Resolve user reports"
     }
   },
   "toast": {
@@ -861,7 +882,9 @@
         "both": "Rider & driver"
       },
       "openWallet": "Open wallet",
-      "openLedger": "Open ledger"
+      "openLedger": "Open ledger",
+      "usersSubtitleProfile": "Find a user to review their ratings, reports and flags, or their wallet.",
+      "openProfile": "Open profile"
     },
     "wallet": {
       "back": "Back to users",
@@ -1222,6 +1245,235 @@
     "errors": {
       "notFound": "No ride with this ID.",
       "loadFailed": "Couldn't load the ride."
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Oldest first. Resolve each as substantiated or not, with notes.",
+    "statusLabel": "Status",
+    "tabs": {
+      "open": "Open",
+      "openCount": "Open · {{count}}",
+      "substantiated": "Substantiated",
+      "unsubstantiated": "Unsubstantiated"
+    },
+    "empty": {
+      "open": "No open reports. You're all caught up.",
+      "substantiated": "No substantiated reports yet.",
+      "unsubstantiated": "No unsubstantiated reports yet."
+    },
+    "columns": {
+      "category": "Category",
+      "reported": "Reported",
+      "by": "By",
+      "ride": "Ride",
+      "evidence": "Evidence",
+      "waiting": "Waiting",
+      "resolved": "Resolved",
+      "action": "Action"
+    },
+    "category": {
+      "unsafe_driving": "Unsafe driving",
+      "unsafe_behavior": "Unsafe behavior",
+      "inappropriate_behavior": "Inappropriate behavior",
+      "vehicle_condition": "Vehicle condition",
+      "vehicle_damage": "Damage to vehicle",
+      "other": "Other"
+    },
+    "status": {
+      "open": "Open",
+      "substantiated": "Substantiated",
+      "unsubstantiated": "Unsubstantiated"
+    },
+    "evidenceNoPhotos": "text",
+    "evidenceOnePhoto": "text · 1 photo",
+    "evidencePhotos": "text · {{count}} photos",
+    "waiting": {
+      "minutes": "{{count}} min",
+      "hours": "{{count}} h",
+      "days": "{{count}} d"
+    },
+    "investigate": "Investigate",
+    "view": "View",
+    "investigateFor": "Investigate {{category}} report against {{name}}"
+  },
+  "reportDetail": {
+    "notFound": "This report doesn't exist.",
+    "filed": "filed {{when}}",
+    "resolvedOn": "resolved {{when}}",
+    "partiesLabel": "Parties",
+    "reported": "Reported · {{role}}",
+    "reporter": "Reporter · {{role}}",
+    "history": "{{against}} reports against · {{substantiated}} substantiated · {{filed}} filed",
+    "wrote": "What the {{role}} wrote",
+    "noText": "No text — category only.",
+    "photo": "Report photo {{n}}",
+    "decisionTitle": "Decision",
+    "decidedBy": "By {{name}} · {{when}}. Final.",
+    "ride": {
+      "titleBare": "Ride {{ref}}",
+      "needsRides": "The ride's facts and GPS trace need the “View rides” permission.",
+      "open": "Open ride detail",
+      "accepted": "Accepted",
+      "arrived": "Arrived",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "km": "{{km}} km",
+      "sos": "SOS",
+      "sosNone": "none"
+    },
+    "chat": {
+      "needsSupport": "The chat log needs the “View support tickets” permission."
+    },
+    "resolve": {
+      "title": "Resolve",
+      "outcomeLabel": "Outcome",
+      "noteLabel": "Notes · required, internal only",
+      "submit": {
+        "substantiated": "Resolve as substantiated",
+        "unsubstantiated": "Resolve as unsubstantiated"
+      },
+      "submitBare": "Resolve",
+      "finalHint": "Final once saved. {{name}} is told the outcome only; notes stay internal. Logged under your name.",
+      "outcomeRequired": "Choose an outcome.",
+      "noteRequired": "Write a note — it's required and stays internal.",
+      "alreadyResolved": "Another admin already resolved this report. Their decision is shown below.",
+      "done": "Report resolved as {{outcome}}. The reporter has been told the outcome."
+    }
+  },
+  "flags": {
+    "title": "Flagged accounts",
+    "subtitle": "Flags never suspend anyone — you decide. Oldest first.",
+    "kindLabel": "Kind",
+    "filter": {
+      "all": "All",
+      "low_rating": "Low rating",
+      "metric_warning": "Metric warning",
+      "report_threshold": "Report threshold"
+    },
+    "filterCount": "{{label}} · {{count}}",
+    "kind": {
+      "low_rating": "Low rating",
+      "metric_warning": "Metric warning",
+      "report_threshold": "Report threshold"
+    },
+    "columns": {
+      "account": "Account",
+      "flag": "Flag",
+      "rule": "Triggering rule",
+      "raised": "Raised"
+    },
+    "selectFor": "Select {{kind}} flag of {{name}}",
+    "empty": "No open flags.",
+    "emptyKind": "No open flags of this kind.",
+    "closed": {
+      "actioned": "Flag marked actioned.",
+      "dismissed": "Flag dismissed."
+    },
+    "errors": {
+      "alreadyResolved": "Another admin already closed this flag. The list is refreshed."
+    },
+    "panel": {
+      "label": "Selected flag",
+      "heading": "{{name}} · {{kind}}",
+      "reportsTitle": "Substantiated reports",
+      "report": "Report {{ref}}",
+      "openProfileToSuspend": "Open profile to suspend",
+      "openProfile": "Open profile",
+      "noteLabel": "Close the flag · note required",
+      "noteRequired": "Write a note before closing the flag.",
+      "markActioned": "Mark actioned",
+      "dismiss": "Dismiss",
+      "audited": "Closing only closes the flag. Logged under your name."
+    }
+  },
+  "trust": {
+    "back": "Back to users",
+    "notFound": "This user doesn't exist.",
+    "tabs": {
+      "label": "Profile sections",
+      "trust": "Ratings, reports & flags",
+      "wallet": "Wallet"
+    },
+    "role": {
+      "rider": "rider",
+      "driver": "driver"
+    },
+    "account": {
+      "active": "Account active",
+      "suspended": "Account suspended",
+      "deleted": "Account deleted"
+    },
+    "accountSuspendedBanner": "Whole account suspended since {{when}}. Reason shown to the user:",
+    "noRoles": "This account holds no rider or driver role.",
+    "reason": {
+      "low_rating": "low rating",
+      "document_expired": "document expired",
+      "manual": "by an admin"
+    },
+    "metric": {
+      "acceptance": "Acceptance",
+      "cancellation": "Cancellation"
+    },
+    "rule": {
+      "lowRating": "{{average}} avg < {{warn}} after {{count}} ratings",
+      "acceptance": "Acceptance {{value}}% < {{threshold}}% · {{sample}} offers / {{days}} d",
+      "cancellation": "Cancellation {{value}}% > {{threshold}}% · {{sample}} rides / {{days}} d",
+      "reportThreshold": "{{count}} substantiated in {{days}} days (limit {{threshold}})"
+    },
+    "roleCard": {
+      "title": {
+        "rider": "Rider role",
+        "driver": "Driver role"
+      },
+      "active": "Active",
+      "suspended": "Suspended",
+      "suspendedChip": "Suspended · {{reason}}",
+      "live": "live · {{count}} ratings",
+      "noRatings": "no ratings yet",
+      "noFlags": "No flags · {{against}} reports against",
+      "flags": "{{flags}} open flags · {{against}} reports against",
+      "rule": {
+        "low_rating": "Auto-suspended {{when}}: the live average fell below the region's minimum after the minimum number of rated rides. Reactivating is your decision — the rule fires again only on the next rating.",
+        "document_expired": "Auto-suspended {{when}}: a required document expired. Only an approved renewal lifts this.",
+        "manual": "Suspended {{when}} by an admin. Reason shown to the user:"
+      }
+    },
+    "sections": {
+      "flags": "Open flags · {{role}}",
+      "warnings": "Metric warnings · {{role}}",
+      "reports": "Reports against · {{role}}",
+      "reportsCount": "{{total}} total · {{substantiated}} substantiated"
+    },
+    "actions": {
+      "reactivateRole": "Reactivate {{role}} role",
+      "suspendRole": "Suspend {{role}} role",
+      "suspendAccount": "Suspend whole account",
+      "reactivateAccount": "Reactivate account"
+    },
+    "panel": {
+      "reasonLabel": "Reason · required, shown to the user",
+      "reasonRequired": "Write a reason — the user sees it.",
+      "notified": "The user is notified with your reason; logged under your name.",
+      "otherActions": "Other actions",
+      "more": "{{action}}…",
+      "confirmAccount": "Suspend {{name}}'s whole account? Every rider and driver feature stops, except SOS and finishing a ride already in progress.",
+      "confirmAccountButton": "Yes, suspend the account"
+    },
+    "done": {
+      "reactivateRole": "Role reactivated. The user has been notified.",
+      "suspendRole": "Role suspended. The user has been notified with your reason.",
+      "suspendAccount": "Account suspended. The user has been notified with your reason.",
+      "reactivateAccount": "Account reactivated. The user has been notified."
+    },
+    "errors": {
+      "already_suspended": "Already suspended by an admin — nothing changed. The profile is refreshed.",
+      "not_suspended": "Not suspended any more — nothing to reactivate. The profile is refreshed.",
+      "document_expired": "This suspension comes from an expired document. Only an approved document renewal lifts it.",
+      "admin_account": "This is an admin account. Deactivate admins from the Admins page instead.",
+      "account_deleted": "This account was deleted and can't be suspended.",
+      "validation": "The server rejected this. Check the required text and its length.",
+      "conflict": "This changed in the meantime. The page is refreshed."
     }
   }
 }
