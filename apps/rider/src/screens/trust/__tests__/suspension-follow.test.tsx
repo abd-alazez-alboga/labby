@@ -411,6 +411,77 @@ describe("R-W3 — at most one rating prompt per launch", () => {
   });
 });
 
+describe("R-N1 — a search ended by the account's suspension", () => {
+  async function connect(): Promise<FakeSocket> {
+    await waitFor(() => expect(FakeSocket.instances.length).toBeGreaterThan(0));
+    const socket = FakeSocket.latest();
+    await act(async () => socket.open());
+    await waitFor(() => expect(socket.sent.length).toBeGreaterThan(0));
+    await act(async () => socket.receive({ type: "ready", userId: "u-1" }));
+    return socket;
+  }
+
+  const searching = ride({ state: "offering" });
+  const suspendedUser = accountSuspended("Abuse reports confirmed.");
+
+  it("a resync that meets 403 account_suspended ends the search, then the suspended screen", async () => {
+    mockApi({
+      [ME]: [{ status: 200, body: sampleUser }, { status: 200, body: suspendedUser }],
+      [ACTIVE]: [{ status: 200, body: searching }, { status: 204 }],
+      [RIDE]: coded(403, "account_suspended"),
+    });
+    await signedIn(sampleUser, <HomeScreen />);
+    expect(await screen.findByText("Finding your driver")).toBeOnTheScreen();
+
+    // The ride.state frame was missed; the reconnect resync can't read it.
+    await connect();
+    expect(await screen.findByTestId("ride-ended-title")).toHaveTextContent(
+      "Ride cancelled",
+    );
+    expect(screen.getByTestId("ride-ended-suspended")).toHaveTextContent(
+      "Cancelled because your account was suspended.",
+    );
+    expect(screen.getByTestId("ride-ended-fee")).toHaveTextContent("You were not charged.");
+
+    await fireEvent.press(screen.getByTestId("ride-done"));
+    expect(await screen.findByTestId("suspended-title")).toHaveTextContent(
+      "Your Labby account is suspended",
+    );
+  });
+
+  it("a 403 account_suspended on the cancellation quote ends the search", async () => {
+    mockApi({
+      [ME]: [{ status: 200, body: sampleUser }, { status: 200, body: suspendedUser }],
+      [ACTIVE]: [{ status: 200, body: searching }, { status: 204 }],
+      [RIDE]: coded(403, "account_suspended"),
+      [`GET /api/v1/rides/${RIDE_ID}/cancellation-quote`]: coded(403, "account_suspended"),
+    });
+    await signedIn(sampleUser, <HomeScreen />);
+    await fireEvent.press(await screen.findByTestId("ride-cancel"));
+    expect(await screen.findByTestId("ride-ended-title")).toHaveTextContent(
+      "Ride cancelled",
+    );
+  });
+
+  it("a 403 account_suspended on Cancel ends the search instead of failing", async () => {
+    mockApi({
+      [ME]: { status: 200, body: sampleUser },
+      [ACTIVE]: { status: 200, body: searching },
+      [`GET /api/v1/rides/${RIDE_ID}/cancellation-quote`]: {
+        status: 200,
+        body: { free: true, fee: null, currency: "SYP", graceEndsAt: null },
+      },
+      [`POST /api/v1/rides/${RIDE_ID}/cancel`]: coded(403, "account_suspended"),
+    });
+    await signedIn(sampleUser, <HomeScreen />);
+    await fireEvent.press(await screen.findByTestId("ride-cancel"));
+    await fireEvent.press(await screen.findByTestId("cancel-confirm"));
+    expect(await screen.findByTestId("ride-ended-suspended")).toHaveTextContent(
+      "Cancelled because your account was suspended.",
+    );
+  });
+});
+
 describe("cancellationReason account_suspended", () => {
   it("reads as a suspension on the ended ride, not 'you cancelled'", async () => {
     const cancelled = ride({

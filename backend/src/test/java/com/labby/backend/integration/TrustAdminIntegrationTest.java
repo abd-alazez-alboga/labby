@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.enums.ClientType;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -325,6 +326,66 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
     // From here only an approved renewal lifts it.
     ResponseEntity<JsonNode> again = post(path + "/reactivate", Map.of("note", "n"), admin);
     assertThat(code(again)).isEqualTo("document_expired");
+  }
+
+  @Test
+  @DisplayName(
+      "Re-audit W-1: a low-rating reactivation that ends as document_expired, then the renewal"
+          + " lifting it, both count as reactivations — no re-suspension without a newer rating")
+  void shouldNotReSuspendAfterRenewalWithoutANewerRating() {
+    Account rider = newRider();
+    Account driver = newDriver();
+    driverRatedTimes(rider, driver, 19, 1);
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
+    assertThat(roleRow(driver.userId(), "driver").get("suspension_reason")).isEqualTo("low_rating");
+    jdbcTemplate.update(
+        "UPDATE documents SET expires_on = CURRENT_DATE - 2 WHERE driver_user_id = ?"
+            + " AND type = 'drivers_license'",
+        driver.userId());
+
+    advance(Duration.ofMinutes(1));
+    ok(
+        post(
+            "/api/v1/admin/users/" + driver.userId() + "/roles/driver/reactivate",
+            Map.of("note", "Coached"),
+            admin),
+        HttpStatus.OK);
+    assertThat(roleRow(driver.userId(), "driver").get("suspension_reason"))
+        .isEqualTo("document_expired");
+    // The nightly pass leaves the document suspension alone (it suspends ACTIVE roles only).
+    dailyJob();
+    assertThat(roleRow(driver.userId(), "driver").get("suspension_reason"))
+        .isEqualTo("document_expired");
+
+    advance(Duration.ofMinutes(1));
+    JsonNode renewal =
+        ok(
+            post(
+                "/api/v1/driver/documents/drivers_license/renewal",
+                Map.of(
+                    "number",
+                    "RENEWED",
+                    "expiresOn",
+                    today().plusYears(1).toString(),
+                    "fileId",
+                    upload(driver.token(), "document", PDF).toString()),
+                driver.token()),
+            HttpStatus.CREATED);
+    ok(
+        post(
+            "/api/v1/admin/document-renewals/" + renewal.get("id").asText() + "/approve",
+            null,
+            admin),
+        HttpStatus.OK);
+    assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
+
+    // The average is still far below 3.0, but no rating was stored since the renewal lifted it.
+    advance(Duration.ofDays(1));
+    dailyJob();
+    assertThat(roleRow(driver.userId(), "driver").get("state")).isEqualTo("active");
+    // One newer low rating: the next pass suspends again.
+    rateAndEvaluate(rider, completedRide(rider.userId(), driver.userId(), CLOCK.instant()), 1);
+    assertThat(roleRow(driver.userId(), "driver").get("suspension_reason")).isEqualTo("low_rating");
   }
 
   @Test

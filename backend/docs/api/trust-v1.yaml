@@ -22,19 +22,32 @@ info:
 
     | View | Who | Source | Rule |
     |---|---|---|---|
-    | exposed | the rated user (own profile, driver dashboard), counterparts in matching contexts (rides-v1 `DriverSummary.rating` / `RiderSummary.rating`) | `rating_snapshots`, rewritten once a day | `null` until the role has ≥ 5 ratings **(ruling)** |
+    | exposed | the rated user (own profile, driver dashboard), counterparts in matching contexts (rides-v1 `DriverSummary.rating` / `RiderSummary.rating`) | `rating_snapshots`, rewritten by the daily job only when none exists, after ≥ 3 new ratings, or on the first exposure (≥ 5) | `null` until the role has ≥ 5 ratings **(ruling)** |
     | live | suspension (USR-05), flags (RATE-03), admins | `ratings` | always exact |
 
     The daily snapshot is the documented mitigation of the timing side channel: a rated user can
     never watch the number move right after a given ride (M11-T6 privacy review). Review rulings
     **2026-10-16** (B-W1): no exposed view carries a rating COUNT, and the daily job rewrites a
     user × role snapshot only when no snapshot exists, when at least 3 ratings arrived since the
-    stored one, or on the first exposure (stored count < 5 ≤ live count) — so a diff of two
-    snapshots never isolates a single new score. Counterpart summaries read the same snapshot;
+    stored one, or on the first exposure (stored count < 5 ≤ live count) — so a single new rating
+    never moves the exposed average on its own. Counterpart summaries read the same snapshot;
     admin views keep the live average and count. No endpoint
     for riders or drivers ever returns an individual rating received, its ride, its rater or its
     text; a user sees only the ratings they GAVE (`myRating`). The 2 decimals of the average
     are rounded HALF_UP.
+
+
+    **Accepted residual risks (owner ruling 2026-10-16).** The daily batching hides a rater only
+    among the ratings of the same batch; these channels remain and are accepted: (a) a user who
+    had a single rated ride before a nightly pass and wakes up suspended (USR-05) knows that ride's
+    counterpart tipped the average — and after an admin reactivation (or a renewal lifting a
+    document suspension) the first rating stored afterwards, whatever its score, is what lets the
+    pass re-suspend; (b) `snapshotAt` becomes non-null at the first nightly pass after the user ×
+    role's very first rating is stored (the "no snapshot yet" rewrite, average still null), and
+    afterwards changes only on a rewrite (≥ 3 new ratings or the first exposure at 5), so a user
+    with one ride learns that its counterpart rated them, and the rewrite nights are visible; (c)
+    when exactly 3 new ratings move the exposed average by the all-1 or all-5 amount, every one of
+    those scores is known — per person when the period had exactly 3 rated rides.
 
 
     **Rating thresholds (USR-05, RATE-03) — per region, inside `Region.suspensionThresholds`

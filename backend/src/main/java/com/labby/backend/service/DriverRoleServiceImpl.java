@@ -103,6 +103,9 @@ public class DriverRoleServiceImpl implements DriverRoleService {
     role.get().setState(RoleState.ACTIVE);
     role.get().setSuspensionReason(null);
     role.get().setSuspendedAt(null);
+    // Re-audit W-1: a lifted suspension is a reactivation for USR-05 too — the nightly pass
+    // re-suspends for low rating only on a rating stored after this moment.
+    role.get().setReactivatedAt(calendar.now());
     roleAssignmentRepository.save(role.get());
     notificationService.queue(userId, NotificationEvent.DRIVER_REINSTATED);
     return true;

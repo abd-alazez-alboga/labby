@@ -1436,7 +1436,7 @@
       "noFlags": "No flags · {{against}} reports against",
       "flags": "{{flags}} open flags · {{against}} reports against",
       "rule": {
-        "low_rating": "Auto-suspended {{when}}: the live average fell below the region's minimum after the minimum number of rated rides. Reactivating is your decision — the rule fires again only on the next rating.",
+        "low_rating": "Auto-suspended {{when}}: the live average fell below the region's minimum after the minimum number of rated rides (checked in the nightly pass). Reactivating is your decision — the rule fires again only after a newer rating.",
         "document_expired": "Auto-suspended {{when}}: a required document expired. Only an approved renewal reactivates it; suspending it yourself replaces the reason with yours.",
         "manual": "Suspended {{when}} by an admin. Reason shown to the user:"
       }
@@ -1466,7 +1466,8 @@
       "reactivateRole": "Role reactivated. The user has been notified.",
       "suspendRole": "Role suspended. The user has been notified with your reason.",
       "suspendAccount": "Account suspended. The user has been notified with your reason.",
-      "reactivateAccount": "Account reactivated. The user has been notified."
+      "reactivateAccount": "Account reactivated. The user has been notified.",
+      "reactivateRoleDocumentExpired": "The driver role stays suspended: a required document has expired. It reactivates once a renewal is approved."
     },
     "errors": {
       "already_suspended": "Already suspended by an admin — nothing changed. The profile is refreshed.",

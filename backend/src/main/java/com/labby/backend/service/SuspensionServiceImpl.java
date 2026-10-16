@@ -111,6 +111,9 @@ public class SuspensionServiceImpl implements SuspensionService {
       // expired document, lifted only by an approved renewal. Audited as the attempt it was.
       assignment.setSuspensionReason(SuspensionReason.DOCUMENT_EXPIRED);
       assignment.setSuspensionNote(null);
+      // Re-audit W-1: the admin's decision on the low-rating / manual reason counts as a
+      // reactivation for USR-05 — only a rating stored after it may re-suspend for low rating.
+      assignment.setReactivatedAt(calendar.now());
       roleAssignmentRepository.save(assignment);
       Map<String, Object> after = roleSnapshot(assignment);
       after.put("note", note);

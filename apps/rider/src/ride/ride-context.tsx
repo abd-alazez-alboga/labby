@@ -31,7 +31,7 @@ import React, {
   useState,
 } from "react";
 
-import { refreshAccessToken } from "../api/http-client";
+import { ApiError, refreshAccessToken } from "../api/http-client";
 import {
   bookRide,
   type BookRideRequest,
@@ -196,6 +196,37 @@ export function RideProvider({
     [show],
   );
 
+  /**
+   * M11 (R-N1): a whole-account suspension system-cancels a ride that is
+   * still searching (`cancelled_by_rider`, reason `account_suspended`, no
+   * fee), and such a ride is then refused (403 `account_suspended`) — so a
+   * missed frame can't be learned by reading it. On that 403 the searching
+   * ride is shown ended for that reason (Done → home's suspended screen;
+   * the profile is re-read by the auth context). True when handled.
+   */
+  const endedBySuspension = useCallback(
+    (error: unknown): boolean => {
+      const shown = current.current;
+      if (
+        !(error instanceof ApiError) ||
+        error.status !== 403 ||
+        error.body?.code !== "account_suspended" ||
+        !shown ||
+        (shown.state !== "requested" && shown.state !== "offering")
+      ) {
+        return false;
+      }
+      show({
+        ...shown,
+        state: "cancelled_by_rider",
+        cancellationReason: "account_suspended",
+        cancellationFee: null,
+      });
+      return true;
+    },
+    [show],
+  );
+
   const resync = useCallback(async () => {
     try {
       const active = await getActiveRide();
@@ -208,13 +239,14 @@ export function RideProvider({
         // It ended while we were not listening: learn how.
         apply(await getRide(shown.id), true);
       }
-    } catch {
+    } catch (error) {
       // Offline / server trouble: keep what is shown; the next (re)connect
-      // resyncs again.
+      // resyncs again — unless the account's suspension ended the search.
+      endedBySuspension(error);
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [apply]);
+  }, [apply, endedBySuspension]);
 
   useEffect(() => {
     followRedispatch.current = (cancelled: Ride) => {
@@ -328,11 +360,18 @@ export function RideProvider({
     async (reason, note) => {
       const shown = current.current;
       if (!shown) throw new Error("No ride to cancel");
-      const cancelled = await cancelRide(shown.id, reason, note);
+      let cancelled: Ride;
+      try {
+        cancelled = await cancelRide(shown.id, reason, note);
+      } catch (error) {
+        // Already system-cancelled by the account's suspension (R-N1).
+        if (endedBySuspension(error) && current.current) return current.current;
+        throw error;
+      }
       apply(cancelled, true);
       return cancelled;
     },
-    [apply],
+    [apply, endedBySuspension],
   );
 
   const changeRoute = useCallback<ActiveRideValue["changeRoute"]>(

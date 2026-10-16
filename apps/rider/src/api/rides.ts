@@ -305,9 +305,9 @@ export interface RideSummary {
   /** M11: the driver's first name (null when no driver was assigned). */
   counterpartFirstName?: string | null;
   /**
-   * Why the ride was cancelled — read only for M11's `account_suspended`
-   * (rendered instead of "Cancelled by you"); absent until the history
-   * contract carries it.
+   * Why the ride was cancelled (rides-v1, null when not cancelled) — the
+   * history reads it for M11's `account_suspended` (rendered instead of
+   * "Cancelled by you").
    */
   cancellationReason?: CancellationReason | null;
 }

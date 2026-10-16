@@ -86,7 +86,10 @@ export default function UserTrustPage() {
   const [trust, setTrust] = useState<AdminUserTrust | null>(null);
   const [loadError, setLoadError] = useState<FailureKind | null>(null);
   const [refresh, setRefresh] = useState(0);
-  const [notice, setNotice] = useState<{ key: string; tone: 'success' | 'error' } | null>(null);
+  const [notice, setNotice] = useState<{
+    key: string;
+    tone: 'success' | 'warning' | 'error';
+  } | null>(null);
   const reports = useReportsAgainst(userId, refresh);
 
   useEffect(() => {
@@ -129,6 +132,15 @@ export default function UserTrustPage() {
 
   function onUpdated(updated: AdminUserTrust, action: SuspensionAction) {
     setTrust(updated);
+    // A driver reactivation answers 200 but keeps the role suspended while a
+    // current document is expired (DRV-04): say so instead of "reactivated".
+    if (action.kind === 'reactivateRole') {
+      const role = updated.roles.find((entry) => entry.role === action.role);
+      if (role?.state === 'suspended' && role.suspensionReason === 'document_expired') {
+        setNotice({ key: 'trust.done.reactivateRoleDocumentExpired', tone: 'warning' });
+        return;
+      }
+    }
     setNotice({ key: `trust.done.${action.kind}`, tone: 'success' });
   }
 
@@ -171,8 +183,8 @@ export default function UserTrustPage() {
 
       {notice ? (
         <p
-          className={notice.tone === 'success' ? 'banner banner--success' : 'banner banner--error'}
-          role={notice.tone === 'success' ? 'status' : 'alert'}
+          className={`banner banner--${notice.tone}`}
+          role={notice.tone === 'error' ? 'alert' : 'status'}
         >
           {t(notice.key)}
         </p>

@@ -195,6 +195,47 @@ describe('user trust profile', () => {
     expect(screen.getByRole('region', { name: 'Driver role' })).toHaveTextContent('Active');
   });
 
+  it('says the driver role stays suspended when a document is still expired', async () => {
+    const fetchMock = stubTrust(TRUST_ADMIN, userTrust(), (method, path) =>
+      method === 'POST' && path === `${BASE}/roles/driver/reactivate`
+        ? jsonResponse(
+            200,
+            userTrust({
+              roles: [
+                roleTrust({
+                  role: 'driver',
+                  state: 'suspended',
+                  suspensionReason: 'document_expired',
+                  suspendedAt: '2026-10-16T08:00:00Z',
+                }),
+                roleTrust(),
+              ],
+            }),
+          )
+        : null,
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.type(await screen.findByLabelText(REASON_LABEL), 'Second chance');
+    await user.click(screen.getByRole('button', { name: 'Reactivate driver role' }));
+
+    expect(
+      await screen.findByText(
+        'The driver role stays suspended: a required document has expired. It reactivates once a renewal is approved.',
+      ),
+    ).toHaveClass('banner--warning');
+    expect(
+      screen.queryByText('Role reactivated. The user has been notified.'),
+    ).not.toBeInTheDocument();
+    expect(bodyOf(fetchMock, 'POST', `${BASE}/roles/driver/reactivate`)).toEqual({
+      note: 'Second chance',
+    });
+    expect(screen.getByRole('region', { name: 'Driver role' })).toHaveTextContent(
+      'Suspended · document expired',
+    );
+  });
+
   it('suspends one role from the other actions', async () => {
     const fetchMock = stubTrust(TRUST_ADMIN, userTrust(), (method, path) =>
       method === 'POST' && path === `${BASE}/roles/rider/suspend`

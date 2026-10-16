@@ -6,7 +6,7 @@
  * ride); the rider picks a reason
  * (`other` needs a note); "Keep my ride" is the primary action.
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { ApiError } from "../../api/http-client";
@@ -42,7 +42,11 @@ export function CancelSheet({
 }) {
   const { t, locale } = useLocale();
   const { row } = useDirection();
-  const { cancel } = useActiveRide();
+  const { cancel, resync } = useActiveRide();
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
   const [quote, setQuote] = useState<CancellationQuote | null>(null);
   const [quoteFailed, setQuoteFailed] = useState(false);
   const [reason, setReason] = useState<RiderCancelReason>("changed_mind");
@@ -60,6 +64,17 @@ export function CancelSheet({
       })
       .catch((failure) => {
         if (cancelled) return;
+        if (
+          failure instanceof ApiError &&
+          failure.status === 403 &&
+          failure.body?.code === "account_suspended"
+        ) {
+          // M11 (R-N1): the account's suspension already ended this search —
+          // the resync shows it ended for that reason.
+          closeRef.current();
+          void resync();
+          return;
+        }
         if (failure instanceof ApiError && failure.status === 409) {
           setError(t("cancel.notCancellable"));
         } else {
@@ -69,7 +84,7 @@ export function CancelSheet({
     return () => {
       cancelled = true;
     };
-  }, [visible, ride.id, t]);
+  }, [visible, ride.id, t, resync]);
 
   const currency =
     quote?.currency ?? ride.estimate.components.currency;
