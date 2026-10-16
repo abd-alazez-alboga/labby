@@ -209,6 +209,8 @@ export const rideEn = {
     emptyBody: "Your trips will appear here.",
     line: "{{date}} · {{service}}",
     states: {
+      scheduled: "Scheduled",
+      gathering: "Shared · gathering riders",
       requested: "Requested",
       offering: "Finding a driver",
       accepted: "Driver on the way",
@@ -482,6 +484,8 @@ export const rideAr = {
     emptyBody: "ستظهر رحلاتك هنا.",
     line: "{{date}} · {{service}}",
     states: {
+      scheduled: "مجدولة",
+      gathering: "مشتركة · بانتظار الركاب",
       requested: "تم الطلب",
       offering: "البحث عن سائق",
       accepted: "السائق في الطريق",

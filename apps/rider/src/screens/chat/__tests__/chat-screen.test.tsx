@@ -155,6 +155,24 @@ describe("chat screen (UC-S-13/14)", () => {
     expect(spy).toHaveBeenCalledWith("tel:+963955000111");
   });
 
+  it("says a shared ride's thread is private to the member and driver (M12)", async () => {
+    mockApi({
+      ...baseRoutes,
+      [ACTIVE]: { status: 200, body: acceptedRide({ kind: "shared" }) },
+    });
+    await renderChat();
+    expect(await screen.findByTestId("chat-shared-private")).toHaveTextContent(
+      /Private — only you and Samer see this chat\. Other riders can.t\./,
+    );
+  });
+
+  it("shows no privacy note on a one-rider ride", async () => {
+    mockApi(baseRoutes);
+    await renderChat();
+    expect(await screen.findByTestId("chat-name")).toBeOnTheScreen();
+    expect(screen.queryByTestId("chat-shared-private")).toBeNull();
+  });
+
   it("shows the driver photo as the header avatar, resolving an API-relative url", async () => {
     mockApi({
       ...baseRoutes,

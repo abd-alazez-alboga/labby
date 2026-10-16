@@ -20,6 +20,12 @@
  *   `redispatchOfRideId` points at it) without any rider action. A
  *   `rider_no_show` cancellation is not re-dispatched and stays shown with
  *   its recorded fee.
+ *
+ * M12: the pre-live states `scheduled` / `gathering` are never "the ride on
+ * screen" (they hold no driver and are not the rider's active ride) — their
+ * own screens follow them through `subscribeRideEvents` (incl. the
+ * `shared.occupancy` frames). Once such a ride goes live (conversion,
+ * fallback, shared dispatch) its frame is applied like any other.
  */
 import React, {
   createContext,
@@ -40,6 +46,7 @@ import {
   getActiveRide,
   getRide,
   isLiveRide,
+  isPreLiveRide,
   type Place,
   type Ride,
   type RiderCancelReason,
@@ -94,8 +101,18 @@ export interface ActiveRideValue {
   retry: (expectedSurgeMultiplier?: number) => Promise<Ride>;
   cancel: (reason: RiderCancelReason, note?: string) => Promise<Ride>;
   changeRoute: (route: { destination: Place; stops: Place[] }) => Promise<Ride>;
-  /** Opens a ride by id (push tap) — becomes the ride on screen. */
-  track: (rideId: string) => Promise<void>;
+  /**
+   * Opens a ride by id (push tap) — becomes the ride on screen unless it is
+   * still pre-live (M12); resolves with the ride read, or null.
+   */
+  track: (rideId: string) => Promise<Ride | null>;
+  /**
+   * M12: the rider left the shown shared ride after dispatch — it ends for
+   * them (their recorded fee, if any) while the others ride on.
+   */
+  markLeft: (cancellationFee: number | null) => void;
+  /** Every ride frame for the rider (M12 pre-live screens). */
+  subscribeRideEvents: (listener: (event: RideEvent) => void) => () => void;
   /** Forgets an ended ride (Done / close). */
   dismiss: () => void;
   resync: () => Promise<void>;
@@ -181,6 +198,8 @@ export function RideProvider({
    */
   const apply = useCallback(
     (incoming: Ride, force = false) => {
+      // M12: a scheduled / gathering ride is followed by its own screen.
+      if (isPreLiveRide(incoming.state)) return;
       const shown = current.current;
       const accept =
         force ||
@@ -262,8 +281,21 @@ export function RideProvider({
     };
   }, [apply, resync]);
 
+  const rideEventListeners = useRef(new Set<(event: RideEvent) => void>());
+
+  const subscribeRideEvents = useCallback(
+    (listener: (event: RideEvent) => void) => {
+      rideEventListeners.current.add(listener);
+      return () => {
+        rideEventListeners.current.delete(listener);
+      };
+    },
+    [],
+  );
+
   const onEvent = useCallback(
     (event: RideEvent) => {
+      for (const listener of rideEventListeners.current) listener(event);
       switch (event.type) {
         case "ride.state":
         case "ride.updated":
@@ -386,15 +418,38 @@ export function RideProvider({
   );
 
   const track = useCallback(
-    async (rideId: string) => {
-      if (current.current?.id === rideId) return;
+    async (rideId: string): Promise<Ride | null> => {
+      if (current.current?.id === rideId) return current.current;
       try {
-        apply(await getRide(rideId), true);
+        const read = await getRide(rideId);
+        apply(read, true);
+        return read;
       } catch {
         await resync();
+        return null;
       }
     },
     [apply, resync],
+  );
+
+  const markLeft = useCallback(
+    (cancellationFee: number | null) => {
+      const shown = current.current;
+      if (!shown || shown.kind !== "shared") return;
+      const me = shown.shared?.me;
+      show({
+        ...shown,
+        state: "cancelled_by_rider",
+        cancellationFee,
+        shared: shown.shared
+          ? {
+              ...shown.shared,
+              me: me ? { ...me, status: "cancelled", cancellationFee } : me,
+            }
+          : shown.shared,
+      });
+    },
+    [show],
   );
 
   const dismiss = useCallback(() => {
@@ -415,6 +470,8 @@ export function RideProvider({
       cancel,
       changeRoute,
       track,
+      markLeft,
+      subscribeRideEvents,
       dismiss,
       resync,
       sendChatFrame,
@@ -432,6 +489,8 @@ export function RideProvider({
       cancel,
       changeRoute,
       track,
+      markLeft,
+      subscribeRideEvents,
       dismiss,
       resync,
       sendChatFrame,

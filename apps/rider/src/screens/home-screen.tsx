@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import type { Ride } from "../api/rides";
+import { listScheduledRides } from "../api/scheduled-shared";
 import { useOptionalAuth } from "../auth/auth-context";
 import { ApiStatus } from "../components/api-status";
 import {
@@ -17,6 +19,7 @@ import {
   TextButton,
   useDirection,
 } from "../components/ui";
+import { useFocusRefresh } from "../hooks/use-focus-refresh";
 import { takeReturnRoute } from "../i18n/direction-reload";
 import { useLocale } from "../i18n/locale-context";
 import { useCurrentPosition } from "../location/use-current-position";
@@ -25,6 +28,7 @@ import { UnreadBadge } from "../notifications/unread-badge";
 import { useOptionalRegion } from "../region/region-context";
 import { useOptionalActiveRide } from "../ride/ride-context";
 import { placeLabel } from "../ride/ride-format";
+import { formatScheduleDay } from "../ride/schedule-format";
 import { useSavedPlaces } from "../ride/use-saved-places";
 import { colors, radius, spacing } from "../theme/tokens";
 import { useColdStartRatingPrompt } from "../trust/rating-prompts";
@@ -44,6 +48,10 @@ const HOME_SAVED_PLACES = 3;
  * Main: the destination search that opens booking and the saved places as
  * one-tap destinations) or the region state (M4-T4). While the ride facade
  * holds a ride, home IS the ride: the map + the sheet of its state (M7).
+ *
+ * M12 (approved artboard RiderM12Home): a "Later" pill in the search row
+ * starts scheduling, the soonest upcoming scheduled ride (with the count)
+ * opens the scheduled list, and "Shared rides" opens browsing.
  *
  * M11: while the rider role or the whole account is suspended, the
  * suspended screen replaces booking — but a ride already in flight keeps
@@ -73,7 +81,7 @@ export default function HomeScreen() {
 }
 
 function WhereToHome() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { flipRows, row } = useDirection();
   const router = useRouter();
   const saved = useSavedPlaces();
@@ -102,6 +110,22 @@ function WhereToHome() {
   };
 
   const unread = notifications?.unread ?? null;
+
+  // M12: the upcoming scheduled rides (soonest first), re-read on focus.
+  const [scheduled, setScheduled] = useState<Ride[]>([]);
+  const refreshScheduled = useCallback(() => {
+    let cancelled = false;
+    listScheduledRides()
+      .then((list) => {
+        if (!cancelled) setScheduled(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useFocusRefresh(refreshScheduled);
+  const next = scheduled.find((ride) => ride.scheduled) ?? null;
 
   return (
     <MapScreen
@@ -174,11 +198,85 @@ function WhereToHome() {
                 ]}
                 testID="home-where-to"
               >
-                <Ionicons name="search" size={20} color={colors.text} />
-                <AppText variant="rowTitle" weight={600} tone="muted">
+                <View style={styles.searchIcon}>
+                  <Ionicons name="search" size={20} color={colors.text} />
+                </View>
+                <AppText
+                  variant="rowTitle"
+                  weight={600}
+                  tone="muted"
+                  style={styles.flex}
+                >
                   {t("home.searchDestination")}
                 </AppText>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("scheduled.laterA11y")}
+                  onPress={() => router.push("/schedule" as never)}
+                  style={({ pressed }) => [
+                    styles.later,
+                    { flexDirection: row },
+                    pressed && styles.pressed,
+                  ]}
+                  testID="home-later"
+                >
+                  <Ionicons name="time-outline" size={16} color={colors.text} />
+                  <AppText variant="label" weight={800}>
+                    {t("scheduled.later")}
+                  </AppText>
+                </Pressable>
               </Pressable>
+              {next?.scheduled ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push("/scheduled" as never)}
+                  style={({ pressed }) => [
+                    styles.upcoming,
+                    { flexDirection: row },
+                    pressed && styles.pressed,
+                  ]}
+                  testID="home-upcoming"
+                >
+                  <View style={styles.upcomingIcon}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color={colors.accent}
+                    />
+                  </View>
+                  <View style={styles.flex}>
+                    <AppText variant="bodyStrong" weight={800}>
+                      {formatScheduleDay(next.scheduled.scheduledAt, locale, t)}
+                    </AppText>
+                    <AppText variant="caption" weight={400} tone="secondary">
+                      {t("scheduled.homeSubtitle", {
+                        place: placeLabel(next.destination),
+                        status:
+                          next.scheduled.claimState === "claimed"
+                            ? t("scheduled.claimed")
+                            : t("scheduled.open"),
+                      })}
+                    </AppText>
+                  </View>
+                  <AppText
+                    variant="caption"
+                    weight={800}
+                    tone="accent"
+                    testID="home-upcoming-count"
+                  >
+                    {t("scheduled.homeCount", { count: scheduled.length })}
+                  </AppText>
+                </Pressable>
+              ) : null}
+              <ListRow
+                icon="people-outline"
+                title={t("shared.homeTitle")}
+                subtitle={t("shared.homeSubtitle")}
+                chevron
+                last
+                onPress={() => router.push("/shared" as never)}
+                testID="home-shared"
+              />
               {saved.places.length > 0 ? (
                 <View>
                   {saved.places.slice(0, HOME_SAVED_PLACES).map((place, i, list) => (
@@ -241,10 +339,43 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceFill,
-    paddingHorizontal: spacing.lg,
+    // Symmetric so the Later pill sits right in both row directions.
+    paddingHorizontal: spacing.sm,
   },
   pressed: {
     opacity: 0.7,
+  },
+  flex: {
+    flex: 1,
+  },
+  searchIcon: {
+    width: 32,
+    alignItems: "center",
+  },
+  later: {
+    alignItems: "center",
+    gap: 6,
+    height: 44,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+  },
+  upcoming: {
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 14,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+  },
+  upcomingIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.accentTint,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chipLtr: {
     alignSelf: "flex-start",

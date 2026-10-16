@@ -17,6 +17,11 @@
  *   cash due)
  * - cancelled_by_rider / rider no-show: the recorded fee (or "not
  *   charged") and Done.
+ * M12: a shared ride (kind `shared`) shows its chip (seats, own party),
+ * "Leave ride" instead of cancel (the per-member leave, RiderSharedLeave),
+ * no route changes (one destination), and the rider's own share with the
+ * per-seat split when completed (RiderSharedReceipt); a scheduled ride the
+ * system cancelled because the rider was busy says so (`rider_busy`).
  * The connection-lost banner shows whenever the driver's stream is lost.
  * Ratings never render (null until M11).
  */
@@ -63,6 +68,8 @@ import {
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 import { TipSheet } from "../wallet/tip-sheet";
+import { SharedLeaveSheet } from "../shared/shared-leave-sheet";
+import { SharedSplit } from "../shared/shared-split";
 import { CancelSheet } from "./cancel-sheet";
 import {
   markColdStartChecked,
@@ -165,6 +172,20 @@ export function RideView({
   );
   const minutes = etaMinutes(facade.etaSeconds, locale);
   const cancellable = RIDER_CANCELLABLE_STATES.includes(ride.state);
+  // M12: a member of a shared ride leaves it instead of cancelling it.
+  const shared = ride.kind === "shared" ? (ride.shared ?? null) : null;
+  const cancelLabel = shared ? t("shared.leaveRide") : t("ride.cancelRide");
+  const sharedChip = shared ? (
+    <View style={[styles.sharedChip, row === "row" ? styles.selfStart : styles.selfEnd]}>
+      <AppText variant="caption" weight={800} tone="accent" testID="ride-shared-chip">
+        {t("shared.chip", {
+          taken: shared.seatsTaken,
+          total: shared.totalSeats,
+          party: shared.me?.partySize ?? 1,
+        })}
+      </AppText>
+    </View>
+  ) : null;
   const lost =
     facade.driverStream === "lost" &&
     (ride.state === "accepted" ||
@@ -281,14 +302,19 @@ export function RideView({
     // itemized carried dues — the same rows as the receipt.
     const walletApplied = ride.walletApplied ?? 0;
     const splitRows = paymentRows(ride);
+    // M12: a shared ride reads `split` — the member's own status counts.
+    const paymentStatus =
+      ride.paymentStatus === "split"
+        ? (shared?.me?.paymentStatus ?? null)
+        : ride.paymentStatus;
     const statusLabel =
-      ride.paymentStatus === "paid_cash"
+      paymentStatus === "paid_cash"
         ? t("ride.paidCash")
-        : ride.paymentStatus === "paid_wallet"
+        : paymentStatus === "paid_wallet"
           ? t("ride.paidWallet")
-          : ride.paymentStatus === "paid_mixed"
+          : paymentStatus === "paid_mixed"
             ? t("ride.paidMixed")
-            : ride.paymentStatus === "unpaid"
+            : paymentStatus === "unpaid"
               ? t("ride.unpaid")
               : walletApplied > 0
                 ? t("ride.payRemainder")
@@ -315,7 +341,7 @@ export function RideView({
             {statusLabel}
           </AppText>
           <AppText style={styles.bigAmount} weight={800} testID="ride-total">
-            {formatMoney(total, currency, locale, t)}
+            {formatMoney(shared?.me?.shareAmount ?? total, currency, locale, t)}
           </AppText>
           <AppText variant="caption" tone="muted" weight={400}>
             {t("ride.meteredSummary", {
@@ -362,6 +388,7 @@ export function RideView({
         {tipSent ? (
           <Banner tone="success" message={t("tip.sent")} testID="ride-tip-sent" />
         ) : null}
+        {shared?.split ? <SharedSplit split={shared.split} me={shared.me} /> : null}
         <FareBreakdown components={fare.components} measured={fare} />
         {driver ? (
           <View style={styles.dividerTop}>
@@ -442,6 +469,7 @@ export function RideView({
               : t("ride.findingBody")}
           </AppText>
         </View>
+        {sharedChip}
         <RouteColumn
           pickup={ride.pickup}
           stops={ride.stops}
@@ -457,7 +485,7 @@ export function RideView({
         </View>
         {redispatching ? null : (
           <SecondaryButton
-            label={t("ride.cancelRequest")}
+            label={shared ? t("shared.leaveRide") : t("ride.cancelRequest")}
             onPress={openCancel}
             testID="ride-cancel"
           />
@@ -550,13 +578,14 @@ export function RideView({
             </AppText>
           ) : null}
         </View>
+        {sharedChip}
         <DriverCard driver={driver} />
         <SafetyActionsRow ride={ride} />
         <EstimateFooter
           ride={ride}
           trailing={
             <OutlineAction
-              label={t("ride.cancelRide")}
+              label={cancelLabel}
               onPress={openCancel}
               testID="ride-cancel"
             />
@@ -659,13 +688,14 @@ export function RideView({
             </AppText>
           </View>
         ) : null}
+        {sharedChip}
         <DriverCard driver={driver} />
         <SafetyActionsRow ride={ride} />
         <EstimateFooter
           ride={ride}
           trailing={
             <OutlineAction
-              label={t("ride.cancelRide")}
+              label={cancelLabel}
               onPress={openCancel}
               testID="ride-cancel"
             />
@@ -706,6 +736,7 @@ export function RideView({
             {details.join(" · ")}
           </AppText>
         ) : null}
+        {sharedChip}
         <SafetyActionsRow ride={ride} />
         <RouteColumn
           pickup={ride.pickup}
@@ -713,6 +744,7 @@ export function RideView({
           destination={ride.destination}
           showPickup={false}
         />
+        {shared ? null : (
         <View style={[styles.twoButtons, { flexDirection: row }]}>
           <SecondaryButton
             label={t("ride.changeDestination")}
@@ -729,6 +761,7 @@ export function RideView({
             />
           ) : null}
         </View>
+        )}
         {inRideTip && driver ? (
           // PAY-04 / UC-R-08: tipping is open during the ride too.
           <SecondaryButton
@@ -763,10 +796,32 @@ export function RideView({
           <AppText variant="title" testID="ride-ended-title">
             {ride.cancellationReason === "account_suspended"
               ? t("suspended.rideCancelledTitle")
-              : ride.state === "cancelled_by_driver"
-                ? t("ride.cancelledByDriverTitle")
-                : t("ride.cancelledByRiderTitle")}
+              : ride.cancellationReason === "rider_busy"
+                ? t("scheduled.riderBusyTitle")
+                : shared && shared.me?.status === "cancelled"
+                  ? t("shared.leftTitle")
+                  : shared && ride.state === "cancelled_by_rider"
+                    ? t("shared.endedTitle")
+                    : ride.state === "cancelled_by_driver"
+                      ? t("ride.cancelledByDriverTitle")
+                      : t("ride.cancelledByRiderTitle")}
           </AppText>
+          {ride.cancellationReason === "rider_busy" ? (
+            <AppText variant="body" tone="secondary" testID="ride-ended-rider-busy">
+              {t("scheduled.riderBusyBody")}
+            </AppText>
+          ) : null}
+          {shared &&
+          ride.state === "cancelled_by_rider" &&
+          shared.me?.status !== "cancelled" ? (
+            <AppText variant="body" tone="secondary" testID="ride-ended-shared">
+              {ride.cancellationReason === "shared_expired"
+                ? t("shared.endedExpired")
+                : shared.isCreator
+                  ? t("shared.endedYou")
+                  : t("shared.endedByCreator")}
+            </AppText>
+          ) : null}
           {ride.cancellationReason === "account_suspended" ? (
             <AppText variant="body" tone="secondary" testID="ride-ended-suspended">
               {t("suspended.rideCancelledBody")}
@@ -848,8 +903,15 @@ export function RideView({
       sheet={
         <>
           {sheet}
-          {cancellable && cancelOpen ? (
+          {cancellable && cancelOpen && !shared ? (
             <CancelSheet
+              ride={ride}
+              visible={cancelOpen}
+              onClose={() => setCancelOpen(false)}
+            />
+          ) : null}
+          {cancellable && cancelOpen && shared ? (
+            <SharedLeaveSheet
               ride={ride}
               visible={cancelOpen}
               onClose={() => setCancelOpen(false)}
@@ -904,6 +966,19 @@ function EstimateFooterInline({ ride }: { ride: Ride }) {
 }
 
 const styles = StyleSheet.create({
+  sharedChip: {
+    minHeight: 28,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    justifyContent: "center",
+    backgroundColor: colors.accentTint,
+  },
+  selfStart: {
+    alignSelf: "flex-start",
+  },
+  selfEnd: {
+    alignSelf: "flex-end",
+  },
   page: {
     flex: 1,
     backgroundColor: colors.surface,

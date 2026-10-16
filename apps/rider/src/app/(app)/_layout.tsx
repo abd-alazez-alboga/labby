@@ -18,7 +18,9 @@ import { colors } from "../../theme/tokens";
  * large title). Region resolution, notification state (badge, push
  * registration, push taps) and the ride facade (realtime socket + the
  * current ride) live only while signed in. M11 adds the rating screen,
- * the report flow and the rider's reports list.
+ * the report flow and the rider's reports list. M12 adds scheduling (the
+ * flow, the upcoming list and one scheduled ride) and shared rides
+ * (browse, create, one shared ride).
  */
 export default function AppLayout() {
   const { status } = useAuth();
@@ -109,6 +111,23 @@ export default function AppLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen name="reports" options={{ title: t("reports.title") }} />
+          {/* M12: scheduling (map-first flow) + upcoming list / detail. */}
+          <Stack.Screen name="schedule" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="scheduled/index"
+            options={{ title: t("scheduled.listTitle") }}
+          />
+          <Stack.Screen
+            name="scheduled/[rideId]"
+            options={{ headerShown: false }}
+          />
+          {/* M12: shared rides — browse, create, one ride (join / members). */}
+          <Stack.Screen
+            name="shared/index"
+            options={{ title: t("shared.browseTitle") }}
+          />
+          <Stack.Screen name="shared/create" options={{ headerShown: false }} />
+          <Stack.Screen name="shared/[rideId]" options={{ headerShown: false }} />
         </Stack>
       </NotificationsProvider>
       </ChatProvider>

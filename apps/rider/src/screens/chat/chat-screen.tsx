@@ -89,6 +89,7 @@ export default function ChatScreen({ rideId }: { rideId: string }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const chat = useChatThread(rideId);
+  const facade = useOptionalActiveRide();
   const inputFamily = useFontFamily(400);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<ScrollView>(null);
@@ -181,6 +182,20 @@ export default function ChatScreen({ rideId }: { rideId: string }) {
             : null
         }
       />
+      {facade?.ride?.id === rideId && facade.ride.kind === "shared" ? (
+        // M12 (ruling 2026-10-16): one private thread per member and driver.
+        <View
+          style={[styles.privateNote, { flexDirection: row }]}
+          testID="chat-shared-private"
+        >
+          <Ionicons name="lock-closed-outline" size={16} color={colors.accent} />
+          <AppText variant="caption" weight={700} tone="accent" style={styles.flex}>
+            {name
+              ? t("shared.privateNote", { name })
+              : t("shared.privateNoteNoName")}
+          </AppText>
+        </View>
+      ) : null}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -580,6 +595,13 @@ function Bubble({
 }
 
 const styles = StyleSheet.create({
+  privateNote: {
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.accentTint,
+  },
   page: {
     flex: 1,
     backgroundColor: colors.surface,

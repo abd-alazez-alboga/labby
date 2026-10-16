@@ -7,6 +7,10 @@
  * the ride-complete screen) — plus the tip line, and a
  * "Tip <driver>" entry while the 24 h window is open and no tip exists.
  * M11 (UC-S-18): "Report <driver>" opens the report flow for this ride.
+ * M12 (RIDE-P4, approved artboard RiderSharedReceipt): a shared ride's
+ * receipt is the member's own — it adds "Split by seat" (the ride's stored
+ * split and this member's share, read from `GET /rides/{id}`) and the
+ * member's own payment status.
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -15,7 +19,8 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { failureKind, type FailureKind } from "../../api/http-client";
-import { getReceipt, type Receipt } from "../../api/rides";
+import { getReceipt, getRide, type Receipt } from "../../api/rides";
+import type { SharedInfo } from "../../api/scheduled-shared";
 import { type TipResponse, withinTipWindow } from "../../api/wallet";
 import {
   AppText,
@@ -36,6 +41,7 @@ import {
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 import { useAccountSuspended } from "../../trust/suspension";
+import { SharedSplit } from "../shared/shared-split";
 import { TipSheet } from "../wallet/tip-sheet";
 import {
   FareBreakdown,
@@ -53,6 +59,8 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
   const [failure, setFailure] = useState<FailureKind | null>(null);
   const [tipOpen, setTipOpen] = useState(false);
   const [tipSent, setTipSent] = useState<TipResponse | null>(null);
+  // M12: the shared extension (split + own membership) of a shared ride.
+  const [sharedInfo, setSharedInfo] = useState<SharedInfo | null>(null);
   // Reports are refused for a suspended account (M11): no Report link.
   const accountSuspended = useAccountSuspended();
 
@@ -71,6 +79,20 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
     })();
   }, [load]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getRide(rideId)
+      .then((ride) => {
+        if (!cancelled && ride.kind === "shared" && ride.shared) {
+          setSharedInfo(ride.shared);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [rideId]);
+
   if (failure) return <ErrorView kind={failure} onRetry={() => void load()} />;
   if (!receipt) return <LoadingView testID="receipt-loading" />;
 
@@ -79,7 +101,7 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
     locale,
   );
   const subtitle = [
-    service,
+    sharedInfo ? t("shared.receiptSubtitle", { details: service }) : service,
     receipt.driver?.firstName,
     receipt.driver
       ? t("ride.vehicle", {
@@ -92,20 +114,25 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
     .filter(Boolean)
     .join(" · ");
   const { startedAt, completedAt, requestedAt } = receipt.timeline;
+  // A shared ride reads `split`: the member's own status is the one to show.
+  const paymentStatus =
+    receipt.paymentStatus === "split"
+      ? (sharedInfo?.me?.paymentStatus ?? null)
+      : receipt.paymentStatus;
   const paymentLabel =
-    receipt.paymentStatus === "paid_cash"
+    paymentStatus === "paid_cash"
       ? t("receipt.paidCash")
-      : receipt.paymentStatus === "paid_wallet"
+      : paymentStatus === "paid_wallet"
         ? t("receipt.paidWallet")
-        : receipt.paymentStatus === "paid_mixed"
+        : paymentStatus === "paid_mixed"
           ? t("receipt.paidMixed")
-          : receipt.paymentStatus === "unpaid"
+          : paymentStatus === "unpaid"
             ? t("receipt.unpaid")
             : t("receipt.pending");
   const paid =
-    receipt.paymentStatus === "paid_cash" ||
-    receipt.paymentStatus === "paid_wallet" ||
-    receipt.paymentStatus === "paid_mixed";
+    paymentStatus === "paid_cash" ||
+    paymentStatus === "paid_wallet" ||
+    paymentStatus === "paid_mixed";
 
   // PAY-02 split (M8): wallet part, the fare's cash remainder and the
   // itemized carried dues — the same rows as the ride-complete screen.
@@ -170,6 +197,13 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
             testID="receipt-fare"
           />
         </View>
+        {sharedInfo?.split ? (
+          <SharedSplit
+            split={sharedInfo.split}
+            me={sharedInfo.me}
+            testID="receipt-shared-split"
+          />
+        ) : null}
         {hasPaidBox ? (
           // Approved artboard RiderReceiptSplit: "How you paid".
           <View style={styles.paidBox} testID="receipt-paid-box">

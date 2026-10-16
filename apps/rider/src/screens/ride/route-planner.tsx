@@ -4,7 +4,8 @@
  * a pin on the map, or — for the pickup — the current location. Typing in a
  * field searches the rider's saved places (the contract has no geocoding
  * endpoint). Used for booking (`mode="book"`) and for in-ride route changes
- * (`mode="route"`: the pickup is fixed, RIDE-05).
+ * (`mode="route"`: the pickup is fixed, RIDE-05). M12: shared rides plan
+ * one pickup and one destination (`allowStops={false}`, own `title`).
  */
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
@@ -75,6 +76,8 @@ export function RoutePlanner({
   onSubmit,
   onBack,
   footer,
+  title,
+  allowStops = true,
   testID = "route-planner",
 }: {
   mode: "book" | "route";
@@ -88,6 +91,10 @@ export function RoutePlanner({
   onBack: () => void;
   /** Extra rows above the primary action (the matching-toggle line). */
   footer?: React.ReactNode;
+  /** Overrides the sheet title. */
+  title?: string;
+  /** False: no stops (M12 shared rides — one pickup, one destination). */
+  allowStops?: boolean;
   testID?: string;
 }) {
   const { t, isRTL, flipRows } = useLocale();
@@ -311,9 +318,10 @@ export function RoutePlanner({
             keyboardShouldPersistTaps="handled"
           >
             <AppText variant="heading">
-              {mode === "book"
-                ? t("booking.planTitle")
-                : t("booking.routeTitle")}
+              {title ??
+                (mode === "book"
+                  ? t("booking.planTitle")
+                  : t("booking.routeTitle"))}
             </AppText>
 
             <View style={styles.fields}>
@@ -328,7 +336,7 @@ export function RoutePlanner({
               {renderField("destination", t("booking.destination"))}
             </View>
 
-            {stops.length < MAX_STOPS ? (
+            {allowStops && stops.length < MAX_STOPS ? (
               <Pressable
                 accessibilityRole="button"
                 onPress={addStop}

@@ -53,7 +53,14 @@ export type RideEvent =
       recordedAt: string | null;
       etaSeconds: number | null;
     }
-  | { type: "ride.connection"; rideId: string; driverStream: "ok" | "lost" };
+  | { type: "ride.connection"; rideId: string; driverStream: "ok" | "lost" }
+  /** M12 (scheduled-shared-v1.yaml): seats changed on a shared ride the rider is in. */
+  | {
+      type: "shared.occupancy";
+      rideId: string;
+      seatsTaken: number;
+      totalSeats: number;
+    };
 
 /**
  * The chat frames the server fans out (comms-v1.yaml). They are addressed
@@ -141,6 +148,22 @@ function parseRideEvent(frame: Record<string, unknown>): RideEvent | null {
         rideId: frame.rideId,
         driverStream: frame.driverStream,
       };
+    case "shared.occupancy": {
+      const seatsTaken = finite(frame.seatsTaken);
+      const totalSeats = finite(frame.totalSeats);
+      if (
+        typeof frame.rideId !== "string" ||
+        seatsTaken === null ||
+        totalSeats === null
+      )
+        return null;
+      return {
+        type: "shared.occupancy",
+        rideId: frame.rideId,
+        seatsTaken,
+        totalSeats,
+      };
+    }
     default:
       return null;
   }

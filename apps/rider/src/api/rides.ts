@@ -1,5 +1,6 @@
 import type { GeoJsonLineString } from "../map/geo";
 import { ApiError, apiFetch } from "./http-client";
+import type { ScheduledInfo, SharedInfo } from "./scheduled-shared";
 import type { MyRating } from "./trust";
 
 /**
@@ -13,6 +14,10 @@ import type { MyRating } from "./trust";
 // --------------------------------------------------------------- schemas
 
 export const RIDE_STATES = [
+  // M12 pre-live states (scheduled-shared-v1.yaml): no driver, never the
+  // rider's active ride.
+  "scheduled",
+  "gathering",
   "requested",
   "offering",
   "accepted",
@@ -64,6 +69,8 @@ export type PaymentStatus =
   | "paid_wallet"
   | "paid_mixed"
   | "unpaid"
+  /** M12: a completed shared ride, paid per member. */
+  | "split"
   | null;
 export type PickupDistanceMode = "nearby_only" | "accept_distant_fee";
 
@@ -135,6 +142,8 @@ export interface EstimateResponse {
   options: ServiceTypeEstimate[];
   pickupDistanceMode: PickupDistanceMode;
   pickupFeeRule?: { thresholdKm: number; perKm: number } | null;
+  /** M12: true when `scheduledAt` was sent — surge evaluated at execution. */
+  pricedAtRideTime?: boolean;
 }
 
 export const TEMPERATURES = ["no_preference", "cool", "normal", "warm"] as const;
@@ -206,7 +215,11 @@ export type CancellationReason =
    * M11: a searching ride the system cancelled because the whole account
    * was suspended (state `cancelled_by_rider`, no fee).
    */
-  | "account_suspended";
+  | "account_suspended"
+  /** M12: a "when full" shared ride left unfilled for 24 h (no fee). */
+  | "shared_expired"
+  /** M12 (ruling 2026-10-16): the rider was on another live ride when the scheduled one was due. */
+  | "rider_busy";
 
 export interface FinalFare {
   distanceMeters: number;
@@ -272,6 +285,15 @@ export interface Ride {
   driver?: DriverSummary | null;
   /** M11 (RATE-01): the rider's OWN rating state for this ride. */
   myRating?: MyRating | null;
+  /** M12 — kind `scheduled` only. */
+  scheduled?: ScheduledInfo | null;
+  /** M12 — kind `shared` only (money fields above are the caller's member values). */
+  shared?: SharedInfo | null;
+}
+
+/** M12 pre-live states: the ride waits (scheduled) or gathers members (shared). */
+export function isPreLiveRide(state: RideState): boolean {
+  return state === "scheduled" || state === "gathering";
 }
 
 export interface CancellationQuote {
@@ -430,12 +452,19 @@ export function deleteSavedLocation(id: string): Promise<void> {
   });
 }
 
-/** `POST /rides/estimate` — one route, an estimate per service type. */
-export function estimateRide(route: RouteInput): Promise<EstimateResponse> {
+/**
+ * `POST /rides/estimate` — one route, an estimate per service type. With
+ * `scheduledAt` (M12) it prices a scheduled ride: the surcharge window of
+ * that time and NO surge (`pricedAtRideTime: true`).
+ */
+export function estimateRide(
+  route: RouteInput,
+  scheduledAt?: string,
+): Promise<EstimateResponse> {
   return apiFetch<EstimateResponse>(`${RIDES}/estimate`, {
     method: "POST",
     auth: true,
-    body: json(route),
+    body: json(scheduledAt ? { ...route, scheduledAt } : route),
   });
 }
 

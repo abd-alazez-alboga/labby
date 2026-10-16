@@ -18,6 +18,11 @@
  * After a successful booking the screen closes and the home map shows the
  * dispatch state from the ride facade. Errors are explained by their
  * contract code.
+ * M12 (owner ruling 2026-10-16, approved artboard RiderSchedWarn): when one
+ * of the rider's scheduled rides is due within 60 min, booking now first
+ * asks to keep it (book anyway) or cancel it (free) before booking — a
+ * client rule, the backend never blocks the booking. "Book now instead"
+ * from scheduling hands its planned route over (`presetRoute`).
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -33,8 +38,13 @@ import {
   listSavedLocations,
   type PaymentMethod,
   type Place,
+  type Ride,
   type RiderPreferences,
 } from "../../api/rides";
+import {
+  listScheduledRides,
+  SCHEDULED_WARNING_MIN,
+} from "../../api/scheduled-shared";
 import { getWallet } from "../../api/wallet";
 import {
   AppText,
@@ -48,6 +58,7 @@ import {
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
 import { useActiveRide } from "../../ride/ride-context";
+import { scheduledRideDueSoon } from "../../ride/schedule-format";
 import { useRiderPreferences } from "../../ride/use-rider-preferences";
 import { rideErrorMessage } from "../../ride/ride-errors";
 import {
@@ -60,6 +71,8 @@ import {
 import { colors, radius, spacing } from "../../theme/tokens";
 import { RideMap } from "./ride-parts";
 import { type PlannedRoute, RoutePlanner } from "./route-planner";
+import { ScheduledCancelSheet } from "../scheduled/scheduled-cancel-sheet";
+import { ScheduledWarningSheet } from "../scheduled/scheduled-warning-sheet";
 import { type SurgeChange, SurgeChangedSheet } from "./surge-changed-sheet";
 
 /** "Cool · Quiet · No pref." — the comfort preferences shown in booking. */
@@ -239,11 +252,14 @@ function WalletPreview({
 export default function BookingScreen({
   edit = false,
   destinationId = null,
+  presetRoute = null,
 }: {
   /** "Edit trip" from no_driver_found: start from that ride's inputs. */
   edit?: boolean;
   /** A saved place tapped on home: preset as the destination. */
   destinationId?: string | null;
+  /** M12 "Book now instead": the route planned for a scheduled ride. */
+  presetRoute?: PlannedRoute | null;
 }) {
   const { t, locale } = useLocale();
   const { row, backChevron } = useDirection();
@@ -270,6 +286,23 @@ export default function BookingScreen({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [walletFailed, setWalletFailed] = useState(false);
+  // M12: the rider's upcoming scheduled rides (for the 60-min warning).
+  const [scheduledRides, setScheduledRides] = useState<Ride[]>([]);
+  const [warning, setWarning] = useState<Ride | null>(null);
+  const [warningCancelOpen, setWarningCancelOpen] = useState(false);
+  const [warningAnswered, setWarningAnswered] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    listScheduledRides()
+      .then((list) => {
+        if (!cancelled) setScheduledRides(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // The balance is read once, when the rider first switches to wallet.
   useEffect(() => {
@@ -425,6 +458,18 @@ export default function BookingScreen({
     }
   };
 
+  /** "Choose <type>": the scheduled-ride warning first when one is due soon. */
+  const confirmBooking = () => {
+    const due = warningAnswered
+      ? null
+      : scheduledRideDueSoon(scheduledRides, SCHEDULED_WARNING_MIN);
+    if (due) {
+      setWarning(due);
+      return;
+    }
+    void book();
+  };
+
   // Wait for the preset destination / the ride being edited.
   if (!presetReady || (edit && rides.loading)) return null;
 
@@ -433,10 +478,17 @@ export default function BookingScreen({
       <RoutePlanner
         mode="book"
         testID="booking"
-        initialPickup={planned?.pickup ?? editRide?.pickup ?? null}
-        initialStops={planned?.stops ?? editRide?.stops ?? []}
+        initialPickup={
+          planned?.pickup ?? editRide?.pickup ?? presetRoute?.pickup ?? null
+        }
+        initialStops={
+          planned?.stops ?? editRide?.stops ?? presetRoute?.stops ?? []
+        }
         initialDestination={
-          planned?.destination ?? editRide?.destination ?? presetDestination
+          planned?.destination ??
+          editRide?.destination ??
+          presetRoute?.destination ??
+          presetDestination
         }
         submitLabel={t("booking.seePrices")}
         onSubmit={requestEstimate}
@@ -647,11 +699,37 @@ export default function BookingScreen({
                     name: option ? serviceName(option, locale) : "",
                   })
             }
-            onPress={() => void book()}
+            onPress={confirmBooking}
             disabled={!option}
             loading={booking && !surgeChange}
             testID="booking-confirm"
           />
+          <ScheduledWarningSheet
+            ride={warning}
+            visible={!!warning && !warningCancelOpen}
+            onKeep={() => {
+              setWarning(null);
+              setWarningAnswered(true);
+              void book();
+            }}
+            onCancelFirst={() => setWarningCancelOpen(true)}
+            onBack={() => setWarning(null)}
+          />
+          {warning ? (
+            <ScheduledCancelSheet
+              ride={warning}
+              visible={warningCancelOpen}
+              onClose={() => setWarningCancelOpen(false)}
+              onCancelled={(cancelled) => {
+                setWarningCancelOpen(false);
+                setWarning(null);
+                setScheduledRides((list) =>
+                  list.filter((item) => item.id !== cancelled.id),
+                );
+                void book();
+              }}
+            />
+          ) : null}
           <SurgeChangedSheet
             change={surgeChange}
             confirming={booking}
