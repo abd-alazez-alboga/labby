@@ -17,8 +17,22 @@ import type {
  * unread count. 404 while the window state is `none` (no thread yet);
  * callers turn that into "no entry point".
  */
-export function getChatThread(rideId: string): Promise<ChatThread> {
-  return authFetch<ChatThread>(`/api/v1/rides/${rideId}/chat`);
+export function getChatThread(
+  rideId: string,
+  memberId?: string,
+): Promise<ChatThread> {
+  return authFetch<ChatThread>(
+    `/api/v1/rides/${rideId}/chat${memberQuery(memberId)}`,
+  );
+}
+
+/**
+ * M12 (ruling 2026-10-16): the driver addresses one shared-ride member's
+ * private thread with `memberId` (required for the driver on a shared
+ * ride — scheduled-shared-v1 "Shared rides in the other contracts").
+ */
+function memberQuery(memberId?: string): string {
+  return memberId ? `?memberId=${encodeURIComponent(memberId)}` : "";
 }
 
 /**
@@ -29,9 +43,10 @@ export function getChatThread(rideId: string): Promise<ChatThread> {
  */
 export function getChatMessages(
   rideId: string,
-  options: { before?: string; after?: string; size?: number } = {},
+  options: { before?: string; after?: string; size?: number; memberId?: string } = {},
 ): Promise<ChatMessagePage> {
   const params = new URLSearchParams();
+  if (options.memberId) params.set("memberId", options.memberId);
   if (options.before) params.set("before", options.before);
   if (options.after) params.set("after", options.after);
   if (options.size) params.set("size", String(options.size));
@@ -45,8 +60,9 @@ export function getChatMessages(
 export async function postChatRead(
   rideId: string,
   lastReadMessageId: string,
+  memberId?: string,
 ): Promise<void> {
-  await authFetch<null>(`/api/v1/rides/${rideId}/chat/read`, {
+  await authFetch<null>(`/api/v1/rides/${rideId}/chat/read${memberQuery(memberId)}`, {
     method: "POST",
     body: { lastReadMessageId },
   });

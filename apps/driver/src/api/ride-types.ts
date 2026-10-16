@@ -2,10 +2,20 @@
  * Types mirroring the M7 rides contract (backend/docs/api/rides-v1.yaml) —
  * the DRIVER slice: offers, the driver view of a ride, the stored fare, the
  * driver cancel request, the coded error bodies and the realtime frames.
- * Import-free so every layer can depend on them without cycles.
+ * Imports only the (import-free) M12 extension types, so every layer can
+ * depend on them without cycles.
  */
+import type {
+  MemberView,
+  ScheduledInfo,
+  SharedInfo,
+  SharedOfferInfo,
+} from "./scheduled-types";
 
 export type RideState =
+  /** M12 pre-live states (never the driver's current job). */
+  | "scheduled"
+  | "gathering"
   | "requested"
   | "offering"
   | "accepted"
@@ -29,7 +39,9 @@ export type PaymentStatus =
   | "paid_cash"
   | "paid_wallet"
   | "paid_mixed"
-  | "unpaid";
+  | "unpaid"
+  /** M12: a completed shared ride, paid per member (`shared.members`). */
+  | "split";
 
 export interface Place {
   lat: number;
@@ -177,6 +189,10 @@ export interface Ride {
   rider?: RiderSummary | null;
   /** M11 (RATE-01): the caller's OWN rating state for this ride (trust-v1 MyRating). */
   myRating?: MyRating | null;
+  /** M12 — kind `scheduled` only. */
+  scheduled?: ScheduledInfo | null;
+  /** M12 — kind `shared` only (driver view: every party in `members`). */
+  shared?: SharedInfo | null;
 }
 
 /** trust-v1 `MyRating` — never describes ratings the caller received. */
@@ -207,6 +223,8 @@ export interface RideOffer {
   surge: boolean;
   paymentMethod: PaymentMethod;
   rider: RiderSummary;
+  /** M12 — shared rides only: seats taken + parties (UC-D-13 step 1). */
+  shared?: SharedOfferInfo | null;
 }
 
 /** Ride error body: the M1 ErrorResponse + machine `code` / `details`. */
@@ -242,8 +260,22 @@ export function isActiveForDriver(ride: Ride): boolean {
     case "in_progress":
       return true;
     case "completed":
-      return ride.paymentStatus === "pending";
+      return (
+        ride.paymentStatus === "pending" ||
+        (ride.paymentStatus === "split" && hasPendingMember(ride))
+      );
     default:
       return false;
   }
+}
+
+/** M12: the parties of a shared ride the driver still settles with. */
+export function pendingMembers(ride: Ride): MemberView[] {
+  return (ride.shared?.members ?? []).filter(
+    (member) => member.status === "completed" && member.paymentStatus === "pending",
+  );
+}
+
+function hasPendingMember(ride: Ride): boolean {
+  return pendingMembers(ride).length > 0;
 }

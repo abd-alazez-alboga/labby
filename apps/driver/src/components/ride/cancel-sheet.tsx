@@ -56,6 +56,11 @@ export function CancelSheet({
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState(false);
   const name = ride.rider?.firstName?.trim() || t("ride.theRider");
+  // M12 (UC-D-13 E1): on a shared ride a no-show is per member, never the ride.
+  const reasons =
+    ride.kind === "shared"
+      ? DRIVER_CANCEL_REASONS.filter((option) => option !== "rider_no_show")
+      : DRIVER_CANCEL_REASONS;
   const allowNoShow = noShowAllowed(ride, now);
   const busy = ctx.pending === "cancel";
   const error = ctx.error?.action === "cancel" ? ctx.error : null;
@@ -112,7 +117,7 @@ export function CancelSheet({
 
         <View accessibilityRole="radiogroup">
           <FieldLabel>{t("ride.cancel.reasonLabel")}</FieldLabel>
-          {DRIVER_CANCEL_REASONS.map((option, index) => {
+          {reasons.map((option, index) => {
             const disabled = option === "rider_no_show" && !allowNoShow;
             const selected = effectiveReason === option;
             return (
@@ -128,7 +133,7 @@ export function CancelSheet({
                 }}
                 style={[
                   styles.option,
-                  index < DRIVER_CANCEL_REASONS.length - 1 && styles.divider,
+                  index < reasons.length - 1 && styles.divider,
                   flipRows && styles.rowReverse,
                 ]}
                 testID={`cancel-reason-${option}`}

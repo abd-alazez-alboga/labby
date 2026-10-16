@@ -14,6 +14,7 @@ import {
   formatMinutes,
   formatMoney,
   formatNumber,
+  formatTime,
   placeLabel,
 } from "../../rides/format";
 import { useNow } from "../../rides/use-now";
@@ -25,6 +26,7 @@ import {
   OutlineButton,
   PrimaryButton,
   SquareIconButton,
+  StatusChip,
   useDirection,
 } from "../ui";
 import {
@@ -36,6 +38,7 @@ import {
   comfortLabels,
 } from "./ride-parts";
 import { SafetyRow } from "./safety-actions";
+import { seatsAndParties } from "./shared-parts";
 
 /**
  * The bottom sheets of the active-ride map screens (design canvas "To
@@ -48,7 +51,53 @@ function serviceName(ride: Ride, language: string): string {
 }
 
 function riderName(t: TFunction, ride: Ride): string {
+  // M12: a shared ride is a group of parties (UC-D-13).
+  if (ride.kind === "shared") return t("ride.shared.group");
   return ride.rider?.firstName?.trim() || t("ride.theRider");
+}
+
+/**
+ * M12 chips on the to-pickup sheet: a converted scheduled ride shows its
+ * pickup time, a shared ride its seats and parties.
+ */
+function KindChip({ ride }: { ride: Ride }) {
+  const { flipRows } = useDirection();
+  return (
+    <View style={flipRows ? styles.chipEnd : null}>
+      <KindChipLabel ride={ride} />
+    </View>
+  );
+}
+
+function KindChipLabel({ ride }: { ride: Ride }) {
+  const { t } = useTranslation();
+  const { language } = useDirection();
+  if (ride.kind === "scheduled" && ride.scheduled) {
+    return (
+      <StatusChip
+        tone="accent"
+        label={t("ride.scheduledChip", {
+          time: formatTime(ride.scheduled.scheduledAt, language),
+        })}
+        testID="ride-kind-chip"
+      />
+    );
+  }
+  if (ride.kind === "shared" && ride.shared) {
+    const parties = ride.shared.members.filter(
+      (member) => member.status === "joined",
+    ).length;
+    return (
+      <StatusChip
+        tone="accent"
+        label={t("ride.shared.chip", {
+          detail: seatsAndParties(t, ride.shared.seatsTaken, parties, language),
+        })}
+        testID="ride-kind-chip"
+      />
+    );
+  }
+  return null;
 }
 
 /** Network / server failure of the screen's own action (geofence etc. are rendered inline). */
@@ -106,7 +155,9 @@ export function ToPickupSheet({
         </View>
       </View>
 
-      {ride.rider ? (
+      <KindChip ride={ride} />
+
+      {ride.rider && ride.kind !== "shared" ? (
         <ComfortChips comfort={ride.rider.comfort} testID="rider-comfort" />
       ) : null}
 
@@ -343,7 +394,9 @@ export function InRideSheet({
     <View style={styles.group} testID="in-ride-sheet">
       <View style={[styles.row, styles.between, flipRows && styles.rowReverse]}>
         <AppText variant="heading" style={styles.grow}>
-          {t("ride.inRide.title", { name })}
+          {ride.kind === "shared"
+            ? t("ride.shared.inRideTitle")
+            : t("ride.inRide.title", { name })}
         </AppText>
         {startedAt !== null ? (
           <AppText
@@ -416,6 +469,7 @@ const styles = StyleSheet.create({
   between: { justifyContent: "space-between" },
   rowReverse: { flexDirection: "row-reverse" },
   grow: { flex: 1 },
+  chipEnd: { alignItems: "flex-end" },
   actions: { flexDirection: "row", gap: 10, alignItems: "center" },
   bigTimer: {
     fontSize: 40,

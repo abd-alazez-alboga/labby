@@ -334,6 +334,10 @@ const NOTICE_TONES: Record<RideNotice, "neutral" | "success" | "warning"> = {
   cashConfirmed: "success",
   markedUnpaid: "neutral",
   paymentSettled: "neutral",
+  scheduledLive: "success",
+  sharedSettled: "success",
+  scheduledReleased: "warning",
+  scheduledRiderBusy: "neutral",
 };
 
 /** The short notice after an offer / ride went away. */

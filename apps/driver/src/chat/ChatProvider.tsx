@@ -29,6 +29,14 @@
  * compute the window themselves: `windowState` is read from the server
  * and WS errors are obeyed (CHAT-01).
  *
+ * M12 (ruling 2026-10-16): a shared ride has ONE private thread per member
+ * with the driver. Those threads are addressed by ride + `memberId`
+ * (`focusThread(rideId, memberId)` from the per-member chat list); a shared
+ * active ride has no default thread. Internally a thread is keyed
+ * `rideId` or `rideId/memberId`: `?memberId=` on the comms-v1 endpoints and
+ * `memberId` on the WS frames (scheduled-shared-v1 "Shared rides in the
+ * other contracts" → Chat).
+ *
  * Resilience: a failed first load is retried with a backoff (and when a
  * live frame for the ride lands), so a flaky moment at acceptance never
  * hides Chat / Call for the ride; the quick-reply catalog is re-fetched
@@ -84,6 +92,8 @@ export type ChatStatus = "idle" | "loading" | "loaded" | "none" | "error";
 export interface ChatContextValue {
   /** The thread being shown (the active ride's, or a focused one). */
   rideId: string | null;
+  /** M12: the shared-ride member of the shown thread (null = the ride's one thread). */
+  memberId: string | null;
   status: ChatStatus;
   thread: ChatThread | null;
   /** Ascending by time; pending sends at the tail. */
@@ -101,8 +111,11 @@ export interface ChatContextValue {
    * pins the shown thread; false releases the focus.
    */
   setScreenOpen: (open: boolean) => void;
-  /** Deep link (push `chat` {rideId}): show this ride's thread (wins over the active ride). */
-  focusThread: (rideId: string) => void;
+  /**
+   * Deep link (push `chat` {rideId}) or the per-member list (M12, with
+   * `memberId`): show this thread (wins over the active ride).
+   */
+  focusThread: (rideId: string, memberId?: string | null) => void;
   /** Retry after an error / re-read the thread. */
   refresh: () => Promise<void>;
 }
@@ -124,6 +137,25 @@ interface PendingSend {
 /** Writes are allowed (and the composer / call shown) in these states. */
 export function chatWritable(thread: ChatThread | null): boolean {
   return thread?.windowState === "open" || thread?.windowState === "reopened";
+}
+
+/** The internal thread key: `rideId`, or `rideId/memberId` (M12 shared). */
+function threadKey(rideId: string, memberId?: string | null): string {
+  return memberId ? `${rideId}/${memberId}` : rideId;
+}
+
+function rideOf(key: string): string {
+  return key.split("/")[0];
+}
+
+function memberOf(key: string): string | undefined {
+  return key.split("/")[1] || undefined;
+}
+
+/** The WS target of a thread: `rideId` (+ `memberId` on a shared ride). */
+function wsTarget(key: string): { rideId: string; memberId?: string } {
+  const memberId = memberOf(key);
+  return memberId ? { rideId: rideOf(key), memberId } : { rideId: rideOf(key) };
 }
 
 function toUiMessage(message: ChatMessage): UiChatMessage {
@@ -157,10 +189,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const subscribeRealtime = availability?.subscribeRealtime;
   const sendRealtime = availability?.sendRealtime;
   const ride = useOptionalDriverRide()?.ride ?? null;
-  const activeRideId = ride?.id ?? null;
+  // M12: a shared ride has no ride-level thread — only per-member ones.
+  const activeRideId = ride && ride.kind !== "shared" ? ride.id : null;
 
   const [focusedRideId, setFocusedRideId] = useState<string | null>(null);
   // A focus (deep link / the open chat screen) wins over the active ride.
+  // `rideId` below is the internal thread KEY (`rideId[/memberId]`).
   const rideId = focusedRideId ?? activeRideId;
 
   const [status, setStatus] = useState<ChatStatus>("idle");
@@ -239,11 +273,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     sentReadRef.current = messageId;
     const sent = sendRealtimeRef.current?.({
       type: "chat.read",
-      rideId: forRideId,
+      ...wsTarget(forRideId),
       lastReadMessageId: messageId,
     });
     if (!sent) {
-      postChatRead(forRideId, messageId).catch(() => {
+      postChatRead(rideOf(forRideId), messageId, memberOf(forRideId)).catch(() => {
         // Idempotent marker — the next read attempt repeats it.
       });
     }
@@ -257,8 +291,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (!quiet) setStatus("loading");
       try {
         const [threadResult, page] = await Promise.all([
-          getChatThread(forRideId),
-          getChatMessages(forRideId),
+          getChatThread(rideOf(forRideId), memberOf(forRideId)),
+          getChatMessages(rideOf(forRideId), { memberId: memberOf(forRideId) }),
         ]);
         if (!live(forRideId)) return;
         setThread(threadResult);
@@ -301,8 +335,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
       try {
         const [threadResult, page] = await Promise.all([
-          getChatThread(forRideId),
-          getChatMessages(forRideId, { after: newest.messageId }),
+          getChatThread(rideOf(forRideId), memberOf(forRideId)),
+          getChatMessages(rideOf(forRideId), {
+            after: newest.messageId,
+            memberId: memberOf(forRideId),
+          }),
         ]);
         if (!live(forRideId)) return;
         setThread(threadResult);
@@ -333,7 +370,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const forRideId = rideIdRef.current;
     if (!forRideId || !olderCursor) return;
     try {
-      const page = await getChatMessages(forRideId, { before: olderCursor });
+      const page = await getChatMessages(rideOf(forRideId), {
+        before: olderCursor,
+        memberId: memberOf(forRideId),
+      });
       if (!live(forRideId)) return;
       setServerMessages((current) => {
         const known = new Set(current.map((m) => m.messageId));
@@ -435,7 +475,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!forRideId) return;
     sendRealtimeRef.current?.({
       type: "chat.send",
-      rideId: forRideId,
+      ...wsTarget(forRideId),
       clientMsgId: send.clientMsgId,
       kind: send.kind,
       ...(send.body !== undefined ? { body: send.body } : {}),
@@ -500,7 +540,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (!frame) return;
       switch (frame.type) {
         case "chat.message": {
-          if (frame.rideId !== forRideId) return;
+          if (threadKey(frame.rideId, frame.memberId) !== forRideId) return;
           // A frame for a thread we failed to load (or had none yet): the
           // thread exists now — load it so Chat / Call appear (D-W4).
           if (
@@ -548,7 +588,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         case "chat.read":
-          if (frame.rideId !== forRideId || frame.readerRole !== "rider")
+          if (
+            threadKey(frame.rideId, frame.memberId) !== forRideId ||
+            frame.readerRole !== "rider"
+          )
             return;
           setThread((current) =>
             current
@@ -628,13 +671,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [serverMessages, pendingSends],
   );
 
-  const focusThread = useCallback((nextRideId: string) => {
-    setFocusedRideId(nextRideId);
-  }, []);
+  const focusThread = useCallback(
+    (nextRideId: string, memberId?: string | null) => {
+      setFocusedRideId(threadKey(nextRideId, memberId));
+    },
+    [],
+  );
+
+  const shownRideId = rideId ? rideOf(rideId) : null;
+  const shownMemberId = rideId ? (memberOf(rideId) ?? null) : null;
 
   const value = useMemo<ChatContextValue>(
     () => ({
-      rideId,
+      rideId: shownRideId,
+      memberId: shownMemberId,
       status,
       thread,
       messages,
@@ -649,7 +699,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       refresh,
     }),
     [
-      rideId,
+      shownRideId,
+      shownMemberId,
       status,
       thread,
       messages,

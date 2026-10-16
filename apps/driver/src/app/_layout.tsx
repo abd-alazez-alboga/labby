@@ -94,6 +94,20 @@ function AppStack() {
         />
         {/* Per-ride chat (M10, UC-S-13/14). */}
         <Stack.Screen name="chat" options={{ title: t("chat.title") }} />
+        {/* Shared ride: one private thread per member (M12, ruling 2026-10-16). */}
+        <Stack.Screen
+          name="shared-chats"
+          options={{ title: t("chat.sharedTitle") }}
+        />
+        {/* Scheduled rides (M12): claim board + claims, availability windows. */}
+        <Stack.Screen
+          name="scheduled-rides"
+          options={{ title: t("scheduled.title") }}
+        />
+        <Stack.Screen
+          name="availability-windows"
+          options={{ title: t("scheduled.availability.title") }}
+        />
       </Stack.Protected>
 
       {/* The driver gate: signed in, but no active driver role (M2-T4). */}

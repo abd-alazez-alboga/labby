@@ -198,7 +198,7 @@ Statuses live here (milestone files describe content only, they are never edited
 | M12-T1 | Scheduled/shared contract & migrations | done |
 | M12-T2 | Scheduled & shared backend | todo |
 | M12-T3 | Rider app: scheduling & shared rides | done |
-| M12-T4 | Driver app: claim board & shared flow | todo |
+| M12-T4 | Driver app: claim board & shared flow | done |
 | M12-T5 | Integration | todo |
 | M12-T6 | Review audit | todo |
 

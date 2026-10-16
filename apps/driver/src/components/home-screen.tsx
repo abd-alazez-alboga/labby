@@ -20,6 +20,7 @@ import {
   AvailabilitySheet,
 } from "./availability/availability-sheet";
 import { OsmMap } from "./map/osm-map";
+import { ScheduledEntry } from "./scheduled/scheduled-entry";
 import { NotificationsBell } from "./notifications/notifications-bell";
 import { BackgroundLocationBanner } from "./availability/background-location-banner";
 import { RideNoticeBanner } from "./ride/ride-parts";
@@ -308,6 +309,8 @@ export function HomeScreen() {
                 regionLine={<RegionLine region={region} />}
                 floorBlocked={floorBlocked}
               />
+              {/* M12 (UC-D-11): claim board + claimed rides. */}
+              <ScheduledEntry />
               {regionBlocked ? <RegionBlocked region={regionBlocked} /> : null}
               {heatmap ? (
                 <HeatmapSheetSection

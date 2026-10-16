@@ -26,7 +26,12 @@ import type { MapMarker } from "../map/osm-map";
 import { CancelSheet } from "./cancel-sheet";
 import { CompleteScreen } from "./complete-screen";
 import { OfferCard } from "./offer-card";
-import { InstructionCard, OnlinePill } from "./ride-parts";
+import { InstructionCard, OnlinePill, RideNoticeBanner } from "./ride-parts";
+import {
+  NoShowConfirmSheet,
+  SharedCollectScreen,
+  SharedPickupSheet,
+} from "./shared-parts";
 import { SosConfirmSheet, SosPill } from "./safety-actions";
 import {
   AtPickupSheet,
@@ -109,6 +114,8 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
     reason: DriverCancelReason | null;
   } | null>(null);
   const [sosOpen, setSosOpen] = useState(false);
+  // M12 (UC-D-13 E1): the member the "Mark absent" sheet is open for.
+  const [absentMember, setAbsentMember] = useState<string | null>(null);
   const ride = ctx.ride;
   const rideId = ride?.id ?? null;
   const rideState = ride?.state ?? null;
@@ -116,6 +123,7 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
   // The sheet belongs to one ride phase: close it when the phase moves on.
   useEffect(() => {
     setCancel(null);
+    setAbsentMember(null);
   }, [rideId, rideState]);
 
   // The SOS sheet belongs to one ride (phase changes keep it up).
@@ -156,6 +164,9 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
 
   // ---------------------------------------------------------- complete
   if (ride.state === "completed") {
+    // M12 (UC-D-13 step 3): a shared ride is collected per member.
+    if (ride.kind === "shared")
+      return <SharedCollectScreen ctx={ctx} ride={ride} />;
     return <CompleteScreen ctx={ctx} ride={ride} />;
   }
 
@@ -186,6 +197,15 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
         ctx={ctx}
         ride={ride}
         onCancel={() => setCancel({ reason: null })}
+      />
+    );
+  } else if (ride.state === "driver_arrived" && ride.kind === "shared") {
+    sheet = (
+      <SharedPickupSheet
+        ctx={ctx}
+        ride={ride}
+        onCancel={() => setCancel({ reason: null })}
+        onMarkAbsent={setAbsentMember}
       />
     );
   } else if (ride.state === "driver_arrived") {
@@ -229,6 +249,13 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
         top={
           <View style={styles.topCard}>
             {top}
+            {/* M12 (UC-D-12): the claimed scheduled ride just went live. */}
+            {ctx.notice === "scheduledLive" ? (
+              <RideNoticeBanner
+                notice={ctx.notice}
+                onDismiss={ctx.dismissNotice}
+              />
+            ) : null}
             {/* M10 (UC-S-16): the floating red SOS pill on every phase. */}
             <SosPill onPress={() => setSosOpen(true)} />
           </View>
@@ -248,6 +275,17 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
           </View>
         }
       />
+      {absentMember && ride.state === "driver_arrived" ? (
+        <NoShowConfirmSheet
+          ctx={ctx}
+          ride={ride}
+          memberId={absentMember}
+          onClose={() => {
+            ctx.clearError();
+            setAbsentMember(null);
+          }}
+        />
+      ) : null}
       {sosOpen ? (
         <SosConfirmSheet ride={ride} onClose={() => setSosOpen(false)} />
       ) : null}

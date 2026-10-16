@@ -45,6 +45,8 @@ export function parseChatFrame(
       return {
         type: "chat.message",
         rideId: raw.rideId,
+        // M12: a shared-ride member's private thread (always set to the driver).
+        memberId: isString(raw.memberId) ? raw.memberId : null,
         messageId: raw.messageId,
         clientMsgId: isString(raw.clientMsgId) ? raw.clientMsgId : undefined,
         senderRole,
@@ -65,6 +67,7 @@ export function parseChatFrame(
         ? {
             type: "chat.read",
             rideId: raw.rideId,
+            memberId: isString(raw.memberId) ? raw.memberId : null,
             readerRole,
             lastReadMessageId: raw.lastReadMessageId,
           }

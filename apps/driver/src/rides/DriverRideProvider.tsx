@@ -46,6 +46,11 @@ import type {
   RideOffer,
 } from "../api/ride-types";
 import {
+  confirmMemberCash as confirmMemberCashCall,
+  markMemberNoShow as markMemberNoShowCall,
+  markMemberUnpaid as markMemberUnpaidCall,
+} from "../api/scheduled";
+import {
   acceptOffer,
   arriveAtPickup,
   cancelDriverRide,
@@ -80,7 +85,15 @@ export type RideNotice =
   | "cashConfirmed"
   | "markedUnpaid"
   /** cash-confirm / mark-unpaid answered 409 `payment_not_pending`. */
-  | "paymentSettled";
+  | "paymentSettled"
+  /** M12 (UC-D-12): a claimed scheduled ride converted into this live ride. */
+  | "scheduledLive"
+  /** M12 (UC-D-13): every member of the shared ride is settled. */
+  | "sharedSettled"
+  /** M12 push `scheduled.released`: a claim was given back (e.g. unavailable at conversion). */
+  | "scheduledReleased"
+  /** M12 push `scheduled.cancelled_rider_busy`: the rider was on another ride. */
+  | "scheduledRiderBusy";
 
 export type RideAction =
   | "accept"
@@ -90,7 +103,11 @@ export type RideAction =
   | "complete"
   | "cashConfirm"
   | "markUnpaid"
-  | "cancel";
+  | "cancel"
+  /** M12 (UC-D-13): per-member actions of a shared ride. */
+  | "memberNoShow"
+  | "memberCash"
+  | "memberUnpaid";
 
 export type RideActionError =
   /** UC-D-07 E1 — 422 with the distance hint. */
@@ -139,8 +156,17 @@ export interface DriverRideContextValue {
   markUnpaid: () => Promise<void>;
   /** Resolves true when the ride was cancelled. */
   cancel: (reason: DriverCancelReason, note?: string) => Promise<boolean>;
+  /** M12: the member the running per-member action is for. */
+  pendingMemberId: string | null;
+  /** UC-D-13 E1 — resolves true when the member was marked absent. */
+  markMemberNoShow: (memberId: string) => Promise<boolean>;
+  /** UC-D-13 step 3 — one member's cash received / unpaid. */
+  confirmMemberCash: (memberId: string) => Promise<void>;
+  markMemberUnpaid: (memberId: string) => Promise<void>;
   clearError: () => void;
   dismissNotice: () => void;
+  /** M12: a scheduled-ride push surfaces its notice on the home sheet. */
+  showNotice: (notice: RideNotice) => void;
   resync: () => Promise<void>;
   /** Push / notification-center tap on a `ride_offer` or `ride` link. */
   openLink: (link: DeepLink | null) => void;
@@ -195,6 +221,7 @@ function noticeForEndedRide(ride: Ride): RideNotice | null {
     case "completed":
       if (ride.paymentStatus === "paid_cash") return "cashConfirmed";
       if (ride.paymentStatus === "unpaid") return "markedUnpaid";
+      if (ride.paymentStatus === "split") return "sharedSettled";
       return null;
     default:
       return null;
@@ -240,6 +267,7 @@ export function DriverRideProvider({
   const [routeChangedFor, setRouteChangedFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<RideNotice | null>(null);
   const [pending, setPending] = useState<RideAction | null>(null);
+  const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
   const [error, setError] = useState<RideActionError | null>(null);
 
   const mounted = useRef(true);
@@ -276,6 +304,13 @@ export function DriverRideProvider({
       if (isActiveForDriver(next)) {
         if (!current || current.id !== next.id || current.state !== next.state)
           setError(null);
+        // M12 (UC-D-12): a claim went live at T − fallback lead (S3).
+        if (
+          (!current || current.id !== next.id) &&
+          next.scheduled?.claimState === "converted" &&
+          next.state === "accepted"
+        )
+          setNotice("scheduledLive");
         if (current && current.id !== next.id) setRouteChangedFor(null);
         rideRef.current = next;
         setRide(next);
@@ -673,8 +708,78 @@ export function DriverRideProvider({
     [applyRide, live, resyncOnConflict, run],
   );
 
+  // ------------------------------------------------- M12 shared members
+
+  const memberStep = useCallback(
+    async (
+      action: "memberNoShow" | "memberCash" | "memberUnpaid",
+      memberId: string,
+      call: (rideId: string, memberId: string) => Promise<Ride>,
+      onError: (caught: unknown) => boolean,
+    ): Promise<boolean> => {
+      const current = rideRef.current;
+      if (!current) return false;
+      setPendingMemberId(memberId);
+      try {
+        return await run(
+          action,
+          async () => {
+            const next = await call(current.id, memberId);
+            if (live()) applyRide(next);
+          },
+          onError,
+        );
+      } finally {
+        if (mounted.current) setPendingMemberId(null);
+      }
+    },
+    [applyRide, live, run],
+  );
+
+  const markMemberNoShow = useCallback(
+    (memberId: string) =>
+      memberStep("memberNoShow", memberId, markMemberNoShowCall, (caught) => {
+        const coded = rideErrorOf(caught);
+        if (coded?.status === 409 && coded.code === "wait_grace_running") {
+          const availableAt = coded.details.waitGraceEndsAt;
+          setError({
+            action: "memberNoShow",
+            kind: "noShowTooEarly",
+            availableAt: typeof availableAt === "string" ? availableAt : null,
+          });
+          return true;
+        }
+        return resyncOnConflict(caught);
+      }),
+    [memberStep, resyncOnConflict],
+  );
+
+  const memberSettle = useCallback(
+    (action: "memberCash" | "memberUnpaid") => async (memberId: string) => {
+      await memberStep(
+        action,
+        memberId,
+        action === "memberCash" ? confirmMemberCashCall : markMemberUnpaidCall,
+        (caught) => {
+          const coded = rideErrorOf(caught);
+          if (coded?.status === 409) {
+            void resyncWith().then(() => {
+              if (live()) setNotice("paymentSettled");
+            });
+            return true;
+          }
+          return false;
+        },
+      );
+    },
+    [live, memberStep, resyncWith],
+  );
+  const confirmMemberCash = useMemo(() => memberSettle("memberCash"), [memberSettle]);
+  const markMemberUnpaid = useMemo(() => memberSettle("memberUnpaid"), [memberSettle]);
+
   const clearError = useCallback(() => setError(null), []);
   const dismissNotice = useCallback(() => setNotice(null), []);
+  const showNotice = useCallback((next: RideNotice) => setNotice(next), []);
   const dismissSettled = useCallback(() => setSettled(null), []);
 
   const openLink = useCallback(
@@ -703,8 +808,13 @@ export function DriverRideProvider({
       confirmCash: confirmCashAction,
       markUnpaid: markUnpaidAction,
       cancel,
+      pendingMemberId,
+      markMemberNoShow,
+      confirmMemberCash,
+      markMemberUnpaid,
       clearError,
       dismissNotice,
+      showNotice,
       resync,
       openLink,
     }),
@@ -725,8 +835,13 @@ export function DriverRideProvider({
       confirmCashAction,
       markUnpaidAction,
       cancel,
+      pendingMemberId,
+      markMemberNoShow,
+      confirmMemberCash,
+      markMemberUnpaid,
       clearError,
       dismissNotice,
+      showNotice,
       resync,
       openLink,
     ],

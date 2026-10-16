@@ -86,19 +86,29 @@ export type ChatClientFrame =
   | {
       type: "chat.send";
       rideId: string;
+      /** M12: shared-ride member thread (scheduled-shared-v1). */
+      memberId?: string;
       /** Client-generated UUID — the dedup key (a resend never duplicates). */
       clientMsgId: string;
       kind: ChatMessageKind;
       body?: string;
       quickReplyCode?: string;
     }
-  | { type: "chat.read"; rideId: string; lastReadMessageId: string };
+  | {
+      type: "chat.read";
+      rideId: string;
+      /** M12: shared-ride member thread (scheduled-shared-v1). */
+      memberId?: string;
+      lastReadMessageId: string;
+    };
 
 /** Server → client chat frames (fanned out to BOTH parties). */
 export type ChatServerFrame =
   | {
       type: "chat.message";
       rideId: string;
+      /** M12: the shared-ride member's private thread (scheduled-shared-v1); null otherwise. */
+      memberId?: string | null;
       messageId: string;
       /** Present only on the sender's own echo (the delivery ack). */
       clientMsgId?: string;
@@ -113,6 +123,7 @@ export type ChatServerFrame =
   | {
       type: "chat.read";
       rideId: string;
+      memberId?: string | null;
       readerRole: ChatRole;
       lastReadMessageId: string;
     }

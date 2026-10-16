@@ -123,7 +123,7 @@ export function ChatScreen() {
   const { language, flipRows } = useDirection();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ rideId?: string }>();
+  const params = useLocalSearchParams<{ rideId?: string; memberId?: string }>();
   const chat = useOptionalChat();
   const ride = useOptionalDriverRide()?.ride ?? null;
   // No socket at all (offline): sends could never leave the device.
@@ -131,21 +131,28 @@ export function ChatScreen() {
   const [draft, setDraft] = useState("");
 
   const paramRideId = typeof params.rideId === "string" ? params.rideId : null;
+  // M12: the per-member chat list opens one shared-ride member's thread.
+  const paramMemberId =
+    typeof params.memberId === "string" && params.memberId ? params.memberId : null;
   const focusThread = chat?.focusThread;
   const chatRideId = chat?.rideId ?? null;
+  const chatMemberId = chat?.memberId ?? null;
+  const otherThread =
+    paramRideId !== null &&
+    (paramRideId !== chatRideId || paramMemberId !== chatMemberId);
 
   // A push deep link names the ride; focus it when it is not the active one.
   useFocusEffect(
     useCallback(() => {
-      if (paramRideId && focusThread && paramRideId !== chatRideId) {
-        focusThread(paramRideId);
+      if (paramRideId && focusThread && otherThread) {
+        focusThread(paramRideId, paramMemberId);
       }
-    }, [paramRideId, focusThread, chatRideId]),
+    }, [paramRideId, paramMemberId, focusThread, otherThread]),
   );
 
   // The deep-linked thread is not the provider's yet (one render): show
   // nothing of the previous ride's thread meanwhile.
-  const switching = paramRideId !== null && paramRideId !== chatRideId;
+  const switching = otherThread;
 
   // While focused, a foreground chat push for the ride whose thread is
   // actually ON SCREEN shows no banner — the message lands live here

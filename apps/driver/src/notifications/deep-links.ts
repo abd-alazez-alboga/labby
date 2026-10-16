@@ -117,6 +117,23 @@ export function isBalanceEvent(event: string | null | undefined): boolean {
   return !!event && event.startsWith("driver.balance_");
 }
 
+/**
+ * M12: scheduled-ride pushes the home sheet answers with a notice
+ * (`scheduled.released` — a claim given back by the system;
+ * `scheduled.cancelled_rider_busy`) or a resync (`scheduled.converted`).
+ */
+export function scheduledNoticeFor(
+  event: string | null | undefined,
+): "scheduledReleased" | "scheduledRiderBusy" | null {
+  if (event === "scheduled.released") return "scheduledReleased";
+  if (event === "scheduled.cancelled_rider_busy") return "scheduledRiderBusy";
+  return null;
+}
+
+export function isScheduledConversion(event: string | null | undefined): boolean {
+  return event === "scheduled.converted";
+}
+
 /** Links the ride facade must resync for before the home route shows them. */
 export function isRideLink(link: DeepLink | null | undefined): boolean {
   return link?.screen === "ride" || link?.screen === "ride_offer";

@@ -627,8 +627,63 @@
       "rideCancelled": "Ride cancelled.",
       "cashConfirmed": "Cash received — the ride is closed.",
       "markedUnpaid": "Marked as unpaid — the ride is closed.",
-      "paymentSettled": "The payment for this ride was already recorded."
-    }
+      "paymentSettled": "The payment for this ride was already recorded.",
+      "scheduledLive": "Your scheduled ride is live — head to the pickup now.",
+      "sharedSettled": "Every party is settled — the shared ride is closed.",
+      "scheduledReleased": "A scheduled ride claim was released. It's back on the board or in live dispatch.",
+      "scheduledRiderBusy": "A scheduled ride was cancelled: the rider was still on another trip. Nothing counts against you."
+    },
+    "shared": {
+      "group": "the group",
+      "party": "Party {{n}}",
+      "partyOf": "Party of {{count}}",
+      "partyOfOne": "Party of 1",
+      "memberSubtitle": "{{party}} · {{payment}}",
+      "creator": "{{name}} · created the ride",
+      "seatsAndParties": "{{seats}} seats · {{parties}} parties",
+      "chip": "Shared · {{detail}}",
+      "chipSeats": "Shared · {{seats}} seats",
+      "offerChip": "Shared · {{service}}",
+      "offerBody": "One pickup, one destination · each party pays its own share",
+      "offerFare": "Estimated fare for the whole ride",
+      "inRideTitle": "Shared ride",
+      "waitingAt": "Waiting at {{place}}",
+      "freeWaitEndsIn": "Free wait ends in {{time}}. Then you can mark a party absent.",
+      "freeWaitOver": "Free wait is over — you can mark who didn't come as absent.",
+      "absent": "Absent",
+      "absentIn": "Absent in {{time}}",
+      "markNameAbsent": "Mark {{name}} absent",
+      "status": {
+        "no_show": "Absent",
+        "cancelled": "Cancelled",
+        "completed": "Rode",
+        "joined": "Joined",
+        "left": "Left"
+      },
+      "startHint": "Start when everyone who came is on board · the fare splits over boarded seats",
+      "chats": "Chats · {{count}}",
+      "noShowTitle": "Mark {{name}} absent?",
+      "noShowCopy": "{{name}} pays the cancellation fee and no share of the fare. The ride continues with the others.",
+      "noShowCopyLast": "{{name}} pays the cancellation fee. Nobody else is left, so the ride ends as a no-show.",
+      "keepWaiting": "Keep waiting",
+      "markAbsent": "Mark absent",
+      "collect": {
+        "title": "Ride complete · shared",
+        "splitLine": "Fare {{fare}} ÷ {{seats}} boarded seats",
+        "perSeat": "{{amount}} per seat",
+        "cashShare": "{{party}} · Cash",
+        "walletPaid": "Wallet · deducted automatically",
+        "cashPaid": "Cash received",
+        "paid": "Paid",
+        "unpaid": "Unpaid",
+        "unpaidBody": "Marked unpaid — support follows up",
+        "absentFee": "Owes the cancellation fee",
+        "cancelledBody": "Left the ride",
+        "didNotPay": "Didn't pay",
+        "hint": "Confirm each party's cash · the ride closes once every payment is settled ({{count}} left)"
+      }
+    },
+    "scheduledChip": "Scheduled · pickup {{time}}"
   },
   "backgroundLocation": {
     "noticeTitle": "You're online",
@@ -737,7 +792,10 @@
     "empty": "No messages yet.",
     "readOnly": "This ride has ended. The conversation is view-only.",
     "offline": "Go online to chat",
-    "noThread": "There's no conversation for this ride."
+    "noThread": "There's no conversation for this ride.",
+    "sharedTitle": "Chats",
+    "sharedIntro": "One private chat per party. Members never see each other's messages or numbers.",
+    "sharedNone": "This shared ride has no chats right now."
   },
   "safety": {
     "chat": "Chat",
@@ -753,7 +811,8 @@
     "sosConfirm": "Call {{number}} — support alerted",
     "sosConfirmNoNumber": "Alert Labby support",
     "sosCancel": "Cancel",
-    "sosFootnote": "The alert reaches support even if the call doesn't connect."
+    "sosFootnote": "The alert reaches support even if the call doesn't connect.",
+    "chats": "Chats"
   },
   "heatmap": {
     "show": "Show demand heatmap",
@@ -984,6 +1043,110 @@
     "offerRiderRating": "rider rating {{rating}} ★",
     "errors": {
       "accountSuspended": "Your account is suspended, so this isn't available."
+    }
+  },
+  "scheduled": {
+    "title": "Scheduled rides",
+    "pricedAtRideTimeWith": "Priced at ride time · {{payment}}",
+    "tabs": {
+      "board": "Board",
+      "mine": "My rides",
+      "mineCount": "My rides · {{count}}"
+    },
+    "relative": {
+      "due": "due now",
+      "minutes": "in {{value}} min",
+      "hours": "in {{value}} h",
+      "days": {
+        "zero": "in {{value}} days",
+        "one": "in {{value}} day",
+        "two": "in {{value}} days",
+        "few": "in {{value}} days",
+        "many": "in {{value}} days",
+        "other": "in {{value}} days"
+      }
+    },
+    "days": {
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday",
+      "7": "Sunday"
+    },
+    "entry": {
+      "next": "Next: {{when}} · {{place}}",
+      "open": "{{count}} open on the board",
+      "generic": "Claim rides ahead of time"
+    },
+    "board": {
+      "pickupArea": "Pickup area ≈",
+      "destination": "Destination",
+      "claim": "Claim",
+      "serviceWithStops": "{{service}} · {{count}} stops",
+      "count": "Only rides inside your availability · {{count}} rides",
+      "more": "Show more",
+      "empty": "No open rides match your availability right now. Pull to refresh.",
+      "noWindowsTitle": "Set your availability first",
+      "noWindowsBody": "The board shows scheduled rides that fall inside your weekly times. You have none yet.",
+      "setAvailability": "Set availability"
+    },
+    "mine": {
+      "intro": "Each ride goes live shortly before pickup — be online and free then.",
+      "relativeWithRider": "{{relative}} · {{name}}",
+      "goesLiveSoon": "Goes live soon",
+      "claimed": "Claimed",
+      "pickup": "Pickup",
+      "reminders": "We'll remind you before pickup",
+      "release": "Release",
+      "empty": "You haven't claimed any scheduled rides."
+    },
+    "release": {
+      "title": "Release {{name}}'s ride?",
+      "copy": "{{when}} goes back on the board and {{name}} is told. Releases count toward your cancellation rate.",
+      "keep": "Keep the ride",
+      "confirm": "Release ride"
+    },
+    "notices": {
+      "claimedTitle": "Claimed · {{when}}",
+      "claimedBody": "The rider is told. You'll get reminders before pickup.",
+      "alreadyClaimedTitle": "Another driver claimed it first",
+      "alreadyClaimedBody": "That ride is gone. The list is refreshed.",
+      "claimClosedTitle": "This ride is no longer open",
+      "claimClosedBody": "It was cancelled or is about to go live. The list is refreshed.",
+      "notEligibleTitle": "You can't claim this ride",
+      "notEligible": {
+        "window": "It's outside your availability times.",
+        "service_type": "Your active vehicle doesn't offer this service.",
+        "driver": "Your driver account can't claim rides right now.",
+        "other": "It no longer matches your account."
+      },
+      "released": "Ride released — it's back on the board.",
+      "alreadyLiveTitle": "This ride is already live",
+      "alreadyLiveBody": "It can't be released any more. Cancel it from the ride screen if you must."
+    },
+    "availability": {
+      "title": "Availability",
+      "intro": "Pick when you can take scheduled rides. The claim board only shows rides inside these times. Live offers are not affected.",
+      "notAvailable": "Not available",
+      "allDay": "All day",
+      "withNextDay": "{{range}} · next day",
+      "remove": "Remove {{day}} {{range}}",
+      "addFor": "Add a time on {{day}}",
+      "addTitle": "Add time · {{day}}",
+      "from": "From",
+      "until": "Until",
+      "pastMidnight": "Ends after midnight — counts as {{day}} until {{time}} on {{nextDay}}.",
+      "sameTimes": "Same start and end — pick “All day” for the whole day.",
+      "duplicate": "You already have this time on this day.",
+      "add": "Add",
+      "cancelAdd": "Cancel",
+      "save": "Save",
+      "saved": "Availability saved.",
+      "invalid": "These times couldn't be saved. Check them and try again.",
+      "full": "You've reached the limit of {{max}} times a week.",
+      "zoneNote": "Times are local to the ride's region · changing them never drops rides you already claimed"
     }
   }
 }

@@ -15,11 +15,13 @@ import { colors, radius, spacing } from "../../theme/tokens";
 import {
   AppText,
   Banner,
+  Icon,
   PrimaryButton,
   SquareIconButton,
   useDirection,
 } from "../ui";
 import { CountdownRing, RouteSteps } from "./ride-parts";
+import { seatsAndParties } from "./shared-parts";
 
 /**
  * Design canvas "Driver offer" (UC-D-06): service type · payment chip, the
@@ -56,10 +58,12 @@ export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
             color={colors.accent}
             testID="offer-service"
           >
-            {t("ride.offer.serviceAndPayment", {
-              service: serviceName,
-              payment: t(`ride.payment.${offer.paymentMethod}`),
-            })}
+            {offer.shared
+              ? t("ride.shared.offerChip", { service: serviceName })
+              : t("ride.offer.serviceAndPayment", {
+                  service: serviceName,
+                  payment: t(`ride.payment.${offer.paymentMethod}`),
+                })}
           </AppText>
         </View>
         <CountdownRing
@@ -69,6 +73,28 @@ export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
           testID="offer-countdown"
         />
       </View>
+
+      {offer.shared ? (
+        <View
+          style={[styles.sharedBlock, flipRows && styles.rowReverse]}
+          testID="offer-shared"
+        >
+          <Icon name="people-outline" size={22} color={colors.accentPressed} />
+          <View style={styles.grow}>
+            <AppText
+              variant="rowTitle"
+              weight="800"
+              color={colors.accentPressed}
+              testID="offer-shared-seats"
+            >
+              {seatsAndParties(t, offer.shared.seats, offer.shared.parties, language)}
+            </AppText>
+            <AppText variant="caption" weight="400" color={colors.accentPressed}>
+              {t("ride.shared.offerBody")}
+            </AppText>
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.fare}>
         <AppText variant="display" testID="offer-fare">
@@ -80,10 +106,12 @@ export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
           testID="offer-fare-caption"
         >
           {[
-            offer.surge
-              ? t("ride.offer.estimatedFareSurge")
-              : t("ride.offer.estimatedFare"),
-            ...(typeof offer.rider?.rating === "number"
+            offer.shared
+              ? t("ride.shared.offerFare")
+              : offer.surge
+                ? t("ride.offer.estimatedFareSurge")
+                : t("ride.offer.estimatedFare"),
+            ...(!offer.shared && typeof offer.rider?.rating === "number"
               ? [
                   t("trust.offerRiderRating", {
                     rating: formatRating(offer.rider.rating, language),
@@ -183,4 +211,13 @@ const styles = StyleSheet.create({
   fare: { gap: 2 },
   actions: { flexDirection: "row", gap: 10, alignItems: "center" },
   grow: { flex: 1 },
+  sharedBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.accentTint,
+    borderRadius: radius.md,
+    paddingVertical: spacing.ms,
+    paddingHorizontal: 14,
+  },
 });

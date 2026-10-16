@@ -13,7 +13,9 @@ import {
   isAccountStateEvent,
   isBalanceEvent,
   isRideLink,
+  isScheduledConversion,
   parsePushPayload,
+  scheduledNoticeFor,
 } from "./deep-links";
 import {
   configureForegroundPresentation,
@@ -48,12 +50,16 @@ export function PushBridge() {
   const signedIn = status === "signedIn";
   const rides = useOptionalDriverRide();
   const openRideLink = rides?.openLink;
+  const showRideNotice = rides?.showNotice;
+  const resyncRides = rides?.resync;
   const reloadBalance = useOptionalDriverMoney()?.reload;
   const reloadAvailability = useOptionalAvailability()?.reload;
   const context = useRef({
     signedIn,
     isDriver,
     openRideLink,
+    showRideNotice,
+    resyncRides,
     reloadBalance,
     reloadAvailability,
     refreshProfile,
@@ -62,6 +68,8 @@ export function PushBridge() {
     signedIn,
     isDriver,
     openRideLink,
+    showRideNotice,
+    resyncRides,
     reloadBalance,
     reloadAvailability,
     refreshProfile,
@@ -148,6 +156,14 @@ export function PushBridge() {
       ) {
         void context.current.reloadBalance?.();
         void context.current.reloadAvailability?.();
+      }
+      // M12: scheduled-ride pushes — a notice on the home sheet, or the
+      // conversion's live ride picked up at once.
+      if (context.current.signedIn && context.current.isDriver) {
+        const { event } = parsePushPayload(data);
+        const notice = scheduledNoticeFor(event);
+        if (notice) context.current.showRideNotice?.(notice);
+        if (isScheduledConversion(event)) void context.current.resyncRides?.();
       }
     });
     return () => {

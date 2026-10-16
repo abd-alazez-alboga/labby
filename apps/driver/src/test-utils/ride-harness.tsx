@@ -6,7 +6,10 @@ import { View } from "react-native";
 
 import { AuthProvider } from "../auth/AuthProvider";
 import { ChatProvider } from "../chat/ChatProvider";
+import ScheduledRidesRoute from "../app/scheduled-rides";
 import { ChatScreen } from "../components/chat/chat-screen";
+import { SharedChatsScreen } from "../components/chat/shared-chats-screen";
+import { AvailabilityScreen } from "../components/scheduled/availability-screen";
 import { HomeScreen } from "../components/home-screen";
 import { NotificationCenterScreen } from "../components/notifications/notification-center-screen";
 import { HeatmapProvider } from "../heatmap/HeatmapProvider";
@@ -32,6 +35,9 @@ export const ACTIVE_RIDE = "GET /api/v1/driver/rides/active";
 export const AVAILABILITY = "GET /api/v1/driver/availability";
 export const SET_AVAILABILITY = "PUT /api/v1/driver/availability";
 export const HEATMAP = "GET /api/v1/driver/heatmap";
+/** M12: the home sheet's "Scheduled rides" row reads both on focus. */
+export const CLAIMED_RIDES = "GET /api/v1/driver/scheduled-rides";
+export const CLAIM_BOARD_SUMMARY = "GET /api/v1/driver/claim-board?page=0&size=1";
 
 export const NONE: MockResponse = { status: 204 };
 
@@ -113,6 +119,11 @@ export function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
     },
     [OPEN_OFFER]: NONE,
     [ACTIVE_RIDE]: NONE,
+    [CLAIMED_RIDES]: { status: 200, body: [] },
+    [CLAIM_BOARD_SUMMARY]: {
+      status: 200,
+      body: { items: [], page: 0, size: 1, totalItems: 0 },
+    },
   };
 }
 
@@ -197,6 +208,10 @@ export async function renderDriverApp(
       ),
       index: () => <HomeScreen />,
       chat: () => <ChatScreen />,
+      // M12: the scheduled-ride screens and the per-member chat list.
+      "scheduled-rides": () => <ScheduledRidesRoute />,
+      "availability-windows": () => <AvailabilityScreen />,
+      "shared-chats": () => <SharedChatsScreen />,
       notifications: () => <NotificationCenterScreen />,
       settings: () => <View testID="settings-route" />,
       earnings: () => <View testID="earnings-route" />,

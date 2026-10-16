@@ -114,7 +114,11 @@ export function SafetyRow({ ride }: { ride: Ride }) {
     ride.timeline.startedAt ?? ride.timeline.acceptedAt ?? null;
   const reportPlace = ride.destination.label?.trim() || null;
 
-  const thread = chat?.rideId === ride.id ? (chat?.thread ?? null) : null;
+  // M12 (ruling 2026-10-16): a shared ride has one private thread per
+  // member — the row opens their list instead of a single thread / call.
+  const shared = ride.kind === "shared";
+  const thread =
+    !shared && chat?.rideId === ride.id ? (chat?.thread ?? null) : null;
   const hasThread = thread !== null;
   const phone = chatWritable(thread) ? thread?.counterpart.phone ?? null : null;
 
@@ -138,6 +142,16 @@ export function SafetyRow({ ride }: { ride: Ride }) {
   return (
     <View style={styles.rowGroup}>
       <View style={[styles.row, flipRows && styles.rowReverse]}>
+        {shared ? (
+          <ActionButton
+            icon="chatbubbles-outline"
+            label={t("safety.chats")}
+            onPress={() =>
+              router.push({ pathname: "/shared-chats", params: { rideId: ride.id } })
+            }
+            testID="safety-shared-chats"
+          />
+        ) : null}
         {hasThread ? (
           <ActionButton
             icon="chatbubble-outline"
@@ -176,7 +190,7 @@ export function SafetyRow({ ride }: { ride: Ride }) {
       {/* M11 (UC-S-18): the rider can be reported from acceptance on —
           during the ride too (same text link as the rider app); never on a
           whole-account suspension, which refuses reports. */}
-      {accountSuspended ? null : (
+      {accountSuspended || shared ? null : (
         <TextButton
           title={t("trust.report.title", { name: riderName })}
           onPress={() =>
