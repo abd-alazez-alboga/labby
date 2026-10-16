@@ -108,3 +108,26 @@ All findings re-validated against live code (lead verified B-H1 and B-W4 directl
 | R-I dead code | fixed — `wasRatingPrompted` removed |
 | B-I3, B-I4 | not changed — one open flag per kind is the approved design; automatic suspensions are unaudited like DRV-04 (no actor) |
 | Admin region-form flake | `region-detail-page` full-bundle test given a 15 s timeout (no assertion change) — times out under machine load since M11 added fields |
+
+---
+
+## Re-audit (`0adee10..66bb038` + follow-ups), 2026-10-16
+Two fresh independent reviewers (backend; rider + driver + admin), read-only, against the original findings and the owner rulings.
+
+**Result:** all 20 original findings resolved exactly per the rulings; no Critical/High; no test weakened (removed assertions are `ratingCount` ones replaced by "absent" assertions, covered by ruling 2). Four new items were raised and — owner decision "fix first, then pass" — resolved before closing:
+
+| Item | Severity | Resolution |
+|---|---|---|
+| W-1 — `reactivated_at` not set when a reactivation ends as `document_expired` or when a renewal lifts it → nightly low_rating re-suspension without a newer rating | Warning (regression of B-W4) | fixed — set in both paths; `shouldNotReSuspendAfterRenewalWithoutANewerRating` |
+| W-2 — residual attribution channels undocumented; trust-v1 overstated the protection | Warning (privacy docs) | owner ruling 2026-10-16: accepted residual risk — trust-v1.yaml "Accepted residual risks" names (a) low-volume day before a nightly suspension / first rating after reactivation, (b) `snapshotAt` first appearing after the first-ever rating, (c) extreme moves over exactly 3 new ratings; wording corrected |
+| A-N1 — admin said "Role reactivated" when the driver stayed suspended for an expired document | Warning | fixed — warning notice from the returned role state; test |
+| R-N1 — rider stuck on "Finding your driver" after a missed auto-cancel frame (403 on resync/cancel) | Warning | fixed — pre-acceptance ride shown ended "Cancelled because your account was suspended"; 3 tests |
+| I-4 — privacy model assumes a daily snapshot cron | Info | fixed — warning in `backend/.env.example` |
+
+Not changed (Info, recorded): no `reactivated_at` backfill in V18 (nothing deployed); B-W5 cancel racing a driver accept rolls back to a retryable 409; flag close racing the nightly pass; driver's unused `myRating` types; driver app ignores the pre-existing `driver.suspended` push for profile refresh.
+
+**Privacy conclusion (M11-T6):** no rider/driver surface exposes an individual rating, its ride, rater or comment; exposed averages come only from batched snapshots without counts; USR-05/RATE-03 run nightly; the remaining channels are documented and owner-accepted. Milestone AC "the rated party can never attribute a rating" — met within the documented, accepted residual risk.
+
+**Re-audit verdict: Pass** (0 Critical · 0 High · 0 open Warning; follow-ups committed in `01167b4`). **Review baseline for M12: `01167b4`.**
+
+Test run (sequential, at `01167b4`): `cd backend && make check` → 509 tests, 0 failures, BUILD SUCCESS · `apps/rider npm run check` → 408 passed · `apps/driver npm run check` → 448 passed · `apps/admin npm run check` → 338 passed. Lint, typecheck, Checkstyle and ArchUnit clean.
