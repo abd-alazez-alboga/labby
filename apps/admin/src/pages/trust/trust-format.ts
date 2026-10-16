@@ -121,8 +121,8 @@ export function decisionErrorKey(error: unknown): string {
 /**
  * The suspend/reactivate actions the profile offers right now (UC-A-14):
  * reactivate a suspended account or role (never a `document_expired` role —
- * only an approved renewal lifts it), suspend an active role or the whole
- * account. A deleted account offers nothing.
+ * only an approved renewal lifts it), suspend an active or automatically
+ * suspended role, or the whole account. A deleted account offers nothing.
  */
 export function availableActions(trust: AdminUserTrust): SuspensionAction[] {
   if (trust.accountState === 'deleted') {
@@ -138,10 +138,11 @@ export function availableActions(trust: AdminUserTrust): SuspensionAction[] {
     }
   }
   for (const role of trust.roles) {
-    // Suspending a low-rating suspension replaces its reason with `manual`
-    // (contract); a manual one would be a 409, and a document-expiry one
-    // stays tied to its renewal.
-    if (role.state === 'active' || role.suspensionReason === 'low_rating') {
+    // Suspending an automatic suspension (low rating, document expiry)
+    // replaces its reason with `manual` (contract); a manual one would be a
+    // 409. Reactivation still keeps a driver with an expired document
+    // suspended (backend), so this opens no DRV-04 bypass.
+    if (role.state === 'active' || role.suspensionReason !== 'manual') {
       actions.push({ kind: 'suspendRole', role: role.role });
     }
   }

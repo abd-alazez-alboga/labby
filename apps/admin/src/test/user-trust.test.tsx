@@ -290,9 +290,39 @@ describe('user trust profile', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(copy);
     expect(callsTo(fetchMock, TRUST).length).toBeGreaterThanOrEqual(2);
+    // The refused reason is cleared, never reused for another action.
+    expect(screen.getByLabelText(REASON_LABEL)).toHaveValue('');
   });
 
-  it('offers no reactivation for a document-expiry suspension', async () => {
+  it('never carries a refused reason over to the action the reload offers', async () => {
+    let refused = false;
+    stubTrust(TRUST_ADMIN, userTrust(), (method, path) => {
+      if (method === 'POST' && path === `${BASE}/roles/driver/reactivate`) {
+        refused = true;
+        return conflict('not_suspended');
+      }
+      if (method === 'GET' && path === TRUST && refused) {
+        // Another admin reactivated meanwhile: no reactivation leads any more.
+        return jsonResponse(
+          200,
+          userTrust({ roles: [roleTrust({ role: 'driver' }), roleTrust()] }),
+        );
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.type(await screen.findByLabelText(REASON_LABEL), 'Second chance after coaching');
+    await user.click(screen.getByRole('button', { name: 'Reactivate driver role' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Not suspended any more');
+
+    await user.click(await screen.findByRole('button', { name: 'Suspend driver role…' }));
+    const panel = screen.getByRole('region', { name: 'Suspend driver role' });
+    expect(within(panel).getByLabelText(REASON_LABEL)).toHaveValue('');
+  });
+
+  it('offers a manual suspension but no reactivation for a document-expiry suspension', async () => {
     stubTrust(
       TRUST_ADMIN,
       userTrust({
@@ -309,10 +339,10 @@ describe('user trust profile', () => {
     renderShell();
 
     expect(await screen.findByRole('region', { name: 'Driver role' })).toHaveTextContent(
-      'Only an approved renewal lifts this.',
+      'Only an approved renewal reactivates it; suspending it yourself replaces the reason with yours.',
     );
     expect(screen.queryByRole('button', { name: /Reactivate/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Suspend driver role/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Suspend driver role…' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Suspend whole account…' })).toBeInTheDocument();
   });
 

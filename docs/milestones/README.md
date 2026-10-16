@@ -189,7 +189,7 @@ Statuses live here (milestone files describe content only, they are never edited
 | M11-T3 | Apps: rating, reporting, performance | done |
 | M11-T4 | Admin: reports queue & flags | done |
 | M11-T5 | Trust integration | done |
-| M11-T6 | Review audit | in_progress |
+| M11-T6 | Review audit | in_progress (audit 10171c2..0adee10 → Fail: 0 C · 1 H · 16 W · 5 I; docs/reviews/review-M11.md; fix plan owner-approved 2026-10-16 incl. rulings: low-rating suspension + flag evaluated in the daily job; user-facing count hidden + snapshot refresh after ≥3 new; rider no-shows excluded from driver cancellation rate; whole-account suspension auto-cancels searching rides; + flag reopen only after a newer rating — fixes committed 2026-10-16, gates backend 508 · rider 405 · driver 448 · admin 337; re-audit next) |
 
 ### M12 — Scheduled & shared rides
 | Ticket | Title | Status |

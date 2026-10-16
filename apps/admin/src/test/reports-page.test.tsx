@@ -144,7 +144,11 @@ describe('reports queue', () => {
     const row = screen.getAllByRole('row')[1];
     expect(row).toHaveTextContent(formatMoment(RESOLVED_AT, 'en'));
     expect(row).toHaveTextContent('text · 2 photos');
-    expect(within(row).getByRole('link', { name: /Investigate/ })).toHaveTextContent('View');
+    // The accessible name starts with the visible text (WCAG 2.5.3).
+    const view = within(row).getByRole('link', {
+      name: 'View Damage to vehicle report against Rana Khoury',
+    });
+    expect(view).toHaveTextContent('View');
   });
 
   it('pages through a long queue', async () => {

@@ -284,7 +284,7 @@
     },
     "warnHint": "Flag levels (optional): below this live average an account is flagged for review — never suspended. Must be above the suspension level; blank = suspension level + 0.5.",
     "metricWarningsTitle": "Driver metric warnings",
-    "metricWarningsHint": "Warn only, never suspend. Blank = the defaults: acceptance below 50%, cancellation above 15%, over 30 days, with at least 20 offers or rides."
+    "metricWarningsHint": "Warn only, never suspend. Blank fields keep the region's saved values; a region that never set them uses the defaults (acceptance below 50%, cancellation above 15%, over 30 days, at least 20 offers or rides)."
   },
   "serviceTypes": {
     "title": "Service types",
@@ -1195,7 +1195,8 @@
       "rider_no_show": "Rider no-show",
       "vehicle_issue": "Vehicle issue",
       "unsafe_pickup": "Unsafe pickup",
-      "other": "Other"
+      "other": "Other",
+      "account_suspended": "Account suspended"
     },
     "offersTitle": "Offers trail",
     "offers": {
@@ -1295,7 +1296,8 @@
     },
     "investigate": "Investigate",
     "view": "View",
-    "investigateFor": "Investigate {{category}} report against {{name}}"
+    "investigateFor": "Investigate {{category}} report against {{name}}",
+    "viewFor": "View {{category}} report against {{name}}"
   },
   "reportDetail": {
     "notFound": "This report doesn't exist.",
@@ -1435,7 +1437,7 @@
       "flags": "{{flags}} open flags · {{against}} reports against",
       "rule": {
         "low_rating": "Auto-suspended {{when}}: the live average fell below the region's minimum after the minimum number of rated rides. Reactivating is your decision — the rule fires again only on the next rating.",
-        "document_expired": "Auto-suspended {{when}}: a required document expired. Only an approved renewal lifts this.",
+        "document_expired": "Auto-suspended {{when}}: a required document expired. Only an approved renewal reactivates it; suspending it yourself replaces the reason with yours.",
         "manual": "Suspended {{when}} by an admin. Reason shown to the user:"
       }
     },

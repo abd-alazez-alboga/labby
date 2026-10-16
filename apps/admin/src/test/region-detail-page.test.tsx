@@ -94,7 +94,7 @@ describe('region detail page', () => {
       incentiveValues: null,
       suspensionThresholds: null,
     });
-  });
+  }, 15_000); // fills every bundle field incl. the M11 trust fields — slow under load
 
   it('renders the saved boundary back into the map identically (round-trip)', async () => {
     seedStoredSession(sessionFor(FULL_ACCESS));

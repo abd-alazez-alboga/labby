@@ -64,6 +64,10 @@ export function SuspensionPanel({
       setConfirming(false);
       onUpdated(updated, action);
     } catch (error) {
+      // The reload may offer different actions: never let this user-facing
+      // reason carry over to one the admin did not write it for.
+      setNote('');
+      setSelectedId(null);
       setConfirming(false);
       onFailed(suspensionErrorKey(error));
     } finally {

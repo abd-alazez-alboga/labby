@@ -198,10 +198,13 @@ export default function ReportsPage() {
                     // The oldest report carries the queue's one primary action.
                     className={index === 0 && page === 0 ? 'btn btn--primary' : 'btn'}
                     to={`/reports/${report.id}`}
-                    aria-label={t('reports.investigateFor', {
-                      category: t(`reports.category.${report.category}`),
-                      name: report.reported.name,
-                    })}
+                    aria-label={t(
+                      status === 'open' ? 'reports.investigateFor' : 'reports.viewFor',
+                      {
+                        category: t(`reports.category.${report.category}`),
+                        name: report.reported.name,
+                      },
+                    )}
                   >
                     {status === 'open' ? t('reports.investigate') : t('reports.view')}
                   </Link>
