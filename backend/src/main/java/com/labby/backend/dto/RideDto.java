@@ -15,7 +15,7 @@ import java.util.UUID;
 /**
  * One ride as its rider or its driver sees it (rides-v1 Ride). {@code myRating} (M11) is the
  * caller's own rating state — absent in admin views. {@code scheduled} (M12) is set on rides of
- * kind {@code scheduled} only.
+ * kind {@code scheduled} only, {@code shared} on rides of kind {@code shared} only.
  */
 public record RideDto(
     UUID id,
@@ -53,4 +53,5 @@ public record RideDto(
     DriverSummaryDto driver,
     RiderSummaryDto rider,
     @JsonInclude(JsonInclude.Include.NON_NULL) MyRatingDto myRating,
-    ScheduledInfoDto scheduled) {}
+    ScheduledInfoDto scheduled,
+    SharedInfoDto shared) {}

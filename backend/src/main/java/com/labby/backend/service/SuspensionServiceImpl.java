@@ -52,6 +52,7 @@ public class SuspensionServiceImpl implements SuspensionService {
   private final AuditService auditService;
   private final OperatingCalendar calendar;
   private final ScheduledRideService scheduledRideService;
+  private final SharedRideService sharedRideService;
 
   @Override
   public boolean suspendForLowRating(UUID userId, RideParty role, TrustRules.RatingRule rule) {
@@ -162,6 +163,7 @@ public class SuspensionServiceImpl implements SuspensionService {
     // M12 (approved reading 2026-10-16): scheduled rides as rider are cancelled, claims as driver
     // released — both by the system, free, no metric event.
     scheduledRideService.onAccountSuspended(userId, calendar.now());
+    sharedRideService.onAccountSuspended(userId, calendar.now());
     auditService.record(
         actorUserId,
         "user.suspend",

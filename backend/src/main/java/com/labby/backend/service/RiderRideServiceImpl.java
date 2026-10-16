@@ -23,6 +23,7 @@ import com.labby.backend.enums.PickupDistanceMode;
 import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
+import com.labby.backend.enums.SharedMemberStatus;
 import com.labby.backend.exception.BusinessRuleViolationException;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
@@ -37,6 +38,7 @@ import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderPreferenceRepository;
 import com.labby.backend.repository.ScheduledRideRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.service.RideAssembler.Audience;
 import com.labby.backend.util.GeoPoints;
 import java.math.BigDecimal;
@@ -86,6 +88,7 @@ public class RiderRideServiceImpl implements RiderRideService {
   private final ServiceTypeRepository serviceTypeRepository;
   private final RiderPreferenceRepository riderPreferenceRepository;
   private final ScheduledRideRepository scheduledRideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final Clock clock;
 
   @Override
@@ -150,16 +153,22 @@ public class RiderRideServiceImpl implements RiderRideService {
   @Transactional(readOnly = true)
   public Optional<RideDto> active(UUID userId) {
     rideAccess.requireRider(userId);
+    // M12: a member of a live shared ride has that ride as their active ride.
     return rideRepository
         .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ACTIVE_STATES)
-        .map(ride -> rideAssembler.view(ride, Audience.RIDER));
+        .or(
+            () ->
+                sharedRideMemberRepository
+                    .findLiveRideOfMember(userId)
+                    .flatMap(rideRepository::findById))
+        .map(ride -> rideAssembler.view(ride, Audience.RIDER, userId));
   }
 
   @Override
   @Transactional(readOnly = true)
   public RideDto get(UUID userId, UUID rideId) {
     rideAccess.requireRider(userId);
-    return rideAssembler.view(owned(userId, rideId), Audience.RIDER);
+    return rideAssembler.view(visible(userId, rideId), Audience.RIDER, userId);
   }
 
   @Override
@@ -167,8 +176,7 @@ public class RiderRideServiceImpl implements RiderRideService {
   public RideSummaryPageDto history(UUID userId, int page, int size) {
     rideAccess.requireRider(userId);
     return rideLifecycle.historyPage(
-        rideRepository.findByRiderUserIdOrderByRequestedAtDesc(userId, PageRequest.of(page, size)),
-        RideParty.RIDER);
+        rideRepository.findRiderHistory(userId, PageRequest.of(page, size)), RideParty.RIDER);
   }
 
   @Override
@@ -196,6 +204,10 @@ public class RiderRideServiceImpl implements RiderRideService {
     requireNoteForOther(request.reason(), request.note());
     Ride ride = lockOwned(userId, rideId);
     requireRiderCancellable(ride);
+    if (ride.getKind() == RideKind.SHARED) {
+      // M12: a shared ride is left / cancelled through scheduled-shared-v1 (per member).
+      throw RideLifecycle.illegalState(ride);
+    }
     Instant now = clock.instant();
     UUID driverUserId = ride.getDriverUserId();
     ride.setCancellationFee(rideLifecycle.riderCancellationFee(ride, now));
@@ -240,7 +252,8 @@ public class RiderRideServiceImpl implements RiderRideService {
   public RideDto changeRoute(UUID userId, UUID rideId, RouteChangeRequestDto request) {
     rideAccess.requireRider(userId);
     Ride ride = lockOwned(userId, rideId);
-    if (!ride.isAssigned()) {
+    if (!ride.isAssigned() || ride.getKind() == RideKind.SHARED) {
+      // M12: a shared ride has one destination, no route changes.
       throw RideLifecycle.illegalState(ride);
     }
     Region region = regionRepository.findById(ride.getRegionId()).orElseThrow();
@@ -339,8 +352,9 @@ public class RiderRideServiceImpl implements RiderRideService {
                             "This service type is not available in the pickup's operating area")
                         .withCode("service_type_unavailable"));
     if (rideRepository
-        .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ACTIVE_STATES)
-        .isPresent()) {
+            .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ACTIVE_STATES)
+            .isPresent()
+        || sharedRideMemberRepository.findLiveRideOfMember(userId).isPresent()) {
       throw activeRideExists();
     }
     BigDecimal surcharge = ridePricing.surchargeNow(region);
@@ -397,6 +411,21 @@ public class RiderRideServiceImpl implements RiderRideService {
       throw new ResourceNotFoundException(NOT_FOUND);
     }
     return ride;
+  }
+
+  /** The rider's own ride, or a shared ride they are (or were, after dispatch) a member of. */
+  private Ride visible(UUID userId, UUID rideId) {
+    return rideRepository
+        .findById(rideId)
+        .filter(
+            ride ->
+                ride.getRiderUserId().equals(userId)
+                    || (ride.getKind() == RideKind.SHARED
+                        && sharedRideMemberRepository
+                            .findFirstByRideIdAndRiderUserIdOrderByJoinedAtDesc(rideId, userId)
+                            .filter(member -> member.getStatus() != SharedMemberStatus.LEFT)
+                            .isPresent()))
+        .orElseThrow(() -> new ResourceNotFoundException(NOT_FOUND));
   }
 
   private Ride owned(UUID userId, UUID rideId) {

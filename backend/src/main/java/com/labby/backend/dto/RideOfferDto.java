@@ -23,4 +23,5 @@ public record RideOfferDto(
     String currency,
     boolean surge,
     PaymentMethod paymentMethod,
-    RiderSummaryDto rider) {}
+    RiderSummaryDto rider,
+    SharedOfferInfoDto shared) {}

@@ -15,6 +15,7 @@ import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.ScheduledRideRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.repository.VehicleRepository;
 import java.time.Clock;
@@ -41,6 +42,7 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
 
   private final ScheduledRideRepository scheduledRideRepository;
   private final RideRepository rideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final DriverProfileRepository driverProfileRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final UserRepository userRepository;
@@ -150,8 +152,9 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
   /** T − lead: rider busy → cancel; claimed + available driver → S3; otherwise → S4. */
   private void execute(Ride ride, ScheduledRide scheduled, Region region, Instant now) {
     if (rideRepository
-        .findFirstByRiderUserIdAndStateIn(ride.getRiderUserId(), RideRepository.ACTIVE_STATES)
-        .isPresent()) {
+            .findFirstByRiderUserIdAndStateIn(ride.getRiderUserId(), RideRepository.ACTIVE_STATES)
+            .isPresent()
+        || sharedRideMemberRepository.findLiveRideOfMember(ride.getRiderUserId()).isPresent()) {
       cancelRiderBusy(ride, scheduled, now);
       return;
     }

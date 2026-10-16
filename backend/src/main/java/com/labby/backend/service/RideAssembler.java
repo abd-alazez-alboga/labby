@@ -2,28 +2,37 @@ package com.labby.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.dto.ComfortPreferencesDto;
+import com.labby.backend.dto.DepartureDto;
 import com.labby.backend.dto.DriverSummaryDto;
 import com.labby.backend.dto.EstimateDto;
 import com.labby.backend.dto.FareComponentsDto;
 import com.labby.backend.dto.FileRefDto;
 import com.labby.backend.dto.FinalFareDto;
 import com.labby.backend.dto.LatLngPointDto;
+import com.labby.backend.dto.MemberViewDto;
 import com.labby.backend.dto.PlaceDto;
 import com.labby.backend.dto.RideDto;
 import com.labby.backend.dto.RideOfferDto;
 import com.labby.backend.dto.RideTimelineDto;
 import com.labby.backend.dto.RiderSummaryDto;
 import com.labby.backend.dto.ScheduledInfoDto;
+import com.labby.backend.dto.SharedInfoDto;
+import com.labby.backend.dto.SharedOfferInfoDto;
+import com.labby.backend.dto.SharedRideDto;
+import com.labby.backend.dto.SplitSummaryDto;
 import com.labby.backend.dto.VehicleSummaryDto;
 import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
+import com.labby.backend.enums.SharedMemberStatus;
 import com.labby.backend.model.Fare;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.RiderPreference;
 import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.SharedRide;
+import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.User;
 import com.labby.backend.model.Vehicle;
 import com.labby.backend.repository.DriverLocationRepository;
@@ -33,6 +42,8 @@ import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderPreferenceRepository;
 import com.labby.backend.repository.ScheduledRideRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
+import com.labby.backend.repository.SharedRideRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.repository.VehicleRepository;
 import java.math.BigDecimal;
@@ -69,6 +80,8 @@ public class RideAssembler {
   private final DriverLocationRepository driverLocationRepository;
   private final RegionRepository regionRepository;
   private final ScheduledRideRepository scheduledRideRepository;
+  private final SharedRideRepository sharedRideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final OnboardingAssembler onboardingAssembler;
   private final RideMoneyService rideMoneyService;
   private final RatingService ratingService;
@@ -89,6 +102,22 @@ public class RideAssembler {
    * @return the view
    */
   public RideDto view(Ride ride, Audience audience) {
+    return view(
+        ride,
+        audience,
+        audience == Audience.DRIVER ? ride.getDriverUserId() : ride.getRiderUserId());
+  }
+
+  /**
+   * The ride as one viewer sees it — on a shared ride the rider view carries the VIEWER's own
+   * membership ({@code shared.me}, M12).
+   *
+   * @param ride the ride
+   * @param audience rider, driver or admin
+   * @param viewerUserId who looks (the member, for a rider view of a shared ride)
+   * @return the view
+   */
+  public RideDto view(Ride ride, Audience audience, UUID viewerUserId) {
     ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
     boolean assigned = ride.isAssigned();
     boolean showDriver = audience != Audience.DRIVER && ride.getDriverUserId() != null;
@@ -148,7 +177,127 @@ public class RideAssembler {
           case DRIVER -> ratingService.myRating(ride, RideParty.DRIVER);
           case ADMIN -> null;
         },
-        ride.getKind() == RideKind.SCHEDULED ? scheduledInfo(ride, audience) : null);
+        ride.getKind() == RideKind.SCHEDULED ? scheduledInfo(ride, audience) : null,
+        ride.getKind() == RideKind.SHARED ? sharedInfo(ride, audience, viewerUserId) : null);
+  }
+
+  /**
+   * The shared extension of a ride (scheduled-shared-v1 SharedInfo): the viewer's own membership in
+   * rider views, every party (with first names) in the driver and admin views.
+   *
+   * @param ride a ride of kind shared
+   * @param audience who looks
+   * @param viewerUserId the viewer
+   * @return the block, or null when the extension row is missing
+   */
+  public SharedInfoDto sharedInfo(Ride ride, Audience audience, UUID viewerUserId) {
+    return sharedRideRepository
+        .findById(ride.getId())
+        .map(
+            shared -> {
+              List<SharedRideMember> members =
+                  sharedRideMemberRepository.findByRideIdOrderByJoinedAtAsc(ride.getId());
+              boolean riderView = audience == Audience.RIDER;
+              SharedRideMember mine = riderView ? latestMembership(members, viewerUserId) : null;
+              return new SharedInfoDto(
+                  shared.getTotalSeats(),
+                  shared.getSeatsTaken(),
+                  departure(shared),
+                  shared.getDispatchTrigger(),
+                  shared.getDispatchedAt(),
+                  riderView && ride.getRiderUserId().equals(viewerUserId),
+                  mine == null ? null : memberView(mine, false),
+                  riderView ? List.of() : members.stream().map(m -> memberView(m, true)).toList(),
+                  shared.getSplitSeats() == null
+                      ? null
+                      : new SplitSummaryDto(
+                          fareRepository.findById(ride.getId()).map(Fare::getTotal).orElse(null),
+                          ride.getCurrency(),
+                          shared.getSplitSeats(),
+                          shared.getPerSeatAmount()));
+            })
+        .orElse(null);
+  }
+
+  /**
+   * A shared ride as a browse card / detail / member view (scheduled-shared-v1 SharedRide).
+   *
+   * @param ride the ride
+   * @param shared its extension
+   * @param viewerUserId the looking rider
+   * @return the card
+   */
+  public SharedRideDto sharedRide(Ride ride, SharedRide shared, UUID viewerUserId) {
+    ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
+    SharedRideMember mine =
+        latestMembership(
+            sharedRideMemberRepository.findByRideIdOrderByJoinedAtAsc(ride.getId()), viewerUserId);
+    return new SharedRideDto(
+        ride.getId(),
+        ride.getState(),
+        ride.getRegionId(),
+        place(ride.getPickup(), ride.getPickupLabel()),
+        place(ride.getDestination(), ride.getDestinationLabel()),
+        serviceType.getId(),
+        serviceType.getNameEn(),
+        serviceType.getNameAr(),
+        departure(shared),
+        shared.getTotalSeats(),
+        shared.getSeatsTaken(),
+        shared.seatsLeft(),
+        ride.getEstimateTotal(),
+        ride.getCurrency(),
+        ride.getState() == RideState.GATHERING,
+        userRepository
+            .findById(ride.getRiderUserId())
+            .map(user -> firstName(user.getName()))
+            .orElse(""),
+        ride.getRiderUserId().equals(viewerUserId),
+        mine == null ? null : memberView(mine, false),
+        ride.getCancellationReason());
+  }
+
+  /**
+   * One party as the API shows it.
+   *
+   * @param member the party
+   * @param withName whether to include the first name (driver view only)
+   * @return the view
+   */
+  public MemberViewDto memberView(SharedRideMember member, boolean withName) {
+    return new MemberViewDto(
+        member.getId(),
+        withName
+            ? userRepository
+                .findById(member.getRiderUserId())
+                .map(user -> firstName(user.getName()))
+                .orElse("")
+            : null,
+        member.isCreator(),
+        member.getPartySize(),
+        member.getStatus(),
+        member.getPaymentMethod(),
+        member.getJoinedAt(),
+        member.getCancellationFee(),
+        member.getShareAmount(),
+        member.getPaymentStatus(),
+        null,
+        null);
+  }
+
+  private static SharedRideMember latestMembership(List<SharedRideMember> members, UUID userId) {
+    SharedRideMember latest = null;
+    for (SharedRideMember member : members) {
+      if (member.getRiderUserId().equals(userId)) {
+        latest = member;
+      }
+    }
+    return latest;
+  }
+
+  private static DepartureDto departure(SharedRide shared) {
+    return new DepartureDto(
+        shared.getDepartureMode(), shared.getDepartureAt(), shared.getExpiresAt());
   }
 
   /**
@@ -213,7 +362,20 @@ public class RideAssembler {
         ride.getCurrency(),
         ride.getSurgeMultiplier().compareTo(BigDecimal.ONE) > 0,
         ride.getPaymentMethod(),
-        riderSummary(ride.getRiderUserId()));
+        riderSummary(ride.getRiderUserId()),
+        ride.getKind() == RideKind.SHARED
+            ? sharedRideRepository
+                .findById(ride.getId())
+                .map(
+                    shared ->
+                        new SharedOfferInfoDto(
+                            shared.getSeatsTaken(),
+                            sharedRideMemberRepository
+                                .findByRideIdAndStatusOrderByJoinedAtAsc(
+                                    ride.getId(), SharedMemberStatus.JOINED)
+                                .size()))
+                .orElse(null)
+            : null);
   }
 
   /**

@@ -55,8 +55,8 @@ class NotificationRendererTest {
       if (TRUST_EVENTS.contains(event)) {
         continue; // M11 trust events: see shouldRenderTrustEvents.
       }
-      if (event.getValue().startsWith("scheduled.")) {
-        continue; // M12 scheduled events: see shouldRenderScheduledEvents.
+      if (event.getValue().startsWith("scheduled.") || event.getValue().startsWith("shared.")) {
+        continue; // M12 events: see shouldRenderScheduledEvents / shouldRenderSharedEvents.
       }
       Map<String, Object> params =
           switch (event) {
@@ -643,6 +643,37 @@ class NotificationRendererTest {
         assertThat(text).doesNotContain("التحقق").doesNotContainPattern("[\\u0660-\\u0669]");
       }
       assertThat(rendered.titleAr()).containsPattern("[\\u0600-\\u06FF]");
+    }
+  }
+
+  @Test
+  @DisplayName("M12 shared events render bilingual to the rider app, never muted")
+  void shouldRenderSharedEvents() {
+    List<Rendered> rendered =
+        List.of(
+            renderer.render("shared.dispatched", Map.of("rideId", "r-1")).orElseThrow(),
+            renderer
+                .render("shared.cancelled", Map.of("rideId", "r-1", "reason", "creator_cancelled"))
+                .orElseThrow(),
+            renderer
+                .render("shared.cancelled", Map.of("rideId", "r-1", "reason", "expired"))
+                .orElseThrow(),
+            renderer
+                .render(
+                    "shared.member_no_show",
+                    Map.of("rideId", "r-1", "fee", "2.00", "currency", "SYP"))
+                .orElseThrow(),
+            renderer.render("shared.member_no_show", Map.of("rideId", "r-1")).orElseThrow());
+    assertThat(rendered.get(2).bodyEn()).contains("didn't fill up");
+    assertThat(rendered.get(3).bodyEn()).contains("cancellation fee");
+    for (Rendered one : rendered) {
+      assertThat(one.category()).isEqualTo(NotificationCategory.RIDE);
+      assertThat(one.audience()).isEqualTo(NotificationAudience.RIDER);
+      assertThat(one.linkScreen()).isEqualTo("ride");
+      for (String text : new String[] {one.titleEn(), one.bodyEn(), one.titleAr(), one.bodyAr()}) {
+        assertThat(text).isNotBlank().doesNotContain("%s", "null");
+        assertThat(text).doesNotContainPattern("[\\u0660-\\u0669]");
+      }
     }
   }
 }

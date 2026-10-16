@@ -138,6 +138,8 @@ labby:
     # disables.
     cron: ${SCHEDULED_RIDES_CRON:*/30 * * * * *}
     batch-size: ${SCHEDULED_RIDES_BATCH_SIZE:200}
+    # A "when full" shared ride left unfilled this long is cancelled, every member told (ruling).
+    shared-when-full-expiry-hours: ${SHARED_WHEN_FULL_EXPIRY_HOURS:24}
   ridesim:
     # Dev driver-simulation harness (M7-T5, dev profile only): the listed seeded drivers go
     # online, stream, accept offers and drive their rides along real routes so the loop runs

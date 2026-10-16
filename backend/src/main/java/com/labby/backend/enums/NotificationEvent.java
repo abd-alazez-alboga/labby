@@ -109,7 +109,17 @@ public enum NotificationEvent {
    * Category ride: to both parties when the rider was on another live ride at the conversion /
    * fallback moment (ruling 2026-10-16). Params: rideId, as.
    */
-  SCHEDULED_CANCELLED_RIDER_BUSY("scheduled.cancelled_rider_busy");
+  SCHEDULED_CANCELLED_RIDER_BUSY("scheduled.cancelled_rider_busy"),
+  // M12 shared-ride events (scheduled-shared-v1.yaml; category ride — never muted).
+  /** To every joined member when the group is dispatched (P2). Params: rideId, trigger. */
+  SHARED_DISPATCHED("shared.dispatched"),
+  /**
+   * To the members of a cancelled group (P3). Params: rideId, reason
+   * (creator_cancelled|expired|account_suspended).
+   */
+  SHARED_CANCELLED("shared.cancelled"),
+  /** To the member the driver marked absent (UC-D-13 E1). Params: rideId, fee?, currency?. */
+  SHARED_MEMBER_NO_SHOW("shared.member_no_show");
 
   private final String value;
 

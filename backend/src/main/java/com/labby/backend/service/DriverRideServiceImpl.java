@@ -12,6 +12,7 @@ import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.enums.PaymentStatus;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
@@ -75,6 +76,7 @@ public class DriverRideServiceImpl implements DriverRideService {
   private final FareCalculator fareCalculator;
   private final RideExtrasCalculator rideExtrasCalculator;
   private final RideMoneyService rideMoneyService;
+  private final SharedRideService sharedRideService;
   private final RideRepository rideRepository;
   private final RegionRepository regionRepository;
   private final RideOfferRepository rideOfferRepository;
@@ -123,8 +125,8 @@ public class DriverRideServiceImpl implements DriverRideService {
     // CHAT-01: the ride's chat thread opens at acceptance (before that there is no counterpart).
     chatService.openThread(ride, now);
     rideEvents.stateChanged(ride);
-    rideEvents.push(
-        ride.getRiderUserId(),
+    rideEvents.pushRiders(
+        ride,
         NotificationEvent.RIDE_ACCEPTED,
         Map.of("rideId", ride.getId().toString(), "driverName", driverFirstName(userId)));
     return rideAssembler.view(ride, Audience.DRIVER);
@@ -200,8 +202,8 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setDriverArrivedAt(now);
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
-    rideEvents.push(
-        ride.getRiderUserId(),
+    rideEvents.pushRiders(
+        ride,
         NotificationEvent.RIDE_DRIVER_ARRIVED,
         Map.of("rideId", ride.getId().toString(), "driverName", driverFirstName(userId)));
     return rideAssembler.view(ride, Audience.DRIVER);
@@ -220,10 +222,8 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setEtaRefreshedAt(null);
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
-    rideEvents.push(
-        ride.getRiderUserId(),
-        NotificationEvent.RIDE_STARTED,
-        Map.of("rideId", ride.getId().toString()));
+    rideEvents.pushRiders(
+        ride, NotificationEvent.RIDE_STARTED, Map.of("rideId", ride.getId().toString()));
     return rideAssembler.view(ride, Audience.DRIVER);
   }
 
@@ -270,9 +270,30 @@ public class DriverRideServiceImpl implements DriverRideService {
                 .build());
     ride.setState(RideState.COMPLETED);
     ride.setCompletedAt(now);
-    ride.setPaymentStatus(PaymentStatus.PENDING);
     // CHAT-01: the chat window survives the completion by 24 h.
     chatService.closeThread(ride.getId(), now);
+    if (ride.getKind() == RideKind.SHARED) {
+      // RIDE-P4: the fare is split per seat over the boarded members; each pays their own share.
+      ride.setPaymentStatus(PaymentStatus.SPLIT);
+      sharedRideService.settleSplit(ride, fare);
+      ride = rideRepository.saveAndFlush(ride);
+      rideEvents.stateChanged(ride);
+      rideEvents.pushRiders(
+          ride,
+          NotificationEvent.RIDE_COMPLETED,
+          Map.of(
+              "rideId",
+              ride.getId().toString(),
+              "total",
+              components.total().toPlainString(),
+              "currency",
+              components.currency(),
+              "method",
+              ride.getPaymentMethod().getValue()));
+      rideLifecycle.releaseDriver(userId, now);
+      return rideAssembler.view(ride, Audience.DRIVER);
+    }
+    ride.setPaymentStatus(PaymentStatus.PENDING);
     // PAY-02 + COM-01 (M8): wallet application (may flip the status to paid_wallet), the fare
     // posting at the weekly rate, and every pending rider due carried along — one transaction.
     rideMoneyService.applyAtCompletion(ride, fare);
@@ -326,6 +347,11 @@ public class DriverRideServiceImpl implements DriverRideService {
     }
     Instant now = clock.instant();
     boolean noShow = request.reason() == CancellationReason.RIDER_NO_SHOW;
+    if (noShow && ride.getKind() == RideKind.SHARED) {
+      // UC-D-13 E1: on a shared ride absent parties are marked one by one (member no-show).
+      throw new InvalidRequestException("Mark the absent members instead")
+          .withCode("use_member_no_show");
+    }
     if (noShow) {
       Instant waitedUntil =
           ride.getDriverArrivedAt() == null
@@ -355,6 +381,10 @@ public class DriverRideServiceImpl implements DriverRideService {
     // The new linked ride is saved BEFORE the cancelled ride is announced, so the rider's
     // ride.state frame already carries redispatchedAsRideId (rides-v1 rider view).
     Ride redispatched = noShow ? null : redispatch(ride, now);
+    if (redispatched != null && ride.getKind() == RideKind.SHARED) {
+      // M12: the group moves to the new ride with its seats and parties.
+      sharedRideService.copyForRedispatch(ride, redispatched, now);
+    }
     rideEvents.stateChanged(ride);
     Map<String, Object> pushParams = new HashMap<>();
     pushParams.put("noShow", String.valueOf(noShow));
@@ -368,7 +398,7 @@ public class DriverRideServiceImpl implements DriverRideService {
       rideEvents.stateChanged(redispatched);
       pushParams.put("rideId", redispatched.getId().toString());
     }
-    rideEvents.push(ride.getRiderUserId(), NotificationEvent.RIDE_CANCELLED_BY_DRIVER, pushParams);
+    rideEvents.pushRiders(ride, NotificationEvent.RIDE_CANCELLED_BY_DRIVER, pushParams);
     rideLifecycle.releaseDriver(userId, now);
     return rideAssembler.view(ride, Audience.DRIVER);
   }

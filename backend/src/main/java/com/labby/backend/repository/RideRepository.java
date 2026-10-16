@@ -63,6 +63,31 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   Page<Ride> findByRiderUserIdOrderByRequestedAtDesc(UUID riderUserId, Pageable pageable);
 
+  /**
+   * The rider's history (M12): their own rides plus the shared rides they rode in as a member (any
+   * membership but one left before dispatch), newest first.
+   */
+  @Query(
+      value =
+          """
+          SELECT r.* FROM rides r
+          WHERE r.rider_user_id = :riderUserId
+             OR EXISTS (SELECT 1 FROM shared_ride_members m
+                        WHERE m.ride_id = r.ride_id AND m.rider_user_id = :riderUserId
+                          AND m.status <> 'left')
+          ORDER BY r.requested_at DESC
+          """,
+      countQuery =
+          """
+          SELECT COUNT(*) FROM rides r
+          WHERE r.rider_user_id = :riderUserId
+             OR EXISTS (SELECT 1 FROM shared_ride_members m
+                        WHERE m.ride_id = r.ride_id AND m.rider_user_id = :riderUserId
+                          AND m.status <> 'left')
+          """,
+      nativeQuery = true)
+  Page<Ride> findRiderHistory(@Param("riderUserId") UUID riderUserId, Pageable pageable);
+
   Page<Ride> findByDriverUserIdOrderByRequestedAtDesc(UUID driverUserId, Pageable pageable);
 
   Optional<Ride> findFirstByRedispatchOfRideId(UUID redispatchOfRideId);
@@ -106,7 +131,9 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
    * Eligible dispatch candidates for a ride, nearest first by straight line (RIDE-03, TRK-04):
    * active driver role and account, approved and online, a FRESH stream, the active vehicle
    * assigned the service type, no open offer, no assigned ride, never offered this ride, not the
-   * rider, not excluded, and within {@code maxDistanceM} when set ({@code nearby_only}).
+   * rider, not excluded, and within {@code maxDistanceM} when set ({@code nearby_only}). M12: the
+   * active vehicle has at least {@code minSeats} passenger seats (a shared ride's seats taken,
+   * RIDE-P3) and the driver is not a joined member of the ride.
    */
   @Query(
       value =
@@ -119,12 +146,15 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
           JOIN users u ON u.user_id = p.user_id AND u.state = 'active'
           JOIN role_assignments ra
             ON ra.user_id = p.user_id AND ra.role = 'driver' AND ra.state = 'active'
-          JOIN vehicles v ON v.driver_user_id = p.user_id AND v.is_active
+          JOIN vehicles v ON v.driver_user_id = p.user_id AND v.is_active AND v.seats >= :minSeats
           JOIN vehicle_service_types vst
             ON vst.vehicle_id = v.vehicle_id AND vst.service_type_id = r.service_type_id
           JOIN driver_locations l ON l.user_id = p.user_id AND l.received_at >= :freshAfter
           WHERE r.ride_id = :rideId
             AND p.user_id <> r.rider_user_id
+            AND NOT EXISTS (SELECT 1 FROM shared_ride_members m
+                            WHERE m.ride_id = r.ride_id AND m.rider_user_id = p.user_id
+                              AND m.status = 'joined')
             AND NOT (p.user_id = ANY(CAST(:excluded AS uuid[])))
             AND NOT EXISTS (SELECT 1 FROM ride_offers o
                             WHERE o.driver_user_id = p.user_id AND o.response IS NULL)
@@ -144,6 +174,7 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
       @Param("freshAfter") Instant freshAfter,
       @Param("excluded") String excluded,
       @Param("maxDistanceM") Double maxDistanceM,
+      @Param("minSeats") int minSeats,
       @Param("limit") int limit);
 
   /**

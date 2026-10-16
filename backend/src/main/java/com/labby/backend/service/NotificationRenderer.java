@@ -377,6 +377,7 @@ public class NotificationRenderer {
               "لم يعد بإمكان سائقك القيام برحلتك يوم %s الساعة %s. ستبقى الرحلة متاحة لسائقين آخرين."
                   .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))));
       case SCHEDULED_REMINDER -> scheduledReminder(event, params);
+      case SHARED_DISPATCHED, SHARED_CANCELLED, SHARED_MEMBER_NO_SHOW -> shared(event, params);
       case SCHEDULED_CONVERTED ->
           isDriver(params)
               ? scheduled(
@@ -418,6 +419,68 @@ public class NotificationRenderer {
                       + " You weren't charged.",
                   "أُلغيت رحلتك المجدولة",
                   "كنت في رحلة أخرى عند موعد رحلتك المجدولة، لذلك ألغيناها. لم تُحتسب عليك أي رسوم.");
+    };
+  }
+
+  /** M12 shared rides: dispatch, group cancellation and a member's no-show (category ride). */
+  private static Rendered shared(NotificationEvent event, Map<String, Object> params) {
+    return switch (event) {
+      case SHARED_DISPATCHED ->
+          toRider(
+              event,
+              params,
+              "Your shared ride is starting",
+              "We're finding a driver for your shared ride now.",
+              "رحلتك المشتركة تنطلق",
+              "نبحث الآن عن سائق لرحلتك المشتركة.");
+      case SHARED_CANCELLED -> {
+        String reason = text(params.get("reason"));
+        yield switch (reason) {
+          case "expired" ->
+              toRider(
+                  event,
+                  params,
+                  "Shared ride cancelled",
+                  "Your shared ride didn't fill up in time, so it was cancelled. You weren't"
+                      + " charged.",
+                  "أُلغيت الرحلة المشتركة",
+                  "لم تكتمل مقاعد رحلتك المشتركة في الوقت المحدد، لذلك أُلغيت. لم تُحتسب عليك أي"
+                      + " رسوم.");
+          case "account_suspended" ->
+              toRider(
+                  event,
+                  params,
+                  "Shared ride cancelled",
+                  "The shared ride you joined was cancelled. You weren't charged.",
+                  "أُلغيت الرحلة المشتركة",
+                  "أُلغيت الرحلة المشتركة التي انضممت إليها. لم تُحتسب عليك أي رسوم.");
+          default ->
+              toRider(
+                  event,
+                  params,
+                  "Shared ride cancelled",
+                  "The organizer cancelled the shared ride you joined. You weren't charged.",
+                  "أُلغيت الرحلة المشتركة",
+                  "ألغى منظّم الرحلة المشتركة التي انضممت إليها الرحلة. لم تُحتسب عليك أي رسوم.");
+        };
+      }
+      default -> {
+        boolean charged = params.get("fee") != null;
+        yield toRider(
+            event,
+            params,
+            "Marked as not at pickup",
+            charged
+                ? "Your driver couldn't find you at the pickup point, so the ride went on without"
+                    + " you. A cancellation fee of %s applies.".formatted(moneyEn(params, "fee"))
+                : "Your driver couldn't find you at the pickup point, so the ride went on without"
+                    + " you.",
+            "لم يجدك السائق",
+            charged
+                ? "لم يجدك السائق عند نقطة الانطلاق، فواصلت الرحلة دونك. تُطبَّق رسوم إلغاء قدرها %s."
+                    .formatted(moneyAr(params, "fee"))
+                : "لم يجدك السائق عند نقطة الانطلاق، فواصلت الرحلة دونك.");
+      }
     };
   }
 

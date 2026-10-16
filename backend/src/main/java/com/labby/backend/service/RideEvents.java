@@ -1,8 +1,12 @@
 package com.labby.backend.service;
 
 import com.labby.backend.enums.NotificationEvent;
+import com.labby.backend.enums.RideKind;
+import com.labby.backend.enums.SharedMemberStatus;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
+import com.labby.backend.model.SharedRideMember;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.service.RideAssembler.Audience;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -25,6 +29,7 @@ public class RideEvents {
   private final RealtimePublisher realtimePublisher;
   private final RideAssembler rideAssembler;
   private final NotificationService notificationService;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
 
   /**
    * {@code ride.state} to the rider and, when one is bound, the driver (RIDE-02: every transition).
@@ -103,7 +108,7 @@ public class RideEvents {
     if (ride.getEtaSeconds() != null) {
       frame.put("etaSeconds", ride.getEtaSeconds());
     }
-    realtimePublisher.publish(List.of(ride.getRiderUserId()), frame);
+    realtimePublisher.publish(riderSide(ride), frame);
   }
 
   /**
@@ -113,15 +118,70 @@ public class RideEvents {
    * @param lost true when the driver's stream went stale, false when it resumed
    */
   public void connection(Ride ride, boolean lost) {
-    for (Map.Entry<UUID, String> party :
-        Map.of(ride.getRiderUserId(), "rider", ride.getDriverUserId(), "driver").entrySet()) {
+    for (String side : List.of("rider", "driver")) {
       Map<String, Object> frame = new LinkedHashMap<>();
       frame.put("type", "ride.connection");
-      frame.put("as", party.getValue());
+      frame.put("as", side);
       frame.put("rideId", ride.getId().toString());
       frame.put("driverStream", lost ? "lost" : "ok");
-      realtimePublisher.publish(List.of(party.getKey()), frame);
+      realtimePublisher.publish(
+          "rider".equals(side) ? riderSide(ride) : List.of(ride.getDriverUserId()), frame);
     }
+  }
+
+  /**
+   * {@code shared.occupancy} to every joined member of a gathering shared ride (scheduled-shared-v1
+   * Notifications) — socket only, no push.
+   *
+   * @param ride the shared ride
+   * @param seatsTaken seats taken now
+   * @param totalSeats seats offered
+   */
+  public void sharedOccupancy(Ride ride, int seatsTaken, int totalSeats) {
+    Map<String, Object> frame = new LinkedHashMap<>();
+    frame.put("type", "shared.occupancy");
+    frame.put("as", "rider");
+    frame.put("rideId", ride.getId().toString());
+    frame.put("seatsTaken", seatsTaken);
+    frame.put("totalSeats", totalSeats);
+    realtimePublisher.publish(riderSide(ride), frame);
+  }
+
+  /**
+   * Queues a ride push to the ride's rider side: the rider, or — on a shared ride — every party
+   * still riding along (M12, each member is "the ride's rider").
+   *
+   * @param ride the ride
+   * @param event the template
+   * @param params the template params
+   */
+  public void pushRiders(Ride ride, NotificationEvent event, Map<String, Object> params) {
+    for (UUID rider : riderSide(ride)) {
+      notificationService.queue(rider, event, params);
+    }
+  }
+
+  /**
+   * The rider-side recipients of a ride: its rider, or the joined / completed members of a shared
+   * ride.
+   *
+   * @param ride the ride
+   * @return the user ids
+   */
+  public List<UUID> riderSide(Ride ride) {
+    if (ride.getKind() != RideKind.SHARED) {
+      return List.of(ride.getRiderUserId());
+    }
+    List<UUID> members =
+        sharedRideMemberRepository.findByRideIdOrderByJoinedAtAsc(ride.getId()).stream()
+            .filter(
+                member ->
+                    member.getStatus() == SharedMemberStatus.JOINED
+                        || member.getStatus() == SharedMemberStatus.COMPLETED)
+            .map(SharedRideMember::getRiderUserId)
+            .distinct()
+            .toList();
+    return members.isEmpty() ? List.of(ride.getRiderUserId()) : members;
   }
 
   /**
@@ -136,7 +196,9 @@ public class RideEvents {
   }
 
   private void rideFrame(String type, Ride ride, String reason) {
-    publishRide(type, ride, Audience.RIDER, ride.getRiderUserId(), reason);
+    for (UUID rider : riderSide(ride)) {
+      publishRide(type, ride, Audience.RIDER, rider, reason);
+    }
     if (ride.getDriverUserId() != null) {
       publishRide(type, ride, Audience.DRIVER, ride.getDriverUserId(), reason);
     }
@@ -150,7 +212,7 @@ public class RideEvents {
     if (reason != null) {
       frame.put("reason", reason);
     }
-    frame.put("ride", rideAssembler.view(ride, audience));
+    frame.put("ride", rideAssembler.view(ride, audience, recipient));
     realtimePublisher.publish(List.of(recipient), frame);
   }
 }

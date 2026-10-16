@@ -16,6 +16,7 @@ import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideOfferRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RideRepository.DispatchCandidate;
+import com.labby.backend.repository.SharedRideRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -54,6 +55,7 @@ public class RideDispatchServiceImpl implements RideDispatchService {
   private final DriverDutyGates driverDutyGates;
   private final RideEvents rideEvents;
   private final RideProperties rideProperties;
+  private final SharedRideRepository sharedRideRepository;
   private final TrackingProperties trackingProperties;
   private final TransactionTemplate transactionTemplate;
   private final Clock clock;
@@ -152,6 +154,7 @@ public class RideDispatchServiceImpl implements RideDispatchService {
             now.minusSeconds(trackingProperties.staleAfterSeconds()),
             uuidArray(excludedDrivers(ride)),
             maxDistance,
+            minSeats(ride),
             rideProperties.candidatePoolSize());
     LatLngDto pickup = new LatLngDto(ride.getPickup().getY(), ride.getPickup().getX());
     List<Pick> picks = new ArrayList<>();
@@ -169,6 +172,17 @@ public class RideDispatchServiceImpl implements RideDispatchService {
         .min(
             Comparator.comparingLong((Pick pick) -> pick.route().durationSeconds())
                 .thenComparingDouble(pick -> pick.candidate().getDistanceMeters()));
+  }
+
+  /** RIDE-P3: a shared ride needs a vehicle with at least its seats taken; any other ride 1. */
+  private int minSeats(Ride ride) {
+    if (ride.getKind() != RideKind.SHARED) {
+      return 1;
+    }
+    return sharedRideRepository
+        .findById(ride.getId())
+        .map(shared -> Math.max(1, (int) shared.getSeatsTaken()))
+        .orElse(1);
   }
 
   /** Drivers who cancelled an earlier ride of this ride's re-dispatch chain (owner 2026-10-07). */
@@ -194,8 +208,8 @@ public class RideDispatchServiceImpl implements RideDispatchService {
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
     // RIDE-S4: a scheduled ride's fallback failure tells the rider to replan (its own text).
-    rideEvents.push(
-        ride.getRiderUserId(),
+    rideEvents.pushRiders(
+        ride,
         NotificationEvent.RIDE_NO_DRIVER_FOUND,
         Map.of(
             "rideId",

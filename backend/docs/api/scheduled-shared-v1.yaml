@@ -206,7 +206,12 @@ info:
     ride), when the last ones are all no-shows it ends `cancelled_by_driver` reason
     `rider_no_show` (no re-dispatch). `in_progress` cannot be left (rides-v1 UC-R-09 E1). The
     creator after dispatch is a member like any other. Route changes (RIDE-05) are refused on
-    shared rides (409 `illegal_state`): one destination.
+    shared rides (409 `illegal_state`): one destination. The rides-v1 rider cancel is refused
+    on a shared ride too (409 `illegal_state` — members leave, the creator cancels, here), and the
+    rides-v1 driver cancel with `rider_no_show` is refused (400 `use_member_no_show`). A driver
+    cancellation with any other reason re-dispatches a NEW ride as rides-v1 says, and the group
+    (seats, joined parties) moves to it. Member changes after dispatch reach every party as
+    rides-v1 `ride.updated` with reason `member_left` / `member_no_show`.
 
 
     **Per-seat split (RIDE-P4).** At completion the stored fare total F (fares row, every

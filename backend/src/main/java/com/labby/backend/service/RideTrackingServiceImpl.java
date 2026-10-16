@@ -165,8 +165,8 @@ public class RideTrackingServiceImpl implements RideTrackingService {
             NotificationEvent.RIDE_WAIT_CHARGE_STARTED.getValue(), ride.getId().toString())) {
       return;
     }
-    rideEvents.push(
-        ride.getRiderUserId(),
+    rideEvents.pushRiders(
+        ride,
         NotificationEvent.RIDE_WAIT_CHARGE_STARTED,
         Map.of(
             "rideId", ride.getId().toString(),
