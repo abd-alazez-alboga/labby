@@ -103,13 +103,20 @@ export default function SettingsScreen() {
     key: string;
     label: string;
     icon: IconName;
-    href: "/rides" | "/saved-places" | "/ride-preferences";
+    href: "/rides" | "/reports" | "/saved-places" | "/ride-preferences";
   }[] = [
     {
       key: "rides",
       label: t("settings.rideHistory"),
       icon: "car-outline",
       href: "/rides",
+    },
+    // M11 (REP-02): the outcome of the reports the rider sent.
+    {
+      key: "reports",
+      label: t("reports.title"),
+      icon: "flag-outline",
+      href: "/reports",
     },
     {
       key: "saved-places",

@@ -17,7 +17,8 @@ import { colors } from "../../theme/tokens";
  * a push, the receipt) gets the design-system ScreenHeader (back chevron +
  * large title). Region resolution, notification state (badge, push
  * registration, push taps) and the ride facade (realtime socket + the
- * current ride) live only while signed in.
+ * current ride) live only while signed in. M11 adds the rating screen,
+ * the report flow and the rider's reports list.
  */
 export default function AppLayout() {
   const { status } = useAuth();
@@ -101,6 +102,13 @@ export default function AppLayout() {
             name="ride-preferences"
             options={{ title: t("ridePrefs.title") }}
           />
+          {/* M11 trust: rating + report draw their own top bar / header. */}
+          <Stack.Screen name="rate/[rideId]" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="report/[rideId]"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="reports" options={{ title: t("reports.title") }} />
         </Stack>
       </NotificationsProvider>
       </ChatProvider>

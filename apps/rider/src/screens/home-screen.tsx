@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { useOptionalAuth } from "../auth/auth-context";
 import { ApiStatus } from "../components/api-status";
 import {
   AppText,
@@ -26,9 +27,12 @@ import { useOptionalActiveRide } from "../ride/ride-context";
 import { placeLabel } from "../ride/ride-format";
 import { useSavedPlaces } from "../ride/use-saved-places";
 import { colors, radius, spacing } from "../theme/tokens";
+import { useColdStartRatingPrompt } from "../trust/rating-prompts";
+import { riderSuspension } from "../trust/suspension";
 import { PositionMap } from "./home/position-map";
 import { RideView } from "./ride/ride-view";
 import { savedPlaceIcon } from "./ride/route-planner";
+import SuspendedScreen from "./trust/suspended-screen";
 
 /** Saved places listed under "Where to?" (approved artboard Main). */
 const HOME_SAVED_PLACES = 3;
@@ -40,11 +44,28 @@ const HOME_SAVED_PLACES = 3;
  * Main: the destination search that opens booking and the saved places as
  * one-tap destinations) or the region state (M4-T4). While the ride facade
  * holds a ride, home IS the ride: the map + the sheet of its state (M7).
+ *
+ * M11: while the rider role or the whole account is suspended, the
+ * suspended screen replaces booking — but a ride already in flight keeps
+ * showing (SOS + finishing the ride stay available, owner ruling
+ * 2026-10-15). With neither, the first home of a launch opens the rating
+ * prompt for the newest pending ride never prompted (cold start, RATE-01).
  */
 export default function HomeScreen() {
   const rides = useOptionalActiveRide();
+  const auth = useOptionalAuth();
+  const suspension = riderSuspension(
+    auth?.user ?? null,
+    auth?.suspensionSignal ?? null,
+  );
+  useColdStartRatingPrompt(
+    !!rides && !rides.loading && !rides.ride && !suspension,
+  );
   if (rides?.ride) {
     return <RideView ride={rides.ride} onDone={() => {}} />;
+  }
+  if (suspension) {
+    return <SuspendedScreen suspension={suspension} />;
   }
   return <WhereToHome />;
 }

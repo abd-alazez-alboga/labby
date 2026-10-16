@@ -78,7 +78,7 @@ describe("ride offers (UC-D-06)", () => {
     const ring = screen.getByTestId("offer-countdown");
     expect(Number(ring.props.accessibilityLabel.match(/\d+/)[0])).toBeLessThanOrEqual(10);
     expect(Number(ring.props.accessibilityLabel.match(/\d+/)[0])).toBeGreaterThanOrEqual(9);
-    // Ratings are null until M11: never rendered.
+    // A null rider rating (below 5 ratings, M11): nothing rendered.
     expect(screen.queryByText(/rating|★/i)).toBeNull();
   });
 

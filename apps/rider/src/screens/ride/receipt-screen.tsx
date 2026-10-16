@@ -6,6 +6,7 @@
  * split across wallet / cash / the itemized carried dues (rows shared with
  * the ride-complete screen) — plus the tip line, and a
  * "Tip <driver>" entry while the 24 h window is open and no tip exists.
+ * M11 (UC-S-18): "Report <driver>" opens the report flow for this ride.
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -246,6 +247,18 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
             />
           ) : null}
         </View>
+        {receipt.driver ? (
+          <TextButton
+            label={t("report.title", { name: receipt.driver.firstName })}
+            onPress={() =>
+              router.push(
+                `/report/${encodeURIComponent(receipt.rideId)}` as never,
+              )
+            }
+            style={styles.report}
+            testID="receipt-report"
+          />
+        ) : null}
       </View>
       {canTip && receipt.driver ? (
         <TipSheet
@@ -318,5 +331,8 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  report: {
+    alignSelf: "center",
   },
 });

@@ -771,5 +771,171 @@
     "multiplierRange": "{{low}}–{{high}}×",
     "calm": "No busy areas right now.",
     "explain": "Shaded areas have more ride requests than free drivers, so fares there are higher. Moving there is your choice."
+  },
+  "trust": {
+    "links": {
+      "performance": "Performance",
+      "reports": "Your reports"
+    },
+    "rate": {
+      "reportProblem": "Report a problem",
+      "skip": "Skip",
+      "title": "How was {{name}} as a rider?",
+      "tripEnded": "Trip ended {{time}}",
+      "tripEndedWith": "Trip ended {{time}} · {{payment}}",
+      "payment": {
+        "cash": "cash collected",
+        "wallet": "paid from wallet",
+        "unpaid": "marked unpaid"
+      },
+      "starsLabel": "Rating, 1 to 5 stars",
+      "stars": {
+        "1": "1 star",
+        "2": "2 stars",
+        "3": "3 stars",
+        "4": "4 stars",
+        "5": "5 stars"
+      },
+      "scoreLabels": {
+        "0": "Tap a star to rate",
+        "1": "Very bad",
+        "2": "Bad",
+        "3": "Okay",
+        "4": "Good",
+        "5": "Excellent"
+      },
+      "commentLabel": "Add a comment (optional)",
+      "commentPlaceholder": "Anything to note?",
+      "anonymous": "Anonymous: {{name}} only sees an overall average.",
+      "submitAndGoOnline": "Submit and go online",
+      "submit": "Submit rating",
+      "skippedHint": "Skipped? Rate it from Trips until {{date}}.",
+      "done": "Done",
+      "unavailable": "This trip can no longer be rated.",
+      "errors": {
+        "windowClosed": "The 7-day rating window for this trip has closed.",
+        "alreadyRated": "You've already rated this trip. Ratings can't be changed.",
+        "notCompleted": "Only completed trips can be rated.",
+        "network": "We couldn't reach Labby. Check your connection and try again.",
+        "server": "Something went wrong on our side. Please try again in a moment."
+      },
+      "historyChip": "Rate {{name}} · {{left}}",
+      "daysLeft": {
+        "zero": "{{value}} days left",
+        "one": "{{value}} day left",
+        "two": "{{value}} days left",
+        "few": "{{value}} days left",
+        "many": "{{value}} days left",
+        "other": "{{value}} days left"
+      }
+    },
+    "report": {
+      "title": "Report {{name}}",
+      "trip": "Trip {{when}}",
+      "tripAt": "Trip {{when}} · {{place}}",
+      "question": "What happened?",
+      "categories": {
+        "unsafe_behavior": "Unsafe behavior",
+        "inappropriate_behavior": "Inappropriate behavior",
+        "vehicle_damage": "Damage to my vehicle",
+        "other": "Other",
+        "unsafe_driving": "Unsafe driving",
+        "vehicle_condition": "Vehicle condition"
+      },
+      "detailsLabel": "Tell us more (optional)",
+      "photos": "Photos · up to {{max}}",
+      "addPhoto": "Add a photo",
+      "photo": "Photo {{n}}",
+      "removePhoto": "Remove photo {{n}}",
+      "privacy": "{{name}} is not told who reported them. We'll notify you of the outcome.",
+      "send": "Send report",
+      "errors": {
+        "already": "You've already reported this trip — you'll find it under Your reports.",
+        "noCounterpart": "This trip can't be reported because it was never accepted.",
+        "invalid": "Something in this report wasn't accepted. Check it and try again.",
+        "network": "We couldn't reach Labby. Check your connection and try again.",
+        "server": "Something went wrong on our side. Please try again in a moment."
+      }
+    },
+    "reports": {
+      "title": "Your reports",
+      "sentTitle": "Report sent",
+      "sentBody": "We'll notify you when it's reviewed.",
+      "sentAt": "Sent {{date}}",
+      "reviewedAt": "Sent {{sent}} · reviewed {{reviewed}}",
+      "status": {
+        "open": "In review",
+        "substantiated": "Action taken",
+        "unsubstantiated": "Not confirmed"
+      },
+      "footnote": "“Action taken” means our review confirmed the report. Details of the action stay private.",
+      "empty": "You haven't sent any reports.",
+      "loadMore": "Show more"
+    },
+    "performance": {
+      "title": "Performance",
+      "windowLabel": "Window",
+      "days": {
+        "7": "{{value}} days",
+        "30": "{{value}} days"
+      },
+      "acceptance": "Acceptance",
+      "cancellation": "Cancellation",
+      "onTime": "On time",
+      "trips": "Trips",
+      "acceptanceOf": "{{n}} of {{d}} offers",
+      "cancellationOf": "{{n}} of {{d}} accepted",
+      "onTimeOf": "{{n}} of {{d}} pickups",
+      "noOffers": "No offers yet",
+      "noAccepted": "No accepted rides yet",
+      "noPickups": "No pickups yet",
+      "earned": "{{amount}} earned",
+      "noEarnings": "No earnings yet",
+      "warning": {
+        "acceptanceTitle": "Acceptance below {{threshold}}",
+        "cancellationTitle": "Cancellation above {{threshold}}",
+        "acceptanceBody": "You accepted {{value}} of {{sample}} offers in the last {{days}} days. Warnings never suspend your account — accept more offers to clear it.",
+        "cancellationBody": "You cancelled {{value}} of {{sample}} accepted rides in the last {{days}} days. Warnings never suspend your account — cancel fewer rides to clear it."
+      },
+      "averageLabel": "average rating",
+      "ratingMeta": "All-time · {{count}} · updated daily",
+      "ratingCount": {
+        "zero": "{{value}} ratings",
+        "one": "{{value}} rating",
+        "two": "{{value}} ratings",
+        "few": "{{value}} ratings",
+        "many": "{{value}} ratings",
+        "other": "{{value}} ratings"
+      },
+      "ratingNone": "Your average shows after 5 ratings · updated daily",
+      "ratingWarning": {
+        "title": "Your rating is close to the limit",
+        "body": "Your average is {{average}}. In {{region}}, driver accounts are suspended when the average falls below {{min}} after {{count}} or more rated rides.",
+        "bodyNoRegion": "Your average is {{average}}. Driver accounts are suspended when the average falls below {{min}} after {{count}} or more rated rides.",
+        "tips": "Being on time, keeping the car clean and taking the shortest route help the most.",
+        "whereYouStand": "Where you stand",
+        "limit": "{{min}} limit"
+      },
+      "onTimeNote": "On time = you arrived no more than 5 min after the pickup time shown when you accepted.",
+      "unavailable": "Your performance shows once you're an approved driver."
+    },
+    "suspended": {
+      "title": "Your driver account is suspended",
+      "body": "You can't go online or receive offers. Your earnings and balance are unchanged.",
+      "reason": "Reason",
+      "reasonFromTeam": "Reason · from the Labby team",
+      "lowRatingRule": "Your average rating fell below {{min}} after {{count}} or more rated rides.",
+      "lowRatingRuleWith": "Your average rating fell below {{min}} after {{count}} or more rated rides ({{average}} from {{ratings}}).",
+      "lowRatingGeneric": "Your average rating fell below the minimum for your region.",
+      "note": "“{{note}}”",
+      "ridingTitle": "Riding still works",
+      "ridingBody": "Your rider account is active — you can still book rides in the Labby app.",
+      "lowRatingFooter": "Our team reviews every rating suspension. You'll get a notification if your account is reactivated.",
+      "manualFooter": "You'll get a notification if your account is reactivated.",
+      "viewMoney": "View earnings & balance",
+      "accountTitle": "Your account is suspended",
+      "accountBody": "You can't drive or book rides while your account is suspended."
+    },
+    "offerRiderRating": "rider rating {{rating}} ★"
   }
 }

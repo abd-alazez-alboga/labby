@@ -10,6 +10,7 @@ import { useOptionalDriverMoney } from "../money/DriverMoneyProvider";
 import { useOptionalAvailability } from "../realtime/AvailabilityProvider";
 import {
   hrefForLink,
+  isAccountStateEvent,
   isBalanceEvent,
   isRideLink,
   parsePushPayload,
@@ -37,11 +38,13 @@ import { refreshUnread } from "./unread-store";
  *   deep-link mapper and marks the tapped notification read; a `ride_offer`
  *   / `ride` tap also makes the ride facade resync (the offer may be gone);
  * - refreshes the unread badge when a push arrives in the foreground, and
- *   re-reads balance + availability on a `driver.balance_*` push (W16).
+ *   re-reads balance + availability on a `driver.balance_*` push (W16);
+ * - re-reads the profile on an M11 account push (role / account suspended
+ *   or reactivated), so the gate follows without a restart.
  */
 export function PushBridge() {
   const router = useRouter();
-  const { status, isDriver } = useAuth();
+  const { status, isDriver, refreshProfile } = useAuth();
   const signedIn = status === "signedIn";
   const rides = useOptionalDriverRide();
   const openRideLink = rides?.openLink;
@@ -53,6 +56,7 @@ export function PushBridge() {
     openRideLink,
     reloadBalance,
     reloadAvailability,
+    refreshProfile,
   });
   context.current = {
     signedIn,
@@ -60,6 +64,7 @@ export function PushBridge() {
     openRideLink,
     reloadBalance,
     reloadAvailability,
+    refreshProfile,
   };
 
   useEffect(() => {
@@ -107,7 +112,9 @@ export function PushBridge() {
   useEffect(() => {
     const open = (data: unknown) => {
       if (!context.current.signedIn) return;
-      const { link, notificationId } = parsePushPayload(data);
+      const { link, notificationId, event } = parsePushPayload(data);
+      // M11: a suspension / reactivation changes the gate — re-read it.
+      if (isAccountStateEvent(event)) void context.current.refreshProfile();
       if (notificationId) {
         markNotificationRead(notificationId)
           .catch(() => {})
@@ -126,6 +133,12 @@ export function PushBridge() {
     });
     const removeReceived = onNotificationReceived((data) => {
       void refreshUnread();
+      if (
+        context.current.signedIn &&
+        isAccountStateEvent(parsePushPayload(data).event)
+      ) {
+        void context.current.refreshProfile();
+      }
       // W16: a floor change (blocked / unblocked / warning) re-reads the
       // balance AND availability, so the home updates without a poll.
       if (

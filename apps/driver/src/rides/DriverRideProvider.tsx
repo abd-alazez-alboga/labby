@@ -1,8 +1,12 @@
 /**
  * The driver ride facade (UC-D-06..10) — the single source of truth for the
  * open OFFER and the ACTIVE RIDE that the home / ride screens render from.
- * Mounted at the root inside the AvailabilityProvider; active only for a
- * signed-in driver with an ACTIVE role.
+ * Mounted at the root inside the AvailabilityProvider; active for a
+ * signed-in driver with an ACTIVE role — and (M11) for a SUSPENDED driver
+ * role / account too, only so a ride still in flight is found (cold start)
+ * and kept: while it runs (or its earnings breakdown shows) the facade holds
+ * the driver gate open (`setRideHold`), so SOS and finishing the ride keep
+ * working (owner ruling 2026-10-15); everything new stays refused.
  *
  * Inputs, all funnelled through one reducer-like set of state updates:
  * - Realtime frames from the availability socket (`subscribeRealtime`):
@@ -219,8 +223,13 @@ export function DriverRideProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { status: authStatus, isDriver } = useAuth();
-  const active = authStatus === "signedIn" && isDriver;
+  const { status: authStatus, isDriver, driverAccess, setRideHold } =
+    useAuth();
+  const active =
+    authStatus === "signedIn" &&
+    (isDriver ||
+      driverAccess === "roleSuspended" ||
+      driverAccess === "accountSuspended");
   const availability = useOptionalAvailability();
   const subscribeRealtime = availability?.subscribeRealtime;
   const offlineConflict = availability?.actionError === "offlineConflict";
@@ -436,6 +445,13 @@ export function DriverRideProvider({
   useEffect(() => {
     if (active && offlineConflict) void resyncWith();
   }, [active, offlineConflict, resyncWith]);
+
+  // M11: a ride in flight (or its earnings breakdown) keeps the driver app
+  // open even after a suspension landed — released once it is over.
+  const held = !!ride || !!settled;
+  useEffect(() => {
+    setRideHold(held);
+  }, [held, setRideHold]);
 
   // Offer countdown ran out.
   const offerId = offer?.offer.id ?? null;

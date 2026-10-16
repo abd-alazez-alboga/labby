@@ -47,7 +47,10 @@ export interface ComfortPreferences {
 /** What the driver sees of the rider from the offer on. */
 export interface RiderSummary {
   firstName: string;
-  /** null until M11 — never rendered (owner decision). */
+  /**
+   * M11 (RATE-02): the rider-role LIFETIME average from the daily snapshot
+   * (2 decimals); null below 5 ratings — then nothing is shown.
+   */
   rating?: number | null;
   comfort: ComfortPreferences;
 }
@@ -172,6 +175,17 @@ export interface Ride {
   etaSeconds?: number | null;
   redispatchOfRideId?: string | null;
   rider?: RiderSummary | null;
+  /** M11 (RATE-01): the caller's OWN rating state for this ride (trust-v1 MyRating). */
+  myRating?: MyRating | null;
+}
+
+/** trust-v1 `MyRating` — never describes ratings the caller received. */
+export interface MyRating {
+  state: "pending" | "submitted" | "expired" | "not_applicable";
+  /** completedAt + 7 days. */
+  windowEndsAt?: string | null;
+  /** The score the caller gave (`submitted`). */
+  score?: number | null;
 }
 
 /** UC-D-06 offer card. */

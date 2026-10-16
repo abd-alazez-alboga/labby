@@ -23,6 +23,7 @@ import type { PaymentRow } from "../../ride/money-math";
 import {
   fareLines,
   formatMoney,
+  formatRating,
   placeLabel,
   serviceName,
 } from "../../ride/ride-format";
@@ -117,7 +118,7 @@ export function RouteColumn({
   );
 }
 
-function initials(name: string): string {
+export function initials(name: string): string {
   return (
     name
       .trim()
@@ -129,7 +130,68 @@ function initials(name: string): string {
   );
 }
 
-/** Driver photo or initials, first name, vehicle and plate. Ratings are M11. */
+/**
+ * The driver's photo (or initials on the accent tint). With `rating`
+ * (DriverSummary.rating — the daily snapshot, null below 5 ratings, M11)
+ * a "4.9 ★" badge sits under it (approved artboard RiderDriverOnWay);
+ * a null rating shows nothing.
+ */
+export function DriverAvatar({
+  firstName,
+  photoUrl,
+  size,
+  rating,
+}: {
+  firstName: string;
+  photoUrl?: string | null;
+  size: number;
+  rating?: number | null;
+}) {
+  const { t, locale } = useLocale();
+  const large = size >= 64;
+  return (
+    <View style={{ width: size, height: size }}>
+      {photoUrl ? (
+        <Image
+          source={{ uri: photoUrl }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          testID="driver-photo"
+        />
+      ) : (
+        <View
+          style={[
+            styles.avatar,
+            { width: size, height: size, borderRadius: size / 2 },
+          ]}
+        >
+          <AppText
+            variant={large ? "heading" : "bodyStrong"}
+            tone="accent"
+            align="center"
+            style={size >= 80 ? styles.avatarLarge : undefined}
+          >
+            {initials(firstName)}
+          </AppText>
+        </View>
+      )}
+      {rating != null ? (
+        <View
+          style={styles.ratingBadge}
+          accessibilityLabel={t("driverRating.label", {
+            rating: formatRating(rating, locale),
+          })}
+          testID="driver-rating"
+        >
+          <AppText variant="caption" weight={800} style={styles.ratingText}>
+            {`${formatRating(rating, locale)} ★`}
+          </AppText>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** Driver photo or initials (+ rating badge), first name, vehicle and plate. */
 export function DriverCard({
   driver,
   compact = false,
@@ -149,28 +211,12 @@ export function DriverCard({
   const size = compact ? 44 : 64;
   return (
     <View style={[styles.driverRow, { flexDirection: row }]} testID="driver-card">
-      {driver.photoUrl ? (
-        <Image
-          source={{ uri: driver.photoUrl }}
-          style={{ width: size, height: size, borderRadius: size / 2 }}
-          testID="driver-photo"
-        />
-      ) : (
-        <View
-          style={[
-            styles.avatar,
-            { width: size, height: size, borderRadius: size / 2 },
-          ]}
-        >
-          <AppText
-            variant={compact ? "bodyStrong" : "heading"}
-            tone="accent"
-            align="center"
-          >
-            {initials(driver.firstName)}
-          </AppText>
-        </View>
-      )}
+      <DriverAvatar
+        firstName={driver.firstName}
+        photoUrl={driver.photoUrl}
+        size={size}
+        rating={compact ? null : driver.rating}
+      />
       <View style={styles.driverText}>
         <AppText variant="rowTitle" weight={800} testID="driver-name">
           {driver.firstName}
@@ -450,6 +496,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentTint,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarLarge: {
+    fontSize: 28,
+  },
+  ratingBadge: {
+    position: "absolute",
+    bottom: -6,
+    alignSelf: "center",
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    shadowColor: colors.text,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  ratingText: {
+    fontSize: 12,
   },
   driverText: {
     flex: 1,

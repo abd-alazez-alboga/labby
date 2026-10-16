@@ -98,8 +98,11 @@ export function DriverMoneyProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { status: authStatus, isDriver } = useAuth();
-  const active = authStatus === "signedIn" && isDriver;
+  const { status: authStatus, isDriver, driverAccess } = useAuth();
+  // M11: a suspended driver ROLE still reads its earnings and balance (the
+  // suspended screen links there); a suspended ACCOUNT is refused them.
+  const active =
+    authStatus === "signedIn" && (isDriver || driverAccess === "roleSuspended");
   const availability = useOptionalAvailability();
   // A new object per successful availability read (activation, poll,
   // foreground, toggle) — the balance refresh rides on it.

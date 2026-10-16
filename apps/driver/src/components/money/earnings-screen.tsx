@@ -31,6 +31,7 @@ import {
   AppText,
   Chevron,
   FailureState,
+  Icon,
   ListRow,
   LoadingState,
   Muted,
@@ -40,6 +41,9 @@ import {
   useDirection,
 } from "../ui";
 import { ProgressBar } from "../ride/ride-parts";
+import type { PendingRating } from "../../api/trust-types";
+import { useOptionalRatingPrompt } from "../../trust/RatingPromptProvider";
+import { countCopy, daysLeft } from "../../trust/format";
 
 /** Secondary text on the near-black total card. */
 const ON_DARK_MUTED = colors.lineStrong;
@@ -261,13 +265,57 @@ function tripParts(
   return parts;
 }
 
+/**
+ * M11 (UC-S-17 A1): "Rate {name} · N days left" under a trip still inside
+ * its rating window (from `GET /ratings/pending?as=driver`).
+ */
+function RateChip({ pending }: { pending: PendingRating }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { language, flipRows } = useDirection();
+  const name = pending.counterpartFirstName.trim() || t("ride.theRider");
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() =>
+        router.push({
+          pathname: "/rate-rider",
+          params: { rideId: pending.rideId },
+        })
+      }
+      style={({ pressed }) => [
+        styles.rateChip,
+        flipRows && styles.rateChipFlipped,
+        pressed && styles.rateChipPressed,
+      ]}
+      testID={`trip-rate-${pending.rideId}`}
+    >
+      <Icon name="star-outline" size={16} color={colors.accent} />
+      <AppText variant="label" weight="800" color={colors.accent}>
+        {t("trust.rate.historyChip", {
+          name,
+          left: countCopy(
+            t,
+            "trust.rate.daysLeft",
+            daysLeft(pending.windowEndsAt),
+            language,
+          ),
+        })}
+      </AppText>
+    </Pressable>
+  );
+}
+
 /** One per-trip row: time + date, itemized subtitle, signed net. */
 function TripRow({
   earning,
   last,
+  pending,
 }: {
   earning: TripEarning;
   last: boolean;
+  /** M11: the ride is still rateable. */
+  pending?: PendingRating | null;
 }) {
   const { t } = useTranslation();
   const { language } = useDirection();
@@ -293,7 +341,9 @@ function TripRow({
       }
       last={last}
       testID={`trip-row-${earning.rideId}`}
-    />
+    >
+      {pending ? <RateChip pending={pending} /> : null}
+    </ListRow>
   );
 }
 
@@ -320,6 +370,12 @@ export function EarningsScreen() {
   const { language } = useDirection();
   const router = useRouter();
   const money = useOptionalDriverMoney();
+  // M11: rides still rateable (re-read whenever the list opens).
+  const ratingPrompts = useOptionalRatingPrompt();
+  const refreshRatings = ratingPrompts?.refresh;
+  useEffect(() => {
+    if (refreshRatings) void refreshRatings();
+  }, [refreshRatings]);
   const [period, setPeriod] = useState<EarningsPeriod>("weekly");
   const [anchor, setAnchor] = useState(() => todayIso());
   const [summaryLoad, setSummaryLoad] = useState<SummaryLoad>({ status: "loading" });
@@ -491,6 +547,11 @@ export function EarningsScreen() {
                 key={earning.rideId}
                 earning={earning}
                 last={index === tripsLoad.items.length - 1}
+                pending={
+                  ratingPrompts?.pending.find(
+                    (item) => item.rideId === earning.rideId,
+                  ) ?? null
+                }
               />
             ))}
             {tripsLoad.page + 1 < tripsLoad.totalPages ? (
@@ -569,4 +630,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm + 2,
   },
   tripsHeading: { marginTop: spacing.xs },
+  rateChip: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.round,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+  },
+  rateChipFlipped: { flexDirection: "row-reverse", alignSelf: "flex-end" },
+  rateChipPressed: { opacity: 0.6 },
 });

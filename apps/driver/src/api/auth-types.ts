@@ -10,14 +10,19 @@ export type RoleName = "rider" | "driver" | "admin";
 export type RoleState = "active" | "suspended";
 export type AccountState = "active" | "suspended" | "deleted";
 
-/** Why a role is suspended (USR-04); M5 adds `document_expired` (DRV-04). */
-export type SuspensionReason = "document_expired";
+/**
+ * Why a role is suspended (USR-04): M5 `document_expired` (DRV-04); M11
+ * `low_rating` (USR-05, automatic) and `manual` (USR-06, with a note).
+ */
+export type SuspensionReason = "document_expired" | "low_rating" | "manual";
 
 export interface RoleAssignment {
   role: RoleName;
   state: RoleState;
   /** Present only while suspended; null for suspensions without a recorded reason. */
   suspensionReason?: SuspensionReason | null;
+  /** M11: the admin's reason, shown to the user — `manual` suspensions only. */
+  suspensionNote?: string | null;
 }
 
 export interface UserProfile {
@@ -26,7 +31,13 @@ export interface UserProfile {
   name: string;
   language: AppLanguage;
   photoUrl?: string | null;
+  /**
+   * M11: `suspended` = whole-account suspension (USR-06): every rider and
+   * driver feature answers 403 `account_suspended`; login still works.
+   */
   state: AccountState;
+  /** M11: the admin's reason for a whole-account suspension. */
+  suspensionNote?: string | null;
   roles: RoleAssignment[];
 }
 
@@ -66,10 +77,45 @@ export function driverRoleOf(user: UserProfile): RoleAssignment | null {
   return user.roles.find((assignment) => assignment.role === "driver") ?? null;
 }
 
-/** True when the profile holds an ACTIVE `driver` role (the in-app gate). */
+/**
+ * True when the profile holds an ACTIVE `driver` role on an account that is
+ * not suspended as a whole (the in-app gate; M11 adds the account state).
+ */
 export function hasActiveDriverRole(user: UserProfile): boolean {
-  return user.roles.some(
-    (assignment) =>
-      assignment.role === "driver" && assignment.state === "active",
+  return (
+    user.state !== "suspended" &&
+    user.roles.some(
+      (assignment) =>
+        assignment.role === "driver" && assignment.state === "active",
+    )
+  );
+}
+
+/**
+ * How the account may use the driver side (M11):
+ * - `active` — drives (the in-app gate);
+ * - `roleSuspended` — the driver role is suspended (any reason), the account
+ *   itself is not: earnings, balance and performance stay readable;
+ * - `accountSuspended` — the whole account is suspended (USR-06): every
+ *   driver feature is refused (403 `account_suspended`);
+ * - `none` — no driver role (applicant / rider-only account — whose account
+ *   suspension, if any, the gate reads from `state`).
+ */
+export type DriverAccess = "active" | "roleSuspended" | "accountSuspended" | "none";
+
+export function driverAccessOf(user: UserProfile): DriverAccess {
+  const role = driverRoleOf(user);
+  if (!role) return "none";
+  if (user.state === "suspended") return "accountSuspended";
+  return role.state === "active" ? "active" : "roleSuspended";
+}
+
+/** The rider role is active AND the account is not suspended ("riding still works"). */
+export function canRide(user: UserProfile): boolean {
+  return (
+    user.state !== "suspended" &&
+    user.roles.some(
+      (assignment) => assignment.role === "rider" && assignment.state === "active",
+    )
   );
 }

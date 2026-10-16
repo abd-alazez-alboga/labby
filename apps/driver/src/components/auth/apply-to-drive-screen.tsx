@@ -4,12 +4,24 @@ import { useTranslation } from "react-i18next";
 import { Image, RefreshControl, StyleSheet, View } from "react-native";
 
 import { getMyProfile } from "../../api/auth";
-import { driverRoleOf, hasActiveDriverRole } from "../../api/auth-types";
+import {
+  canRide,
+  driverRoleOf,
+  hasActiveDriverRole,
+} from "../../api/auth-types";
 import { getMyApplication } from "../../api/onboarding";
+import { getDriverPerformance } from "../../api/trust";
+import type { DriverPerformance } from "../../api/trust-types";
 import { useAuth } from "../../auth/AuthProvider";
 import { failureKindOf } from "../../onboarding/server-errors";
 import { useRemote } from "../../onboarding/use-remote";
-import { colors, spacing } from "../../theme/tokens";
+import { colors, radius, spacing } from "../../theme/tokens";
+import {
+  countCopy,
+  formatCount,
+  formatRating,
+  formatThreshold,
+} from "../../trust/format";
 import { NotificationsBell } from "../notifications/notifications-bell";
 import {
   ApplicationTracker,
@@ -21,9 +33,11 @@ import {
   DestructiveTextButton,
   FailureState,
   FieldError,
+  Icon,
   ListRow,
   LoadingState,
   Muted,
+  OutlineButton,
   PrimaryButton,
   Screen,
   SecondaryButton,
@@ -63,6 +77,7 @@ function useProfileRefresh() {
 function GateLayout({
   title,
   body,
+  lead,
   children,
   footer,
   refreshing,
@@ -70,6 +85,8 @@ function GateLayout({
 }: {
   title: string;
   body: string;
+  /** Shown above the title (M11 suspended screens: the round "ban" icon). */
+  lead?: React.ReactNode;
   children?: React.ReactNode;
   /** The gate's one next step, pinned above the navigation bar. */
   footer?: React.ReactNode;
@@ -103,6 +120,7 @@ function GateLayout({
       footer={footer}
     >
       <View style={styles.intro}>
+        {lead}
         <AppText variant="display" testID="gate-title">
           {title}
         </AppText>
@@ -127,10 +145,205 @@ function GateLayout({
   );
 }
 
+/** The round "ban" mark of the M11 suspended screens. */
+function SuspendedMark() {
+  return (
+    <View style={styles.mark}>
+      <Icon name="ban-outline" size={30} />
+    </View>
+  );
+}
+
+/** One bordered (or filled) card with a muted caption over the copy. */
+function GateCard({
+  caption,
+  text,
+  filled,
+  testID,
+}: {
+  caption: string;
+  text: string;
+  filled?: boolean;
+  testID: string;
+}) {
+  return (
+    <View style={[styles.card, filled && styles.cardFilled]} testID={testID}>
+      <AppText variant="caption" weight="700" color={colors.textMuted}>
+        {caption}
+      </AppText>
+      <AppText
+        variant={filled ? "body" : "bodyStrong"}
+        weight={filled ? "600" : "700"}
+        color={filled ? colors.textSecondary : colors.text}
+        testID={`${testID}-text`}
+      >
+        {text}
+      </AppText>
+    </View>
+  );
+}
+
+/**
+ * USR-05 reason copy: the region's rule from `GET /driver/performance`
+ * (readable while the role is suspended), with the snapshot average when it
+ * agrees with the suspension; a generic line when the rule is unavailable.
+ */
+function useLowRatingReason(enabled: boolean): string {
+  const { t } = useTranslation();
+  const { language } = useDirection();
+  const [performance, setPerformance] = useState<DriverPerformance | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let cancelled = false;
+    getDriverPerformance()
+      .then((data) => {
+        if (!cancelled) setPerformance(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+  const rule = performance?.ratingRule;
+  if (!rule) return t("trust.suspended.lowRatingGeneric");
+  const values = {
+    min: formatThreshold(rule.minAvgRating, language),
+    count: formatCount(rule.minRatedRides, language),
+  };
+  const average = performance?.rating.average;
+  if (typeof average === "number" && average < rule.minAvgRating) {
+    return t("trust.suspended.lowRatingRuleWith", {
+      ...values,
+      average: formatRating(average, language),
+      ratings: countCopy(
+        t,
+        "trust.performance.ratingCount",
+        performance?.rating.ratingCount ?? 0,
+        language,
+      ),
+    });
+  }
+  return t("trust.suspended.lowRatingRule", values);
+}
+
+/**
+ * M11 (artboard "Driver Suspended"): the driver role suspended for a low
+ * rating (USR-05) or by an admin (USR-06, with the note). Earnings and
+ * balance stay readable; "Riding still works" only while the rider role is
+ * active. No contact-support action (owner decision).
+ */
+function RoleSuspendedGate({
+  reason,
+  note,
+}: {
+  reason: "low_rating" | "manual";
+  note: string | null;
+}) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { user, refreshProfile } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+  const lowRatingText = useLowRatingReason(reason === "low_rating");
+  const reasonText =
+    reason === "low_rating"
+      ? lowRatingText
+      : note
+        ? t("trust.suspended.note", { note })
+        : null;
+
+  return (
+    <GateLayout
+      lead={<SuspendedMark />}
+      title={t("trust.suspended.title")}
+      body={t("trust.suspended.body")}
+      refreshing={refreshing}
+      onRefresh={() => {
+        setRefreshing(true);
+        void refreshProfile().finally(() => setRefreshing(false));
+      }}
+      footer={
+        <>
+          <Muted testID="gate-suspended-footer">
+            {t(
+              reason === "low_rating"
+                ? "trust.suspended.lowRatingFooter"
+                : "trust.suspended.manualFooter",
+            )}
+          </Muted>
+          <OutlineButton
+            title={t("trust.suspended.viewMoney")}
+            onPress={() => router.push("/earnings")}
+            testID="gate-view-money"
+          />
+        </>
+      }
+    >
+      {reasonText ? (
+        <GateCard
+          caption={t(
+            reason === "manual"
+              ? "trust.suspended.reasonFromTeam"
+              : "trust.suspended.reason",
+          )}
+          text={reasonText}
+          testID="gate-reason"
+        />
+      ) : null}
+      {user && canRide(user) ? (
+        <GateCard
+          caption={t("trust.suspended.ridingTitle")}
+          text={t("trust.suspended.ridingBody")}
+          filled
+          testID="gate-riding"
+        />
+      ) : null}
+    </GateLayout>
+  );
+}
+
+/**
+ * M11 (USR-06 "deactivate"): the whole account is suspended — every rider
+ * and driver feature is refused, so there is nothing to open; the admin's
+ * note is shown. A ride already in flight never lands here (the ride
+ * facade keeps the driver app open until it ends).
+ */
+function AccountSuspendedGate({ note }: { note: string | null }) {
+  const { t } = useTranslation();
+  const { refreshProfile } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+  return (
+    <GateLayout
+      lead={<SuspendedMark />}
+      title={t("trust.suspended.accountTitle")}
+      body={t("trust.suspended.accountBody")}
+      refreshing={refreshing}
+      onRefresh={() => {
+        setRefreshing(true);
+        void refreshProfile().finally(() => setRefreshing(false));
+      }}
+      footer={
+        <Muted testID="gate-suspended-footer">
+          {t("trust.suspended.manualFooter")}
+        </Muted>
+      }
+    >
+      {note ? (
+        <GateCard
+          caption={t("trust.suspended.reasonFromTeam")}
+          text={t("trust.suspended.note", { note })}
+          testID="gate-reason"
+        />
+      ) : null}
+    </GateLayout>
+  );
+}
+
 /**
  * Driver role suspended. A `document_expired` suspension (DRV-04) explains
- * itself and leads straight to renewal; any other reason keeps the generic
- * suspended copy (reasons arrive with later milestones).
+ * itself and leads straight to renewal; `low_rating` / `manual` (M11) get
+ * the suspended screen above; an unrecorded reason keeps the generic copy.
  */
 function SuspendedGate({ expired }: { expired: boolean }) {
   const { t } = useTranslation();
@@ -279,12 +492,28 @@ function ApplicationGate() {
 
 /**
  * The driver gate: shown to signed-in accounts WITHOUT an active `driver`
- * role. It hosts the driver application (UC-D-01) entry, the stage tracker
- * (UC-D-03) and the suspended states (USR-04, DRV-04).
+ * role (or whose account is suspended). It hosts the driver application
+ * (UC-D-01) entry, the stage tracker (UC-D-03) and the suspended states
+ * (USR-04, DRV-04; M11 USR-05/06).
  */
 export function ApplyToDriveScreen() {
   const { user } = useAuth();
   const driverRole = user ? driverRoleOf(user) : null;
+  if (user?.state === "suspended") {
+    return <AccountSuspendedGate note={user.suspensionNote ?? null} />;
+  }
+  if (
+    driverRole?.state === "suspended" &&
+    (driverRole.suspensionReason === "low_rating" ||
+      driverRole.suspensionReason === "manual")
+  ) {
+    return (
+      <RoleSuspendedGate
+        reason={driverRole.suspensionReason}
+        note={driverRole.suspensionNote ?? null}
+      />
+    );
+  }
   if (driverRole?.state === "suspended") {
     return (
       <SuspendedGate
@@ -305,6 +534,23 @@ const styles = StyleSheet.create({
   rowReverse: { flexDirection: "row-reverse" },
   logo: { width: 120, height: 22 },
   intro: { gap: spacing.ms, marginBottom: spacing.sm },
+  mark: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surfaceFill,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  card: {
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  cardFilled: { borderWidth: 0, backgroundColor: colors.surfaceFill },
   account: {
     marginTop: "auto",
     paddingTop: spacing.lg,

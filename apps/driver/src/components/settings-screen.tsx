@@ -32,6 +32,19 @@ const DRIVING_LINKS: {
     icon: "wallet-outline",
     testID: "balance-link",
   },
+  // M11 (UC-D-20, UC-S-18): performance dashboard + the driver's reports.
+  {
+    href: "/performance",
+    labelKey: "trust.links.performance",
+    icon: "speedometer-outline",
+    testID: "performance-link",
+  },
+  {
+    href: "/reports",
+    labelKey: "trust.links.reports",
+    icon: "flag-outline",
+    testID: "reports-link",
+  },
   {
     href: "/vehicles",
     labelKey: "home.myVehicle",

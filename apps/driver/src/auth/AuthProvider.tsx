@@ -2,13 +2,21 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 
-import { logout } from "../api/auth";
-import type { AuthTokensResponse, UserProfile } from "../api/auth-types";
-import { hasActiveDriverRole } from "../api/auth-types";
+import { getMyProfile, logout } from "../api/auth";
+import type {
+  AuthTokensResponse,
+  DriverAccess,
+  UserProfile,
+} from "../api/auth-types";
+import { driverAccessOf, hasActiveDriverRole } from "../api/auth-types";
+import { onAccountSuspended } from "../api/client";
 import {
   clearSession,
   getSession,
@@ -21,8 +29,22 @@ import { runSignOutTasks } from "./sign-out-tasks";
 export interface AuthContextValue {
   status: "signedIn" | "signedOut";
   user: UserProfile | null;
-  /** The driver gate: true only for an ACTIVE `driver` role assignment. */
+  /**
+   * The driver gate: an ACTIVE `driver` role on an account that is not
+   * suspended — or (M11) a driver whose ride is still in flight while a
+   * suspension landed: SOS and finishing the ride keep working (owner
+   * ruling 2026-10-15), the ride facade holds the gate open until it ends.
+   */
   isDriver: boolean;
+  /** M11: how the account may use the driver side (ignores the ride hold). */
+  driverAccess: DriverAccess;
+  /** M11: the ride facade keeps the driver app open while a ride is in flight. */
+  setRideHold: (held: boolean) => void;
+  /**
+   * Re-reads `GET /users/me` into the session (suspension / reactivation
+   * pushes, a 403 `account_suspended`). Resolves null on failure.
+   */
+  refreshProfile: () => Promise<UserProfile | null>;
   /** Persists a fresh session after login / register complete. */
   applySession: (tokens: AuthTokensResponse) => Promise<void>;
   /** Updates the cached profile (profile edit, phone change, photo). */
@@ -52,6 +74,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await updateSessionUser(user);
   }, []);
 
+  const [rideHold, setRideHoldState] = useState(false);
+  const setRideHold = useCallback((held: boolean) => {
+    setRideHoldState(held);
+  }, []);
+
+  const refreshInFlight = useRef<Promise<UserProfile | null> | null>(null);
+  const refreshProfile = useCallback((): Promise<UserProfile | null> => {
+    refreshInFlight.current ??= getMyProfile()
+      .then(async (profile) => {
+        await updateSessionUser(profile);
+        return profile;
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight.current = null;
+      });
+    return refreshInFlight.current;
+  }, []);
+
+  // M11 (USR-06): a feature refused with 403 account_suspended means the
+  // cached profile is stale — re-read it so the suspended screen shows.
+  useEffect(
+    () =>
+      onAccountSuspended(() => {
+        if (getSession()?.user.state !== "suspended") void refreshProfile();
+      }),
+    [refreshProfile],
+  );
+
   const signOut = useCallback(async () => {
     // Device unregistration / going offline need the live session (M6).
     if (getSession()) {
@@ -77,17 +128,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearSession();
   }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
+  const value = useMemo<AuthContextValue>(() => {
+    const driverAccess: DriverAccess = session
+      ? driverAccessOf(session.user)
+      : "none";
+    return {
       status: session ? "signedIn" : "signedOut",
       user: session?.user ?? null,
-      isDriver: session ? hasActiveDriverRole(session.user) : false,
+      isDriver: session
+        ? hasActiveDriverRole(session.user) ||
+          (rideHold && driverAccess !== "none")
+        : false,
+      driverAccess,
+      setRideHold,
+      refreshProfile,
       applySession,
       setUser,
       signOut,
-    }),
-    [session, applySession, setUser, signOut],
-  );
+    };
+  }, [
+    session,
+    rideHold,
+    setRideHold,
+    refreshProfile,
+    applySession,
+    setUser,
+    signOut,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

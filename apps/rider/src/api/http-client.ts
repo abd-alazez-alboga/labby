@@ -20,6 +20,11 @@ import {
   getStoredTokens,
   saveTokens,
 } from "../auth/session-store";
+import {
+  emitSuspension,
+  SUSPENSION_CODES,
+  type SuspensionCode,
+} from "../auth/suspension-signal";
 
 /** Global error body shape from M1 (status, message, fieldErrors?). */
 export interface ApiErrorBody {
@@ -93,6 +98,24 @@ async function parseErrorBody(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The ApiError of a failed response. A 403 `account_suspended` /
+ * `rider_suspended` also fires the suspension signal (M11) so the app can
+ * show the suspended screen whichever call met it.
+ */
+async function failure(response: Response, path: string): Promise<ApiError> {
+  const body = await parseErrorBody(response);
+  const code = body?.code;
+  if (
+    response.status === 403 &&
+    code &&
+    (SUSPENSION_CODES as readonly string[]).includes(code)
+  ) {
+    emitSuspension(code as SuspensionCode);
+  }
+  return new ApiError(response.status, path, body);
 }
 
 async function parseResult<T>(response: Response): Promise<T> {
@@ -202,12 +225,12 @@ export async function apiFetch<T>(
         await clearTokens();
         emitSessionExpired();
       }
-      throw new ApiError(retry.status, path, await parseErrorBody(retry));
+      throw await failure(retry, path);
     }
     throw new ApiError(401, path);
   }
 
-  throw new ApiError(response.status, path, await parseErrorBody(response));
+  throw await failure(response, path);
 }
 
 /**

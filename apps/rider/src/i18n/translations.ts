@@ -3,17 +3,20 @@
  * Keys are nested per screen, mirroring the admin app's i18n layout.
  * The M7 ride slice lives in ride-translations.ts, the M8 money slice in
  * money-translations.ts, the M10 comms & safety slice in
- * comms-translations.ts — all merged in here.
+ * comms-translations.ts, the M11 trust slice in trust-translations.ts —
+ * all merged in here.
  */
 import { commsAr, commsEn } from "./comms-translations";
 import { moneyAr, moneyEn } from "./money-translations";
 import { rideAr, rideEn } from "./ride-translations";
+import { trustAr, trustEn } from "./trust-translations";
 
 export const translations = {
   en: {
     ...rideEn,
     ...moneyEn,
     ...commsEn,
+    ...trustEn,
     common: {
       appName: "Labby",
       back: "Back",
@@ -280,6 +283,7 @@ export const translations = {
     ...rideAr,
     ...moneyAr,
     ...commsAr,
+    ...trustAr,
     common: {
       appName: "لبي",
       back: "رجوع",

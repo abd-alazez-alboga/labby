@@ -285,7 +285,7 @@ describe("booking (UC-R-04)", () => {
           details: { suspensionReason: "unpaid_balance" },
         },
       },
-      "Your rider account is suspended (unpaid_balance). Contact support to appeal.",
+      "Your rider account is suspended (unpaid_balance).",
     ],
     [
       "payment_method_unavailable",

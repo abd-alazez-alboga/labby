@@ -10,6 +10,7 @@ import {
   formatNumber,
 } from "../../rides/format";
 import { useNow } from "../../rides/use-now";
+import { formatRating } from "../../trust/format";
 import { colors, radius, spacing } from "../../theme/tokens";
 import {
   AppText,
@@ -24,8 +25,9 @@ import { CountdownRing, RouteSteps } from "./ride-parts";
  * Design canvas "Driver offer" (UC-D-06): service type · payment chip, the
  * 15 s countdown ring from `expiresAt`, the estimated fare (big), pickup
  * distance / ETA + label, stops, destination, Decline (icon) + big Accept.
- * Owner decision: no rider rating (null until M11) and no trip length (the
- * offer payload carries none).
+ * M11: the rider's rating ("rider rating 4.8 ★") joins the fare caption
+ * when the daily snapshot has one (null below 5 ratings — nothing shown).
+ * No trip length (the offer payload carries none).
  */
 export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
   const { t } = useTranslation();
@@ -72,10 +74,23 @@ export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
         <AppText variant="display" testID="offer-fare">
           {formatMoney(t, offer.estimatedFare, offer.currency, language)}
         </AppText>
-        <AppText variant="secondary" color={colors.textSecondary}>
-          {offer.surge
-            ? t("ride.offer.estimatedFareSurge")
-            : t("ride.offer.estimatedFare")}
+        <AppText
+          variant="secondary"
+          color={colors.textSecondary}
+          testID="offer-fare-caption"
+        >
+          {[
+            offer.surge
+              ? t("ride.offer.estimatedFareSurge")
+              : t("ride.offer.estimatedFare"),
+            ...(typeof offer.rider?.rating === "number"
+              ? [
+                  t("trust.offerRiderRating", {
+                    rating: formatRating(offer.rider.rating, language),
+                  }),
+                ]
+              : []),
+          ].join(" · ")}
         </AppText>
       </View>
 

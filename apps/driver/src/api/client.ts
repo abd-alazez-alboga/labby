@@ -124,13 +124,63 @@ export async function refreshSession(): Promise<StoredSession | null> {
   return rotated;
 }
 
+// ------------------------------------------------- account suspension (M11)
+
+/** The 403 code every rider/driver feature answers on a suspended account (USR-06). */
+export const ACCOUNT_SUSPENDED = "account_suspended";
+
+type SuspendedListener = () => void;
+const suspendedListeners = new Set<SuspendedListener>();
+
+/**
+ * Called whenever an authenticated request is refused with 403
+ * `account_suspended` (trust-v1.yaml) — the auth facade re-reads the
+ * profile so the app shows the suspended screen. Returns the unsubscribe.
+ */
+export function onAccountSuspended(listener: SuspendedListener): () => void {
+  suspendedListeners.add(listener);
+  return () => {
+    suspendedListeners.delete(listener);
+  };
+}
+
+export function isAccountSuspendedError(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.status !== 403) return false;
+  const body = error.body as { code?: unknown } | null;
+  return body?.code === ACCOUNT_SUSPENDED;
+}
+
+/**
+ * Authenticated fetch (see `authFetchOnce`); a 403 `account_suspended`
+ * additionally notifies the listeners above before it is rethrown.
+ */
+export async function authFetch<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  try {
+    return await authFetchOnce<T>(path, options);
+  } catch (error) {
+    if (isAccountSuspendedError(error)) {
+      for (const listener of [...suspendedListeners]) {
+        try {
+          listener();
+        } catch {
+          // A listener's failure never changes the request's outcome.
+        }
+      }
+    }
+    throw error;
+  }
+}
+
 /**
  * Authenticated fetch: adds the bearer header from the stored session.
  * On a 401 it makes exactly ONE refresh attempt (rotating the stored
  * pair), retries the original request, and signs the user out locally
  * when the refresh (or the retried request) is rejected again.
  */
-export async function authFetch<T>(
+async function authFetchOnce<T>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {

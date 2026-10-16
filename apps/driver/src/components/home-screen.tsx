@@ -26,6 +26,7 @@ import { RideNoticeBanner } from "./ride/ride-parts";
 import { RideScreen } from "./ride/ride-screen";
 import { FloorBlockedCard, FloorWarningBanner } from "./money/floor";
 import { TripEarningsScreen } from "./money/trip-earnings-screen";
+import { RateRiderScreen, reportHrefFor } from "./trust/rate-rider-screen";
 import type { BridgeZone } from "../map/leaflet-bridge";
 import { useOptionalHeatmap } from "../heatmap/HeatmapProvider";
 import { mapZones } from "../heatmap/levels";
@@ -36,6 +37,7 @@ import { useOptionalAvailability } from "../realtime/AvailabilityProvider";
 import type { AvailabilityContextValue } from "../realtime/AvailabilityProvider";
 import { useOptionalRegion } from "../region/RegionProvider";
 import { useOptionalDriverRide } from "../rides/DriverRideProvider";
+import { useOptionalRatingPrompt } from "../trust/RatingPromptProvider";
 import type { RegionContextValue } from "../region/RegionProvider";
 import { colors, radius, spacing } from "../theme/tokens";
 import {
@@ -205,6 +207,8 @@ export function HomeScreen() {
       ? region
       : null;
   const rides = useOptionalDriverRide();
+  // M11: the post-trip rating prompt (after the earnings breakdown).
+  const ratings = useOptionalRatingPrompt();
   // M8: balance floor state (COM-03) of the operating currency (W16) —
   // refreshed with the availability data. Blocked stops offers, not GO.
   const money = useOptionalDriverMoney();
@@ -225,6 +229,20 @@ export function HomeScreen() {
     // UC-D-15: the just-settled ride's earnings breakdown.
     return (
       <TripEarningsScreen ride={rides.settled} onDone={rides.dismissSettled} />
+    );
+  }
+  if (ratings?.prompt) {
+    // UC-S-17: rate the rider after the trip (skippable).
+    const { target, payment } = ratings.prompt;
+    return (
+      <RateRiderScreen
+        target={target}
+        payment={payment}
+        mode="prompt"
+        onSkip={ratings.skip}
+        onDone={ratings.finish}
+        onReport={() => router.push(reportHrefFor(target))}
+      />
     );
   }
 

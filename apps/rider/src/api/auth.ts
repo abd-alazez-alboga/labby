@@ -15,9 +15,16 @@ export type AccountState = "active" | "suspended" | "deleted";
 export type RoleName = "rider" | "driver" | "admin";
 export type LoginClient = "rider" | "driver" | "admin";
 
+/** Why a role is suspended (USR-04/05/06, auth-v1 + trust-v1, M11). */
+export type SuspensionReason = "document_expired" | "low_rating" | "manual";
+
 export interface RoleAssignment {
   role: RoleName;
   state: "active" | "suspended";
+  /** Present only while suspended; null for suspensions without a reason. */
+  suspensionReason?: SuspensionReason | null;
+  /** The admin's reason, shown to the user — `manual` suspensions only (M11). */
+  suspensionNote?: string | null;
 }
 
 export interface UserProfile {
@@ -26,7 +33,10 @@ export interface UserProfile {
   name: string;
   language: AppLanguage;
   photoUrl?: string | null;
+  /** `suspended` = whole-account suspension (M11, USR-06). */
   state: AccountState;
+  /** The admin's reason for a whole-account suspension (M11). */
+  suspensionNote?: string | null;
   roles: RoleAssignment[];
 }
 

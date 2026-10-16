@@ -1,0 +1,54 @@
+/**
+ * The rider's suspension state (M11, auth-v1 + trust-v1 USR-04..06),
+ * derived from the profile — or, before a fresh profile arrived, from the
+ * 403 code a call met:
+ *
+ * - `account` — whole-account suspension (`UserProfile.state = suspended`,
+ *   USR-06 "deactivate"): the admin's note is shown;
+ * - `role` — the rider role is suspended: `low_rating` shows the rating
+ *   rule, `manual` the admin's note.
+ *
+ * The account level wins when both apply. SOS and finishing an in-flight
+ * ride stay available (owner ruling 2026-10-15) — callers show the ride,
+ * not this state, while one is in flight.
+ */
+import type { SuspensionReason, UserProfile } from "../api/auth";
+import type { SuspensionCode } from "../auth/suspension-signal";
+
+export interface RiderSuspension {
+  scope: "account" | "role";
+  reason: SuspensionReason | null;
+  /** The admin's reason (manual suspensions), else null. */
+  note: string | null;
+}
+
+export function riderSuspension(
+  user: UserProfile | null,
+  signal: SuspensionCode | null = null,
+): RiderSuspension | null {
+  if (user?.state === "suspended") {
+    return {
+      scope: "account",
+      reason: "manual",
+      note: user.suspensionNote?.trim() || null,
+    };
+  }
+  const role = user?.roles.find((assignment) => assignment.role === "rider");
+  if (role?.state === "suspended") {
+    return {
+      scope: "role",
+      reason: role.suspensionReason ?? null,
+      note:
+        role.suspensionReason === "manual"
+          ? role.suspensionNote?.trim() || null
+          : null,
+    };
+  }
+  if (signal === "account_suspended") {
+    return { scope: "account", reason: null, note: null };
+  }
+  if (signal === "rider_suspended") {
+    return { scope: "role", reason: null, note: null };
+  }
+  return null;
+}

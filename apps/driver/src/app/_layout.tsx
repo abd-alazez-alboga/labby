@@ -20,6 +20,7 @@ import { AvailabilityProvider } from "../realtime/AvailabilityProvider";
 import { RegionProvider } from "../region/RegionProvider";
 import { DriverRideProvider } from "../rides/DriverRideProvider";
 import { loadAppFonts } from "../theme/fonts";
+import { RatingPromptProvider } from "../trust/RatingPromptProvider";
 import { colors } from "../theme/tokens";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -28,8 +29,11 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 
 function AppStack() {
   const { t, i18n: i18nInstance } = useTranslation();
-  const { status, isDriver } = useAuth();
+  const { status, isDriver, driverAccess } = useAuth();
   const signedIn = status === "signedIn";
+  // M11: a suspended driver ROLE still reads earnings, balance and
+  // performance (the suspended screen links there).
+  const driverTools = isDriver || driverAccess === "roleSuspended";
 
   return (
     <Stack
@@ -63,15 +67,6 @@ function AppStack() {
           name="settings"
           options={{ title: t("settings.title") }}
         />
-        {/* Earnings & balance (M8, UC-D-15/16). */}
-        <Stack.Screen
-          name="earnings"
-          options={{ title: t("earnings.title") }}
-        />
-        <Stack.Screen
-          name="balance"
-          options={{ title: t("balance.title") }}
-        />
         <Stack.Screen
           name="profile-edit"
           options={{ title: t("account.profile.title") }}
@@ -99,6 +94,19 @@ function AppStack() {
         />
         {/* Per-ride chat (M10, UC-S-13/14). */}
         <Stack.Screen name="chat" options={{ title: t("chat.title") }} />
+        {/* Rate / report the rider and the driver's reports (M11, UC-S-17/18). */}
+        <Stack.Screen
+          name="rate-rider"
+          options={{ title: t("trust.rate.submit") }}
+        />
+        <Stack.Screen
+          name="report-rider"
+          options={{ title: t("trust.report.send") }}
+        />
+        <Stack.Screen
+          name="reports"
+          options={{ title: t("trust.reports.title") }}
+        />
       </Stack.Protected>
 
       {/* The driver gate: signed in, but no active driver role (M2-T4). */}
@@ -115,6 +123,24 @@ function AppStack() {
         <Stack.Screen
           name="application-resubmit"
           options={{ title: t("onboarding.resubmit.title") }}
+        />
+      </Stack.Protected>
+
+      {/* Earnings & balance (M8, UC-D-15/16) and performance (M11, UC-D-20)
+          — active drivers AND a suspended driver role. Declared after the
+          gate so a suspended driver lands on the gate, not here. */}
+      <Stack.Protected guard={signedIn && driverTools}>
+        <Stack.Screen
+          name="earnings"
+          options={{ title: t("earnings.title") }}
+        />
+        <Stack.Screen
+          name="balance"
+          options={{ title: t("balance.title") }}
+        />
+        <Stack.Screen
+          name="performance"
+          options={{ title: t("trust.performance.title") }}
         />
       </Stack.Protected>
 
@@ -182,16 +208,19 @@ export default function RootLayout() {
             <DriverMoneyProvider>
               {/* Open offer + active ride facade on the same socket (M7-T4). */}
               <DriverRideProvider>
-                {/* Per-ride chat thread on the same socket (M10-T3). */}
-                <ChatProvider>
-                  {/* Demand heatmap, refreshed once per surge cycle (M9-T2). */}
-                  <HeatmapProvider>
-                    <StatusBar style="dark" />
-                    <AppStack />
-                  </HeatmapProvider>
-                  {/* Push registration + notification-tap deep links (M6-T4). */}
-                  <PushBridge />
-                </ChatProvider>
+                {/* Post-trip rating prompt + pending ratings (M11-T3). */}
+                <RatingPromptProvider>
+                  {/* Per-ride chat thread on the same socket (M10-T3). */}
+                  <ChatProvider>
+                    {/* Demand heatmap, refreshed once per surge cycle (M9-T2). */}
+                    <HeatmapProvider>
+                      <StatusBar style="dark" />
+                      <AppStack />
+                    </HeatmapProvider>
+                    {/* Push registration + notification-tap deep links (M6-T4). */}
+                    <PushBridge />
+                  </ChatProvider>
+                </RatingPromptProvider>
               </DriverRideProvider>
             </DriverMoneyProvider>
           </AvailabilityProvider>

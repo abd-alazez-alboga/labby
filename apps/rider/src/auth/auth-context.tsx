@@ -12,6 +12,10 @@
  *   `sessionExpired`; the provider listens and signs out locally.
  * - Logout unregisters this device's push token first (while the session
  *   is still valid); every local sign-out forgets it (M6-T4, ES-03).
+ * - A 403 `account_suspended` / `rider_suspended` from any call (M11)
+ *   re-reads the profile so its suspension state + reason drive the
+ *   suspended screen; until a fresh profile arrives the code itself is
+ *   kept as `suspensionSignal`.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
@@ -41,6 +45,10 @@ import {
   getStoredTokens,
   saveTokens,
 } from "./session-store";
+import {
+  addSuspensionListener,
+  type SuspensionCode,
+} from "./suspension-signal";
 
 export const PROFILE_CACHE_KEY = "labby.rider.profile";
 
@@ -61,6 +69,11 @@ export interface AuthContextValue {
   signOutAfterDeletion: () => Promise<void>;
   /** Replace the cached profile after a profile-mutating call. */
   setUser: (user: UserProfile) => void;
+  /**
+   * The last suspension code a call met (M11) while no fresher profile
+   * says otherwise; null once a profile was read after it.
+   */
+  suspensionSignal: SuspensionCode | null;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -90,6 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUserState] = useState<UserProfile | null>(null);
   const [signOutReason, setSignOutReason] = useState<SignOutReason>(null);
+  const [suspensionSignal, setSuspensionSignal] =
+    useState<SuspensionCode | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -157,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await writeCachedProfile(null);
     if (mounted.current) {
       setUserState(null);
+      setSuspensionSignal(null);
       setSignOutReason(reason);
       setStatus("signedOut");
     }
@@ -169,6 +185,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [clearLocalSession]);
 
+  // A suspension met by any call: re-read the profile (reachable while
+  // suspended) so the screen shows the current state and reason.
+  useEffect(() => {
+    return addSuspensionListener((code) => {
+      if (!mounted.current) return;
+      setSuspensionSignal(code);
+      getMe()
+        .then((fresh) => {
+          if (!mounted.current) return;
+          setUserState(fresh);
+          setSuspensionSignal(null);
+          void writeCachedProfile(fresh);
+        })
+        .catch(() => {
+          // Keep the signal — the suspended screen shows without the reason.
+        });
+    });
+  }, []);
+
   const signIn = useCallback(async (tokens: AuthTokensResponse) => {
     await saveTokens({
       accessToken: tokens.accessToken,
@@ -178,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (mounted.current) {
       setUserState(tokens.user);
       setSignOutReason(null);
+      setSuspensionSignal(null);
       setStatus("signedIn");
     }
   }, []);
@@ -211,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setUser = useCallback((next: UserProfile) => {
     setUserState(next);
+    setSuspensionSignal(null);
     void writeCachedProfile(next);
   }, []);
 
@@ -223,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       signOutAfterDeletion,
       setUser,
+      suspensionSignal,
     }),
     [
       status,
@@ -232,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       signOutAfterDeletion,
       setUser,
+      suspensionSignal,
     ],
   );
 
@@ -248,4 +287,9 @@ export function useAuth(): AuthContextValue {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return ctx;
+}
+
+/** The auth state, or null outside the provider (provider-less tests). */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext) ?? null;
 }

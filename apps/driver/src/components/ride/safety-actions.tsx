@@ -16,7 +16,15 @@ import { useOptionalRegion } from "../../region/RegionProvider";
 import { getShareUrl } from "../../safety/share-trip";
 import { sendSosEvent, sosSample } from "../../safety/sos";
 import { colors, radius, shadows, spacing } from "../../theme/tokens";
-import { AppText, Banner, Icon, OutlineButton, useDirection, useSafeBottomBar } from "../ui";
+import {
+  AppText,
+  Banner,
+  Icon,
+  OutlineButton,
+  TextButton,
+  useDirection,
+  useSafeBottomBar,
+} from "../ui";
 import type { IconName } from "../ui";
 
 /**
@@ -85,7 +93,7 @@ function ActionButton({
 
 /**
  * Chat (unread badge) / Call / Share trip — on the to-pickup, at-pickup and
- * in-ride sheets. Chat shows only while a thread exists (no thread = no
+ * in-ride sheets — and (M11) the "Report {rider}" text link under them. Chat shows only while a thread exists (no thread = no
  * entry point); Call only while `counterpart.phone` is non-null (CALL-01).
  */
 export function SafetyRow({ ride }: { ride: Ride }) {
@@ -97,6 +105,11 @@ export function SafetyRow({ ride }: { ride: Ride }) {
   const [shareNotice, setShareNotice] = useState<
     "unavailable" | "error" | null
   >(null);
+
+  const riderName = ride.rider?.firstName?.trim() || t("ride.theRider");
+  const reportWhen =
+    ride.timeline.startedAt ?? ride.timeline.acceptedAt ?? null;
+  const reportPlace = ride.destination.label?.trim() || null;
 
   const thread = chat?.rideId === ride.id ? (chat?.thread ?? null) : null;
   const hasThread = thread !== null;
@@ -157,6 +170,23 @@ export function SafetyRow({ ride }: { ride: Ride }) {
           testID={`share-notice-${shareNotice}`}
         />
       ) : null}
+      {/* M11 (UC-S-18): the rider can be reported from acceptance on —
+          during the ride too (same text link as the rider app). */}
+      <TextButton
+        title={t("trust.report.title", { name: riderName })}
+        onPress={() =>
+          router.push({
+            pathname: "/report-rider",
+            params: {
+              rideId: ride.id,
+              name: ride.rider?.firstName ?? "",
+              ...(reportWhen ? { when: reportWhen } : {}),
+              ...(reportPlace ? { place: reportPlace } : {}),
+            },
+          })
+        }
+        testID="safety-report"
+      />
     </View>
   );
 }

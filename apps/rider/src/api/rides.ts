@@ -1,5 +1,6 @@
 import type { GeoJsonLineString } from "../map/geo";
 import { ApiError, apiFetch } from "./http-client";
+import type { MyRating } from "./trust";
 
 /**
  * Client slice of the rides contract for the rider app
@@ -168,7 +169,10 @@ export interface SavedLocationUpsert {
 export interface DriverSummary {
   firstName: string;
   photoUrl?: string | null;
-  /** Null until M11 — never rendered in M7. */
+  /**
+   * Driver-role lifetime average from the daily snapshot (M11, RATE-02);
+   * null below 5 ratings — then nothing is shown.
+   */
   rating?: number | null;
   vehicle: {
     make: string;
@@ -261,6 +265,8 @@ export interface Ride {
   redispatchOfRideId?: string | null;
   redispatchedAsRideId?: string | null;
   driver?: DriverSummary | null;
+  /** M11 (RATE-01): the rider's OWN rating state for this ride. */
+  myRating?: MyRating | null;
 }
 
 export interface CancellationQuote {
@@ -289,6 +295,10 @@ export interface RideSummary {
   total?: number | null;
   cancellationFee?: number | null;
   currency?: string;
+  /** M11 (RATE-01): the rider's OWN rating state for this ride. */
+  myRating?: MyRating | null;
+  /** M11: the driver's first name (null when no driver was assigned). */
+  counterpartFirstName?: string | null;
 }
 
 export interface RideSummaryPage {

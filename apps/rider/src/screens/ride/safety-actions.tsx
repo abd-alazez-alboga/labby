@@ -16,6 +16,9 @@
  *   (the fix warmed while the sheet was open → last known → pickup) +
  *   recordedAt; one retry; never blocking the dialer.
  *
+ * M11 (UC-S-18): "Report <driver>" under the row opens the report flow —
+ * a driver can be reported from acceptance on, during the ride too.
+ *
  * Red #D92D20 is owner-approved as a functional safety color (2026-10-13).
  */
 import { Ionicons } from "@expo/vector-icons";
@@ -42,6 +45,7 @@ import {
   BottomSheet,
   PrimaryButton,
   SecondaryButton,
+  TextButton,
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
@@ -258,6 +262,16 @@ export function SafetyActionsRow({ ride }: { ride: Ride }) {
       {notice ? (
         <Banner tone="neutral" message={notice} testID="safety-share-notice" />
       ) : null}
+      {ride.driver ? (
+        <TextButton
+          label={t("report.title", { name: ride.driver.firstName })}
+          onPress={() =>
+            router.push(`/report/${encodeURIComponent(ride.id)}` as never)
+          }
+          style={styles.report}
+          testID="safety-report"
+        />
+      ) : null}
     </View>
   );
 }
@@ -403,6 +417,9 @@ const styles = StyleSheet.create({
   },
   tiles: {
     gap: 10,
+  },
+  report: {
+    alignSelf: "center",
   },
   tile: {
     flex: 1,

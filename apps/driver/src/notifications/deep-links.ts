@@ -121,3 +121,19 @@ export function isBalanceEvent(event: string | null | undefined): boolean {
 export function isRideLink(link: DeepLink | null | undefined): boolean {
   return link?.screen === "ride" || link?.screen === "ride_offer";
 }
+
+/**
+ * M11 account events (category `account`, no deep link — the center
+ * opens): a role / account suspension or reactivation changes the gate, so
+ * the profile is re-read when one arrives or is tapped.
+ */
+const ACCOUNT_STATE_EVENTS = new Set([
+  "account.role_suspended",
+  "account.role_reactivated",
+  "account.suspended",
+  "account.reactivated",
+]);
+
+export function isAccountStateEvent(event: string | null | undefined): boolean {
+  return !!event && ACCOUNT_STATE_EVENTS.has(event);
+}

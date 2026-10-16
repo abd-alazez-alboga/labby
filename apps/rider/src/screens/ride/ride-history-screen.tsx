@@ -2,6 +2,12 @@
  * Ride history (UC-R-07 step 4) — approved artboard RiderHistory: newest
  * first, every state; a completed ride shows its stored total and opens its
  * receipt, a cancelled one its recorded fee, the rest a dash.
+ *
+ * M11 (RATE-01) — approved artboard RiderHistoryRate: under each completed
+ * ride its own rating state from `Ride.myRating` — "Rate Samer · N days
+ * left" (opens the rating screen; the newest is the filled pill, the rest
+ * outlined), "You rated N", or "Rating window closed" — all from the
+ * history page itself (`RideSummary.myRating` + `counterpartFirstName`).
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -10,6 +16,7 @@ import { FlatList, Pressable, StyleSheet, View } from "react-native";
 
 import { failureKind, type FailureKind } from "../../api/http-client";
 import { listRides, type RideSummary } from "../../api/rides";
+import { type MyRating, ratingDaysLeft } from "../../api/trust";
 import {
   AppText,
   EmptyView,
@@ -27,8 +34,112 @@ import {
   serviceName,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { addRatingSubmittedListener } from "../../trust/rating-events";
 
-function HistoryRow({ item }: { item: RideSummary }) {
+/** What a completed row knows about its own rating (from the summary). */
+interface RatingInfo {
+  myRating: MyRating | null;
+  driverName: string | null;
+}
+
+function ratingInfo(item: RideSummary): RatingInfo | null {
+  if (item.state !== "completed") return null;
+  return {
+    myRating: item.myRating ?? null,
+    driverName: item.counterpartFirstName ?? null,
+  };
+}
+
+/** "Rate Samer · 3 days left" with the Arabic dual / plural forms. */
+function rateLabel(
+  name: string,
+  days: number,
+  t: (key: string, options?: object) => string,
+): string {
+  if (days === 1) return t("rateHistory.rateOneDay", { name });
+  if (days === 2) return t("rateHistory.rateTwoDays", { name });
+  return t("rateHistory.rateDays", { name, count: days });
+}
+
+function RatingLine({
+  rideId,
+  info,
+  primary,
+}: {
+  rideId: string;
+  info: RatingInfo;
+  primary: boolean;
+}) {
+  const { t } = useLocale();
+  const { row } = useDirection();
+  const router = useRouter();
+  const rating = info.myRating;
+  if (!rating) return null;
+  if (rating.state === "pending") {
+    const days = ratingDaysLeft(rating.windowEndsAt);
+    if (days === null || !info.driverName) return null;
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push(`/rate/${encodeURIComponent(rideId)}` as never)}
+        style={({ pressed }) => [
+          styles.ratePill,
+          { flexDirection: row },
+          primary ? styles.ratePillPrimary : styles.ratePillOutline,
+          pressed && styles.pressed,
+        ]}
+        testID={`history-rate-${rideId}`}
+      >
+        {primary ? (
+          <Ionicons name="star" size={16} color={colors.onAccent} />
+        ) : null}
+        <AppText
+          variant="secondary"
+          weight={800}
+          tone={primary ? "onAccent" : "accent"}
+        >
+          {rateLabel(info.driverName, days, t)}
+        </AppText>
+      </Pressable>
+    );
+  }
+  if (rating.state === "submitted" && rating.score != null) {
+    return (
+      <View
+        style={[styles.rated, { flexDirection: row }]}
+        testID={`history-rated-${rideId}`}
+      >
+        <Ionicons name="star" size={14} color={colors.textSecondary} />
+        <AppText variant="caption" weight={700} tone="secondary">
+          {t("rateHistory.youRated", { score: rating.score })}
+        </AppText>
+      </View>
+    );
+  }
+  if (rating.state === "expired") {
+    return (
+      <AppText
+        variant="caption"
+        tone="muted"
+        weight={400}
+        testID={`history-rating-closed-${rideId}`}
+      >
+        {t("rateHistory.windowClosed")}
+      </AppText>
+    );
+  }
+  return null;
+}
+
+function HistoryRow({
+  item,
+  rating,
+  primaryRate,
+}: {
+  item: RideSummary;
+  rating: RatingInfo | null;
+  primaryRate: boolean;
+}) {
   const { t, locale } = useLocale();
   const { row } = useDirection();
   const router = useRouter();
@@ -40,7 +151,13 @@ function HistoryRow({ item }: { item: RideSummary }) {
   );
   const date = formatDateTime(item.requestedAt, locale);
   const subtitle = completed
-    ? t("history.line", { date, service })
+    ? rating?.driverName
+      ? t("rateHistory.lineWithDriver", {
+          date,
+          driver: rating.driverName,
+          service,
+        })
+      : t("history.line", { date, service })
     : t("history.line", { date, service: t(`history.states.${item.state}`) });
   const fee =
     item.cancellationFee != null && item.cancellationFee > 0
@@ -95,18 +212,26 @@ function HistoryRow({ item }: { item: RideSummary }) {
     );
   }
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => router.push(`/receipt/${item.id}` as never)}
-      style={({ pressed }) => [
-        styles.row,
-        { flexDirection: row },
-        pressed && styles.pressed,
-      ]}
-      testID={`history-${item.id}`}
-    >
-      {content}
-    </Pressable>
+    <View style={styles.completedRow}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push(`/receipt/${item.id}` as never)}
+        style={({ pressed }) => [
+          styles.row,
+          styles.rowInGroup,
+          { flexDirection: row },
+          pressed && styles.pressed,
+        ]}
+        testID={`history-${item.id}`}
+      >
+        {content}
+      </Pressable>
+      {rating ? (
+        <View style={[styles.ratingSlot, { flexDirection: row }]}>
+          <RatingLine rideId={item.id} info={rating} primary={primaryRate} />
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -120,7 +245,21 @@ export default function RideHistoryScreen() {
   );
   const [failure, setFailure] = useState<FailureKind>("network");
   const [loadingMore, setLoadingMore] = useState(false);
+  // Ratings stored since the page was read (rating screen), by ride id.
+  const [ratings, setRatings] = useState<Record<string, MyRating>>({});
   const contentStyle = useInsetContentStyle(styles.content);
+
+  // A rating stored from this list (rating screen) shows at once.
+  useEffect(
+    () =>
+      addRatingSubmittedListener((rideId, score) => {
+        setRatings((current) => ({
+          ...current,
+          [rideId]: { state: "submitted", score },
+        }));
+      }),
+    [],
+  );
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -169,13 +308,35 @@ export default function RideHistoryScreen() {
       />
     );
   }
+  const infoOf = (item: RideSummary): RatingInfo | null => {
+    const info = ratingInfo(item);
+    return info && ratings[item.id]
+      ? { ...info, myRating: ratings[item.id] }
+      : info;
+  };
+  // One dominant action: only the newest ride still to rate gets the filled pill.
+  const firstPending =
+    items.find((item) => {
+      const rating = infoOf(item)?.myRating;
+      return (
+        rating?.state === "pending" &&
+        ratingDaysLeft(rating.windowEndsAt) !== null
+      );
+    })?.id ?? null;
   return (
     <FlatList
       style={styles.page}
       contentContainerStyle={contentStyle}
       data={items}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <HistoryRow item={item} />}
+      renderItem={({ item }) => (
+        <HistoryRow
+          item={item}
+          rating={infoOf(item)}
+          primaryRate={item.id === firstPending}
+        />
+      )}
+      extraData={ratings}
       testID="history-list"
       ListFooterComponent={
         items.length < total ? (
@@ -210,6 +371,36 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
+  },
+  completedRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  rowInGroup: {
+    borderBottomWidth: 0,
+  },
+  ratingSlot: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 14,
+    marginTop: -6,
+  },
+  ratePill: {
+    height: 48,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 24,
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  ratePillPrimary: {
+    backgroundColor: colors.accent,
+  },
+  ratePillOutline: {
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+  },
+  rated: {
+    alignItems: "center",
+    gap: 6,
   },
   iconWell: {
     width: 48,

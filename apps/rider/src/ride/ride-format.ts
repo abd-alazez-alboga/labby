@@ -84,6 +84,14 @@ export function formatSurge(multiplier: number, locale: AppLocale): string {
   return locale === "ar" ? `\u2066${text}\u2069` : text;
 }
 
+/**
+ * A driver's average rating with one decimal ("4.9"), Western digits — the
+ * contract's snapshot average (RATE-02) is never recomputed, only shown.
+ */
+export function formatRating(value: number, locale: AppLocale): string {
+  return formatNumber(value, locale, { min: 1, max: 1 });
+}
+
 /** Kilometres with one decimal ("4.2"). */
 export function formatKm(meters: number, locale: AppLocale): string {
   return formatNumber(meters / 1000, locale, { min: 1, max: 1 });

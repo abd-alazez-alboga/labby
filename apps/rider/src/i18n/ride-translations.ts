@@ -83,9 +83,9 @@ export const rideEn = {
       service_type_unavailable:
         "This service isn't available here right now. Choose another one.",
       active_ride_exists: "You already have an active ride.",
-      rider_suspended: "Your rider account is suspended. Contact support to appeal.",
+      rider_suspended: "Your rider account is suspended.",
       rider_suspended_reason:
-        "Your rider account is suspended ({{reason}}). Contact support to appeal.",
+        "Your rider account is suspended ({{reason}}).",
       payment_method_unavailable: "Only cash is available right now.",
       illegal_state: "This ride can't be changed any more.",
       generic: "Something went wrong. Please try again.",
@@ -360,9 +360,9 @@ export const rideAr = {
       too_many_stops: "يمكنك إضافة 3 محطات كحد أقصى.",
       service_type_unavailable: "هذه الخدمة غير متاحة هنا حاليًا. اختر خدمة أخرى.",
       active_ride_exists: "لديك رحلة نشطة بالفعل.",
-      rider_suspended: "حسابك كراكب موقوف. تواصل مع الدعم للاعتراض.",
+      rider_suspended: "حسابك كراكب موقوف.",
       rider_suspended_reason:
-        "حسابك كراكب موقوف ({{reason}}). تواصل مع الدعم للاعتراض.",
+        "حسابك كراكب موقوف ({{reason}}).",
       payment_method_unavailable: "الدفع نقدًا هو الخيار المتاح حاليًا.",
       illegal_state: "لم يعد بالإمكان تعديل هذه الرحلة.",
       generic: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",

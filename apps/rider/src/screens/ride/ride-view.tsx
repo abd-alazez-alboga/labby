@@ -64,6 +64,8 @@ import {
 import { colors, radius, spacing } from "../../theme/tokens";
 import { TipSheet } from "../wallet/tip-sheet";
 import { CancelSheet } from "./cancel-sheet";
+import { markRatingPrompted } from "../../trust/rating-prompts";
+import { ratingRideLine, RatingView } from "../trust/rating-view";
 import { SafetyActionsRow, SosConfirmSheet, SosPill } from "./safety-actions";
 import { type SurgeChange, SurgeChangedSheet } from "./surge-changed-sheet";
 import {
@@ -133,6 +135,8 @@ export function RideView({
   const [tipSent, setTipSent] = useState<TipResponse | null>(null);
   // A 409 already_tipped: the ride carries a tip this view hasn't seen yet.
   const [alreadyTipped, setAlreadyTipped] = useState(false);
+  // M11 post-ride rating prompt: answered or skipped in this view.
+  const [ratingDone, setRatingDone] = useState(false);
   const region = useOptionalRegion();
 
   const driver = ride.driver ?? null;
@@ -230,6 +234,31 @@ export function RideView({
     facade.dismiss();
     onDone();
   };
+
+  // ------------------------------------------- post-ride rating (M11)
+  // RATE-01 / UC-S-17: right after completion the skippable rating screen
+  // comes first (approved artboard RiderRate: Skip → RiderComplete).
+  if (
+    ride.state === "completed" &&
+    ride.fare &&
+    driver &&
+    ride.myRating?.state === "pending" &&
+    !ratingDone
+  ) {
+    return (
+      <RatingView
+        rideId={ride.id}
+        driverName={driver.firstName}
+        driverPhotoUrl={driver.photoUrl}
+        rideLine={ratingRideLine(ride, locale, t)}
+        windowEndsAt={ride.myRating.windowEndsAt}
+        onDone={() => {
+          void markRatingPrompted(ride.id);
+          setRatingDone(true);
+        }}
+      />
+    );
+  }
 
   // ------------------------------------------------------------ completed
   if (ride.state === "completed" && ride.fare) {
