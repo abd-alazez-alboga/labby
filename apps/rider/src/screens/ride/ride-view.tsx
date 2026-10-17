@@ -506,7 +506,11 @@ export function RideView({
         </View>
         <PrimaryButton
           label={t("shared.findAnother")}
-          onPress={() => router.replace("/shared" as never)}
+          onPress={() => {
+            // The ended ride leaves the facade, or home would show it again.
+            facade.dismiss();
+            router.replace("/shared" as never);
+          }}
           testID="ride-shared-find-another"
         />
       </BottomSheet>
