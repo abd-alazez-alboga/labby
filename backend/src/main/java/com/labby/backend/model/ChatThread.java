@@ -19,10 +19,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * One chat thread per ride (CHAT-01), created lazily at acceptance. The window state is DERIVED
- * from {@code closedAt} / {@code reopenedUntil} ({@link #windowState}), never stored; {@code
- * closedAt} is stamped terminal + 24 h when the ride ends. The per-party read markers back the
- * unread counts (CHAT-02).
+ * One chat thread per ride x rider (CHAT-01; V21: one per member on a shared ride, the single one
+ * of any other ride), created lazily at acceptance. The window state is DERIVED from {@code
+ * closedAt} / {@code reopenedUntil} ({@link #windowState}), never stored; {@code closedAt} is
+ * stamped terminal + 24 h when the ride ends. The per-party read markers back the unread counts
+ * (CHAT-02).
  */
 @Entity
 @Table(name = "chat_threads")
@@ -38,8 +39,12 @@ public class ChatThread {
   @Column(name = "chat_thread_id")
   private UUID id;
 
-  @Column(name = "ride_id", nullable = false, unique = true)
+  @Column(name = "ride_id", nullable = false)
   private UUID rideId;
+
+  /** The rider side of the thread: the ride's rider, or one member of a shared ride. */
+  @Column(name = "rider_user_id", nullable = false)
+  private UUID riderUserId;
 
   @Column(name = "opened_at", nullable = false)
   private Instant openedAt;

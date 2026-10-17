@@ -702,7 +702,10 @@ public class NotificationRenderer {
         "رسالة جديدة",
         "لديك رسالة جديدة من %s. افتح المحادثة للرد.".formatted(sender),
         SCREEN_CHAT,
-        Map.of("rideId", text(params.get("rideId"))));
+        params.get("memberId") == null
+            ? Map.of("rideId", text(params.get("rideId")))
+            : Map.of(
+                "rideId", text(params.get("rideId")), "memberId", text(params.get("memberId"))));
   }
 
   /**

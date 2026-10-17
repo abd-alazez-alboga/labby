@@ -182,8 +182,8 @@ public class RideAssembler {
         showDriver ? driverSummary(ride.getDriverUserId(), ride.getVehicleId()) : null,
         showRider ? riderSummary(ride.getRiderUserId()) : null,
         switch (audience) {
-          case RIDER -> ratingService.myRating(ride, RideParty.RIDER);
-          case DRIVER -> ratingService.myRating(ride, RideParty.DRIVER);
+          case RIDER -> ratingService.myRating(ride, RideParty.RIDER, viewerUserId);
+          case DRIVER -> ratingService.myRating(ride, RideParty.DRIVER, viewerUserId);
           case ADMIN -> null;
         },
         ride.getKind() == RideKind.SCHEDULED ? scheduledInfo(ride, audience) : null,

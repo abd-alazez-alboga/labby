@@ -55,6 +55,7 @@ public class SosServiceImpl implements SosService {
   private final NotificationService notificationService;
   private final AuditService auditService;
   private final ApplicationEventPublisher eventPublisher;
+  private final RideParties rideParties;
   private final Clock clock;
 
   @Override
@@ -63,7 +64,7 @@ public class SosServiceImpl implements SosService {
         rideRepository
             .findById(rideId)
             .orElseThrow(() -> new ResourceNotFoundException("Ride not found"));
-    RideParty role = partyOf(ride, userId);
+    RideParty role = rideParties.sideOf(ride, userId, RideParties.RIDING);
     if (role == null) {
       throw new ForbiddenException("Not a party to this ride");
     }
@@ -215,15 +216,5 @@ public class SosServiceImpl implements SosService {
                 acknowledgedBy == null ? "" : acknowledgedBy.getName(),
                 event.getAcknowledgedAt(),
                 event.getNote()));
-  }
-
-  private static RideParty partyOf(Ride ride, UUID userId) {
-    if (userId.equals(ride.getRiderUserId())) {
-      return RideParty.RIDER;
-    }
-    if (userId.equals(ride.getDriverUserId())) {
-      return RideParty.DRIVER;
-    }
-    return null;
   }
 }

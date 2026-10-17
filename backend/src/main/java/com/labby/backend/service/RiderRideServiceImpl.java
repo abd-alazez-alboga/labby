@@ -177,7 +177,9 @@ public class RiderRideServiceImpl implements RiderRideService {
   public RideSummaryPageDto history(UUID userId, int page, int size) {
     rideAccess.requireRider(userId);
     return rideLifecycle.historyPage(
-        rideRepository.findRiderHistory(userId, PageRequest.of(page, size)), RideParty.RIDER);
+        rideRepository.findRiderHistory(userId, PageRequest.of(page, size)),
+        RideParty.RIDER,
+        userId);
   }
 
   @Override

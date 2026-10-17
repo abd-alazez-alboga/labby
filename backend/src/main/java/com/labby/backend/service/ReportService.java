@@ -32,9 +32,11 @@ public interface ReportService {
   /**
    * Files a report of the ride's counterpart.
    *
-   * @param userId the caller (a party of the ride)
+   * @param userId the caller (a party of the ride; a joined / completed member of a shared ride)
    * @param rideId the ride
    * @param request category, text and photo ids
+   * @param memberId the reported member, required from the driver of a shared ride (M12), else
+   *     ignored
    * @return the reporter's view
    * @throws com.labby.backend.exception.ResourceNotFoundException unknown ride
    * @throws com.labby.backend.exception.ForbiddenException not a party
@@ -43,7 +45,7 @@ public interface ReportService {
    * @throws com.labby.backend.exception.ConflictException {@code no_counterpart}, {@code
    *     report_already_submitted}
    */
-  OwnReportDto submit(UUID userId, UUID rideId, ReportRequestDto request);
+  OwnReportDto submit(UUID userId, UUID rideId, ReportRequestDto request, UUID memberId);
 
   /**
    * The caller's filed reports on a side, newest first — outcome only.

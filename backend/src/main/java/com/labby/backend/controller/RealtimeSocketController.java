@@ -276,6 +276,11 @@ public class RealtimeSocketController extends TextWebSocketHandler
       error(state, "invalid_message", "rideId and clientMsgId must be UUIDs");
       return;
     }
+    UUID memberId = uuid(frame, "memberId");
+    if (memberId == null && frame.hasNonNull("memberId")) {
+      error(state, "invalid_message", "memberId must be a UUID");
+      return;
+    }
     try {
       chatService.send(
           state.userId,
@@ -286,7 +291,8 @@ public class RealtimeSocketController extends TextWebSocketHandler
               frame.path("body").isTextual() ? frame.get("body").asText() : null,
               frame.path("quickReplyCode").isTextual()
                   ? frame.get("quickReplyCode").asText()
-                  : null));
+                  : null,
+              memberId));
     } catch (BusinessException ex) {
       error(state, ex.getCode() == null ? "invalid_message" : ex.getCode(), ex.getMessage());
     } catch (RuntimeException ex) {
@@ -303,8 +309,13 @@ public class RealtimeSocketController extends TextWebSocketHandler
       error(state, "invalid_message", "rideId and lastReadMessageId must be UUIDs");
       return;
     }
+    UUID memberId = uuid(frame, "memberId");
+    if (memberId == null && frame.hasNonNull("memberId")) {
+      error(state, "invalid_message", "memberId must be a UUID");
+      return;
+    }
     try {
-      chatService.markRead(state.userId, rideId, lastReadMessageId);
+      chatService.markRead(state.userId, rideId, lastReadMessageId, memberId);
     } catch (BusinessException ex) {
       error(state, ex.getCode() == null ? "invalid_message" : ex.getCode(), ex.getMessage());
     } catch (RuntimeException ex) {

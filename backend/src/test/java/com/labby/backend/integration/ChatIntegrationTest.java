@@ -333,7 +333,7 @@ class ChatIntegrationTest extends AbstractRideIntegrationTest {
     UUID rideId = acceptedRide(rider, driver);
     Socket driverSocket = connect(driver);
     ChatService.SendRequest request =
-        new ChatService.SendRequest(rideId, UUID.randomUUID(), "text", "at the gate", null);
+        new ChatService.SendRequest(rideId, UUID.randomUUID(), "text", "at the gate", null, null);
     CountDownLatch winnerInserted = new CountDownLatch(1);
     CountDownLatch commitWinner = new CountDownLatch(1);
     ExecutorService pool = Executors.newFixedThreadPool(2);

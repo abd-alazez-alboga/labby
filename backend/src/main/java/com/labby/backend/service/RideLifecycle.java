@@ -193,15 +193,16 @@ public class RideLifecycle {
    *
    * @param rides the page
    * @param side the caller's side
+   * @param userId the caller
    * @return the DTO page
    */
-  public RideSummaryPageDto historyPage(Page<Ride> rides, RideParty side) {
+  public RideSummaryPageDto historyPage(Page<Ride> rides, RideParty side, UUID userId) {
     Map<UUID, Fare> fares =
         fareRepository
             .findByRideIdIn(rides.getContent().stream().map(Ride::getId).toList())
             .stream()
             .collect(Collectors.toMap(Fare::getRideId, Function.identity()));
-    Map<UUID, MyRatingDto> ratings = ratingService.myRatings(rides.getContent(), side);
+    Map<UUID, MyRatingDto> ratings = ratingService.myRatings(rides.getContent(), side, userId);
     Map<UUID, String> names =
         userRepository
             .findAllById(

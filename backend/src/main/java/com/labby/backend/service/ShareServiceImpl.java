@@ -57,6 +57,7 @@ public class ShareServiceImpl implements ShareService {
   private final OnboardingAssembler onboardingAssembler;
   private final CommsProperties commsProperties;
   private final TrackingProperties trackingProperties;
+  private final RideParties rideParties;
   private final Clock clock;
 
   @Override
@@ -64,10 +65,8 @@ public class ShareServiceImpl implements ShareService {
     Ride ride =
         rideRepository
             .findById(rideId)
-            .filter(
-                candidate ->
-                    userId.equals(candidate.getRiderUserId())
-                        || userId.equals(candidate.getDriverUserId()))
+            // M12: a member riding along shares the trip like the ride's rider.
+            .filter(candidate -> rideParties.sideOf(candidate, userId, RideParties.RIDING) != null)
             .orElseThrow(() -> new ResourceNotFoundException("Ride not found"));
     if (!ride.isAssigned()) {
       // Before acceptance there is nothing to show; after the end the link would be dead.

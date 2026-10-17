@@ -16,7 +16,8 @@ import org.springframework.data.repository.query.Param;
 /** REP-01..03 reports: permanent facts, resolved exactly once (V17 trigger). */
 public interface ReportRepository extends JpaRepository<Report, UUID> {
 
-  boolean existsByRideIdAndReporterUserId(UUID rideId, UUID reporterUserId);
+  boolean existsByRideIdAndReporterUserIdAndReportedUserId(
+      UUID rideId, UUID reporterUserId, UUID reportedUserId);
 
   /** The reporter's own reports on one side, newest first. */
   Page<Report> findByReporterUserIdAndReporterRoleOrderByCreatedAtDesc(

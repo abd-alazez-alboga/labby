@@ -243,6 +243,24 @@ info:
     `chat.read` carry `memberId` in both directions for the driver (client → server required on
     a shared ride; server → driver always set). Members and their ids come from the driver view's
     `shared.members`; unread counts come from each thread's GET. One-rider rides are unchanged.
+    **Wire details (M12-T2 C2, owner approval 2026-10-17).** Threads are per ride × rider (V21:
+    `chat_threads.rider_user_id`, unique ride × rider, existing threads backfilled to the ride's
+    rider); one opens per `joined` member at acceptance. A member keeps their own thread after an
+    early exit (`cancelled` / `no_show`), its window closing 24 h after that exit; the others close
+    at the ride's end as CHAT-01 says. The `chat.message` push to the driver carries `memberId`
+    in its params and its `chat` deep link; the `chat.read` frame relayed to the driver carries
+    `memberId`. The admin chat log (`GET /admin/rides/{id}/chat`) takes `?memberId=` too —
+    required on a shared ride (400 `member_required`), one member's thread at a time.
+    Ratings and reports follow the chat rule: the DRIVER of a shared ride names the rated /
+    reported member with `?memberId=` on `POST /rides/{id}/rating` and `POST /rides/{id}/reports`
+    (400 `member_required` without it, 404 for a member of another ride); riders are unchanged.
+    One rating per ride × rater → rated pair (V19) and one report per ride × reporter → reported
+    pair (V21). The driver rates `completed` members; reports any member who was with the ride
+    after dispatch (`joined`, `completed`, `cancelled`, `no_show`); members rate as `completed`
+    and report / SOS / share as `joined` or `completed`. `GET /ratings/pending?as=driver` returns
+    one prompt per unrated completed member, each with `memberId` (null on one-rider rides). The
+    driver's `myRating` of a shared ride is `submitted` once every completed member is rated (no
+    single `score`), else pending / expired as usual.
 
 
     **Notifications.** Category `scheduled` (mutable): `scheduled.claimed`, `scheduled.released`,

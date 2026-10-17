@@ -13,16 +13,17 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** RATE-01 ratings: insert-only (V17 trigger), one per ride per rater side. */
+/** RATE-01 ratings: insert-only (V17 trigger), one per ride per rater -> rated pair (V19). */
 public interface RatingRepository extends JpaRepository<Rating, UUID> {
 
-  boolean existsByRideIdAndRaterRole(UUID rideId, RideParty raterRole);
+  boolean existsByRideIdAndRaterUserIdAndRatedUserId(
+      UUID rideId, UUID raterUserId, UUID ratedUserId);
 
-  /** The rating a side gave on a ride (the caller's own {@code myRating}). */
-  Optional<Rating> findByRideIdAndRaterRole(UUID rideId, RideParty raterRole);
+  /** The ratings one user gave on a ride (the caller's own {@code myRating}). */
+  List<Rating> findByRideIdAndRaterUserId(UUID rideId, UUID raterUserId);
 
-  /** The ratings a side gave on a page of rides (history {@code myRating}, one query). */
-  List<Rating> findByRideIdInAndRaterRole(Collection<UUID> rideIds, RideParty raterRole);
+  /** The ratings one user gave on a page of rides (history {@code myRating}, one query). */
+  List<Rating> findByRideIdInAndRaterUserId(Collection<UUID> rideIds, UUID raterUserId);
 
   /**
    * The LIVE lifetime aggregate of one user x role (USR-05, RATE-03, admin views): count and exact

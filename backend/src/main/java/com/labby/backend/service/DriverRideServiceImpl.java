@@ -171,7 +171,8 @@ public class DriverRideServiceImpl implements DriverRideService {
     rideAccess.requireDriver(userId);
     return rideLifecycle.historyPage(
         rideRepository.findByDriverUserIdOrderByRequestedAtDesc(userId, PageRequest.of(page, size)),
-        RideParty.DRIVER);
+        RideParty.DRIVER,
+        userId);
   }
 
   @Override

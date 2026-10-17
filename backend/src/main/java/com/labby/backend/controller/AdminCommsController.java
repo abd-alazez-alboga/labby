@@ -40,7 +40,9 @@ public class AdminCommsController {
    * @param rideId the ride
    * @param before the previous page's cursor
    * @param size page size (1..100)
-   * @return 200 with one page plus the window facts; 404 ride unknown or no thread
+   * @param memberId the member's thread — required on a shared ride (M12)
+   * @return 200 with one page plus the window facts; 400 member_required; 404 ride / member unknown
+   *     or no thread
    */
   @GetMapping("/rides/{rideId}/chat")
   @PreAuthorize("hasAuthority('support:view')")
@@ -48,9 +50,10 @@ public class AdminCommsController {
   public ResponseEntity<AdminChatLogDto> chatLog(
       @PathVariable UUID rideId,
       @RequestParam(required = false) String before,
-      @RequestParam(defaultValue = "50") int size) {
+      @RequestParam(defaultValue = "50") int size,
+      @RequestParam(required = false) UUID memberId) {
     return ResponseEntity.ok(
-        chatService.adminLog(SecurityUtils.currentUserId(), rideId, before, size));
+        chatService.adminLog(SecurityUtils.currentUserId(), rideId, before, size, memberId));
   }
 
   /**

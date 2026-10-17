@@ -34,14 +34,17 @@ public class RatingsController {
    *
    * @param rideId the ride
    * @param request score 1..5 and optional comment
-   * @return 204; 403 not a party; 404 unknown ride; 409 ride_not_completed, rating_window_closed or
-   *     rating_already_submitted
+   * @param memberId the rated member — required from the driver of a shared ride (M12)
+   * @return 204; 400 member_required; 403 not a party; 404 unknown ride / member; 409
+   *     ride_not_completed, rating_window_closed or rating_already_submitted
    */
   @PostMapping("/rides/{rideId}/rating")
   @Operation(summary = "Rate the counterpart of a completed ride (UC-S-17)")
   public ResponseEntity<Void> rate(
-      @PathVariable UUID rideId, @Valid @RequestBody RatingRequestDto request) {
-    ratingService.rate(SecurityUtils.currentUserId(), rideId, request);
+      @PathVariable UUID rideId,
+      @Valid @RequestBody RatingRequestDto request,
+      @RequestParam(required = false) UUID memberId) {
+    ratingService.rate(SecurityUtils.currentUserId(), rideId, request, memberId);
     return ResponseEntity.noContent().build();
   }
 

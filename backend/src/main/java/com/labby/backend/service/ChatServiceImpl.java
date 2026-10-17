@@ -10,8 +10,10 @@ import com.labby.backend.dto.QuickReplyDto;
 import com.labby.backend.enums.ChatMessageKind;
 import com.labby.backend.enums.ChatWindowState;
 import com.labby.backend.enums.NotificationEvent;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.Role;
+import com.labby.backend.enums.SharedMemberStatus;
 import com.labby.backend.exception.ForbiddenException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
@@ -19,12 +21,14 @@ import com.labby.backend.model.ChatMessage;
 import com.labby.backend.model.ChatQuickReply;
 import com.labby.backend.model.ChatThread;
 import com.labby.backend.model.Ride;
+import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.ChatMessageRepository;
 import com.labby.backend.repository.ChatQuickReplyRepository;
 import com.labby.backend.repository.ChatThreadRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.util.PageCursor;
 import java.time.Clock;
@@ -51,6 +55,9 @@ import org.springframework.transaction.annotation.Transactional;
  * com.labby.backend.exception.BusinessException} codes; frames go through the {@link
  * RealtimePublisher} (after commit, every instance); the recipient's push on every new message
  * through the notification outbox (category {@code chat}, ride-critical while the ride is active).
+ * A thread is one ride x rider (V21): on a shared ride each member has a private thread with the
+ * driver, who addresses it by {@code memberId}; server frames to the driver carry that {@code
+ * memberId}.
  */
 @Service
 @Transactional
@@ -68,6 +75,8 @@ public class ChatServiceImpl implements ChatService {
   private final ChatMessageRepository chatMessageRepository;
   private final ChatQuickReplyRepository chatQuickReplyRepository;
   private final RideRepository rideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
+  private final RideParties rideParties;
   private final UserRepository userRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final OnboardingAssembler onboardingAssembler;
@@ -78,10 +87,10 @@ public class ChatServiceImpl implements ChatService {
 
   @Override
   @Transactional(readOnly = true)
-  public ChatThreadDto thread(UUID userId, UUID rideId) {
-    Ride ride = partyRide(userId, rideId);
-    RideParty caller = partyOf(ride, userId);
-    ChatThread thread = requireThread(rideId);
+  public ChatThreadDto thread(UUID userId, UUID rideId, UUID memberId) {
+    Party party = party(userId, rideId, memberId);
+    RideParty caller = party.side();
+    ChatThread thread = requireThread(party);
     Instant now = clock.instant();
     ChatWindowState windowState = thread.windowState(now);
     UUID marker = marker(thread, caller);
@@ -103,18 +112,17 @@ public class ChatServiceImpl implements ChatService {
         unread,
         marker,
         marker(thread, caller.other()),
-        counterpart(ride, caller, windowState));
+        counterpart(party, windowState));
   }
 
   @Override
   @Transactional(readOnly = true)
   public ChatMessagePageDto messages(
-      UUID userId, UUID rideId, String before, UUID after, int size) {
+      UUID userId, UUID rideId, String before, UUID after, int size, UUID memberId) {
     if (before != null && after != null) {
       throw new InvalidRequestException("Use at most one of before and after");
     }
-    partyRide(userId, rideId);
-    ChatThread thread = requireThread(rideId);
+    ChatThread thread = requireThread(party(userId, rideId, memberId));
     int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
     if (after != null) {
       // Reconnect backfill: everything newer than the anchor, oldest first (lossless with the
@@ -151,10 +159,10 @@ public class ChatServiceImpl implements ChatService {
   }
 
   @Override
-  public void markRead(UUID userId, UUID rideId, UUID lastReadMessageId) {
-    Ride ride = partyRide(userId, rideId);
-    RideParty caller = partyOf(ride, userId);
-    ChatThread thread = requireThread(rideId);
+  public void markRead(UUID userId, UUID rideId, UUID lastReadMessageId, UUID memberId) {
+    Party party = party(userId, rideId, memberId);
+    RideParty caller = party.side();
+    ChatThread thread = requireThread(party);
     ChatMessage target =
         chatMessageRepository
             .findByIdAndThreadId(lastReadMessageId, thread.getId())
@@ -181,9 +189,12 @@ public class ChatServiceImpl implements ChatService {
     Map<String, Object> frame = new LinkedHashMap<>();
     frame.put("type", "chat.read");
     frame.put("rideId", rideId.toString());
+    if (caller == RideParty.RIDER && party.memberId() != null) {
+      frame.put("memberId", party.memberId().toString()); // the driver's thread key
+    }
     frame.put("readerRole", caller.getValue());
     frame.put("lastReadMessageId", target.getId().toString());
-    realtimePublisher.publish(List.of(counterpartUserId(ride, caller)), frame);
+    realtimePublisher.publish(List.of(party.counterpartUserId()), frame);
   }
 
   @Override
@@ -212,10 +223,8 @@ public class ChatServiceImpl implements ChatService {
   public ChatMessageDto send(UUID userId, SendRequest request) {
     Validated validated = validate(request);
     Ride ride = rideRepository.findById(request.rideId()).orElseThrow(ChatServiceImpl::notInRide);
-    RideParty sender = partyOf(ride, userId);
-    if (sender == null) {
-      throw notInRide();
-    }
+    Party party = party(ride, userId, request.memberId());
+    RideParty sender = party.side();
     if (validated.quickReply() != null
         && !ChatQuickReply.AUDIENCE_BOTH.equals(validated.quickReply().getAudience())
         && !sender.getValue().equals(validated.quickReply().getAudience())) {
@@ -224,7 +233,7 @@ public class ChatServiceImpl implements ChatService {
     }
     ChatThread thread =
         chatThreadRepository
-            .findByRideId(ride.getId())
+            .findByRideIdAndRiderUserId(ride.getId(), party.riderUserId())
             .orElseThrow(
                 () ->
                     new InvalidRequestException("The chat opens when a driver accepts the ride")
@@ -255,30 +264,45 @@ public class ChatServiceImpl implements ChatService {
                   thread.getId(), userId, request.clientMsgId())
               .orElseThrow();
       if (inserted == 1) {
-        fanOut(ride, sender, userId, stored);
+        fanOut(party, userId, stored);
       } else {
         // Lost a concurrent duplicate's race: the winner already fanned out — echo only.
-        echo(ride, userId, stored);
+        echo(party, userId, stored);
       }
       return toDto(stored, userId);
     }
     // UC-S-13 reconnection: the resend's echo is the already-stored message — one row, no error.
-    echo(ride, userId, existing.get());
+    echo(party, userId, existing.get());
     return toDto(existing.get(), userId);
   }
 
   /** The dedup answer: the sender's echo of the already-stored message, nothing queued. */
-  private void echo(Ride ride, UUID senderUserId, ChatMessage stored) {
+  private void echo(Party party, UUID senderUserId, ChatMessage stored) {
     realtimePublisher.publish(
-        List.of(senderUserId), messageFrame(ride.getId(), stored, quickReplyOf(stored), true));
+        List.of(senderUserId),
+        messageFrame(
+            party.ride().getId(),
+            stored,
+            quickReplyOf(stored),
+            true,
+            party.memberIdFor(party.side())));
   }
 
   @Override
-  public AdminChatLogDto adminLog(UUID adminUserId, UUID rideId, String before, int size) {
-    if (!rideRepository.existsById(rideId)) {
-      throw new ResourceNotFoundException("Ride not found");
-    }
-    ChatThread thread = requireThread(rideId);
+  public AdminChatLogDto adminLog(
+      UUID adminUserId, UUID rideId, String before, int size, UUID memberId) {
+    Ride ride =
+        rideRepository
+            .findById(rideId)
+            .orElseThrow(() -> new ResourceNotFoundException("Ride not found"));
+    UUID riderUserId =
+        ride.getKind() == RideKind.SHARED
+            ? rideParties.driverTarget(ride, memberId, RideParties.DISPATCHED).getRiderUserId()
+            : ride.getRiderUserId();
+    ChatThread thread =
+        chatThreadRepository
+            .findByRideIdAndRiderUserId(rideId, riderUserId)
+            .orElseThrow(() -> new ResourceNotFoundException(NO_THREAD));
     auditService.record(adminUserId, "chat.view", "ride", rideId.toString(), null, null);
     int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
     List<ChatMessage> rows;
@@ -310,21 +334,45 @@ public class ChatServiceImpl implements ChatService {
 
   @Override
   public void openThread(Ride ride, Instant now) {
-    if (!chatThreadRepository.existsByRideId(ride.getId())) {
-      chatThreadRepository.save(ChatThread.builder().rideId(ride.getId()).openedAt(now).build());
+    List<UUID> riders =
+        ride.getKind() == RideKind.SHARED
+            ? sharedRideMemberRepository
+                .findByRideIdAndStatusOrderByJoinedAtAsc(ride.getId(), SharedMemberStatus.JOINED)
+                .stream()
+                .map(SharedRideMember::getRiderUserId)
+                .toList()
+            : List.of(ride.getRiderUserId());
+    for (UUID riderUserId : riders) {
+      if (!chatThreadRepository.existsByRideIdAndRiderUserId(ride.getId(), riderUserId)) {
+        chatThreadRepository.save(
+            ChatThread.builder()
+                .rideId(ride.getId())
+                .riderUserId(riderUserId)
+                .openedAt(now)
+                .build());
+      }
     }
   }
 
   @Override
   public void closeThread(UUID rideId, Instant terminalAt) {
+    for (ChatThread thread : chatThreadRepository.findByRideId(rideId)) {
+      close(thread, terminalAt);
+    }
+  }
+
+  @Override
+  public void closeMemberThread(UUID rideId, UUID riderUserId, Instant exitAt) {
     chatThreadRepository
-        .findByRideId(rideId)
-        .filter(thread -> thread.getClosedAt() == null)
-        .ifPresent(
-            thread -> {
-              thread.setClosedAt(terminalAt.plus(CLOSE_TAIL));
-              chatThreadRepository.save(thread);
-            });
+        .findByRideIdAndRiderUserId(rideId, riderUserId)
+        .ifPresent(thread -> close(thread, exitAt));
+  }
+
+  private void close(ChatThread thread, Instant terminalAt) {
+    if (thread.getClosedAt() == null) {
+      thread.setClosedAt(terminalAt.plus(CLOSE_TAIL));
+      chatThreadRepository.save(thread);
+    }
   }
 
   // ---- send internals --------------------------------------------------------------------------
@@ -375,15 +423,23 @@ public class ChatServiceImpl implements ChatService {
    * live socket says nothing about whether the chat is on screen — the apps suppress the banner
    * themselves while that ride's chat is open.
    */
-  private void fanOut(Ride ride, RideParty sender, UUID senderUserId, ChatMessage stored) {
-    UUID recipient = counterpartUserId(ride, sender);
+  private void fanOut(Party party, UUID senderUserId, ChatMessage stored) {
+    Ride ride = party.ride();
+    RideParty sender = party.side();
+    UUID recipient = party.counterpartUserId();
     ChatQuickReply quickReply = quickReplyOf(stored);
     realtimePublisher.publish(
-        List.of(senderUserId), messageFrame(ride.getId(), stored, quickReply, true));
+        List.of(senderUserId),
+        messageFrame(ride.getId(), stored, quickReply, true, party.memberIdFor(sender)));
     realtimePublisher.publish(
-        List.of(recipient), messageFrame(ride.getId(), stored, quickReply, false));
+        List.of(recipient),
+        messageFrame(ride.getId(), stored, quickReply, false, party.memberIdFor(sender.other())));
     Map<String, Object> params = new LinkedHashMap<>();
     params.put("rideId", ride.getId().toString());
+    UUID recipientMemberId = party.memberIdFor(sender.other());
+    if (recipientMemberId != null) {
+      params.put("memberId", recipientMemberId.toString()); // the driver opens that thread
+    }
     params.put("senderName", RideAssembler.firstName(name(senderUserId)));
     params.put("recipientRole", sender.other().getValue());
     // The ride-critical ruling: active-ride chat pushes bypass a muted chat category.
@@ -402,10 +458,17 @@ public class ChatServiceImpl implements ChatService {
    * catalog holds only its audience, so the counterpart's codes are unknown to it.
    */
   private static Map<String, Object> messageFrame(
-      UUID rideId, ChatMessage message, ChatQuickReply quickReply, boolean toSender) {
+      UUID rideId,
+      ChatMessage message,
+      ChatQuickReply quickReply,
+      boolean toSender,
+      UUID memberId) {
     Map<String, Object> frame = new LinkedHashMap<>();
     frame.put("type", "chat.message");
     frame.put("rideId", rideId.toString());
+    if (memberId != null) {
+      frame.put("memberId", memberId.toString()); // frames to the driver of a shared ride
+    }
     frame.put("messageId", message.getId().toString());
     if (toSender) {
       // The sender recognizes its echo (= the delivery ack) by clientMsgId.
@@ -432,35 +495,56 @@ public class ChatServiceImpl implements ChatService {
 
   // ---- shared internals ------------------------------------------------------------------------
 
-  /** The ride, 404 when unknown, 403 when the caller is neither party. */
-  private Ride partyRide(UUID userId, UUID rideId) {
+  /**
+   * The caller's side of one thread.
+   *
+   * @param ride the ride
+   * @param side the caller's side
+   * @param riderUserId the thread's rider (the ride's rider, or one member's)
+   * @param memberId that member on a shared ride, else null
+   */
+  private record Party(Ride ride, RideParty side, UUID riderUserId, UUID memberId) {
+
+    UUID counterpartUserId() {
+      return side == RideParty.RIDER ? ride.getDriverUserId() : riderUserId;
+    }
+
+    /** The {@code memberId} a frame to {@code recipient} carries: only the driver's frames. */
+    UUID memberIdFor(RideParty recipient) {
+      return recipient == RideParty.DRIVER ? memberId : null;
+    }
+  }
+
+  /** The caller's thread side: 404 unknown ride, 403 {@code not_in_ride}. */
+  private Party party(UUID userId, UUID rideId, UUID memberId) {
     Ride ride =
         rideRepository.findById(rideId).orElseThrow(() -> new ResourceNotFoundException(NO_THREAD));
-    if (partyOf(ride, userId) == null) {
-      throw (ForbiddenException)
-          new ForbiddenException("Not a party to this ride").withCode("not_in_ride");
-    }
-    return ride;
+    return party(ride, userId, memberId);
   }
 
-  private ChatThread requireThread(UUID rideId) {
+  /**
+   * The caller's thread side on a known ride. A member keeps their own thread after an early exit
+   * (its window closes 24 h after it); the driver names the member on a shared ride.
+   */
+  private Party party(Ride ride, UUID userId, UUID memberId) {
+    RideParty side = rideParties.sideOf(ride, userId, RideParties.DISPATCHED);
+    if (side == null) {
+      throw notInRide();
+    }
+    if (ride.getKind() != RideKind.SHARED) {
+      return new Party(ride, side, ride.getRiderUserId(), null);
+    }
+    SharedRideMember member =
+        side == RideParty.DRIVER
+            ? rideParties.driverTarget(ride, memberId, RideParties.DISPATCHED)
+            : rideParties.member(ride, userId, RideParties.DISPATCHED).orElseThrow();
+    return new Party(ride, side, member.getRiderUserId(), member.getId());
+  }
+
+  private ChatThread requireThread(Party party) {
     return chatThreadRepository
-        .findByRideId(rideId)
+        .findByRideIdAndRiderUserId(party.ride().getId(), party.riderUserId())
         .orElseThrow(() -> new ResourceNotFoundException(NO_THREAD));
-  }
-
-  private static RideParty partyOf(Ride ride, UUID userId) {
-    if (userId.equals(ride.getRiderUserId())) {
-      return RideParty.RIDER;
-    }
-    if (userId.equals(ride.getDriverUserId())) {
-      return RideParty.DRIVER;
-    }
-    return null;
-  }
-
-  private static UUID counterpartUserId(Ride ride, RideParty caller) {
-    return caller == RideParty.RIDER ? ride.getDriverUserId() : ride.getRiderUserId();
   }
 
   private static UUID marker(ChatThread thread, RideParty party) {
@@ -470,9 +554,9 @@ public class ChatServiceImpl implements ChatService {
   }
 
   /** CALL-01: the counterpart card; the real phone only while the window allows writes. */
-  private ChatCounterpartDto counterpart(Ride ride, RideParty caller, ChatWindowState state) {
-    RideParty role = caller.other();
-    User user = userRepository.findById(counterpartUserId(ride, caller)).orElseThrow();
+  private ChatCounterpartDto counterpart(Party party, ChatWindowState state) {
+    RideParty role = party.side().other();
+    User user = userRepository.findById(party.counterpartUserId()).orElseThrow();
     String photoUrl = null;
     if (role == RideParty.DRIVER) {
       FileRefDto photo = onboardingAssembler.profilePhoto(user);

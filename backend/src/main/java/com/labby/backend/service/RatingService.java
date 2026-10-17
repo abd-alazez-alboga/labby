@@ -22,15 +22,16 @@ public interface RatingService {
    * Stores the caller's rating of the ride's counterpart. USR-05 / RATE-03 are NOT evaluated here
    * (review B-H1) — the daily {@link RatingSnapshotJob} does.
    *
-   * @param userId the caller (the ride's rider or driver)
+   * @param userId the caller (the ride's rider or driver; a completed member of a shared ride)
    * @param rideId the ride
    * @param request score and optional comment
+   * @param memberId the rated member, required from the driver of a shared ride (M12), else ignored
    * @throws com.labby.backend.exception.ResourceNotFoundException unknown ride
    * @throws com.labby.backend.exception.ForbiddenException not a party
    * @throws com.labby.backend.exception.ConflictException {@code ride_not_completed}, {@code
    *     rating_window_closed}, {@code rating_already_submitted}
    */
-  void rate(UUID userId, UUID rideId, RatingRequestDto request);
+  void rate(UUID userId, UUID rideId, RatingRequestDto request, UUID memberId);
 
   /**
    * The caller's completed rides on a side still inside the window and unrated, newest first.
@@ -73,18 +74,20 @@ public interface RatingService {
    *
    * @param ride the ride
    * @param side the caller's side
+   * @param userId the caller
    * @return the state
    */
-  MyRatingDto myRating(Ride ride, RideParty side);
+  MyRatingDto myRating(Ride ride, RideParty side, UUID userId);
 
   /**
    * The caller's own rating states for a page of rides (history), with one ratings query.
    *
    * @param rides the rides
    * @param side the caller's side
+   * @param userId the caller
    * @return the state per ride id
    */
-  Map<UUID, MyRatingDto> myRatings(List<Ride> rides, RideParty side);
+  Map<UUID, MyRatingDto> myRatings(List<Ride> rides, RideParty side, UUID userId);
 
   /**
    * Rewrites the RATE-02 snapshots the refresh rule allows (the daily job; review B-W1): none yet,

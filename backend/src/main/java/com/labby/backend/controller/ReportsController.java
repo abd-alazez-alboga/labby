@@ -51,15 +51,18 @@ public class ReportsController {
    *
    * @param rideId the ride
    * @param request category, text and photos
-   * @return 201 with the reporter's view; 400 invalid_category / photos; 403 not a party; 404
-   *     unknown ride; 409 no_counterpart or report_already_submitted
+   * @param memberId the reported member — required from the driver of a shared ride (M12)
+   * @return 201 with the reporter's view; 400 invalid_category / photos / member_required; 403 not
+   *     a party; 404 unknown ride / member; 409 no_counterpart or report_already_submitted
    */
   @PostMapping("/rides/{rideId}/reports")
   @Operation(summary = "Report the counterpart of a ride (UC-S-18)")
   public ResponseEntity<OwnReportDto> submit(
-      @PathVariable UUID rideId, @Valid @RequestBody ReportRequestDto request) {
+      @PathVariable UUID rideId,
+      @Valid @RequestBody ReportRequestDto request,
+      @RequestParam(required = false) UUID memberId) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(reportService.submit(SecurityUtils.currentUserId(), rideId, request));
+        .body(reportService.submit(SecurityUtils.currentUserId(), rideId, request, memberId));
   }
 
   /**

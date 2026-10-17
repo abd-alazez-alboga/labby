@@ -221,7 +221,9 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   /**
    * RATE-01 pending prompts: the caller's completed rides on one side, completed at or after {@code
-   * completedSince} (the 7-day window) and not yet rated by that side, newest first.
+   * completedSince} (the 7-day window), with a counterpart the caller has not rated yet, newest
+   * first. M12: a rider-side caller of a shared ride is a {@code completed} member; the driver of a
+   * shared ride has one counterpart per {@code completed} member.
    *
    * @param userId the caller
    * @param side {@code rider} or {@code driver}
@@ -233,10 +235,27 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
           """
           SELECT r.* FROM rides r
           WHERE r.state = 'completed' AND r.completed_at >= :completedSince
-            AND ((:side = 'rider' AND r.rider_user_id = :userId)
-                 OR (:side = 'driver' AND r.driver_user_id = :userId))
-            AND NOT EXISTS (SELECT 1 FROM ratings g
-                            WHERE g.ride_id = r.ride_id AND g.rater_role = :side)
+            AND ((:side = 'rider'
+                  AND ((r.kind <> 'shared' AND r.rider_user_id = :userId)
+                       OR (r.kind = 'shared'
+                           AND EXISTS (SELECT 1 FROM shared_ride_members m
+                                       WHERE m.ride_id = r.ride_id AND m.rider_user_id = :userId
+                                         AND m.status = 'completed')))
+                  AND NOT EXISTS (SELECT 1 FROM ratings g
+                                  WHERE g.ride_id = r.ride_id AND g.rater_user_id = :userId))
+                 OR (:side = 'driver' AND r.driver_user_id = :userId
+                     AND ((r.kind <> 'shared'
+                           AND NOT EXISTS (SELECT 1 FROM ratings g
+                                           WHERE g.ride_id = r.ride_id
+                                             AND g.rater_user_id = :userId))
+                          OR (r.kind = 'shared'
+                              AND EXISTS (SELECT 1 FROM shared_ride_members m
+                                          WHERE m.ride_id = r.ride_id AND m.status = 'completed'
+                                            AND NOT EXISTS (SELECT 1 FROM ratings g
+                                                            WHERE g.ride_id = r.ride_id
+                                                              AND g.rater_user_id = :userId
+                                                              AND g.rated_user_id
+                                                                  = m.rider_user_id))))))
           ORDER BY r.completed_at DESC
           """,
       nativeQuery = true)

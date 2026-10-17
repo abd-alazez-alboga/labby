@@ -82,20 +82,21 @@ class CommsMigrationIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
-  @DisplayName("CHAT-01: one thread per ride; a window closing before it opened is refused")
+  @DisplayName("CHAT-01: one thread per ride x rider; a window closing before it opened is refused")
   void shouldEnforceThreadShape() {
     UUID ride = insertAcceptedRide();
     insertThread(ride);
     assertThatThrownBy(() -> insertThread(ride))
         .isInstanceOf(DataIntegrityViolationException.class)
-        .hasMessageContaining("chat_threads_ride_id_key");
+        .hasMessageContaining("uq_chat_threads_ride_rider");
     UUID other = insertAcceptedRide();
     UUID thread = UUID.randomUUID();
     assertThatThrownBy(
             () ->
                 jdbcTemplate.update(
-                    "INSERT INTO chat_threads (chat_thread_id, ride_id, opened_at, closed_at)"
-                        + " VALUES (?, ?, now(), now() - interval '1 hour')",
+                    "INSERT INTO chat_threads (chat_thread_id, ride_id, rider_user_id, opened_at,"
+                        + " closed_at) SELECT ?, ride_id, rider_user_id, now(),"
+                        + " now() - interval '1 hour' FROM rides WHERE ride_id = ?",
                     thread,
                     other))
         .isInstanceOf(DataIntegrityViolationException.class)
@@ -267,7 +268,10 @@ class CommsMigrationIntegrationTest extends AbstractIntegrationTest {
   private UUID insertThread(UUID rideId) {
     UUID threadId = UUID.randomUUID();
     jdbcTemplate.update(
-        "INSERT INTO chat_threads (chat_thread_id, ride_id) VALUES (?, ?)", threadId, rideId);
+        "INSERT INTO chat_threads (chat_thread_id, ride_id, rider_user_id)"
+            + " SELECT ?, ride_id, rider_user_id FROM rides WHERE ride_id = ?",
+        threadId,
+        rideId);
     return threadId;
   }
 

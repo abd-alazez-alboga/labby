@@ -340,6 +340,8 @@ public class SharedRideServiceImpl implements SharedRideService {
       // RIDE-07 per member: collected by THEIR payment method (money-v1).
       rideMoneyService.collectMemberFee(ride, member);
     }
+    // CHAT-01 per thread: the member's private thread closes 24 h after their exit.
+    chatService.closeMemberThread(rideId, userId, now);
     shared = freeSeats(shared, member);
     if (joined(rideId).isEmpty()) {
       endWithoutRiders(ride, request.reason(), now);
@@ -413,6 +415,7 @@ public class SharedRideServiceImpl implements SharedRideService {
     if (member.getCancellationFee() != null) {
       rideMoneyService.collectMemberFee(ride, member);
     }
+    chatService.closeMemberThread(rideId, member.getRiderUserId(), now);
     SharedRide shared = sharedRideRepository.findById(rideId).orElseThrow();
     freeSeats(shared, member);
     Map<String, Object> params = new HashMap<>();

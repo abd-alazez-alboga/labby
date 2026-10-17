@@ -79,6 +79,7 @@ public class ReportServiceImpl implements ReportService {
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final ReportPhotoRepository reportPhotoRepository;
   private final RideRepository rideRepository;
+  private final RideParties rideParties;
   private final UserRepository userRepository;
   private final StoredFileRepository storedFileRepository;
   private final DriverFileService driverFileService;
@@ -96,12 +97,12 @@ public class ReportServiceImpl implements ReportService {
   }
 
   @Override
-  public OwnReportDto submit(UUID userId, UUID rideId, ReportRequestDto request) {
+  public OwnReportDto submit(UUID userId, UUID rideId, ReportRequestDto request, UUID memberId) {
     Ride ride =
         rideRepository
             .findById(rideId)
             .orElseThrow(() -> new ResourceNotFoundException("Ride not found"));
-    RideParty side = sideOf(ride, userId);
+    RideParty side = rideParties.sideOf(ride, userId, RideParties.RIDING);
     if (side == null) {
       throw new ForbiddenException("Not a party to this ride");
     }
@@ -114,7 +115,11 @@ public class ReportServiceImpl implements ReportService {
                   "This category is not available for a " + side.getValue() + " report")
               .withCode("invalid_category");
     }
-    if (reportRepository.existsByRideIdAndReporterUserId(rideId, userId)) {
+    // M12: the driver of a shared ride reports one member — any who was with the ride after
+    // dispatch (a no-show or a cancelled member included).
+    UUID reportedUserId = rideParties.counterpart(ride, side, memberId, RideParties.DISPATCHED);
+    if (reportRepository.existsByRideIdAndReporterUserIdAndReportedUserId(
+        rideId, userId, reportedUserId)) {
       throw alreadyReported();
     }
     List<UUID> photoIds = request.photoFileIds() == null ? List.of() : request.photoFileIds();
@@ -128,10 +133,7 @@ public class ReportServiceImpl implements ReportService {
                   .rideId(rideId)
                   .reporterUserId(userId)
                   .reporterRole(side)
-                  .reportedUserId(
-                      reportedRole == RideParty.DRIVER
-                          ? ride.getDriverUserId()
-                          : ride.getRiderUserId())
+                  .reportedUserId(reportedUserId)
                   .reportedRole(reportedRole)
                   .category(request.category())
                   .description(
@@ -149,10 +151,11 @@ public class ReportServiceImpl implements ReportService {
                 .build());
       }
     } catch (DataIntegrityViolationException ex) {
-      // A concurrent submission won uq_reports_ride_reporter, or a photo was used meanwhile
+      // A concurrent submission won uq_reports_ride_reporter_reported, or a photo was used
+      // meanwhile
       // (the failed statement aborted the transaction, so the constraint name decides).
       String cause = String.valueOf(ex.getMostSpecificCause().getMessage());
-      if (cause.contains("uq_reports_ride_reporter")) {
+      if (cause.contains("uq_reports_ride_reporter_reported")) {
         throw alreadyReported();
       }
       throw new InvalidRequestException("A photo is already attached to another report");
@@ -378,16 +381,6 @@ public class ReportServiceImpl implements ReportService {
         report.getStatus(),
         report.getCreatedAt(),
         report.getResolvedAt());
-  }
-
-  private static RideParty sideOf(Ride ride, UUID userId) {
-    if (userId.equals(ride.getRiderUserId())) {
-      return RideParty.RIDER;
-    }
-    if (userId.equals(ride.getDriverUserId())) {
-      return RideParty.DRIVER;
-    }
-    return null;
   }
 
   private static ConflictException conflict(String message, String code) {

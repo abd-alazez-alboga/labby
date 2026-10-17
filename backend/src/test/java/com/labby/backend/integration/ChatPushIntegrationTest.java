@@ -116,7 +116,7 @@ class ChatPushIntegrationTest extends AbstractRideIntegrationTest {
   private void send(Account sender, UUID rideId, String body) {
     chatService.send(
         sender.userId(),
-        new ChatService.SendRequest(rideId, UUID.randomUUID(), "text", body, null));
+        new ChatService.SendRequest(rideId, UUID.randomUUID(), "text", body, null, null));
   }
 
   private String pushStatus(UUID userId) {

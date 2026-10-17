@@ -34,12 +34,15 @@ public class ChatController {
    * The ride's chat thread (UC-S-13/14).
    *
    * @param rideId the ride
-   * @return 200 with the thread; 403 not a party; 404 no thread (not accepted yet)
+   * @param memberId the member's thread — required from the driver of a shared ride (M12)
+   * @return 200 with the thread; 400 member_required; 403 not a party; 404 no thread (not accepted
+   *     yet) or unknown member
    */
   @GetMapping("/rides/{rideId}/chat")
   @Operation(summary = "The ride's chat thread — window state, counterpart, unread count")
-  public ResponseEntity<ChatThreadDto> thread(@PathVariable UUID rideId) {
-    return ResponseEntity.ok(chatService.thread(SecurityUtils.currentUserId(), rideId));
+  public ResponseEntity<ChatThreadDto> thread(
+      @PathVariable UUID rideId, @RequestParam(required = false) UUID memberId) {
+    return ResponseEntity.ok(chatService.thread(SecurityUtils.currentUserId(), rideId, memberId));
   }
 
   /**
@@ -49,7 +52,8 @@ public class ChatController {
    * @param before the previous page's cursor
    * @param after the backfill anchor message id
    * @param size page size (1..100)
-   * @return 200 with one page; 400 both cursors; 403 not a party; 404 no thread
+   * @param memberId the member's thread — required from the driver of a shared ride (M12)
+   * @return 200 with one page; 400 both cursors / member_required; 403 not a party; 404 no thread
    */
   @GetMapping("/rides/{rideId}/chat/messages")
   @Operation(summary = "Chat history page / reconnect backfill")
@@ -57,9 +61,10 @@ public class ChatController {
       @PathVariable UUID rideId,
       @RequestParam(required = false) String before,
       @RequestParam(required = false) UUID after,
-      @RequestParam(defaultValue = "50") int size) {
+      @RequestParam(defaultValue = "50") int size,
+      @RequestParam(required = false) UUID memberId) {
     return ResponseEntity.ok(
-        chatService.messages(SecurityUtils.currentUserId(), rideId, before, after, size));
+        chatService.messages(SecurityUtils.currentUserId(), rideId, before, after, size, memberId));
   }
 
   /**
@@ -67,13 +72,17 @@ public class ChatController {
    *
    * @param rideId the ride
    * @param request the newest read message
-   * @return 204; 403 not a party; 404 no thread or the message is not in it
+   * @param memberId the member's thread — required from the driver of a shared ride (M12)
+   * @return 204; 400 member_required; 403 not a party; 404 no thread or the message is not in it
    */
   @PostMapping("/rides/{rideId}/chat/read")
   @Operation(summary = "Record the caller's read marker")
   public ResponseEntity<Void> read(
-      @PathVariable UUID rideId, @Valid @RequestBody ChatReadRequestDto request) {
-    chatService.markRead(SecurityUtils.currentUserId(), rideId, request.lastReadMessageId());
+      @PathVariable UUID rideId,
+      @Valid @RequestBody ChatReadRequestDto request,
+      @RequestParam(required = false) UUID memberId) {
+    chatService.markRead(
+        SecurityUtils.currentUserId(), rideId, request.lastReadMessageId(), memberId);
     return ResponseEntity.noContent().build();
   }
 
