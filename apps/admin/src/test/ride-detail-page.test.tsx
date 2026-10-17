@@ -294,6 +294,65 @@ describe('ride detail page (UC-A-18, CHAT-03)', () => {
     expect(asked).toEqual(['m-rana', 'm-omar']);
   });
 
+  it('drops a late "earlier messages" answer after switching member (review W11)', async () => {
+    const shared = {
+      ...RIDE_DETAIL,
+      ride: {
+        ...RIDE_DETAIL.ride,
+        kind: 'shared' as const,
+        shared: {
+          members: [
+            {
+              memberId: 'm-rana',
+              firstName: 'Rana',
+              isCreator: true,
+              partySize: 1,
+              status: 'completed' as const,
+            },
+            {
+              memberId: 'm-omar',
+              firstName: 'Omar',
+              isCreator: false,
+              partySize: 1,
+              status: 'completed' as const,
+            },
+          ],
+        },
+      },
+    };
+    let releaseOlder: (response: Response) => void = () => {};
+    stubDetail(SUPPORT_VIEWER, (method, path, _init, url) => {
+      if (method === 'GET' && path === DETAIL_PATH) {
+        return jsonResponse(200, shared);
+      }
+      if (method === 'GET' && path === CHAT_PATH) {
+        const member = url?.searchParams.get('memberId');
+        if (url?.searchParams.get('before')) {
+          // Rana's older page: held until after the switch.
+          return new Promise<Response>((resolve) => {
+            releaseOlder = resolve;
+          });
+        }
+        return member === 'm-rana'
+          ? jsonResponse(200, { ...CHAT_LOG, nextCursor: 'cursor-1' })
+          : jsonResponse(200, { ...CHAT_LOG, items: [CHAT_LOG.items[2]], nextCursor: null });
+      }
+      return null;
+    });
+    renderShell();
+    const user = userEvent.setup();
+    const chat = (await screen.findByRole('heading', { name: 'Chat log' })).closest('section')!;
+    await within(chat).findAllByRole('listitem');
+    await user.click(within(chat).getByRole('button', { name: 'Load earlier messages' }));
+    await user.click(within(chat).getByRole('button', { name: 'Omar' }));
+    await waitFor(() => expect(within(chat).getAllByRole('listitem')).toHaveLength(1));
+    releaseOlder(jsonResponse(200, { ...CHAT_LOG, items: [CHAT_LOG.items[0]], nextCursor: null }));
+    // Rana's late page never lands under Omar's tab.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(within(chat).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(chat).getByRole('listitem')).toHaveTextContent('Stuck in traffic');
+  });
+
   it('renders Arabic with Western digits and the Arabic service type', async () => {
     await i18n.changeLanguage('ar');
     stubDetail();

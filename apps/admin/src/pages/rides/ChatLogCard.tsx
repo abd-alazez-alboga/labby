@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '../../api/client';
@@ -76,14 +76,24 @@ export function ChatLogCard({
     ? selected.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: selectedIndex + 1 })
     : riderName;
 
+  // M12 review W11: the thread on screen, for dropping an "earlier messages"
+  // answer that lands after the admin switched to another member.
+  const shownThread = useRef(memberId);
+  shownThread.current = memberId;
+
   async function loadOlder() {
     if (!log?.nextCursor) {
       return;
     }
+    const asked = memberId;
     setLoadingOlder(true);
     try {
-      const older = await getAdminChatLog(apiClient, rideId, log.nextCursor, memberId ?? undefined);
-      setLog({ ...older, items: [...older.items, ...log.items] });
+      const older = await getAdminChatLog(apiClient, rideId, log.nextCursor, asked ?? undefined);
+      if (shownThread.current === asked) {
+        setLog((current) =>
+          current ? { ...older, items: [...older.items, ...current.items] } : current,
+        );
+      }
     } catch {
       // Keep what is shown; the button stays for a retry.
     } finally {
