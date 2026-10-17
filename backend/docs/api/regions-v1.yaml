@@ -628,6 +628,13 @@ components:
           oneOf:
             - { $ref: '#/components/schemas/ScheduledSettings' }
             - { type: 'null' }
+        growthSettings:
+          description: >
+            M13 growth knobs (growth-v1.yaml, ruling 4 2026-10-18): referralReferrerAmount,
+            referralRefereeAmount (region currency; 0 = nothing paid), pointsPerCurrencyUnit,
+            redemptionThresholdPoints, redemptionRate. Null = the code defaults (0 / 0 / 1 /
+            10000 / 0.02). Keep-on-omit in the upsert, like scheduledSettings; audited.
+          type: [object, 'null']
         serviceTypeCount: { type: integer }
         surgeZoneCount: { type: integer }
     RegionUpsertRequest:

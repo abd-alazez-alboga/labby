@@ -81,7 +81,10 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     // The M8 money ledgers are append-only too (V12 triggers); one TRUNCATE handles their
     // cross-references (driver_ledger -> settlements / rider_dues). The money rows reference
     // rides and users, so they go before both.
-    jdbcTemplate.execute("TRUNCATE wallet_transactions, driver_ledger, settlements");
+    jdbcTemplate.execute(
+        "TRUNCATE promo_redemptions, promos, challenge_progress, challenges,"
+            + " points_transactions, points_accounts, user_badges, referrals, referral_codes,"
+            + " wallet_transactions, driver_ledger, settlements");
     jdbcTemplate.update("DELETE FROM rider_dues");
     jdbcTemplate.update("DELETE FROM driver_commission_rates");
     jdbcTemplate.update("DELETE FROM wallet_balances");

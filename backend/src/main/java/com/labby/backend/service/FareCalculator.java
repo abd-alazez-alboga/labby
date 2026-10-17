@@ -122,6 +122,35 @@ public class FareCalculator {
   }
 
   /**
+   * M13 (GRW-02, owner ruling 2026-10-18): the promo discount joins LAST — after extras, surge and
+   * the minimum-fare floor — clamped so the total never goes below zero.
+   *
+   * @param components the priced components (discount 0)
+   * @param discount the promo discount to apply
+   * @return the components with the discount recorded and the total reduced
+   */
+  public static FareComponentsDto applyDiscount(FareComponentsDto components, BigDecimal discount) {
+    BigDecimal applied = money(discount.min(components.total()));
+    if (applied.signum() <= 0) {
+      return components;
+    }
+    return new FareComponentsDto(
+        components.currency(),
+        components.baseFare(),
+        components.distanceFare(),
+        components.timeFare(),
+        components.surchargePercent(),
+        components.surchargeAmount(),
+        components.surgeMultiplier(),
+        components.surgeAmount(),
+        components.waitFare(),
+        components.pickupFee(),
+        components.minimumFareAdjustment(),
+        applied,
+        components.total().subtract(applied));
+  }
+
+  /**
    * The surcharge percent in force at a moment (highest of the covering windows, else 0).
    *
    * @param windows the region's surcharge windows

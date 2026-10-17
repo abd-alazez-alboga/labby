@@ -842,6 +842,13 @@ components:
                 Optional: the multiplier the rider was shown (EstimateResponse.surgeMultiplier),
                 at most 2 decimals (400 otherwise). A mismatch with the current value → 409
                 `surge_changed`; omitted → the current value is locked (PRC-02)
+            promoCode:
+              type: [string, 'null']
+              maxLength: 20
+              description: >
+                M13 (growth-v1): a promo to reserve on this ride — re-validated under the promo
+                lock; a refused code fails the booking with growth-v1's promo_* codes. The
+                discount lands in the fare breakdown's `discount` at completion.
     RetryRideRequest:
       type: object
       properties:

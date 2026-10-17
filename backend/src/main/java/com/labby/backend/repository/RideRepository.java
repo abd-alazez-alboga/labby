@@ -142,6 +142,24 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
   Optional<Ride> findFirstByRedispatchOfRideId(UUID redispatchOfRideId);
 
   /**
+   * How many rides the user completed as a rider (M13: first-ride promos, referral rewards, ride
+   * badges): own non-shared completed rides plus completed shared memberships (a shared creator is
+   * counted by their membership, never double).
+   */
+  @Query(
+      value =
+          """
+          SELECT (SELECT COUNT(*) FROM rides r
+                  WHERE r.rider_user_id = :userId AND r.state = 'completed' AND r.kind <> 'shared')
+               + (SELECT COUNT(*) FROM shared_ride_members m
+                  WHERE m.rider_user_id = :userId AND m.status = 'completed')
+          """,
+      nativeQuery = true)
+  long riderCompletedCount(@Param("userId") UUID userId);
+
+  long countByDriverUserIdAndState(UUID driverUserId, RideState state);
+
+  /**
    * Rides the dispatcher must act on now: new ({@code requested}), or {@code offering} with no open
    * offer (declined), an expired open offer, or past the give-up time.
    */

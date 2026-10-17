@@ -83,6 +83,7 @@ public class SharedRideServiceImpl implements SharedRideService {
       Set.of(RideState.REQUESTED, RideState.OFFERING, RideState.ACCEPTED, RideState.DRIVER_ARRIVED);
 
   private final RideAccess rideAccess;
+  private final PromoService promoService;
   private final RidePricing ridePricing;
   private final RideAssembler rideAssembler;
   private final RideEvents rideEvents;
@@ -184,6 +185,8 @@ public class SharedRideServiceImpl implements SharedRideService {
             .paymentMethod(request.paymentMethod())
             .joinedAt(now)
             .build());
+    // Ruling 2 (2026-10-18): the creator's promo discounts their own share at the split.
+    promoService.reserve(userId, ride, request.promoCode());
     if (shared.seatsLeft() == 0) {
       dispatch(ride, shared, SharedDispatchTrigger.FULL, now);
     } else {
@@ -284,6 +287,9 @@ public class SharedRideServiceImpl implements SharedRideService {
             .paymentMethod(request.paymentMethod())
             .joinedAt(now)
             .build());
+    // Ruling 2 (2026-10-18): the member's own promo, discounting their own share at the split;
+    // one promo per ride, first come (409 promo_already_applied).
+    promoService.reserve(userId, ride, request.promoCode());
     shared.setSeatsTaken((short) (shared.getSeatsTaken() + request.partySize()));
     shared = sharedRideRepository.saveAndFlush(shared);
     if (shared.seatsLeft() == 0) {

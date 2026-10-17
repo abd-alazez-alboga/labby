@@ -15,12 +15,14 @@ import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.DriverLedgerEntry;
 import com.labby.backend.model.Fare;
+import com.labby.backend.model.PromoRedemption;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RiderDue;
 import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.WalletTransaction;
 import com.labby.backend.repository.DriverLedgerRepository;
+import com.labby.backend.repository.PromoRedemptionRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderDueRepository;
@@ -74,6 +76,7 @@ public class RideMoneyServiceImpl implements RideMoneyService {
   private final RideRepository rideRepository;
   private final RiderDueRepository riderDueRepository;
   private final WalletTransactionRepository walletTransactionRepository;
+  private final PromoRedemptionRepository promoRedemptionRepository;
   private final DriverLedgerRepository driverLedgerRepository;
   private final SharedRideMemberRepository sharedRideMemberRepository;
   private final Clock clock;
@@ -86,7 +89,11 @@ public class RideMoneyServiceImpl implements RideMoneyService {
     List<UUID> drivers = new ArrayList<>(cancelledRidesDrivers(step.fromWallet()));
     drivers.add(ride.getDriverUserId());
     driverLedgerService.lockBalances(drivers, ride.getCurrency());
-    postFareEntry(ride, payer, fare.getTotal(), step.walletApplied(), now);
+    // Ruling 1 (2026-10-18): commission on the PRE-discount fare; the discount reaches the
+    // driver as a platform-funded promo_compensation credit (V25), so they are made whole.
+    BigDecimal promoDiscount = fare.getDiscount() == null ? BigDecimal.ZERO : fare.getDiscount();
+    postFareEntry(ride, payer, fare.getTotal(), step.walletApplied(), promoDiscount, now);
+    postPromoCompensation(ride, promoDiscount);
     for (RiderDue due : step.fromWallet()) {
       markCollected(due, ride, now);
     }
@@ -109,10 +116,24 @@ public class RideMoneyServiceImpl implements RideMoneyService {
     }
     drivers.add(ride.getDriverUserId());
     driverLedgerService.lockBalances(drivers, ride.getCurrency());
+    // Ruling 2: the redeeming member's share arrives discounted; their commission is computed on
+    // the pre-discount share and the driver gets the promo_compensation credit (ruling 1).
+    PromoRedemption redemption = promoRedemptionRepository.findByRideId(ride.getId()).orElse(null);
     for (int i = 0; i < members.size(); i++) {
       SharedRideMember member = members.get(i);
       WalletStep step = steps.get(i);
-      postFareEntry(ride, Payer.of(member), member.getShareAmount(), step.walletApplied(), now);
+      BigDecimal memberDiscount =
+          redemption != null && redemption.getUserId().equals(member.getRiderUserId())
+              ? redemption.getAmount()
+              : BigDecimal.ZERO;
+      postFareEntry(
+          ride,
+          Payer.of(member),
+          member.getShareAmount(),
+          step.walletApplied(),
+          memberDiscount,
+          now);
+      postPromoCompensation(ride, memberDiscount);
       for (RiderDue due : step.fromWallet()) {
         markCollected(due, ride, now);
       }
@@ -172,12 +193,20 @@ public class RideMoneyServiceImpl implements RideMoneyService {
    * COM-01: one fare entry per completed ride. The signed amount is what the platform owes the
    * driver for this trip: the wallet-held part minus the commission (cash in the driver's pocket
    * never passes through the ledger). A zero net posts nothing (the ledger forbids zero amounts).
+   * The commission and the itemized fare use the PRE-discount amount (M13 ruling 1); {@code total}
+   * is what the payer owes, after their promo.
    */
   private void postFareEntry(
-      Ride ride, Payer payer, BigDecimal total, BigDecimal walletApplied, Instant now) {
+      Ride ride,
+      Payer payer,
+      BigDecimal total,
+      BigDecimal walletApplied,
+      BigDecimal promoDiscount,
+      Instant now) {
     Region region = regionRepository.findById(ride.getRegionId()).orElseThrow();
+    BigDecimal preDiscount = total.add(promoDiscount);
     BigDecimal rate = commissionService.ratePercent(ride.getDriverUserId(), region, now);
-    BigDecimal commission = CommissionPolicy.commission(total, rate);
+    BigDecimal commission = CommissionPolicy.commission(preDiscount, rate);
     BigDecimal net = walletApplied.subtract(commission);
     if (net.signum() == 0) {
       return;
@@ -191,10 +220,25 @@ public class RideMoneyServiceImpl implements RideMoneyService {
             ride.getId(),
             null,
             null,
-            total,
+            preDiscount,
             rate,
             commission,
             payer.memberId()));
+  }
+
+  /** M13 ruling 1: the platform-funded discount, credited to the ride's driver (V25). */
+  private void postPromoCompensation(Ride ride, BigDecimal discount) {
+    if (discount.signum() <= 0) {
+      return;
+    }
+    driverLedgerService.post(
+        LedgerPosting.forRide(
+            ride.getDriverUserId(),
+            ride.getCurrency(),
+            discount,
+            DriverLedgerType.PROMO_COMPENSATION,
+            ride.getId(),
+            null));
   }
 
   @Override

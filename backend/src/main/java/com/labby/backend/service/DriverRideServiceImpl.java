@@ -72,6 +72,8 @@ public class DriverRideServiceImpl implements DriverRideService {
   private static final String NOT_FOUND = "Ride not found";
 
   private final RideAccess rideAccess;
+  private final PromoService promoService;
+  private final GrowthService growthService;
   private final RideAssembler rideAssembler;
   private final ChatService chatService;
   private final RideEvents rideEvents;
@@ -258,6 +260,14 @@ public class DriverRideServiceImpl implements DriverRideService {
             ride.getSurgeMultiplier(),
             rideExtrasCalculator.waitFare(ride, region),
             rideExtrasCalculator.pickupFee(ride, region));
+    // GRW-02: the promo discounts the final metered total, last, floor at zero (ruling 1-3). A
+    // shared ride's discount applies to the redeeming member's own SHARE instead (below).
+    if (ride.getKind() != RideKind.SHARED) {
+      components =
+          FareCalculator.applyDiscount(
+              components,
+              promoService.applyAtCompletion(ride, ride.getRiderUserId(), components.total()));
+    }
     Fare fare =
         fareRepository.saveAndFlush(
             Fare.builder()
@@ -287,7 +297,16 @@ public class DriverRideServiceImpl implements DriverRideService {
       // by their own method, with their own dues carried (money-v1 per member).
       ride.setPaymentStatus(PaymentStatus.SPLIT);
       List<SharedRideMember> members = sharedRideService.settleSplit(ride, fare);
+      // Ruling 2: only the redeeming member's own share is discounted, after the split.
+      for (SharedRideMember member : members) {
+        BigDecimal memberDiscount =
+            promoService.applyAtCompletion(ride, member.getRiderUserId(), member.getShareAmount());
+        if (memberDiscount.signum() > 0) {
+          member.setShareAmount(member.getShareAmount().subtract(memberDiscount));
+        }
+      }
       rideMoneyService.applySharedAtCompletion(ride, members);
+      growthService.onRideCompleted(ride, fare, members);
       ride = rideRepository.saveAndFlush(ride);
       rideEvents.stateChanged(ride);
       for (SharedRideMember member : members) {
@@ -307,6 +326,7 @@ public class DriverRideServiceImpl implements DriverRideService {
     // PAY-02 + COM-01 (M8): wallet application (may flip the status to paid_wallet), the fare
     // posting at the weekly rate, and every pending rider due carried along — one transaction.
     rideMoneyService.applyAtCompletion(ride, fare);
+    growthService.onRideCompleted(ride, fare, null);
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
     rideEvents.push(
@@ -406,6 +426,10 @@ public class DriverRideServiceImpl implements DriverRideService {
     if (redispatched != null && ride.getKind() == RideKind.SHARED) {
       // M12: the group moves to the new ride with its seats and parties.
       sharedRideService.copyForRedispatch(ride, redispatched, now);
+    }
+    if (redispatched != null) {
+      // M13: the promo follows the ride (the cancelled ride stops counting against the caps).
+      promoService.carry(ride, redispatched);
     }
     rideEvents.stateChanged(ride);
     Map<String, Object> pushParams = new HashMap<>();

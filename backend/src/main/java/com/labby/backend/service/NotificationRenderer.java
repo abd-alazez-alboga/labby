@@ -402,6 +402,42 @@ public class NotificationRenderer {
                   .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))));
       case SCHEDULED_REMINDER -> scheduledReminder(event, params);
       case SHARED_DISPATCHED, SHARED_CANCELLED, SHARED_MEMBER_NO_SHOW -> shared(event, params);
+      case BADGE_AWARDED ->
+          growth(
+              event,
+              params,
+              "New badge: " + badgeEn(params),
+              "You earned the \"" + badgeEn(params) + "\" badge. See it on your profile.",
+              "وسام جديد: " + badgeAr(params),
+              "حصلت على وسام \"" + badgeAr(params) + "\". شاهده في ملفك الشخصي.");
+      case CHALLENGE_COMPLETED ->
+          growth(
+              event,
+              params,
+              "Challenge complete!",
+              "You finished the challenge and earned " + text(params.get("points")) + " points.",
+              "أكملت التحدي!",
+              "أنهيت التحدي وحصلت على " + text(params.get("points")) + " نقطة.");
+      case REFERRAL_REWARDED ->
+          "referrer".equals(text(params.get("as")))
+              ? growth(
+                  event,
+                  params,
+                  "Your invite paid off",
+                  "Your friend took their first ride — "
+                      + moneyEn(params, "amount")
+                      + " was added to your wallet.",
+                  "أثمرت دعوتك",
+                  "أكمل صديقك رحلته الأولى — أُضيف " + moneyAr(params, "amount") + " إلى محفظتك.")
+              : growth(
+                  event,
+                  params,
+                  "Welcome reward",
+                  "You completed your first ride — "
+                      + moneyEn(params, "amount")
+                      + " was added to your wallet.",
+                  "مكافأة ترحيبية",
+                  "أكملت رحلتك الأولى — أُضيف " + moneyAr(params, "amount") + " إلى محفظتك.");
       case SCHEDULED_CONVERTED ->
           isDriver(params)
               ? scheduled(
@@ -1056,6 +1092,58 @@ public class NotificationRenderer {
       return days + " أيام";
     }
     return days + " يوماً";
+  }
+
+  /**
+   * M13 growth notice (category promotions, mutable). Audience from {@code as} — {@code driver} for
+   * a driver badge/challenge, else the rider app. No deep link: a tap opens the notification
+   * center.
+   */
+  private static Rendered growth(
+      NotificationEvent event,
+      Map<String, Object> params,
+      String titleEn,
+      String bodyEn,
+      String titleAr,
+      String bodyAr) {
+    return new Rendered(
+        NotificationCategory.PROMOTIONS,
+        "driver".equals(text(params.get("as")))
+            ? NotificationAudience.DRIVER
+            : NotificationAudience.RIDER,
+        event.getValue(),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr,
+        null,
+        Map.of());
+  }
+
+  /** The badge's English display name (GAME-01 catalog). */
+  private static String badgeEn(Map<String, Object> params) {
+    return switch (text(params.get("badgeCode"))) {
+      case "ride_10" -> "10 rides";
+      case "ride_50" -> "50 rides";
+      case "ride_100" -> "100 rides";
+      case "first_shared_ride" -> "First shared ride";
+      case "first_referral" -> "First referral";
+      case "five_star_week" -> "5-star week";
+      default -> "New badge";
+    };
+  }
+
+  /** The badge's Arabic display name (Western digits, brand rules). */
+  private static String badgeAr(Map<String, Object> params) {
+    return switch (text(params.get("badgeCode"))) {
+      case "ride_10" -> "10 رحلات";
+      case "ride_50" -> "50 رحلة";
+      case "ride_100" -> "100 رحلة";
+      case "first_shared_ride" -> "أول رحلة مشتركة";
+      case "first_referral" -> "أول دعوة ناجحة";
+      case "five_star_week" -> "أسبوع 5 نجوم";
+      default -> "وسام جديد";
+    };
   }
 
   private static String capitalize(String value) {

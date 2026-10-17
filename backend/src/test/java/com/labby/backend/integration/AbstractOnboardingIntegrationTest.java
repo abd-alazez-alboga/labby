@@ -57,7 +57,10 @@ abstract class AbstractOnboardingIntegrationTest extends AbstractAuthIntegration
     // The M8 money rows reference rides, regions and users — they go before the ride rows
     // (this subclass cleanup runs BEFORE the parent's cleanDatabase). The ledgers are
     // append-only (V12 triggers), so TRUNCATE like audit_log.
-    jdbcTemplate.execute("TRUNCATE wallet_transactions, driver_ledger, settlements");
+    jdbcTemplate.execute(
+        "TRUNCATE promo_redemptions, promos, challenge_progress, challenges,"
+            + " points_transactions, points_accounts, user_badges, referrals, referral_codes,"
+            + " wallet_transactions, driver_ledger, settlements");
     jdbcTemplate.update("DELETE FROM rider_dues");
     jdbcTemplate.update("DELETE FROM driver_commission_rates");
     jdbcTemplate.update("DELETE FROM wallet_balances");

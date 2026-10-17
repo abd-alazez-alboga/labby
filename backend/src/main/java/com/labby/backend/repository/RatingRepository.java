@@ -22,6 +22,10 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
   /** The ratings one user gave on a ride (the caller's own {@code myRating}). */
   List<Rating> findByRideIdAndRaterUserId(UUID rideId, UUID raterUserId);
 
+  /** The scores a user received since a moment, any role (M13 five-star week). */
+  @Query("SELECT r.score FROM Rating r WHERE r.ratedUserId = :userId AND r.createdAt >= :from")
+  List<Short> scoresSince(@Param("userId") UUID userId, @Param("from") Instant from);
+
   /** The ratings one user gave on a page of rides (history {@code myRating}, one query). */
   List<Rating> findByRideIdInAndRaterUserId(Collection<UUID> rideIds, UUID raterUserId);
 

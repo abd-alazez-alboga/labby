@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -22,4 +23,5 @@ public record BookRideRequestDto(
     List<@Valid PlaceDto> stops,
     @NotNull UUID serviceTypeId,
     @NotNull PaymentMethod paymentMethod,
-    @DecimalMin("1.00") @Digits(integer = 2, fraction = 2) BigDecimal expectedSurgeMultiplier) {}
+    @DecimalMin("1.00") @Digits(integer = 2, fraction = 2) BigDecimal expectedSurgeMultiplier,
+    @Size(max = 20) String promoCode) {}

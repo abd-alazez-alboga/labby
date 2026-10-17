@@ -122,6 +122,14 @@ public class Region {
   @Column(name = "scheduled_settings")
   private Map<String, Object> scheduledSettings;
 
+  /**
+   * M13 growth knobs ({@code GrowthRules}): referral amounts, points rate, redemption rule; NULL =
+   * the code defaults.
+   */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "growth_settings")
+  private Map<String, Object> growthSettings;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

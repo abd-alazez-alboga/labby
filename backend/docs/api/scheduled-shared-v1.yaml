@@ -711,6 +711,7 @@ components:
         serviceTypeId: { type: string, format: uuid }
         paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         scheduledAt: { type: string, format: date-time, description: 'Pickup time; ≥ now + minLeadMin, no upper bound' }
+        promoCode: { type: [string, 'null'], maxLength: 20, description: 'M13 ruling 3: validated and reserved now, the amount computed at ride time (growth-v1)' }
     ScheduledInfo:
       type: object
       description: The scheduled extension, on rides of kind `scheduled` (rider and driver views)
@@ -857,12 +858,14 @@ components:
           properties:
             mode: { type: string, enum: [at_time, when_full] }
             departAt: { type: [string, 'null'], format: date-time, description: 'Required for `at_time`, in the future' }
+        promoCode: { type: [string, 'null'], maxLength: 20, description: 'M13 ruling 2: discounts the creator''s own share at the split (growth-v1)' }
     JoinSharedRideRequest:
       type: object
       required: [partySize, paymentMethod]
       properties:
         partySize: { type: integer, minimum: 1, maximum: 8 }
         paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        promoCode: { type: [string, 'null'], maxLength: 20, description: 'M13 ruling 2: the member''s own share; one promo per ride → 409 promo_already_applied (growth-v1)' }
     LeaveSharedRideRequest:
       type: object
       description: Ignored before dispatch; required after it (a member cancellation)

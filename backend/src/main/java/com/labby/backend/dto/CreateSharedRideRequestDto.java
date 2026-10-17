@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 /**
@@ -18,4 +19,5 @@ public record CreateSharedRideRequestDto(
     @NotNull PaymentMethod paymentMethod,
     @NotNull @Min(2) @Max(8) Integer totalSeats,
     @NotNull @Min(1) @Max(8) Integer partySize,
-    @NotNull @Valid DepartureRequestDto departure) {}
+    @NotNull @Valid DepartureRequestDto departure,
+    @Size(max = 20) String promoCode) {}

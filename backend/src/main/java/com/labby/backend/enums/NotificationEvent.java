@@ -124,7 +124,17 @@ public enum NotificationEvent {
    */
   SHARED_CANCELLED("shared.cancelled"),
   /** To the member the driver marked absent (UC-D-13 E1). Params: rideId, fee?, currency?. */
-  SHARED_MEMBER_NO_SHOW("shared.member_no_show");
+  SHARED_MEMBER_NO_SHOW("shared.member_no_show"),
+  // M13 growth events (growth-v1.yaml; category growth, mutable).
+  /** To the user who earned a badge (GAME-01). Params: badgeCode. */
+  BADGE_AWARDED("growth.badge_awarded"),
+  /** To a participant whose challenge goal is reached (GAME-02). Params: challengeId, points. */
+  CHALLENGE_COMPLETED("growth.challenge_completed"),
+  /**
+   * To both sides when a referral pays out on the referee's first completed ride (GRW-03). Params:
+   * as (referrer|referee), amount, currency.
+   */
+  REFERRAL_REWARDED("growth.referral_rewarded");
 
   private final String value;
 

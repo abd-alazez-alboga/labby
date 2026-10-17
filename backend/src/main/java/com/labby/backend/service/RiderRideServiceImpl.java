@@ -77,6 +77,7 @@ public class RiderRideServiceImpl implements RiderRideService {
   private static final String NOT_FOUND = "Ride not found";
 
   private final RideAccess rideAccess;
+  private final PromoService promoService;
   private final RidePricing ridePricing;
   private final RideAssembler rideAssembler;
   private final RideEvents rideEvents;
@@ -146,6 +147,8 @@ public class RiderRideServiceImpl implements RiderRideService {
   @Override
   public RideDto book(UUID userId, BookRideRequestDto request) {
     Ride ride = createRide(userId, request, null);
+    // GRW-02: the reservation inside the booking transaction — a refused promo fails the booking.
+    promoService.reserve(userId, ride, request.promoCode());
     rideEvents.stateChanged(ride);
     return rideAssembler.view(ride, Audience.RIDER);
   }
@@ -300,8 +303,11 @@ public class RiderRideServiceImpl implements RiderRideService {
             // PRC-02: never lock an unseen surge — the rider saw the old lock, or confirmed anew.
             expectedSurgeMultiplier != null
                 ? expectedSurgeMultiplier
-                : previous.getSurgeMultiplier());
+                : previous.getSurgeMultiplier(),
+            null);
     Ride ride = createRide(userId, request, previous.getId());
+    // The retried ride keeps the promo (the failed ride stopped counting against the caps).
+    promoService.carry(previous, ride);
     rideEvents.stateChanged(ride);
     return rideAssembler.view(ride, Audience.RIDER);
   }

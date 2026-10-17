@@ -16,7 +16,9 @@ public enum DriverLedgerType {
   SETTLEMENT_PAY_IN("settlement_pay_in"),
   SETTLEMENT_PAY_OUT("settlement_pay_out"),
   BONUS("bonus"),
-  DUE_COLLECTION("due_collection");
+  DUE_COLLECTION("due_collection"),
+  /** M13 ruling 1: the platform-funded promo discount, credited to the ride's driver (V25). */
+  PROMO_COMPENSATION("promo_compensation");
 
   private final String value;
 

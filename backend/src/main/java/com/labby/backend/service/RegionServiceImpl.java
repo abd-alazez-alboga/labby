@@ -3,6 +3,7 @@ package com.labby.backend.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.dto.CommissionTierDto;
+import com.labby.backend.dto.GrowthSettingsDto;
 import com.labby.backend.dto.IncentiveValuesDto;
 import com.labby.backend.dto.MetricWarningsDto;
 import com.labby.backend.dto.RegionConfigDto;
@@ -268,6 +269,11 @@ public class RegionServiceImpl implements RegionService {
       region.setScheduledSettings(
           objectMapper.convertValue(request.scheduledSettings(), new TypeReference<>() {}));
     }
+    // M13 growth knobs (ruling 4): same keep-on-omit rule; NULL = GrowthRules.DEFAULTS.
+    if (request.growthSettings() != null) {
+      region.setGrowthSettings(
+          objectMapper.convertValue(request.growthSettings(), new TypeReference<>() {}));
+    }
     region.setUpdatedBy(actorUserId);
   }
 
@@ -426,6 +432,9 @@ public class RegionServiceImpl implements RegionService {
         region.getScheduledSettings() == null
             ? null
             : objectMapper.convertValue(region.getScheduledSettings(), ScheduledSettingsDto.class),
+        region.getGrowthSettings() == null
+            ? null
+            : objectMapper.convertValue(region.getGrowthSettings(), GrowthSettingsDto.class),
         serviceTypeRepository.countByRegionId(region.getId()),
         surgeZoneRepository.countByRegionId(region.getId()));
   }
@@ -480,6 +489,7 @@ public class RegionServiceImpl implements RegionService {
     snapshot.put("suspensionThresholds", region.getSuspensionThresholds());
     snapshot.put("metricWarnings", region.getMetricWarnings());
     snapshot.put("scheduledSettings", region.getScheduledSettings());
+    snapshot.put("growthSettings", region.getGrowthSettings());
     return snapshot;
   }
 }

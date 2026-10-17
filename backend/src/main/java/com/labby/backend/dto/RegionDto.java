@@ -30,5 +30,6 @@ public record RegionDto(
     SuspensionThresholdsDto suspensionThresholds,
     MetricWarningsDto metricWarnings,
     ScheduledSettingsDto scheduledSettings,
+    GrowthSettingsDto growthSettings,
     long serviceTypeCount,
     long surgeZoneCount) {}

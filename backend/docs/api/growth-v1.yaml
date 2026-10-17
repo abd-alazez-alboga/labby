@@ -40,13 +40,18 @@ info:
     refused. **Suspension freezes accrual and redemption but points are kept.**
 
 
-    **Promo application (GRW-01/02).** The booking hook: rides-v1 `POST /rides/estimate` and
-    `POST /rides` gain an optional `promoCode`; the estimate echoes `promoDiscount` and the
-    discounted `total`, and the stored fare breakdown gains a `promoDiscount` component — stored
-    once, NEVER recomputed, floor at zero, applied AFTER extras/surge/surcharge (stacking order:
-    promo is last). Validation (window, active, caps, per-user limit, region / service-type
-    restriction, first-ride flag) runs at validate AND again inside booking under the promo row
-    lock; one redemption per ride ever (DB-unique). One promo per ride; promos never stack.
+    **Promo application (GRW-01/02; amended at T2 — the implementation is the truth).** The
+    booking hook: rides-v1 `POST /rides` and the scheduled-shared-v1 schedule / create / join
+    requests gain an optional `promoCode` (the ESTIMATE stays promo-free: the app previews the
+    discount through `POST /promos/validate` with the chosen option's `estimateTotal`). At booking
+    the code is re-validated under the promo row lock and RESERVED as the ride's redemption row;
+    caps count reservations whose ride is still alive, so a cancelled / failed ride releases its
+    reservation (the row stays as the audit trail) and a retry or driver-cancel redispatch carries
+    the promo to the new ride. At completion the discount is computed against the final metered
+    total — stored in the fare breakdown's `discount` component, NEVER recomputed, floor at zero,
+    applied AFTER extras/surge/surcharge and the minimum-fare floor (stacking order: promo is
+    last). One promo per ride, promos never stack (joining with a code when the ride already has
+    one → 409 `promo_already_applied`).
 
 
     **Referrals (GRW-03).** Each user shares one code (`referral_codes`, created lazily). A new
@@ -76,7 +81,9 @@ info:
 
     Errors use the global ErrorResponse shape (status, message, code?, details?). Rider endpoints
     need the rider role; driver badge/challenge reads resolve the caller's driver role; admin
-    endpoints are permission-gated `growth:view` / `growth:manage` and audited.
+    endpoints are permission-gated — promos by the existing `promos:view` / `promos:manage`
+    catalog codes, challenges by the new `challenges:view` / `challenges:manage` (amended at T2
+    from the draft's `growth:*`: the RBAC catalog already owned the promos domain) — and audited.
 servers:
   - url: http://localhost:8080
 tags:
@@ -234,7 +241,7 @@ paths:
   /api/v1/admin/promos:
     post:
       tags: [AdminPromos]
-      summary: Create a promo (UC-A-26; growth:manage, audited)
+      summary: Create a promo (UC-A-26; promos:manage, audited)
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -251,7 +258,7 @@ paths:
         '422': { description: 'Validation: `fixed_needs_region` | `window_invalid`' }
     get:
       tags: [AdminPromos]
-      summary: List promos (growth:view)
+      summary: List promos (promos:view)
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: regionId, in: query, schema: { type: string, format: uuid } }
@@ -270,7 +277,7 @@ paths:
       - { name: promoId, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       tags: [AdminPromos]
-      summary: One promo with its redemptions (growth:view)
+      summary: One promo with its redemptions (promos:view)
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
@@ -284,7 +291,7 @@ paths:
         '404': { description: Unknown }
     patch:
       tags: [AdminPromos]
-      summary: Edit or deactivate (growth:manage, audited)
+      summary: Edit or deactivate (promos:manage, audited)
       description: >
         Editable: window, caps, per-user limit, restrictions, `active` (false = deactivate —
         existing redemptions stand, new ones are refused). `code`, `type` and `value` are fixed
@@ -307,7 +314,7 @@ paths:
   /api/v1/admin/challenges:
     post:
       tags: [AdminChallenges]
-      summary: Create a challenge (UC-A-28; growth:manage, audited)
+      summary: Create a challenge (UC-A-28; challenges:manage, audited)
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -323,7 +330,7 @@ paths:
         '422': { description: '`window_invalid`' }
     get:
       tags: [AdminChallenges]
-      summary: List challenges (growth:view)
+      summary: List challenges (challenges:view)
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: regionId, in: query, schema: { type: string, format: uuid } }
@@ -341,7 +348,7 @@ paths:
       - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       tags: [AdminChallenges]
-      summary: One challenge with its participation (growth:view)
+      summary: One challenge with its participation (challenges:view)
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
@@ -359,7 +366,7 @@ paths:
       - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       tags: [AdminChallenges]
-      summary: End early (growth:manage, audited) — completions already made keep their reward
+      summary: End early (challenges:manage, audited) — completions already made keep their reward
       security: [{ bearerAuth: [] }]
       responses:
         '200':

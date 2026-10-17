@@ -30,6 +30,8 @@ public enum Permission {
   REPORTS_HANDLE("reports:handle"),
   PROMOS_VIEW("promos:view"),
   PROMOS_MANAGE("promos:manage"),
+  CHALLENGES_VIEW("challenges:view"),
+  CHALLENGES_MANAGE("challenges:manage"),
   ANALYTICS_VIEW("analytics:view"),
   ANALYTICS_EXPORT("analytics:export"),
   AUDIT_VIEW("audit:view"),

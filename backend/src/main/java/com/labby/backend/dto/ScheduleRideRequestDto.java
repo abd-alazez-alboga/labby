@@ -3,6 +3,7 @@ package com.labby.backend.dto;
 import com.labby.backend.enums.PaymentMethod;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -18,4 +19,5 @@ public record ScheduleRideRequestDto(
     List<@Valid PlaceDto> stops,
     @NotNull UUID serviceTypeId,
     @NotNull PaymentMethod paymentMethod,
-    @NotNull Instant scheduledAt) {}
+    @NotNull Instant scheduledAt,
+    @Size(max = 20) String promoCode) {}

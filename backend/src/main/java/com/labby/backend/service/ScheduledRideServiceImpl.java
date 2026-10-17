@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScheduledRideServiceImpl implements ScheduledRideService {
 
   private final RideAccess rideAccess;
+  private final PromoService promoService;
   private final RidePricing ridePricing;
   private final RideAssembler rideAssembler;
   private final RideEvents rideEvents;
@@ -117,6 +118,8 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         ScheduledRide.builder().rideId(ride.getId()).scheduledAt(request.scheduledAt()).build();
     scheduledRideSupport.skipPastTiers(scheduled, settings, now, false);
     scheduledRideRepository.saveAndFlush(scheduled);
+    // Ruling 3 (2026-10-18): validated and reserved at booking; the amount computes at ride time.
+    promoService.reserve(userId, ride, request.promoCode());
     rideEvents.stateChanged(ride);
     return rideAssembler.view(ride, Audience.RIDER);
   }
