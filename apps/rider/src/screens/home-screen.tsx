@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import type { Ride } from "../api/rides";
-import { listScheduledRides } from "../api/scheduled-shared";
+import type { SharedRide } from "../api/scheduled-shared";
+import { getMyOpenSharedRide, listScheduledRides } from "../api/scheduled-shared";
 import { useOptionalAuth } from "../auth/auth-context";
 import { ApiStatus } from "../components/api-status";
 import {
@@ -35,11 +36,16 @@ import { useColdStartRatingPrompt } from "../trust/rating-prompts";
 import { riderSuspension } from "../trust/suspension";
 import { PositionMap } from "./home/position-map";
 import { RideView } from "./ride/ride-view";
+import { departureShort } from "./shared/shared-parts";
 import { savedPlaceIcon } from "./ride/route-planner";
 import SuspendedScreen from "./trust/suspended-screen";
 
 /** Saved places listed under "Where to?" (approved artboard Main). */
 const HOME_SAVED_PLACES = 3;
+
+/** Open-shared-ride card frame (approved artboard RiderSharedHomeCard). */
+const OPEN_SHARED_BORDER = "#D9BFEA";
+const OPEN_SHARED_BG = "#FBF8FD";
 
 /**
  * Rider home, map-first: the full-bleed map with the rider's own position
@@ -113,11 +119,19 @@ function WhereToHome() {
 
   // M12: the upcoming scheduled rides (soonest first), re-read on focus.
   const [scheduled, setScheduled] = useState<Ride[]>([]);
+  // W10 (approved artboard RiderSharedHomeCard): the rider's still-gathering
+  // shared ride — its card replaces the browse entry below.
+  const [openShared, setOpenShared] = useState<SharedRide | null>(null);
   const refreshScheduled = useCallback(() => {
     let cancelled = false;
     listScheduledRides()
       .then((list) => {
         if (!cancelled) setScheduled(list);
+      })
+      .catch(() => {});
+    getMyOpenSharedRide()
+      .then((ride) => {
+        if (!cancelled) setOpenShared(ride);
       })
       .catch(() => {});
     return () => {
@@ -268,15 +282,60 @@ function WhereToHome() {
                   </AppText>
                 </Pressable>
               ) : null}
-              <ListRow
-                icon="people-outline"
-                title={t("shared.homeTitle")}
-                subtitle={t("shared.homeSubtitle")}
-                chevron
-                last
-                onPress={() => router.push("/shared" as never)}
-                testID="home-shared"
-              />
+              {openShared ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    router.push(
+                      `/shared/${encodeURIComponent(openShared.rideId)}` as never,
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.openShared,
+                    { flexDirection: row },
+                    pressed && styles.pressed,
+                  ]}
+                  testID="home-open-shared"
+                >
+                  <View style={styles.upcomingIcon}>
+                    <Ionicons
+                      name="people-outline"
+                      size={20}
+                      color={colors.accent}
+                    />
+                  </View>
+                  <View style={styles.flex}>
+                    <AppText variant="bodyStrong" weight={800}>
+                      {t("shared.openTitle")}
+                    </AppText>
+                    <AppText variant="caption" weight={400} tone="secondary">
+                      {t("shared.openSubtitle", {
+                        place: placeLabel(openShared.destination),
+                        taken: openShared.seatsTaken,
+                        total: openShared.totalSeats,
+                        departure: departureShort(
+                          openShared.departure,
+                          locale,
+                          t,
+                        ),
+                      })}
+                    </AppText>
+                  </View>
+                  <AppText variant="caption" weight={800} tone="accent">
+                    {t("shared.openStatus")}
+                  </AppText>
+                </Pressable>
+              ) : (
+                <ListRow
+                  icon="people-outline"
+                  title={t("shared.homeTitle")}
+                  subtitle={t("shared.homeSubtitle")}
+                  chevron
+                  last
+                  onPress={() => router.push("/shared" as never)}
+                  testID="home-shared"
+                />
+              )}
               {saved.places.length > 0 ? (
                 <View>
                   {saved.places.slice(0, HOME_SAVED_PLACES).map((place, i, list) => (
@@ -368,6 +427,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1.5,
     borderColor: colors.line,
+  },
+  openShared: {
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 14,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: OPEN_SHARED_BORDER,
+    backgroundColor: OPEN_SHARED_BG,
   },
   upcomingIcon: {
     width: 44,

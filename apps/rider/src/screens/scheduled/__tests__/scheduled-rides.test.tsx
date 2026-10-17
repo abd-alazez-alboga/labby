@@ -287,10 +287,45 @@ describe("home entries (approved artboard RiderM12Home)", () => {
       "GET /api/v1/rides/active": { status: 204 },
       "GET /api/v1/rider/saved-locations": { status: 200, body: [] },
       "GET /api/v1/scheduled-rides": { status: 200, body: [] },
+      "GET /api/v1/shared-rides/mine/open": {
+        status: 404,
+        body: { status: 404, code: "no_open_shared_ride" },
+      },
     });
     await withProviders(<HomeScreen />);
     expect(await screen.findByTestId("home-shared")).toBeOnTheScreen();
     expect(screen.queryByTestId("home-upcoming")).toBeNull();
+    expect(screen.queryByTestId("home-open-shared")).toBeNull();
+  });
+
+  it("W10 (approved artboard RiderSharedHomeCard): an open shared ride replaces browse", async () => {
+    mockApi({
+      "GET /api/v1/rides/active": { status: 204 },
+      "GET /api/v1/rider/saved-locations": { status: 200, body: [] },
+      "GET /api/v1/scheduled-rides": { status: 200, body: [] },
+      "GET /api/v1/shared-rides/mine/open": { status: 200, body: sharedRide() },
+    });
+    await withProviders(<HomeScreen />);
+    expect(await screen.findByTestId("home-open-shared")).toHaveTextContent(
+      /Your shared ride.*Damascus University · 2 of 4 seats · Leaves .*Gathering/,
+    );
+    expect(screen.queryByTestId("home-shared")).toBeNull();
+    await fireEvent.press(screen.getByTestId("home-open-shared"));
+    expect(mockPush).toHaveBeenCalledWith(`/shared/${SHARED_ID}`);
+  });
+
+  it("W10 reads in Arabic", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    mockApi({
+      "GET /api/v1/rides/active": { status: 204 },
+      "GET /api/v1/rider/saved-locations": { status: 200, body: [] },
+      "GET /api/v1/scheduled-rides": { status: 200, body: [] },
+      "GET /api/v1/shared-rides/mine/open": { status: 200, body: sharedRide() },
+    });
+    await withProviders(<HomeScreen />);
+    expect(await screen.findByTestId("home-open-shared")).toHaveTextContent(
+      /رحلتك المشتركة.*2 من 4 مقاعد.*قيد التجميع/,
+    );
   });
 });
 

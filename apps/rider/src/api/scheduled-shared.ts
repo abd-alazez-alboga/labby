@@ -1,4 +1,4 @@
-import { apiFetch } from "./http-client";
+import { ApiError, apiFetch } from "./http-client";
 import type {
   CancellationQuote,
   DriverSummary,
@@ -249,6 +249,20 @@ export function listSharedRides(query: SharedBrowseQuery): Promise<SharedRidePag
 /** `GET /shared-rides/{id}` — browse detail or the caller's member view. */
 export function getSharedRide(rideId: string): Promise<SharedRide> {
   return apiFetch<SharedRide>(sharedUrl(rideId), { auth: true });
+}
+
+/**
+ * `GET /shared-rides/mine/open` — the caller's still-gathering shared ride
+ * for the home entry (W10); null when they have none (404
+ * `no_open_shared_ride`).
+ */
+export function getMyOpenSharedRide(): Promise<SharedRide | null> {
+  return apiFetch<SharedRide>(`${SHARED}/mine/open`, { auth: true }).catch(
+    (error: unknown) => {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    },
+  );
 }
 
 /** `POST /shared-rides` (P1) — the creator becomes the first member. */
