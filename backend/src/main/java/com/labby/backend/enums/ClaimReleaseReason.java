@@ -6,13 +6,16 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * Why a scheduled-ride claim was given back (UC-D-12 E1, scheduled-shared-v1.yaml). The driver
  * picks one of the RIDE-07 reasons that apply before pickup; {@code account_suspended} is the
- * system's release of a suspended driver's claim (never chosen, not a metric event).
+ * system's release of a suspended driver's claim (never chosen, not a metric event); {@code
+ * vehicle_changed} the system's release at conversion when the driver's current active vehicle no
+ * longer serves the ride (M12 review W3 — never chosen, not a metric event).
  */
 public enum ClaimReleaseReason {
   VEHICLE_ISSUE("vehicle_issue"),
   UNSAFE_PICKUP("unsafe_pickup"),
   OTHER("other"),
-  ACCOUNT_SUSPENDED("account_suspended");
+  ACCOUNT_SUSPENDED("account_suspended"),
+  VEHICLE_CHANGED("vehicle_changed");
 
   private final String value;
 

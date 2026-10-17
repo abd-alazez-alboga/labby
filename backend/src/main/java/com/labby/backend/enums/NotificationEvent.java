@@ -98,6 +98,11 @@ public enum NotificationEvent {
   /** To the rider when a driver claims. Params: rideId, driverName, pickupDate, pickupTime. */
   SCHEDULED_CLAIMED("scheduled.claimed"),
   /**
+   * To the driver when their claim went back to the board at conversion: their current active
+   * vehicle no longer serves the ride (review W3). Params: rideId, pickupDate, pickupTime.
+   */
+  SCHEDULED_CLAIM_LOST("scheduled.claim_lost"),
+  /**
    * To the rider when the claiming driver gives it back. Params: rideId, pickupDate, pickupTime.
    */
   SCHEDULED_RELEASED("scheduled.released"),

@@ -154,9 +154,10 @@ public class RiderRideServiceImpl implements RiderRideService {
   @Transactional(readOnly = true)
   public Optional<RideDto> active(UUID userId) {
     rideAccess.requireRider(userId);
-    // M12: a member of a live shared ride has that ride as their active ride.
+    // M12: a member of a live shared ride has that ride as their active ride; a shared ride is
+    // never the creator's by its ride row alone (review H3).
     return rideRepository
-        .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ACTIVE_STATES)
+        .findOwnActive(userId, RideRepository.ACTIVE_STATES)
         .or(
             () ->
                 sharedRideMemberRepository
@@ -285,7 +286,8 @@ public class RiderRideServiceImpl implements RiderRideService {
   public RideDto retry(UUID userId, UUID rideId, BigDecimal expectedSurgeMultiplier) {
     rideAccess.requireRider(userId);
     Ride previous = owned(userId, rideId);
-    if (previous.getState() != RideState.NO_DRIVER_FOUND) {
+    // Review W5 (owner ruling 2026-10-17): a shared ride ends at no_driver_found — no retry.
+    if (previous.getState() != RideState.NO_DRIVER_FOUND || previous.getKind() == RideKind.SHARED) {
       throw RideLifecycle.illegalState(previous);
     }
     BookRideRequestDto request =
@@ -366,10 +368,9 @@ public class RiderRideServiceImpl implements RiderRideService {
                     new BusinessRuleViolationException(
                             "This service type is not available in the pickup's operating area")
                         .withCode("service_type_unavailable"));
-    if (rideRepository
-            .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ACTIVE_STATES)
-            .isPresent()
-        || sharedRideMemberRepository.findLiveRideOfMember(userId).isPresent()) {
+    // Review H2/W12 (owner ruling 2026-10-17): a gathering membership counts as busy; the check
+    // runs under the rider's own lock.
+    if (riderBusy(userId)) {
       throw activeRideExists();
     }
     BigDecimal surcharge = ridePricing.surchargeNow(region);
@@ -409,6 +410,16 @@ public class RiderRideServiceImpl implements RiderRideService {
       // A concurrent booking won the one-active-ride index (UC-R-04 E4).
       throw activeRideExists();
     }
+  }
+
+  /**
+   * Locks the rider's ride-taking steps and says whether they already hold a live own ride or an
+   * open (gathering / live) shared membership.
+   */
+  private boolean riderBusy(UUID userId) {
+    rideRepository.lockRider(userId);
+    return rideRepository.findOwnActive(userId, RideRepository.ACTIVE_STATES).isPresent()
+        || sharedRideMemberRepository.existsOpenMembership(userId);
   }
 
   private void applyEstimate(Ride ride, EstimateDto estimate) {

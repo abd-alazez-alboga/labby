@@ -42,6 +42,35 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   Optional<Ride> findFirstByRiderUserIdAndStateIn(UUID riderUserId, Collection<RideState> states);
 
+  /**
+   * The rider's OWN live ride (on-demand or scheduled, review H3): on a shared ride whether the
+   * rider rides along is their membership's business, never {@code rides.rider_user_id}.
+   *
+   * @param riderUserId the rider
+   * @param states the live states
+   * @return the ride
+   */
+  @Query(
+      "SELECT r FROM Ride r WHERE r.riderUserId = :riderUserId AND r.state IN :states"
+          + " AND r.kind <> com.labby.backend.enums.RideKind.SHARED")
+  Optional<Ride> findOwnActive(
+      @Param("riderUserId") UUID riderUserId, @Param("states") Collection<RideState> states);
+
+  /**
+   * Serializes one rider's ride-taking steps (book, schedule, create / join a shared ride) for the
+   * rest of the transaction (review W12): their "one live ride or open membership" check and its
+   * insert cannot interleave with another of their own.
+   *
+   * @param riderUserId the rider
+   * @return always 1
+   */
+  @Query(
+      value =
+          "SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtextextended(CAST(:riderUserId AS"
+              + " text), 0))) AS held",
+      nativeQuery = true)
+  int lockRider(@Param("riderUserId") UUID riderUserId);
+
   Optional<Ride> findFirstByDriverUserIdAndStateIn(UUID driverUserId, Collection<RideState> states);
 
   boolean existsByDriverUserIdAndStateIn(UUID driverUserId, Collection<RideState> states);
@@ -272,7 +301,9 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
    * accepted offer's quoted pickup ETA + 5 min after acceptance), and rides completed in the window
    * (by {@code completed_at}). M12 (UC-D-12 E1): a released scheduled-ride claim (by {@code
    * released_at}) counts as one more driver cancellation AND one more base ride, except the
-   * system's {@code account_suspended} releases.
+   * system's {@code account_suspended} / {@code vehicle_changed} releases. A converted scheduled
+   * ride (no live offer) is on time when the driver arrived by its pickup time + 5 min (M12 review
+   * W2).
    */
   @Query(
       value =
@@ -283,26 +314,32 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
                              AND r.state = 'cancelled_by_driver'
                              AND r.cancellation_reason <> 'rider_no_show')
               + (SELECT COUNT(*) FROM scheduled_claim_releases s
-                 WHERE s.driver_user_id = :driverUserId AND s.reason <> 'account_suspended'
+                 WHERE s.driver_user_id = :driverUserId
+                   AND s.reason NOT IN ('account_suspended', 'vehicle_changed')
                    AND s.released_at BETWEEN :from AND :to) AS cancelledByDriver,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND (r.state <> 'cancelled_by_driver'
                                   OR r.cancellation_reason <> 'rider_no_show'))
               + (SELECT COUNT(*) FROM scheduled_claim_releases s
-                 WHERE s.driver_user_id = :driverUserId AND s.reason <> 'account_suspended'
+                 WHERE s.driver_user_id = :driverUserId
+                   AND s.reason NOT IN ('account_suspended', 'vehicle_changed')
                    AND s.released_at BETWEEN :from AND :to) AS cancellationBase,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND r.driver_arrived_at IS NOT NULL) AS arrived,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND r.driver_arrived_at IS NOT NULL
-                             AND r.driver_arrived_at
-                                 <= r.accepted_at + (o.pickup_eta_s + 300) * interval '1 second')
+                             AND (r.driver_arrived_at
+                                      <= r.accepted_at
+                                          + (o.pickup_eta_s + 300) * interval '1 second'
+                                  OR r.driver_arrived_at
+                                      <= sr.scheduled_at + interval '300 seconds'))
               AS onTime,
             COUNT(*) FILTER (WHERE r.state = 'completed'
                              AND r.completed_at BETWEEN :from AND :to) AS trips
           FROM rides r
           LEFT JOIN ride_offers o ON o.ride_id = r.ride_id AND o.driver_user_id = r.driver_user_id
                                  AND o.response = 'accepted'
+          LEFT JOIN scheduled_rides sr ON sr.ride_id = r.ride_id AND sr.converted_at IS NOT NULL
           WHERE r.driver_user_id = :driverUserId
             AND (r.accepted_at BETWEEN :from AND :to OR r.completed_at BETWEEN :from AND :to)
           """,

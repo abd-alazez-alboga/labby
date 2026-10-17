@@ -114,6 +114,12 @@ public class DriverRideServiceImpl implements DriverRideService {
     if (ride.getState() != RideState.OFFERING || !RideLifecycle.answerable(offer, now)) {
       throw offerClosed();
     }
+    // Review H1: a driver is bound to one live ride at a time (uq_rides_driver_assigned backs it).
+    if (rideRepository.existsByDriverUserIdAndStateIn(userId, RideRepository.ASSIGNED_STATES)) {
+      throw (ConflictException)
+          new ConflictException("Finish your current ride before accepting another")
+              .withCode("driver_busy");
+    }
     offer.setResponse(OfferResponse.ACCEPTED);
     offer.setRespondedAt(now);
     rideOfferRepository.save(offer);

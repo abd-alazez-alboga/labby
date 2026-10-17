@@ -10,6 +10,7 @@ import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.exception.BusinessRuleViolationException;
+import com.labby.backend.exception.ConflictException;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RiderPreference;
@@ -19,6 +20,7 @@ import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderPreferenceRepository;
 import com.labby.backend.repository.ScheduledRideRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.service.RideAssembler.Audience;
 import com.labby.backend.util.GeoPoints;
 import java.math.BigDecimal;
@@ -49,6 +51,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
   private final ScheduledRideSupport scheduledRideSupport;
   private final RideRepository rideRepository;
   private final ScheduledRideRepository scheduledRideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final ServiceTypeRepository serviceTypeRepository;
   private final RiderPreferenceRepository riderPreferenceRepository;
   private final Clock clock;
@@ -76,6 +79,12 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
                   .formatted(settings.minLeadMin()))
           .withCode("scheduled_too_soon")
           .withDetail("minLeadMinutes", settings.minLeadMin());
+    }
+    // Review H2 (owner ruling 2026-10-17): a gathering shared membership counts as busy.
+    rideRepository.lockRider(userId);
+    if (sharedRideMemberRepository.existsGatheringMembership(userId)) {
+      throw (ConflictException)
+          new ConflictException("You already have an active ride").withCode("active_ride_exists");
     }
     // RIDE-S1: the pickup time's surcharge window, NO surge — evaluated at execution.
     BigDecimal surcharge = ridePricing.surchargePercentAt(region, request.scheduledAt());
@@ -126,6 +135,12 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
 
   @Override
   public void onAccountSuspended(UUID userId, Instant now) {
+    cancelScheduledOfRider(userId, now);
+    releaseClaimsOfSuspendedDriver(userId, now);
+  }
+
+  @Override
+  public void cancelScheduledOfRider(UUID userId, Instant now) {
     for (UUID rideId : scheduledRideRepository.findUpcomingOfRider(userId)) {
       Ride ride = rideLifecycle.lock(rideId);
       if (ride.getState() != RideState.SCHEDULED) {
@@ -147,7 +162,6 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
                       NotificationEvent.RIDE_CANCELLED_BY_RIDER,
                       Map.of("rideId", rideId.toString())));
     }
-    releaseClaimsOfSuspendedDriver(userId, now);
   }
 
   @Override

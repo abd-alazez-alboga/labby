@@ -246,7 +246,14 @@ class CommsMigrationIntegrationTest extends AbstractIntegrationTest {
   private UUID insertAcceptedRide() {
     UUID rideId = UUID.randomUUID();
     // One ACTIVE ride per rider (uq_rides_rider_active), so each accepted ride gets a fresh
-    // rider; party membership of senders/creators is service-level, not schema-level.
+    // rider; party membership of senders/creators is service-level, not schema-level. And one
+    // live ride per driver (uq_rides_driver_assigned, V22): the driver's earlier fixture ride
+    // ends first.
+    jdbcTemplate.update(
+        "UPDATE rides SET state = 'cancelled_by_driver', cancelled_at = now(),"
+            + " cancellation_reason = 'vehicle_issue' WHERE driver_user_id = ? AND state ="
+            + " 'accepted'",
+        driver);
     UUID rideRider = newUser();
     jdbcTemplate.update(
         "INSERT INTO rides (ride_id, rider_user_id, driver_user_id, vehicle_id, region_id,"

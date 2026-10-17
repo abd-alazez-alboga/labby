@@ -18,6 +18,7 @@ import com.labby.backend.model.User;
 import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.UserRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -43,6 +44,7 @@ public class SuspensionServiceImpl implements SuspensionService {
   private final UserRepository userRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final RideRepository rideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final RideLifecycle rideLifecycle;
   private final RideEvents rideEvents;
   private final DriverRoleService driverRoleService;
@@ -207,9 +209,12 @@ public class SuspensionServiceImpl implements SuspensionService {
   public boolean hasActiveRide(UUID userId, RideParty side) {
     boolean asRider =
         side != RideParty.DRIVER
-            && rideRepository
-                .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ASSIGNED_STATES)
-                .isPresent();
+            && (rideRepository.findOwnActive(userId, RideRepository.ASSIGNED_STATES).isPresent()
+                || sharedRideMemberRepository
+                    .findLiveRideOfMember(userId)
+                    .flatMap(rideRepository::findById)
+                    .filter(Ride::isAssigned)
+                    .isPresent());
     return asRider
         || (side != RideParty.RIDER
             && rideRepository.existsByDriverUserIdAndStateIn(
@@ -248,7 +253,8 @@ public class SuspensionServiceImpl implements SuspensionService {
    */
   private void cancelPendingRequests(UUID userId, Instant now) {
     rideRepository
-        .findFirstByRiderUserIdAndStateIn(userId, PRE_ACCEPTANCE)
+        // Own rides only: shared memberships are handled by SharedRideService (review H3).
+        .findOwnActive(userId, PRE_ACCEPTANCE)
         .flatMap(ride -> rideRepository.findForUpdate(ride.getId()))
         .filter(ride -> PRE_ACCEPTANCE.contains(ride.getState()))
         .ifPresent(
@@ -272,6 +278,11 @@ public class SuspensionServiceImpl implements SuspensionService {
     if (assignment.getRole() == Role.DRIVER) {
       forceOfflineUnlessOnRide(assignment.getUserId(), now);
       scheduledRideService.releaseClaimsOfSuspendedDriver(assignment.getUserId(), now);
+    } else if (assignment.getRole() == Role.RIDER) {
+      // Review W4 (owner ruling 2026-10-17): as on an account suspension, the rider's scheduled
+      // rides are cancelled free and their pre-acceptance shared memberships end.
+      scheduledRideService.cancelScheduledOfRider(assignment.getUserId(), now);
+      sharedRideService.onAccountSuspended(assignment.getUserId(), now);
     }
   }
 

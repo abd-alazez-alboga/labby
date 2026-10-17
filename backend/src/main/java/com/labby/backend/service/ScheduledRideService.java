@@ -38,6 +38,16 @@ public interface ScheduledRideService {
   void onAccountSuspended(UUID userId, Instant now);
 
   /**
+   * The rider half of {@link #onAccountSuspended}: the rider's scheduled rides are system-cancelled
+   * ({@code account_suspended}, free; a claiming driver is told) — also on a rider-ROLE suspension
+   * (review W4, owner ruling 2026-10-17).
+   *
+   * @param userId the suspended rider
+   * @param now the moment
+   */
+  void cancelScheduledOfRider(UUID userId, Instant now);
+
+  /**
    * Driver-role suspension side effect: the driver's claims are released ({@code
    * account_suspended}, no metric event) and their rides go back to the board.
    *

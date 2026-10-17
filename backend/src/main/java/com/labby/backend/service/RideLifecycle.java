@@ -6,6 +6,7 @@ import com.labby.backend.dto.RideSummaryDto;
 import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.OfferResponse;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.enums.Role;
@@ -17,6 +18,7 @@ import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.FareRepository;
@@ -26,6 +28,7 @@ import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RideTraceRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -51,6 +54,7 @@ public class RideLifecycle {
   static final int DEFAULT_CANCELLATION_GRACE_MIN = 2;
 
   private final RideRepository rideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final RideOfferRepository rideOfferRepository;
   private final RideTraceRepository rideTraceRepository;
   private final FareRepository fareRepository;
@@ -98,14 +102,27 @@ public class RideLifecycle {
    * @param now the moment
    */
   public void withdrawOpenOffer(Ride ride, Instant now) {
+    withdrawOpenOffer(ride, now, "ride_ended");
+  }
+
+  /**
+   * {@link #withdrawOpenOffer(Ride, Instant)} with the frame's reason — {@code scheduled_converted}
+   * when the offered driver's scheduled claim just went live (review H1); the ride's dispatch
+   * offers the next candidate on its next step.
+   *
+   * @param ride the offered ride (locked)
+   * @param now the moment
+   * @param reason the {@code offer.withdrawn} reason
+   */
+  public void withdrawOpenOffer(Ride ride, Instant now, String reason) {
     rideOfferRepository
         .findFirstByRideIdAndResponseIsNull(ride.getId())
         .ifPresent(
             offer -> {
               offer.setResponse(OfferResponse.WITHDRAWN);
               offer.setRespondedAt(now);
-              rideOfferRepository.save(offer);
-              rideEvents.offerWithdrawn(offer, "ride_ended");
+              rideOfferRepository.saveAndFlush(offer);
+              rideEvents.offerWithdrawn(offer, reason);
             });
   }
 
@@ -216,12 +233,26 @@ public class RideLifecycle {
     return new RideSummaryPageDto(
         rides.getContent().stream()
             .map(
-                ride ->
-                    summary(
-                        ride,
-                        fares.get(ride.getId()),
-                        ratings.get(ride.getId()),
-                        names.get(counterpartOf(ride, side))))
+                ride -> {
+                  // Review W1: a shared ride's rider row shows the member's OWN money — their
+                  // share once completed, their own fee after a cancel / no-show.
+                  SharedRideMember member =
+                      side == RideParty.RIDER && ride.getKind() == RideKind.SHARED
+                          ? sharedRideMemberRepository
+                              .findFirstByRideIdAndRiderUserIdOrderByJoinedAtDesc(
+                                  ride.getId(), userId)
+                              .orElse(null)
+                          : null;
+                  Fare fare = fares.get(ride.getId());
+                  return summary(
+                      ride,
+                      member != null
+                          ? member.getShareAmount()
+                          : (fare == null ? null : fare.getTotal()),
+                      member != null ? member.getCancellationFee() : ride.getCancellationFee(),
+                      ratings.get(ride.getId()),
+                      names.get(counterpartOf(ride, side)));
+                })
             .toList(),
         rides.getNumber(),
         rides.getSize(),
@@ -248,7 +279,11 @@ public class RideLifecycle {
   }
 
   private RideSummaryDto summary(
-      Ride ride, Fare fare, MyRatingDto myRating, String counterpartFirstName) {
+      Ride ride,
+      BigDecimal total,
+      BigDecimal cancellationFee,
+      MyRatingDto myRating,
+      String counterpartFirstName) {
     ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
     return new RideSummaryDto(
         ride.getId(),
@@ -258,8 +293,8 @@ public class RideLifecycle {
         rideAssembler.place(ride.getDestination(), ride.getDestinationLabel()),
         serviceType.getNameEn(),
         serviceType.getNameAr(),
-        fare == null ? null : fare.getTotal(),
-        ride.getCancellationFee(),
+        total,
+        cancellationFee,
         ride.getCurrency(),
         myRating,
         counterpartFirstName,

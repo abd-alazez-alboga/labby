@@ -257,11 +257,19 @@ class TrustReportsIntegrationTest extends AbstractTrustIntegrationTest {
           + " report_threshold flag — sliding window, flag only, never a suspension")
   void shouldFlagThreeSubstantiatedReportsInNinetyDays() {
     Account driver = newDriver();
+    // One live ride per driver (V22): the reported rides are seeded as ended-after-acceptance.
     List<String> reports = new ArrayList<>();
     for (int i = 0; i < 4; i++) {
       Account rider = newRider();
       UUID ride =
-          ride(rider.userId(), driver.userId(), "accepted", CLOCK.instant(), null, null, null);
+          ride(
+              rider.userId(),
+              driver.userId(),
+              "cancelled_by_driver",
+              CLOCK.instant(),
+              null,
+              null,
+              CLOCK.instant());
       reports.add(
           ok(
                   post(reportUrl(ride), report("unsafe_driving", List.of()), rider.token()),
@@ -292,7 +300,14 @@ class TrustReportsIntegrationTest extends AbstractTrustIntegrationTest {
 
     Account rider = newRider();
     UUID ride =
-        ride(rider.userId(), driver.userId(), "accepted", CLOCK.instant(), null, null, null);
+        ride(
+            rider.userId(),
+            driver.userId(),
+            "cancelled_by_driver",
+            CLOCK.instant(),
+            null,
+            null,
+            CLOCK.instant());
     String fifth =
         ok(post(reportUrl(ride), report("other", List.of()), rider.token()), HttpStatus.CREATED)
             .get("id")

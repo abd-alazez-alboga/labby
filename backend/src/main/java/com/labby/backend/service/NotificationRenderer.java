@@ -246,23 +246,34 @@ public class NotificationRenderer {
               "أُلغيت الرحلة",
               "ألغى الراكب هذه الرحلة.");
       case RIDE_NO_DRIVER_FOUND ->
-          "true".equals(text(params.get("scheduled")))
-              // RIDE-S4: the fallback of a scheduled ride failed — early enough to replan.
+          "true".equals(text(params.get("shared")))
+              // Review W5 (owner ruling 2026-10-17): a shared ride ends here — no retry.
               ? toRider(
                   event,
                   params,
-                  "No driver for your scheduled ride",
-                  "We couldn't find a driver for your scheduled ride. Please make other plans, or"
-                      + " tap to try again.",
-                  "لا يوجد سائق لرحلتك المجدولة",
-                  "لم نجد سائقاً لرحلتك المجدولة. يُرجى ترتيب بديل، أو اضغط لإعادة المحاولة.")
-              : toRider(
-                  event,
-                  params,
-                  "No driver available",
-                  "We couldn't find a driver right now. Tap to try again.",
-                  "لا يوجد سائق متاح",
-                  "لم نجد سائقاً متاحاً حالياً. اضغط لإعادة المحاولة.");
+                  "No driver for your shared ride",
+                  "No driver took this shared ride, so it ended. You weren't charged. Create or"
+                      + " join another shared ride.",
+                  "لا يوجد سائق لرحلتك المشتركة",
+                  "لم يقبل أي سائق هذه الرحلة المشتركة، فانتهت. لم تُحتسب عليك أي رسوم. أنشئ رحلة"
+                      + " مشتركة أخرى أو انضم إلى واحدة.")
+              : "true".equals(text(params.get("scheduled")))
+                  // RIDE-S4: the fallback of a scheduled ride failed — early enough to replan.
+                  ? toRider(
+                      event,
+                      params,
+                      "No driver for your scheduled ride",
+                      "We couldn't find a driver for your scheduled ride. Please make other plans, or"
+                          + " tap to try again.",
+                      "لا يوجد سائق لرحلتك المجدولة",
+                      "لم نجد سائقاً لرحلتك المجدولة. يُرجى ترتيب بديل، أو اضغط لإعادة المحاولة.")
+                  : toRider(
+                      event,
+                      params,
+                      "No driver available",
+                      "We couldn't find a driver right now. Tap to try again.",
+                      "لا يوجد سائق متاح",
+                      "لم نجد سائقاً متاحاً حالياً. اضغط لإعادة المحاولة.");
       case RIDE_WAIT_CHARGE_STARTED ->
           toRider(
               event,
@@ -376,6 +387,19 @@ public class NotificationRenderer {
               "رحلتك المجدولة بحاجة إلى سائق جديد",
               "لم يعد بإمكان سائقك القيام برحلتك يوم %s الساعة %s. ستبقى الرحلة متاحة لسائقين آخرين."
                   .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))));
+      case SCHEDULED_CLAIM_LOST ->
+          scheduled(
+              event,
+              NotificationAudience.DRIVER,
+              params,
+              NotificationCategory.SCHEDULED,
+              "Scheduled ride back on the board",
+              ("Your active vehicle can't do the ride on %s at %s, so it went back to other"
+                      + " drivers. This doesn't count as a cancellation.")
+                  .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))),
+              "عادت الرحلة المجدولة إلى اللوحة",
+              "مركبتك الحالية لا تناسب الرحلة يوم %s الساعة %s، فعادت لسائقين آخرين. لا يُحتسب ذلك إلغاءً."
+                  .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))));
       case SCHEDULED_REMINDER -> scheduledReminder(event, params);
       case SHARED_DISPATCHED, SHARED_CANCELLED, SHARED_MEMBER_NO_SHOW -> shared(event, params);
       case SCHEDULED_CONVERTED ->
@@ -446,6 +470,26 @@ public class NotificationRenderer {
                   "أُلغيت الرحلة المشتركة",
                   "لم تكتمل مقاعد رحلتك المشتركة في الوقت المحدد، لذلك أُلغيت. لم تُحتسب عليك أي"
                       + " رسوم.");
+          case "rider_busy" ->
+              toRider(
+                  event,
+                  params,
+                  "Shared ride cancelled",
+                  "You were on another ride when your shared ride started, so it went ahead"
+                      + " without you. You weren't charged.",
+                  "أُلغيت الرحلة المشتركة",
+                  "كنت في رحلة أخرى عند انطلاق رحلتك المشتركة، فانطلقت دونك. لم تُحتسب عليك أي"
+                      + " رسوم.");
+          case "creator_busy" ->
+              toRider(
+                  event,
+                  params,
+                  "Shared ride cancelled",
+                  "The organizer couldn't take the shared ride you joined, so it was cancelled."
+                      + " You weren't charged.",
+                  "أُلغيت الرحلة المشتركة",
+                  "تعذّر على منظّم الرحلة المشتركة التي انضممت إليها القيام بها، فأُلغيت. لم"
+                      + " تُحتسب عليك أي رسوم.");
           case "account_suspended" ->
               toRider(
                   event,

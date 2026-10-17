@@ -131,7 +131,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 |---|---|---|
 | RIDE-S1 | Schedule for any future time (**no horizon cap**), same booking options; estimate flagged "priced at ride time" (surge evaluated at execution). Earliest bookable lead 30 min — sooner is rejected, never converted to on-demand; cancellation is free until the ride converts to live, then RIDE-07 (owner rulings 2026-10-16). | V1 |
 | RIDE-S2 | **Claim board**: scheduled requests visible to drivers whose availability windows cover the slot (same region + service type); claiming locks driver ↔ ride, notifies rider. | V1 |
-| RIDE-S3 | Reminders to both parties (defaults 24 h + 1 h before); claimed rides convert to live flow from `accepted` at T − the fallback lead (default 15 min, owner ruling 2026-10-16). | V1 |
+| RIDE-S3 | Reminders to both parties (defaults 24 h + 1 h before); claimed rides convert to live flow from `accepted` at T − the fallback lead (default 15 min, owner ruling 2026-10-16). At conversion the claim wins over the driver's open live offer (withdrawn), a driver holds at most one live ride, the driver's current active vehicle is used when it serves the service type (else the claim goes back to the board, not counted as a cancellation, driver told), and a converted ride is on time when the driver arrives by the pickup time + 5 min (owner rulings 2026-10-17). | V1 |
 | RIDE-S4 | Unclaimed shortly before pickup (default 15 min) → normal live dispatch; failing that, rider notified early enough to replan. A rider still on another live ride at that moment → the scheduled ride is cancelled free (reason `rider_busy`), both parties notified, no driver metric; the rider app warns before an on-demand booking within 60 min of a scheduled ride (owner ruling 2026-10-16). | V1 |
 
 **Public shared rides (RIDE-P)**
@@ -142,7 +142,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | RIDE-P2 | Riders browse/search open shared rides (region, destination, time) and join **automatically, first-come**, with party size; join blocked when remaining seats < party size. | V1 |
 | RIDE-P3 | Dispatch triggers **manually by the creator** or **automatically when seats fill**; matching requires sufficient vehicle capacity. | V1 |
 | RIDE-P4 | Final metered fare split **per seat**; each party pays via its own method (cash/wallet); individual receipts; each member may rate the driver. Split over the seats that boarded (2-dp remainder to the creator, else the earliest boarded member); a no-show member pays the region's no-show fee instead of a share; dispatch needs vehicle seats ≥ seats taken (approved 2026-10-16). | V1 |
-| RIDE-P5 | Members may leave before dispatch (seats freed); creator cancel before dispatch cancels the group (all notified). After dispatch, normal cancellation rules per member. | V1 |
+| RIDE-P5 | Members may leave before dispatch (seats freed); creator cancel before dispatch cancels the group (all notified). After dispatch, normal cancellation rules per member; the creator is then a member like any other (free to book again once they left). A gathering membership counts as an active ride for new bookings; a member found on another live ride at dispatch is dropped free (the creator → the group is cancelled); a shared ride with no driver ends without retry; a rider-role suspension ends scheduled rides and pre-acceptance memberships (owner rulings 2026-10-17). | V1 |
 
 ### 4.5 TRK / CHAT / SHARE / NTF — Tracking & Communication
 

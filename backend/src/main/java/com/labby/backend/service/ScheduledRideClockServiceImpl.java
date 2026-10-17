@@ -10,8 +10,11 @@ import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
+import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.ScheduledRide;
+import com.labby.backend.model.Vehicle;
 import com.labby.backend.repository.DriverProfileRepository;
+import com.labby.backend.repository.RideOfferRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.ScheduledRideRepository;
@@ -47,6 +50,7 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final UserRepository userRepository;
   private final VehicleRepository vehicleRepository;
+  private final RideOfferRepository rideOfferRepository;
   private final DriverDutyGates driverDutyGates;
   private final ScheduledRideSupport scheduledRideSupport;
   private final RideLifecycle rideLifecycle;
@@ -88,8 +92,7 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
     Region region = scheduledRideSupport.region(ride);
     ScheduledRules.Settings settings = scheduledRideSupport.settings(region);
     if (!now.isBefore(settings.executeAt(scheduled.getScheduledAt()))) {
-      execute(ride, scheduled, region, now);
-      return true;
+      return execute(ride, scheduled, region, now);
     }
     boolean changed = remind(ride, scheduled, region, settings, now, false);
     if (scheduled.isClaimed()) {
@@ -149,41 +152,103 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
     return true;
   }
 
-  /** T − lead: rider busy → cancel; claimed + available driver → S3; otherwise → S4. */
-  private void execute(Ride ride, ScheduledRide scheduled, Region region, Instant now) {
-    if (rideRepository
-            .findFirstByRiderUserIdAndStateIn(ride.getRiderUserId(), RideRepository.ACTIVE_STATES)
-            .isPresent()
-        || sharedRideMemberRepository.findLiveRideOfMember(ride.getRiderUserId()).isPresent()) {
+  /**
+   * T − lead: rider busy → cancel; claimed + available driver → S3; otherwise → S4. Returns false
+   * (nothing changed, the next tick retries) only when the claimer's open live offer belongs to a
+   * ride another transaction holds right now.
+   */
+  private boolean execute(Ride ride, ScheduledRide scheduled, Region region, Instant now) {
+    if (riderBusy(ride.getRiderUserId())) {
       cancelRiderBusy(ride, scheduled, now);
-      return;
+      return true;
     }
     if (scheduled.isClaimed()) {
       UUID driver = scheduled.getClaimedDriverUserId();
-      if (driverAvailable(driver, scheduled.getClaimedVehicleId())) {
-        convert(ride, scheduled, region, now);
-        return;
+      if (driverAvailable(driver)) {
+        Optional<UUID> vehicle = conversionVehicle(ride, scheduled);
+        if (vehicle.isPresent()) {
+          // Review H1 (owner ruling 2026-10-17, "the claim wins"): the claimer's open live offer
+          // is withdrawn first, so the driver is never bound to two rides.
+          if (!withdrawOpenOffer(driver, now)) {
+            return false;
+          }
+          convert(ride, scheduled, region, vehicle.get(), now);
+          return true;
+        }
+        // Review W3 (owner ruling 2026-10-17): the current vehicle no longer serves the ride —
+        // the system releases the claim, not a cancellation-metric event, the driver is told.
+        Map<String, Object> params = scheduledRideSupport.pickupParams(ride, scheduled, region);
+        scheduledRideSupport.release(
+            ride, scheduled, ClaimReleaseReason.VEHICLE_CHANGED, null, now);
+        rideEvents.push(driver, NotificationEvent.SCHEDULED_CLAIM_LOST, params);
+      } else {
+        // Ruling 2026-10-16: an offline / busy / suspended claimer loses the claim; the ride takes
+        // the fallback. A suspension is not a metric event, offline/busy counts like a release.
+        boolean suspended = suspended(driver);
+        scheduledRideSupport.release(
+            ride,
+            scheduled,
+            suspended ? ClaimReleaseReason.ACCOUNT_SUSPENDED : ClaimReleaseReason.OTHER,
+            suspended ? null : "unavailable_at_conversion",
+            now);
       }
-      // Ruling 2026-10-16: an offline / busy / suspended claimer loses the claim; the ride takes
-      // the fallback. A suspension is not a metric event, offline/busy counts like a release.
-      boolean suspended = suspended(driver);
-      scheduledRideSupport.release(
-          ride,
-          scheduled,
-          suspended ? ClaimReleaseReason.ACCOUNT_SUSPENDED : ClaimReleaseReason.OTHER,
-          suspended ? null : "unavailable_at_conversion",
-          now);
     }
     fallBack(ride, scheduled, region, now);
+    return true;
+  }
+
+  /**
+   * The rider is on another live ride, or holds a live or still-gathering shared membership (review
+   * H2, owner ruling 2026-10-17: gathering counts as busy).
+   */
+  private boolean riderBusy(UUID riderUserId) {
+    return rideRepository.findOwnActive(riderUserId, RideRepository.ACTIVE_STATES).isPresent()
+        || sharedRideMemberRepository.existsOpenMembership(riderUserId);
+  }
+
+  /**
+   * Review W3: the claimed vehicle when it is still the active one, else the driver's current
+   * active vehicle when it serves the ride's service type.
+   */
+  private Optional<UUID> conversionVehicle(Ride ride, ScheduledRide scheduled) {
+    UUID driver = scheduled.getClaimedDriverUserId();
+    return vehicleRepository
+        .findByDriverUserIdAndActiveTrue(driver)
+        .map(Vehicle::getId)
+        .filter(
+            vehicleId ->
+                vehicleId.equals(scheduled.getClaimedVehicleId())
+                    || scheduledRideRepository
+                        .eligibility(ride.getId(), driver)
+                        .getServiceTypeMatches());
+  }
+
+  /**
+   * Withdraws the driver's open live offer, locking its ride without waiting; false when that ride
+   * is held by another transaction (e.g. the driver accepting it this very moment).
+   */
+  private boolean withdrawOpenOffer(UUID driverUserId, Instant now) {
+    Optional<RideOffer> open =
+        rideOfferRepository.findFirstByDriverUserIdAndResponseIsNull(driverUserId);
+    if (open.isEmpty()) {
+      return true;
+    }
+    Optional<Ride> offered = rideRepository.lockIfFree(open.get().getRideId());
+    if (offered.isEmpty()) {
+      return false;
+    }
+    rideLifecycle.withdrawOpenOffer(offered.get(), now, "scheduled_converted");
+    return true;
   }
 
   /** S3: the claimed ride becomes a live {@code accepted} ride with its driver bound. */
-  private void convert(Ride ride, ScheduledRide scheduled, Region region, Instant now) {
+  private void convert(
+      Ride ride, ScheduledRide scheduled, Region region, UUID vehicleId, Instant now) {
     scheduledRideSupport.repriceForExecution(ride, region, scheduled.getScheduledAt());
     ride.setState(RideState.ACCEPTED);
     ride.setAcceptedAt(now);
     ride.setDriverUserId(scheduled.getClaimedDriverUserId());
-    ride.setVehicleId(scheduled.getClaimedVehicleId());
+    ride.setVehicleId(vehicleId);
     // Free until live (ruling 2026-10-16); from here RIDE-07 applies with its grace.
     ride.setCancellationGraceEndsAt(rideLifecycle.cancellationGraceEnd(ride.getRegionId(), now));
     ride = rideRepository.saveAndFlush(ride);
@@ -234,22 +299,14 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
     }
   }
 
-  /** Online, role + account active, not on an assigned ride, the claimed vehicle still active. */
-  private boolean driverAvailable(UUID driverUserId, UUID vehicleId) {
+  /** Online, role + account active, not on an assigned ride (the vehicle is checked apart). */
+  private boolean driverAvailable(UUID driverUserId) {
     boolean online =
         driverProfileRepository
             .findByUserId(driverUserId)
             .map(profile -> profile.isOnline())
             .orElse(false);
-    boolean vehicleActive =
-        vehicleRepository
-            .findByDriverUserIdAndActiveTrue(driverUserId)
-            .map(vehicle -> vehicle.getId().equals(vehicleId))
-            .orElse(false);
-    return online
-        && vehicleActive
-        && !suspended(driverUserId)
-        && !driverDutyGates.hasActiveRide(driverUserId);
+    return online && !suspended(driverUserId) && !driverDutyGates.hasActiveRide(driverUserId);
   }
 
   private boolean suspended(UUID driverUserId) {

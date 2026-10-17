@@ -269,6 +269,14 @@ class ScheduledRideIntegrationTest extends AbstractRideIntegrationTest {
     // The live flow applies from here (UC-D-12): arrive + start work as for any ride.
     arriveAndStart(rideId, driver);
     assertThat(stateOf(rideId)).isEqualTo("in_progress");
+    // Review W2: no live offer — on time = arrived by the pickup time + 5 min (DRV-06).
+    JsonNode onTime =
+        ok(get("/api/v1/driver/performance", driver.token()), HttpStatus.OK)
+            .get("windows")
+            .get(0)
+            .get("onTime");
+    assertThat(onTime.get("numerator").asInt()).isEqualTo(1);
+    assertThat(onTime.get("denominator").asInt()).isEqualTo(1);
   }
 
   @Test
@@ -321,6 +329,117 @@ class ScheduledRideIntegrationTest extends AbstractRideIntegrationTest {
                 "SELECT reason, note FROM scheduled_claim_releases WHERE ride_id = ?", rideId))
         .containsEntry("reason", "other")
         .containsEntry("note", "unavailable_at_conversion");
+  }
+
+  @Test
+  @DisplayName("Review H1: the claim wins — the claimer's open live offer is withdrawn at T − 15")
+  void shouldWithdrawClaimersLiveOfferAtConversion() {
+    Account rider = rider();
+    Instant pickup = in(Duration.ofHours(2));
+    UUID rideId = schedule(rider, pickup);
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    coverWholeDay(driver, local(pickup));
+    ok(claim(driver, rideId), HttpStatus.OK);
+    // Just before T − 15 another rider's live request reaches the (free, online) claimer.
+    advanceTo(pickup.minus(Duration.ofMinutes(15)).minusSeconds(5));
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    UUID live = book(rider());
+    dispatch();
+    String offerId = openOffer(driver).get("id").asText();
+
+    advanceTo(pickup.minus(Duration.ofMinutes(15)));
+    scheduledRideClockService.processDue();
+
+    assertThat(stateOf(rideId)).isEqualTo("accepted");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT response FROM ride_offers WHERE ride_offer_id = ?::uuid",
+                String.class,
+                offerId))
+        .isEqualTo("withdrawn");
+    // The withdrawn offer can no longer be taken; the live ride waits for its next candidate.
+    assertThat(code(accept(driver, offerId))).isEqualTo("offer_closed");
+    assertThat(stateOf(live)).isEqualTo("offering");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM rides WHERE driver_user_id = ? AND state = 'accepted'",
+                Integer.class,
+                driver.userId()))
+        .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("Review H1: a driver already on a live ride cannot accept another offer")
+  void shouldRefuseAcceptWhileOnAnotherRide() {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    UUID first = book(rider());
+    dispatchAndAccept(first, driver);
+    UUID second = book(rider());
+    // A stray open offer for the busy driver (another path / instance): accept must refuse it.
+    jdbcTemplate.update(
+        "UPDATE rides SET state = 'offering', offering_at = now() WHERE ride_id = ?", second);
+    UUID offerId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO ride_offers (ride_offer_id, ride_id, driver_user_id, vehicle_id, sequence,"
+            + " pickup_distance_m, pickup_eta_s, offered_at, expires_at)"
+            + " SELECT ?, ?, driver_user_id, vehicle_id, 1, 100, 60, ?, ? FROM rides"
+            + " WHERE ride_id = ?",
+        offerId,
+        second,
+        java.sql.Timestamp.from(CLOCK.instant()),
+        java.sql.Timestamp.from(CLOCK.instant().plusSeconds(15)),
+        first);
+    assertThat(code(accept(driver, offerId.toString()))).isEqualTo("driver_busy");
+    assertThat(stateOf(second)).isEqualTo("offering");
+  }
+
+  @Test
+  @DisplayName(
+      "Review W3: conversion binds the driver's new active vehicle when it serves the ride")
+  void shouldConvertWithTheNewActiveVehicle() {
+    Account rider = rider();
+    Instant pickup = in(Duration.ofHours(2));
+    UUID rideId = schedule(rider, pickup);
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    coverWholeDay(driver, local(pickup));
+    ok(claim(driver, rideId), HttpStatus.OK);
+    UUID replacement = switchVehicle(driver, true);
+    advanceTo(pickup.minus(Duration.ofMinutes(15)));
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    scheduledRideClockService.processDue();
+    assertThat(stateOf(rideId)).isEqualTo("accepted");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT vehicle_id FROM rides WHERE ride_id = ?", UUID.class, rideId))
+        .isEqualTo(replacement);
+  }
+
+  @Test
+  @DisplayName(
+      "Review W3: a new vehicle that can't serve the ride → claim back to the board, no metric")
+  void shouldReleaseWithoutMetricWhenTheNewVehicleCannotServe() {
+    Account rider = rider();
+    Instant pickup = in(Duration.ofHours(2));
+    UUID rideId = schedule(rider, pickup);
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    coverWholeDay(driver, local(pickup));
+    ok(claim(driver, rideId), HttpStatus.OK);
+    switchVehicle(driver, false);
+    advanceTo(pickup.minus(Duration.ofMinutes(15)));
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    scheduledRideClockService.processDue();
+    assertThat(stateOf(rideId)).isEqualTo("requested");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT reason FROM scheduled_claim_releases WHERE ride_id = ?",
+                String.class,
+                rideId))
+        .isEqualTo("vehicle_changed");
+    assertThat(outboxEvents(driver.userId())).contains("scheduled.claim_lost");
+    // Not a cancellation-metric event (DRV-06).
+    JsonNode performance = ok(get("/api/v1/driver/performance", driver.token()), HttpStatus.OK);
+    assertThat(performance.get("windows").get(0).get("cancellation").get("numerator").asInt())
+        .isZero();
   }
 
   @Test
@@ -472,5 +591,43 @@ class ScheduledRideIntegrationTest extends AbstractRideIntegrationTest {
         String.class,
         userId,
         rideId.toString());
+  }
+
+  /**
+   * Gives the driver a second approved vehicle (a copy of the active one, new plate) and makes it
+   * the active one; {@code serves} copies the service types too.
+   */
+  private UUID switchVehicle(Account driver, boolean serves) {
+    UUID current =
+        jdbcTemplate.queryForObject(
+            "SELECT vehicle_id FROM vehicles WHERE driver_user_id = ? AND is_active",
+            UUID.class,
+            driver.userId());
+    String columns =
+        jdbcTemplate.queryForObject(
+            "SELECT string_agg(column_name, ', ') FROM information_schema.columns WHERE"
+                + " table_name = 'vehicles' AND column_name NOT IN ('vehicle_id', 'plate',"
+                + " 'is_active')",
+            String.class);
+    UUID replacement = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO vehicles (vehicle_id, plate, is_active, "
+            + columns
+            + ") SELECT ?, ?, false, "
+            + columns
+            + " FROM vehicles WHERE vehicle_id = ?",
+        replacement,
+        "SW-" + replacement.toString().substring(0, 6),
+        current);
+    if (serves) {
+      jdbcTemplate.update(
+          "INSERT INTO vehicle_service_types (vehicle_id, service_type_id) SELECT ?,"
+              + " service_type_id FROM vehicle_service_types WHERE vehicle_id = ?",
+          replacement,
+          current);
+    }
+    jdbcTemplate.update("UPDATE vehicles SET is_active = false WHERE vehicle_id = ?", current);
+    jdbcTemplate.update("UPDATE vehicles SET is_active = true WHERE vehicle_id = ?", replacement);
+    return replacement;
   }
 }

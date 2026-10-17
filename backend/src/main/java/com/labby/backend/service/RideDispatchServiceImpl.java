@@ -215,7 +215,10 @@ public class RideDispatchServiceImpl implements RideDispatchService {
             "rideId",
             ride.getId().toString(),
             "scheduled",
-            String.valueOf(ride.getKind() == RideKind.SCHEDULED)));
+            String.valueOf(ride.getKind() == RideKind.SCHEDULED),
+            // Review W5: a shared ride ends here — its own text, no retry.
+            "shared",
+            String.valueOf(ride.getKind() == RideKind.SHARED)));
   }
 
   private static String uuidArray(Set<UUID> ids) {

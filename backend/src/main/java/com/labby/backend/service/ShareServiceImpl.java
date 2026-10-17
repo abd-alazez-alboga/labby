@@ -102,6 +102,12 @@ public class ShareServiceImpl implements ShareService {
         commsProperties.publicBaseUrl() + "/share/" + token, link.getCreatedAt());
   }
 
+  /** A shared ride's link of a member who is no longer riding along (cancelled / no-show). */
+  private boolean memberLeft(Ride ride, UUID sharerUserId) {
+    return !sharerUserId.equals(ride.getDriverUserId())
+        && rideParties.sideOf(ride, sharerUserId, RideParties.RIDING) == null;
+  }
+
   @Override
   @Transactional(readOnly = true)
   public SharePageDto page(String token) {
@@ -110,8 +116,9 @@ public class ShareServiceImpl implements ShareService {
             .findByTokenHash(sha256Hex(token))
             .orElseThrow(() -> new ResourceNotFoundException("Unknown share link"));
     Ride ride = rideRepository.findById(link.getRideId()).orElseThrow();
-    if (!ride.isAssigned()) {
-      // UC-S-15 E1: the moment the ride is terminal the link is dead for ever.
+    if (!ride.isAssigned() || memberLeft(ride, link.getCreatedByUserId())) {
+      // UC-S-15 E1: the moment the ride is terminal the link is dead for ever — on a shared ride
+      // also the moment its sharing member left it (review I2, owner ruling 2026-10-17).
       throw new GoneException("This trip has ended");
     }
     User driver = userRepository.findById(ride.getDriverUserId()).orElseThrow();

@@ -613,6 +613,29 @@ public class SharedRideServiceImpl implements SharedRideService {
    * requested_at} restarts so the rides-v1 give-up clock counts from dispatch.
    */
   private void dispatch(Ride ride, SharedRide shared, SharedDispatchTrigger trigger, Instant now) {
+    // Review H2 (owner ruling 2026-10-17): a member already on another live ride is dropped free;
+    // if that is the creator, the group is cancelled instead (the booking rules make this rare).
+    for (SharedRideMember member : joined(ride.getId())) {
+      if (!onAnotherLiveRide(member.getRiderUserId())) {
+        continue;
+      }
+      if (member.isCreator()) {
+        cancelGroup(ride, CancellationReason.RIDER_BUSY, null, "creator_busy", false, now);
+        rideEvents.push(
+            member.getRiderUserId(),
+            NotificationEvent.SHARED_CANCELLED,
+            Map.of("rideId", ride.getId().toString(), "reason", "rider_busy"));
+        return;
+      }
+      member.setStatus(SharedMemberStatus.LEFT);
+      member.setLeftAt(now);
+      sharedRideMemberRepository.saveAndFlush(member);
+      shared = freeSeats(shared, member);
+      rideEvents.push(
+          member.getRiderUserId(),
+          NotificationEvent.SHARED_CANCELLED,
+          Map.of("rideId", ride.getId().toString(), "reason", "rider_busy"));
+    }
     scheduledRideSupport.repriceForExecution(ride, scheduledRideSupport.region(ride), now);
     ride.setState(RideState.REQUESTED);
     ride.setRequestedAt(now);
@@ -678,6 +701,12 @@ public class SharedRideServiceImpl implements SharedRideService {
     }
   }
 
+  /** On a live own ride, or a joined member of another live shared ride. */
+  private boolean onAnotherLiveRide(UUID riderUserId) {
+    return rideRepository.findOwnActive(riderUserId, RideRepository.ACTIVE_STATES).isPresent()
+        || sharedRideMemberRepository.findLiveRideOfMember(riderUserId).isPresent();
+  }
+
   private SharedRide freeSeats(SharedRide shared, SharedRideMember member) {
     shared.setSeatsTaken((short) Math.max(0, shared.getSeatsTaken() - member.getPartySize()));
     return sharedRideRepository.saveAndFlush(shared);
@@ -695,12 +724,14 @@ public class SharedRideServiceImpl implements SharedRideService {
         rideId, SharedMemberStatus.JOINED);
   }
 
-  /** One gathering or live shared membership at a time, and none while on a live ride. */
+  /**
+   * One gathering or live shared membership at a time, and none while on a live own ride — checked
+   * under the rider's own lock (review W12), so two joins of one rider cannot both pass.
+   */
   private void requireFree(UUID userId) {
+    rideRepository.lockRider(userId);
     if (sharedRideMemberRepository.existsOpenMembership(userId)
-        || rideRepository
-            .findFirstByRiderUserIdAndStateIn(userId, RideRepository.ACTIVE_STATES)
-            .isPresent()) {
+        || rideRepository.findOwnActive(userId, RideRepository.ACTIVE_STATES).isPresent()) {
       throw (ConflictException)
           new ConflictException("You already have an active ride").withCode("active_ride_exists");
     }

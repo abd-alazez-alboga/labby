@@ -151,7 +151,15 @@ info:
     `scheduled.converted`) — unless the claiming driver is then offline, holding another active
     ride or suspended: the claim is released by the system and the ride takes S4 **(owner
     2026-10-16)** — a suspension with reason `account_suspended` (no metric event), offline/busy
-    with reason `other`, note `unavailable_at_conversion`, counted like the driver's own release. A RIDER who holds another live ride at that moment →
+    with reason `other`, note `unavailable_at_conversion`, counted like the driver's own release.
+    **Review fixes (owner rulings 2026-10-17):** a claimer holding an open LIVE offer is not busy —
+    the claim wins: that offer is withdrawn (`offer.withdrawn` reason `scheduled_converted`, the
+    ride's dispatch moves on) and the ride converts; a driver is bound to at most one live ride
+    (accept answers 409 `driver_busy`, DB `uq_rides_driver_assigned`). The ride converts with the
+    driver's CURRENT active vehicle when it still serves the service type; otherwise the system
+    releases the claim with reason `vehicle_changed` (no metric event) and tells the driver
+    (`scheduled.claim_lost`, category `scheduled`). A converted ride is on time for DRV-06 when
+    the driver arrived by `scheduledAt` + 5 min. A RIDER who holds another live ride at that moment →
     the scheduled ride is cancelled by the system, free, reason `rider_busy`; rider and claiming
     driver notified (`scheduled.cancelled_rider_busy`), no metric event for the driver
     **(ruling 2026-10-16)**. Otherwise unclaimed → S4 fallback (rider sees "finding your
@@ -227,6 +235,22 @@ info:
     member's payment is resolved. The driver ledger posts the money-v1 entries per member
     (`sharedRideMemberId` on the entry); commission applies to each share.
 
+
+    **Membership rules (review fixes, owner rulings 2026-10-17).** On a shared ride whether a rider
+    is ON the ride is their membership's business — the creator included: once the creator's
+    membership is no longer `joined` (left, cancelled, no-show) the ride is not their active ride and
+    they may book again (DB: `uq_rides_rider_active` covers non-shared rides only, V23). A gathering
+    membership counts as busy: booking an on-demand or scheduled ride answers 409
+    `active_ride_exists`, and a scheduled ride reaching T − lead meanwhile is cancelled free
+    (`rider_busy`). Each rider's book / schedule / create / join runs under a per-rider lock, so one
+    rider never holds two open memberships. At dispatch a member found on another live ride is
+    dropped free (`shared.cancelled` reason `rider_busy`); if it is the creator the group is
+    cancelled (`rider_busy`; the others get reason `creator_busy`). A rider-ROLE suspension ends
+    the rider's scheduled rides and pre-acceptance memberships exactly like an account suspension.
+    A shared ride ends at `no_driver_found` (push param `shared: "true"`, its own text, no retry —
+    retry answers 409 `illegal_state`). A member's rider view and history show THEIR payment
+    method, share and fee; a member's trip-share link dies (410) when they cancel or are marked
+    absent.
 
     **Shared rides in the other contracts.** A member (any `joined` / `completed` party) is
     "the ride's rider" for the rides-v1 rider reads (`GET /rides/{id}`, `/rides/active`, history,

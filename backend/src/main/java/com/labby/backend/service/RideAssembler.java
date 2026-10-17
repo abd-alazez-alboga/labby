@@ -152,7 +152,8 @@ public class RideAssembler {
         place(ride.getPickup(), ride.getPickupLabel()),
         place(ride.getDestination(), ride.getDestinationLabel()),
         stops(ride.getStops()),
-        ride.getPaymentMethod(),
+        // Review I1: a member sees THEIR payment method, never the creator's.
+        viewer != null ? viewer.getPaymentMethod() : ride.getPaymentMethod(),
         ride.getPickupDistanceMode(),
         ride.getSurgeMultiplier(),
         ride.getSurchargePercent(),
