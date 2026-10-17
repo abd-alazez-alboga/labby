@@ -280,6 +280,79 @@ class ScheduledRideIntegrationTest extends AbstractRideIntegrationTest {
   }
 
   @Test
+  @DisplayName("Ruling 2026-10-17: a converted ride redispatches as a plain live ride")
+  void shouldRedispatchConvertedScheduledRideAsOnDemand() {
+    Account rider = rider();
+    Instant pickup = in(Duration.ofHours(2));
+    UUID rideId = schedule(rider, pickup);
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    coverWholeDay(driver, local(pickup));
+    ok(claim(driver, rideId), HttpStatus.OK);
+    advanceTo(pickup.minus(Duration.ofMinutes(15)));
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    scheduledRideClockService.processDue();
+    assertThat(stateOf(rideId)).isEqualTo("accepted");
+    ok(
+        post(
+            "/api/v1/driver/rides/" + rideId + "/cancel",
+            Map.of("reason", "vehicle_issue"),
+            driver.token()),
+        HttpStatus.OK);
+    JsonNode cancelled = riderRide(rider, rideId);
+    UUID newRideId = UUID.fromString(cancelled.get("redispatchedAsRideId").asText());
+    JsonNode redispatched = riderRide(rider, newRideId);
+    assertThat(redispatched.get("kind").asText()).isEqualTo("on_demand");
+    assertThat(redispatched.get("state").asText()).isEqualTo("requested");
+    assertThat(
+            redispatched.path("scheduled").isMissingNode()
+                || redispatched.path("scheduled").isNull())
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName("M12 I3: history sorts a converted ride at its conversion time, not booking time")
+  void shouldSortConvertedRideByConversionTimeInHistory() {
+    Account rider = rider();
+    Instant pickup = in(Duration.ofHours(2));
+    UUID scheduledId = schedule(rider, pickup); // booked now: the oldest requested_at
+
+    // The rider's own later live ride (cancelled, so the conversion is not blocked).
+    UUID riderLive = book(rider);
+    ok(
+        post(
+            "/api/v1/rides/" + riderLive + "/cancel",
+            Map.of("reason", "changed_mind"),
+            rider.token()),
+        HttpStatus.OK);
+
+    // The driver's later live ride, completed and settled so the claim can convert.
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    UUID driverLive = book(rider());
+    dispatchAndAccept(driverLive, driver);
+    arriveAndStart(driverLive, driver);
+    ok(driverAction(driver, driverLive, "complete"), HttpStatus.OK);
+    ok(driverAction(driver, driverLive, "cash-confirm"), HttpStatus.OK);
+
+    coverWholeDay(driver, local(pickup));
+    ok(claim(driver, scheduledId), HttpStatus.OK);
+    advanceTo(pickup.minus(Duration.ofMinutes(15)));
+    position(driver, PICKUP_LAT, PICKUP_LNG);
+    scheduledRideClockService.processDue();
+    assertThat(stateOf(scheduledId)).isEqualTo("accepted");
+
+    // Both histories: the converted ride ran last, so it comes first despite its booking time.
+    JsonNode riderHistory = ok(get("/api/v1/rides", rider.token()), HttpStatus.OK);
+    assertThat(riderHistory.get("items").get(0).get("id").asText())
+        .isEqualTo(scheduledId.toString());
+    assertThat(riderHistory.get("items").get(1).get("id").asText()).isEqualTo(riderLive.toString());
+    JsonNode driverHistory = ok(get("/api/v1/driver/rides", driver.token()), HttpStatus.OK);
+    assertThat(driverHistory.get("items").get(0).get("id").asText())
+        .isEqualTo(scheduledId.toString());
+    assertThat(driverHistory.get("items").get(1).get("id").asText())
+        .isEqualTo(driverLive.toString());
+  }
+
+  @Test
   @DisplayName("RIDE-S4: unclaimed at T − 15 falls into live dispatch; failing that, replan push")
   void shouldFallBackToLiveDispatchAndReportFailure() {
     Account rider = rider();

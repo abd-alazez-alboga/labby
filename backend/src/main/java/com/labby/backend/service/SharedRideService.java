@@ -40,6 +40,14 @@ public interface SharedRideService {
   SharedRidePageDto browse(UUID userId, BrowseCriteria criteria, int page, int size);
 
   /**
+   * The rider's own still-gathering shared ride (their open membership), for the home entry (W10).
+   *
+   * @param userId the rider
+   * @return the ride
+   */
+  SharedRideDto mineOpen(UUID userId);
+
+  /**
    * One shared ride: any rider while gathering, its members afterwards.
    *
    * @param userId the rider

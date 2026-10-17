@@ -176,7 +176,7 @@ public class DriverRideServiceImpl implements DriverRideService {
   public RideSummaryPageDto history(UUID userId, int page, int size) {
     rideAccess.requireDriver(userId);
     return rideLifecycle.historyPage(
-        rideRepository.findByDriverUserIdOrderByRequestedAtDesc(userId, PageRequest.of(page, size)),
+        rideRepository.findDriverHistory(userId, PageRequest.of(page, size)),
         RideParty.DRIVER,
         userId);
   }
@@ -427,6 +427,8 @@ public class DriverRideServiceImpl implements DriverRideService {
 
   /**
    * The owner decision of 2026-10-07: a new linked ride with the same inputs and locked pricing.
+   * Owner ruling 2026-10-17: a converted scheduled ride redispatches as a plain live ride (the
+   * booking already executed; the link stays in redispatchOfRideId).
    */
   private Ride redispatch(Ride cancelled, Instant now) {
     return rideRepository.saveAndFlush(
@@ -434,7 +436,10 @@ public class DriverRideServiceImpl implements DriverRideService {
             .riderUserId(cancelled.getRiderUserId())
             .regionId(cancelled.getRegionId())
             .serviceTypeId(cancelled.getServiceTypeId())
-            .kind(cancelled.getKind())
+            .kind(
+                cancelled.getKind() == RideKind.SCHEDULED
+                    ? RideKind.ON_DEMAND
+                    : cancelled.getKind())
             .pickup(cancelled.getPickup())
             .pickupLabel(cancelled.getPickupLabel())
             .destination(cancelled.getDestination())

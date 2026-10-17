@@ -49,6 +49,16 @@ public interface SharedRideMemberRepository extends JpaRepository<SharedRideMemb
       nativeQuery = true)
   boolean existsOpenMembership(@Param("riderUserId") UUID riderUserId);
 
+  /** The rider's still-gathering shared ride — their open membership, if any (W10 home entry). */
+  @Query(
+      value =
+          """
+          SELECT m.ride_id FROM shared_ride_members m JOIN rides r ON r.ride_id = m.ride_id
+          WHERE m.rider_user_id = :riderUserId AND m.status = 'joined' AND r.state = 'gathering'
+          """,
+      nativeQuery = true)
+  Optional<UUID> findGatheringRideId(@Param("riderUserId") UUID riderUserId);
+
   /** Whether the rider is a joined member of a shared ride still gathering (review H2). */
   @Query(
       value =

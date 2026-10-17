@@ -450,6 +450,32 @@ class SharedRideIntegrationTest extends AbstractRideIntegrationTest {
     return UUID.fromString(ride.get("rideId").asText());
   }
 
+  @Test
+  @DisplayName("W10: /shared-rides/mine/open returns the open membership's ride, else 404")
+  void shouldReadOwnOpenSharedRide() {
+    Account creator = rider();
+    Account joiner = rider();
+    driverAt(PICKUP_LAT, PICKUP_LNG);
+    assertThat(code(get("/api/v1/shared-rides/mine/open", creator.token())))
+        .isEqualTo("no_open_shared_ride");
+    UUID rideId = create(creator, 4, 1, whenFull());
+    ok(tryJoin(joiner, rideId, 1), HttpStatus.OK);
+    for (Account member : List.of(creator, joiner)) {
+      JsonNode mine = ok(get("/api/v1/shared-rides/mine/open", member.token()), HttpStatus.OK);
+      assertThat(mine.get("rideId").asText()).isEqualTo(rideId.toString());
+      assertThat(mine.get("state").asText()).isEqualTo("gathering");
+    }
+    // Leaving closes the entry for the leaver only.
+    ok(leave(joiner, rideId), HttpStatus.OK);
+    assertThat(code(get("/api/v1/shared-rides/mine/open", joiner.token())))
+        .isEqualTo("no_open_shared_ride");
+    assertThat(
+            ok(get("/api/v1/shared-rides/mine/open", creator.token()), HttpStatus.OK)
+                .get("rideId")
+                .asText())
+        .isEqualTo(rideId.toString());
+  }
+
   private ResponseEntity<JsonNode> tryJoin(Account rider, UUID rideId, int partySize) {
     return post(
         "/api/v1/shared-rides/" + rideId + "/join",

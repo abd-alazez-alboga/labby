@@ -82,6 +82,17 @@ public class SharedRidesController {
   }
 
   /**
+   * The caller's own still-gathering shared ride, for the home entry (W10).
+   *
+   * @return 200; 404 no_open_shared_ride
+   */
+  @GetMapping("/mine/open")
+  @Operation(summary = "The caller's open shared ride (home entry)")
+  public ResponseEntity<SharedRideDto> mineOpen() {
+    return ResponseEntity.ok(sharedRideService.mineOpen(SecurityUtils.currentUserId()));
+  }
+
+  /**
    * One shared ride.
    *
    * @param rideId the ride

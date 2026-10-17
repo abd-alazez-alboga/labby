@@ -96,17 +96,19 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   /**
    * The rider's history (M12): their own rides plus the shared rides they rode in as a member (any
-   * membership but one left before dispatch), newest first.
+   * membership but one left before dispatch), newest first by the time the ride actually ran — a
+   * claimed scheduled ride keeps its booking-time {@code requested_at}, so conversion time wins.
    */
   @Query(
       value =
           """
           SELECT r.* FROM rides r
+          LEFT JOIN scheduled_rides s ON s.ride_id = r.ride_id
           WHERE r.rider_user_id = :riderUserId
              OR EXISTS (SELECT 1 FROM shared_ride_members m
                         WHERE m.ride_id = r.ride_id AND m.rider_user_id = :riderUserId
                           AND m.status <> 'left')
-          ORDER BY r.requested_at DESC
+          ORDER BY COALESCE(s.converted_at, r.requested_at) DESC
           """,
       countQuery =
           """
@@ -120,6 +122,22 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
   Page<Ride> findRiderHistory(@Param("riderUserId") UUID riderUserId, Pageable pageable);
 
   Page<Ride> findByDriverUserIdOrderByRequestedAtDesc(UUID driverUserId, Pageable pageable);
+
+  /**
+   * The driver's history, newest first by the time the ride actually ran (as {@link
+   * #findRiderHistory}: conversion time over a scheduled booking's {@code requested_at}).
+   */
+  @Query(
+      value =
+          """
+          SELECT r.* FROM rides r
+          LEFT JOIN scheduled_rides s ON s.ride_id = r.ride_id
+          WHERE r.driver_user_id = :driverUserId
+          ORDER BY COALESCE(s.converted_at, r.requested_at) DESC
+          """,
+      countQuery = "SELECT COUNT(*) FROM rides r WHERE r.driver_user_id = :driverUserId",
+      nativeQuery = true)
+  Page<Ride> findDriverHistory(@Param("driverUserId") UUID driverUserId, Pageable pageable);
 
   Optional<Ride> findFirstByRedispatchOfRideId(UUID redispatchOfRideId);
 

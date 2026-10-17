@@ -221,6 +221,24 @@ public class SharedRideServiceImpl implements SharedRideService {
 
   @Override
   @Transactional(readOnly = true)
+  public SharedRideDto mineOpen(UUID userId) {
+    rideAccess.requireRider(userId);
+    UUID rideId =
+        sharedRideMemberRepository
+            .findGatheringRideId(userId)
+            .orElseThrow(
+                () ->
+                    (ResourceNotFoundException)
+                        new ResourceNotFoundException("You have no open shared ride")
+                            .withCode("no_open_shared_ride"));
+    return rideAssembler.sharedRide(
+        rideRepository.findById(rideId).orElseThrow(),
+        sharedRideRepository.findById(rideId).orElseThrow(),
+        userId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public SharedRideDto get(UUID userId, UUID rideId) {
     rideAccess.requireRider(userId);
     Ride ride = rideRepository.findById(rideId).filter(this::isShared).orElseThrow(this::notFound);
