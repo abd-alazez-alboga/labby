@@ -696,7 +696,10 @@ components:
         the extension blocks below; `state` additionally takes `scheduled` / `gathering`,
         `paymentStatus` takes `split` on a completed shared ride, `cancellationReason` takes
         `shared_expired` and `rider_busy`. On a shared ride the rider view's money fields (`walletApplied`,
-        `cashDue`, `carriedDues`, `tip`, `cancellationFee`) are the CALLER's member values.
+        `cashDue`, `carriedDues`, `tip`, `cancellationFee`) are the CALLER's member values; the
+        driver / admin view of a shared ride leaves `walletApplied` / `cashDue` null and
+        `carriedDues` empty (per member in `shared.members`) and reports `tip` as the sum of the
+        members' tips (M12-T2 C1).
       required: [id, state, kind]
       properties:
         id: { type: string, format: uuid }

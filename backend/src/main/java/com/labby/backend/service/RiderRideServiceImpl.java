@@ -32,6 +32,7 @@ import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RiderPreference;
 import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.repository.FareRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
@@ -305,14 +306,26 @@ public class RiderRideServiceImpl implements RiderRideService {
   @Transactional(readOnly = true)
   public ReceiptDto receipt(UUID userId, UUID rideId) {
     rideAccess.requireRider(userId);
-    Ride ride = owned(userId, rideId);
+    Ride ride = visible(userId, rideId);
     if (ride.getState() != RideState.COMPLETED) {
       throw new ResourceNotFoundException("No receipt for this ride");
+    }
+    // RIDE-P4: a member's own receipt — their share's money, their payment method.
+    SharedRideMember member = null;
+    if (ride.getKind() == RideKind.SHARED) {
+      member =
+          sharedRideMemberRepository
+              .findFirstByRideIdAndRiderUserIdAndStatusIn(
+                  rideId, userId, List.of(SharedMemberStatus.COMPLETED))
+              .orElseThrow(() -> new ResourceNotFoundException("No receipt for this ride"));
     }
     ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
     FinalFareDto fare =
         fareRepository.findById(ride.getId()).map(rideAssembler::finalFare).orElseThrow();
-    RideMoneyService.RideMoney money = rideMoneyService.rideMoney(ride, fare.components().total());
+    RideMoneyService.RideMoney money =
+        member != null
+            ? rideMoneyService.memberMoney(ride, member)
+            : rideMoneyService.rideMoney(ride, fare.components().total());
     return new ReceiptDto(
         ride.getId(),
         ride.getRegionId(),
@@ -323,7 +336,7 @@ public class RiderRideServiceImpl implements RiderRideService {
         rideAssembler.stops(ride.getStops()),
         rideAssembler.timeline(ride),
         fare,
-        ride.getPaymentMethod(),
+        member != null ? member.getPaymentMethod() : ride.getPaymentMethod(),
         ride.getPaymentStatus(),
         money.walletApplied(),
         money.cashDue(),

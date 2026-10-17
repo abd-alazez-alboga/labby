@@ -130,8 +130,17 @@ public class RideAssembler {
                 .orElse(null)
             : null;
     FinalFareDto fare = fareRepository.findById(ride.getId()).map(this::finalFare).orElse(null);
+    // scheduled-shared-v1: a member's rider view carries THEIR money and fee, never the ride's.
+    SharedRideMember viewer =
+        audience == Audience.RIDER && ride.getKind() == RideKind.SHARED
+            ? latestMembership(
+                sharedRideMemberRepository.findByRideIdOrderByJoinedAtAsc(ride.getId()),
+                viewerUserId)
+            : null;
     RideMoneyService.RideMoney money =
-        rideMoneyService.rideMoney(ride, fare == null ? null : fare.components().total());
+        viewer != null
+            ? rideMoneyService.memberMoney(ride, viewer)
+            : rideMoneyService.rideMoney(ride, fare == null ? null : fare.components().total());
     return new RideDto(
         ride.getId(),
         ride.getState(),
@@ -152,7 +161,7 @@ public class RideAssembler {
         ride.getCancellationGraceEndsAt(),
         waitGraceEndsAt(ride),
         ride.getCancellationReason(),
-        ride.getCancellationFee(),
+        viewer != null ? viewer.getCancellationFee() : ride.getCancellationFee(),
         fare,
         ride.getPaymentStatus(),
         money.walletApplied(),
@@ -206,8 +215,10 @@ public class RideAssembler {
                   shared.getDispatchTrigger(),
                   shared.getDispatchedAt(),
                   riderView && ride.getRiderUserId().equals(viewerUserId),
-                  mine == null ? null : memberView(mine, false),
-                  riderView ? List.of() : members.stream().map(m -> memberView(m, true)).toList(),
+                  mine == null ? null : memberView(ride, mine, false),
+                  riderView
+                      ? List.of()
+                      : members.stream().map(m -> memberView(ride, m, true)).toList(),
                   shared.getSplitSeats() == null
                       ? null
                       : new SplitSummaryDto(
@@ -253,18 +264,20 @@ public class RideAssembler {
             .map(user -> firstName(user.getName()))
             .orElse(""),
         ride.getRiderUserId().equals(viewerUserId),
-        mine == null ? null : memberView(mine, false),
+        mine == null ? null : memberView(ride, mine, false),
         ride.getCancellationReason());
   }
 
   /**
    * One party as the API shows it.
    *
+   * @param ride the shared ride
    * @param member the party
    * @param withName whether to include the first name (driver view only)
    * @return the view
    */
-  public MemberViewDto memberView(SharedRideMember member, boolean withName) {
+  public MemberViewDto memberView(Ride ride, SharedRideMember member, boolean withName) {
+    RideMoneyService.RideMoney money = rideMoneyService.memberMoney(ride, member);
     return new MemberViewDto(
         member.getId(),
         withName
@@ -281,8 +294,8 @@ public class RideAssembler {
         member.getCancellationFee(),
         member.getShareAmount(),
         member.getPaymentStatus(),
-        null,
-        null);
+        money.walletApplied(),
+        money.cashDue());
   }
 
   private static SharedRideMember latestMembership(List<SharedRideMember> members, UUID userId) {

@@ -45,6 +45,7 @@ public interface DriverLedgerService {
    * @param fareAmount the fare total (fare entries only)
    * @param commissionRate the percent applied (fare entries only)
    * @param commissionAmount the commission (fare entries only)
+   * @param sharedRideMemberId the shared-ride member the entry is for (RIDE-P4), or null
    */
   record LedgerPosting(
       UUID driverUserId,
@@ -56,7 +57,8 @@ public interface DriverLedgerService {
       UUID riderDueId,
       BigDecimal fareAmount,
       BigDecimal commissionRate,
-      BigDecimal commissionAmount) {
+      BigDecimal commissionAmount,
+      UUID sharedRideMemberId) {
 
     /**
      * A ride money posting without itemization (tips, fees, due collections).
@@ -77,7 +79,29 @@ public interface DriverLedgerService {
         UUID rideId,
         UUID riderDueId) {
       return new LedgerPosting(
-          driverUserId, currency, amount, type, rideId, null, riderDueId, null, null, null);
+          driverUserId, currency, amount, type, rideId, null, riderDueId, null, null, null, null);
+    }
+
+    /**
+     * The same posting, attributed to one member of a shared ride (V19: one fare / tip /
+     * cancellation-fee entry per ride x member).
+     *
+     * @param memberId the shared-ride member, or null for a one-rider ride
+     * @return the posting
+     */
+    public LedgerPosting forMember(UUID memberId) {
+      return new LedgerPosting(
+          driverUserId,
+          currency,
+          amount,
+          type,
+          rideId,
+          settlementId,
+          riderDueId,
+          fareAmount,
+          commissionRate,
+          commissionAmount,
+          memberId);
     }
   }
 }

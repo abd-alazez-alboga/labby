@@ -48,6 +48,7 @@ public class DriverLedgerServiceImpl implements DriverLedgerService {
                 .fareAmount(posting.fareAmount())
                 .commissionRate(posting.commissionRate())
                 .commissionAmount(posting.commissionAmount())
+                .sharedRideMemberId(posting.sharedRideMemberId())
                 .balanceAfter(after)
                 .createdAt(clock.instant())
                 .build());

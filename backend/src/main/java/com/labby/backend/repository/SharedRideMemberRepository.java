@@ -1,5 +1,6 @@
 package com.labby.backend.repository;
 
+import com.labby.backend.enums.PaymentStatus;
 import com.labby.backend.enums.SharedMemberStatus;
 import com.labby.backend.model.SharedRideMember;
 import java.util.Collection;
@@ -25,6 +26,13 @@ public interface SharedRideMemberRepository extends JpaRepository<SharedRideMemb
   /** The rider's latest membership row of a ride, whatever its status. */
   Optional<SharedRideMember> findFirstByRideIdAndRiderUserIdOrderByJoinedAtDesc(
       UUID rideId, UUID riderUserId);
+
+  /** The rider's membership of a ride that owes a cancellation / no-show fee (money-v1 dues). */
+  Optional<SharedRideMember> findFirstByRideIdAndRiderUserIdAndCancellationFeeIsNotNull(
+      UUID rideId, UUID riderUserId);
+
+  /** Whether any member of the ride still has the given payment status (RIDE-P4 per member). */
+  boolean existsByRideIdAndPaymentStatus(UUID rideId, PaymentStatus paymentStatus);
 
   /**
    * Whether the rider is a joined member of a shared ride still gathering or live (one at a time,

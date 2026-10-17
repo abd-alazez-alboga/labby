@@ -10,6 +10,7 @@ import com.labby.backend.dto.WalletTransactionPageDto;
 import com.labby.backend.dto.WalletViewDto;
 import com.labby.backend.enums.DriverLedgerType;
 import com.labby.backend.enums.NotificationEvent;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.SettlementDirection;
 import com.labby.backend.enums.WalletTransactionType;
@@ -25,6 +26,7 @@ import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.SettlementRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.DriverLedgerService.LedgerPosting;
 import java.math.BigDecimal;
@@ -55,6 +57,7 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
   private final UserRepository userRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final RideRepository rideRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final SettlementRepository settlementRepository;
   private final DriverLedgerRepository driverLedgerRepository;
   private final DriverBalanceRepository driverBalanceRepository;
@@ -96,7 +99,15 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
       Ride ride =
           rideRepository
               .findById(request.rideId())
-              .filter(candidate -> userId.equals(candidate.getRiderUserId()))
+              .filter(
+                  candidate ->
+                      userId.equals(candidate.getRiderUserId())
+                          // RIDE-P4: a shared ride's member is refunded on their own.
+                          || (candidate.getKind() == RideKind.SHARED
+                              && sharedRideMemberRepository
+                                  .findFirstByRideIdAndRiderUserIdOrderByJoinedAtDesc(
+                                      candidate.getId(), userId)
+                                  .isPresent()))
               .orElseThrow(() -> new InvalidRequestException("rideId is not a ride of this user"));
       if (refund && !ride.getCurrency().equals(request.currency())) {
         throw new InvalidRequestException("A refund must be in the ride's currency");
@@ -187,6 +198,7 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
                 payIn ? DriverLedgerType.SETTLEMENT_PAY_IN : DriverLedgerType.SETTLEMENT_PAY_OUT,
                 null,
                 settlement.getId(),
+                null,
                 null,
                 null,
                 null,

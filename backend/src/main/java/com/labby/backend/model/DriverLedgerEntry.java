@@ -70,6 +70,9 @@ public class DriverLedgerEntry {
   @Column(name = "commission_amount")
   private BigDecimal commissionAmount;
 
+  @Column(name = "shared_ride_member_id")
+  private UUID sharedRideMemberId;
+
   @Column(name = "balance_after", nullable = false)
   private BigDecimal balanceAfter;
 

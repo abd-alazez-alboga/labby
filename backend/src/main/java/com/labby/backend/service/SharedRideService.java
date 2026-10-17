@@ -10,7 +10,9 @@ import com.labby.backend.dto.SharedRideDto;
 import com.labby.backend.dto.SharedRidePageDto;
 import com.labby.backend.model.Fare;
 import com.labby.backend.model.Ride;
+import com.labby.backend.model.SharedRideMember;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /** Public shared rides (RIDE-P1..5, UC-R-12..15, UC-D-13; scheduled-shared-v1 SharedRides). */
@@ -112,13 +114,37 @@ public interface SharedRideService {
   int processDue();
 
   /**
+   * Confirms one member's cash on a completed shared ride (UC-D-13 step 3): their carried cash dues
+   * are collected, their status becomes {@code paid_cash} / {@code paid_mixed}; the ride reads
+   * {@code paymentConfirmedAt} once no member is pending.
+   *
+   * @param driverUserId the assigned driver
+   * @param rideId the ride
+   * @param memberId the member
+   * @return the driver view
+   */
+  RideDto confirmMemberCash(UUID driverUserId, UUID rideId, UUID memberId);
+
+  /**
+   * Marks one member's cash unpaid on a completed shared ride: their carried cash dues are released
+   * (pending again), nothing moves.
+   *
+   * @param driverUserId the assigned driver
+   * @param rideId the ride
+   * @param memberId the member
+   * @return the driver view
+   */
+  RideDto markMemberUnpaid(UUID driverUserId, UUID rideId, UUID memberId);
+
+  /**
    * RIDE-P4 at completion: divides the stored fare over the boarded seats, completes the boarded
    * members with their share (payment pending until collected) and records the split.
    *
    * @param ride the completing ride (locked)
    * @param fare its stored fare
+   * @return the completed members, in join order (saved)
    */
-  void settleSplit(Ride ride, Fare fare);
+  List<SharedRideMember> settleSplit(Ride ride, Fare fare);
 
   /**
    * A driver cancellation re-dispatches a NEW ride (owner 2026-10-07): the group moves with it.

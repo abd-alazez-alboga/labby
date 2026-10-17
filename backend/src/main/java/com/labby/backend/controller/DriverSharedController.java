@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** The driver's per-member actions on a shared ride (UC-D-13) per scheduled-shared-v1.yaml. */
 @RestController
 @RequestMapping("/api/v1/driver/rides/{rideId}/members/{memberId}")
-@Tag(name = "DriverShared", description = "Per-member no-show on a shared ride")
+@Tag(name = "DriverShared", description = "Per-member no-show and cash on a shared ride")
 @RequiredArgsConstructor
 public class DriverSharedController {
 
@@ -34,5 +34,35 @@ public class DriverSharedController {
   public ResponseEntity<RideDto> noShow(@PathVariable UUID rideId, @PathVariable UUID memberId) {
     return ResponseEntity.ok(
         sharedRideService.markNoShow(SecurityUtils.currentUserId(), rideId, memberId));
+  }
+
+  /**
+   * Confirms one member's cash.
+   *
+   * @param rideId the ride
+   * @param memberId the member
+   * @return 200 with the driver view; 409 illegal_state (member payment not pending)
+   */
+  @PostMapping("/cash-confirm")
+  @Operation(summary = "Confirm one member's cash (UC-D-13 step 3)")
+  public ResponseEntity<RideDto> cashConfirm(
+      @PathVariable UUID rideId, @PathVariable UUID memberId) {
+    return ResponseEntity.ok(
+        sharedRideService.confirmMemberCash(SecurityUtils.currentUserId(), rideId, memberId));
+  }
+
+  /**
+   * Marks one member's cash unpaid.
+   *
+   * @param rideId the ride
+   * @param memberId the member
+   * @return 200 with the driver view; 409 illegal_state (member payment not pending)
+   */
+  @PostMapping("/mark-unpaid")
+  @Operation(summary = "Mark one member's cash unpaid")
+  public ResponseEntity<RideDto> markUnpaid(
+      @PathVariable UUID rideId, @PathVariable UUID memberId) {
+    return ResponseEntity.ok(
+        sharedRideService.markMemberUnpaid(SecurityUtils.currentUserId(), rideId, memberId));
   }
 }

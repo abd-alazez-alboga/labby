@@ -89,6 +89,7 @@ public class SharedRideServiceImpl implements SharedRideService {
   private final RideLifecycle rideLifecycle;
   private final ScheduledRideSupport scheduledRideSupport;
   private final ChatService chatService;
+  private final RideMoneyService rideMoneyService;
   private final RideRepository rideRepository;
   private final SharedRideRepository sharedRideRepository;
   private final SharedRideMemberRepository sharedRideMemberRepository;
@@ -335,6 +336,10 @@ public class SharedRideServiceImpl implements SharedRideService {
     member.setCancellationNote(RiderRideServiceImpl.blankToNull(request.note()));
     member.setCancellationFee(rideLifecycle.riderCancellationFee(ride, now));
     sharedRideMemberRepository.saveAndFlush(member);
+    if (member.getCancellationFee() != null) {
+      // RIDE-07 per member: collected by THEIR payment method (money-v1).
+      rideMoneyService.collectMemberFee(ride, member);
+    }
     shared = freeSeats(shared, member);
     if (joined(rideId).isEmpty()) {
       endWithoutRiders(ride, request.reason(), now);
@@ -387,11 +392,7 @@ public class SharedRideServiceImpl implements SharedRideService {
     if (!driverUserId.equals(ride.getDriverUserId())) {
       throw new ForbiddenException("This is not your ride");
     }
-    SharedRideMember member =
-        sharedRideMemberRepository
-            .findById(memberId)
-            .filter(found -> found.getRideId().equals(rideId))
-            .orElseThrow(() -> new ResourceNotFoundException("Member not found"));
+    SharedRideMember member = memberOf(rideId, memberId);
     if (ride.getState() != RideState.DRIVER_ARRIVED || !member.isJoined()) {
       throw RideLifecycle.illegalState(ride);
     }
@@ -409,6 +410,9 @@ public class SharedRideServiceImpl implements SharedRideService {
     member.setNoShowAt(now);
     member.setCancellationFee(rideLifecycle.regionFee(ride.getRegionId()));
     sharedRideMemberRepository.saveAndFlush(member);
+    if (member.getCancellationFee() != null) {
+      rideMoneyService.collectMemberFee(ride, member);
+    }
     SharedRide shared = sharedRideRepository.findById(rideId).orElseThrow();
     freeSeats(shared, member);
     Map<String, Object> params = new HashMap<>();
@@ -431,6 +435,46 @@ public class SharedRideServiceImpl implements SharedRideService {
     } else {
       rideEvents.updated(ride, "member_no_show");
     }
+    return rideAssembler.view(ride, Audience.DRIVER);
+  }
+
+  @Override
+  public RideDto confirmMemberCash(UUID driverUserId, UUID rideId, UUID memberId) {
+    return settleMember(driverUserId, rideId, memberId, null, "payment_confirmed");
+  }
+
+  @Override
+  public RideDto markMemberUnpaid(UUID driverUserId, UUID rideId, UUID memberId) {
+    return settleMember(driverUserId, rideId, memberId, PaymentStatus.UNPAID, "payment_unpaid");
+  }
+
+  /** The per-member rides-v1 cash-confirm (status null) / mark-unpaid. */
+  private RideDto settleMember(
+      UUID driverUserId, UUID rideId, UUID memberId, PaymentStatus status, String reason) {
+    rideAccess.requireDriver(driverUserId);
+    Ride ride = lockShared(rideId);
+    if (!driverUserId.equals(ride.getDriverUserId())) {
+      throw new ForbiddenException("This is not your ride");
+    }
+    SharedRideMember member = memberOf(rideId, memberId);
+    if (ride.getState() != RideState.COMPLETED
+        || member.getPaymentStatus() != PaymentStatus.PENDING) {
+      throw RideLifecycle.illegalState(ride);
+    }
+    if (status == null) {
+      status = rideMoneyService.confirmMemberCash(ride, member);
+    } else {
+      rideMoneyService.releaseMemberCarriedDues(ride, member);
+    }
+    Instant now = clock.instant();
+    member.setPaymentStatus(status);
+    member.setPaymentConfirmedAt(now);
+    sharedRideMemberRepository.saveAndFlush(member);
+    if (!sharedRideMemberRepository.existsByRideIdAndPaymentStatus(rideId, PaymentStatus.PENDING)) {
+      ride.setPaymentConfirmedAt(now);
+      ride = rideRepository.saveAndFlush(ride);
+    }
+    rideEvents.updated(ride, reason);
     return rideAssembler.view(ride, Audience.DRIVER);
   }
 
@@ -473,7 +517,7 @@ public class SharedRideServiceImpl implements SharedRideService {
   }
 
   @Override
-  public void settleSplit(Ride ride, Fare fare) {
+  public List<SharedRideMember> settleSplit(Ride ride, Fare fare) {
     List<SharedRideMember> boarded = joined(ride.getId());
     SharedFareSplitter.Split split =
         SharedFareSplitter.split(
@@ -494,6 +538,7 @@ public class SharedRideServiceImpl implements SharedRideService {
     shared.setSplitSeats((short) split.boardedSeats());
     shared.setPerSeatAmount(split.perSeatAmount());
     sharedRideRepository.saveAndFlush(shared);
+    return boarded;
   }
 
   @Override
@@ -633,6 +678,13 @@ public class SharedRideServiceImpl implements SharedRideService {
   private SharedRide freeSeats(SharedRide shared, SharedRideMember member) {
     shared.setSeatsTaken((short) Math.max(0, shared.getSeatsTaken() - member.getPartySize()));
     return sharedRideRepository.saveAndFlush(shared);
+  }
+
+  private SharedRideMember memberOf(UUID rideId, UUID memberId) {
+    return sharedRideMemberRepository
+        .findById(memberId)
+        .filter(found -> found.getRideId().equals(rideId))
+        .orElseThrow(() -> new ResourceNotFoundException("Member not found"));
   }
 
   private List<SharedRideMember> joined(UUID rideId) {

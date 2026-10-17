@@ -48,14 +48,18 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
 
   /**
    * The driver's ride that still needs them: an assigned trip, or a completed one whose cash is not
-   * settled yet (UC-D-09).
+   * settled yet (UC-D-09) — on a shared ride, while any member's payment is pending (M12).
    */
   @Query(
       """
       SELECT r FROM Ride r WHERE r.driverUserId = :driverUserId
         AND (r.state IN :assigned
              OR (r.state = com.labby.backend.enums.RideState.COMPLETED
-                 AND r.paymentStatus = com.labby.backend.enums.PaymentStatus.PENDING))
+                 AND (r.paymentStatus = com.labby.backend.enums.PaymentStatus.PENDING
+                      OR (r.paymentStatus = com.labby.backend.enums.PaymentStatus.SPLIT
+                          AND EXISTS (SELECT 1 FROM SharedRideMember m WHERE m.rideId = r.id
+                                      AND m.paymentStatus
+                                          = com.labby.backend.enums.PaymentStatus.PENDING)))))
       ORDER BY r.requestedAt DESC
       """)
   List<Ride> findDriverCurrent(

@@ -11,6 +11,7 @@ import com.labby.backend.dto.RideSummaryPageDto;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OfferResponse;
+import com.labby.backend.enums.PaymentMethod;
 import com.labby.backend.enums.PaymentStatus;
 import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
@@ -24,6 +25,7 @@ import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.FareRepository;
 import com.labby.backend.repository.RegionRepository;
@@ -39,6 +41,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -273,23 +276,23 @@ public class DriverRideServiceImpl implements DriverRideService {
     // CHAT-01: the chat window survives the completion by 24 h.
     chatService.closeThread(ride.getId(), now);
     if (ride.getKind() == RideKind.SHARED) {
-      // RIDE-P4: the fare is split per seat over the boarded members; each pays their own share.
+      // RIDE-P4: the fare is split per seat over the boarded members; each pays their own share
+      // by their own method, with their own dues carried (money-v1 per member).
       ride.setPaymentStatus(PaymentStatus.SPLIT);
-      sharedRideService.settleSplit(ride, fare);
+      List<SharedRideMember> members = sharedRideService.settleSplit(ride, fare);
+      rideMoneyService.applySharedAtCompletion(ride, members);
       ride = rideRepository.saveAndFlush(ride);
       rideEvents.stateChanged(ride);
-      rideEvents.pushRiders(
-          ride,
-          NotificationEvent.RIDE_COMPLETED,
-          Map.of(
-              "rideId",
-              ride.getId().toString(),
-              "total",
-              components.total().toPlainString(),
-              "currency",
-              components.currency(),
-              "method",
-              ride.getPaymentMethod().getValue()));
+      for (SharedRideMember member : members) {
+        rideEvents.push(
+            member.getRiderUserId(),
+            NotificationEvent.RIDE_COMPLETED,
+            completedParams(
+                ride,
+                member.getShareAmount(),
+                member.getPaymentMethod(),
+                rideMoneyService.memberMoney(ride, member)));
+      }
       rideLifecycle.releaseDriver(userId, now);
       return rideAssembler.view(ride, Audience.DRIVER);
     }
@@ -299,24 +302,36 @@ public class DriverRideServiceImpl implements DriverRideService {
     rideMoneyService.applyAtCompletion(ride, fare);
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
-    RideMoneyService.RideMoney money = rideMoneyService.rideMoney(ride, fare.getTotal());
-    Map<String, Object> pushParams = new HashMap<>();
-    pushParams.put("rideId", ride.getId().toString());
-    pushParams.put("total", components.total().toPlainString());
-    pushParams.put("currency", components.currency());
-    pushParams.put("method", ride.getPaymentMethod().getValue());
-    if (money.walletApplied() != null) {
-      pushParams.put("walletApplied", money.walletApplied().toPlainString());
-    }
-    if (money.cashDue() != null) {
-      pushParams.put("cashDue", money.cashDue().toPlainString());
-    }
-    // M8 re-audit R-W1: the carried cancellation fees, itemized by how they are paid.
-    putCarried(pushParams, "carriedWallet", money, CarriedDueDto.METHOD_WALLET);
-    putCarried(pushParams, "carriedCash", money, CarriedDueDto.METHOD_CASH);
-    rideEvents.push(ride.getRiderUserId(), NotificationEvent.RIDE_COMPLETED, pushParams);
+    rideEvents.push(
+        ride.getRiderUserId(),
+        NotificationEvent.RIDE_COMPLETED,
+        completedParams(
+            ride,
+            components.total(),
+            ride.getPaymentMethod(),
+            rideMoneyService.rideMoney(ride, fare.getTotal())));
     rideLifecycle.releaseDriver(userId, now);
     return rideAssembler.view(ride, Audience.DRIVER);
+  }
+
+  /** The {@code ride.completed} push params of one payer (the rider, or a shared-ride member). */
+  private static Map<String, Object> completedParams(
+      Ride ride, BigDecimal total, PaymentMethod method, RideMoneyService.RideMoney money) {
+    Map<String, Object> params = new HashMap<>();
+    params.put("rideId", ride.getId().toString());
+    params.put("total", total.toPlainString());
+    params.put("currency", ride.getCurrency());
+    params.put("method", method.getValue());
+    if (money.walletApplied() != null) {
+      params.put("walletApplied", money.walletApplied().toPlainString());
+    }
+    if (money.cashDue() != null) {
+      params.put("cashDue", money.cashDue().toPlainString());
+    }
+    // M8 re-audit R-W1: the carried cancellation fees, itemized by how they are paid.
+    putCarried(params, "carriedWallet", money, CarriedDueDto.METHOD_WALLET);
+    putCarried(params, "carriedCash", money, CarriedDueDto.METHOD_CASH);
+    return params;
   }
 
   @Override

@@ -35,6 +35,16 @@ public interface RiderDueRepository extends JpaRepository<RiderDue, UUID> {
           + " ORDER BY d.createdAt ASC, d.id ASC")
   List<RiderDue> lockEarmarked(@Param("rideId") UUID rideId);
 
+  /** The pending dues a ride carries in cash for ONE of its riders (a shared-ride member). */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query(
+      "SELECT d FROM RiderDue d WHERE d.collectingRideId = :rideId"
+          + " AND d.riderUserId = :riderUserId"
+          + " AND d.status = com.labby.backend.enums.RiderDueStatus.PENDING"
+          + " ORDER BY d.createdAt ASC, d.id ASC")
+  List<RiderDue> lockEarmarkedOf(
+      @Param("rideId") UUID rideId, @Param("riderUserId") UUID riderUserId);
+
   /** Every due a ride carries: earmarked on it, or collected by it (rides-v1 carriedDues). */
   @Query(
       "SELECT d FROM RiderDue d WHERE d.collectedRideId = :rideId OR d.collectingRideId = :rideId"
