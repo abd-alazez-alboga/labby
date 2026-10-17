@@ -158,10 +158,12 @@ export function ChatScreen() {
   // actually ON SCREEN shows no banner — the message lands live here
   // (owner ruling 2026-10-14, push.ts).
   const shownRideId = switching ? null : chatRideId;
+  const shownMemberId = switching ? null : chatMemberId;
   useFocusEffect(
     useCallback(
-      () => (shownRideId ? setOpenChatRideId(shownRideId) : undefined),
-      [shownRideId],
+      () =>
+        shownRideId ? setOpenChatRideId(shownRideId, shownMemberId) : undefined,
+      [shownRideId, shownMemberId],
     ),
   );
 

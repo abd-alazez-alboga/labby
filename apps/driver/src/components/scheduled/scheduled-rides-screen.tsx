@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
@@ -483,10 +483,14 @@ export function ScheduledRidesScreen({
     }
   }, []);
 
-  useEffect(() => {
-    void fetchBoard(0);
-    void fetchMine();
-  }, [fetchBoard, fetchMine]);
+  // M12 review W13: re-read on every focus — e.g. back from the availability
+  // windows screen the empty board's "Set your availability" button opened.
+  useFocusEffect(
+    useCallback(() => {
+      void fetchBoard(0);
+      void fetchMine();
+    }, [fetchBoard, fetchMine]),
+  );
 
   const refreshAll = () => {
     setMine({ status: "loading" });

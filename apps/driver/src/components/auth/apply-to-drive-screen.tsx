@@ -11,7 +11,7 @@ import {
 } from "../../api/auth-types";
 import { getMyApplication } from "../../api/onboarding";
 import { getDriverPerformance } from "../../api/trust";
-import type { DriverPerformance } from "../../api/trust-types";
+import { ratingKey, type DriverPerformance } from "../../api/trust-types";
 import { useAuth } from "../../auth/AuthProvider";
 import { failureKindOf } from "../../onboarding/server-errors";
 import { useRemote } from "../../onboarding/use-remote";
@@ -526,6 +526,8 @@ export function ApplyToDriveScreen() {
     const { target, payment } = ratings.prompt;
     return (
       <RateRiderScreen
+        // M12 review H4: a fresh screen per prompt — the next member starts empty.
+        key={ratingKey(target)}
         target={target}
         payment={payment}
         mode="prompt"

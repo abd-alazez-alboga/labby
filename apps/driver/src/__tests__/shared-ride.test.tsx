@@ -119,6 +119,32 @@ describe("shared ride (UC-D-13)", () => {
     expect(screen.getByTestId(`shared-chat-${LINA.memberId}`)).toHaveTextContent(/Lina/);
   });
 
+  it("the chat list keeps an absent member's thread and shows each thread's unread count (review W13)", async () => {
+    const absent = { ...LINA, status: "no_show" as const, cancellationFee: 2000 };
+    await withActiveRide(sharedRide({}, [RANA, OMAR, absent]), {
+      [`GET /api/v1/rides/${RIDE_ID}/chat?memberId=${RANA.memberId}`]: ok(
+        threadFixture({ unreadCount: 2 }),
+      ),
+      [`GET /api/v1/rides/${RIDE_ID}/chat?memberId=${OMAR.memberId}`]: ok(
+        threadFixture({ unreadCount: 0 }),
+      ),
+      [`GET /api/v1/rides/${RIDE_ID}/chat?memberId=${LINA.memberId}`]: ok(
+        threadFixture({ unreadCount: 1 }),
+      ),
+    });
+    fireEvent.press(await screen.findByTestId("safety-shared-chats"));
+    expect(await screen.findByTestId(`shared-chat-${LINA.memberId}`)).toHaveTextContent(
+      /Absent/,
+    );
+    expect(await screen.findByTestId(`shared-chat-unread-${RANA.memberId}`)).toHaveTextContent(
+      "2",
+    );
+    expect(await screen.findByTestId(`shared-chat-unread-${LINA.memberId}`)).toHaveTextContent(
+      "1",
+    );
+    expect(screen.queryByTestId(`shared-chat-unread-${OMAR.memberId}`)).toBeNull();
+  });
+
   it("a member's chat opens that member's private thread (memberId) and shows only its messages", async () => {
     const thread = `/api/v1/rides/${RIDE_ID}/chat?memberId=${LINA.memberId}`;
     const messages = `/api/v1/rides/${RIDE_ID}/chat/messages?memberId=${LINA.memberId}`;

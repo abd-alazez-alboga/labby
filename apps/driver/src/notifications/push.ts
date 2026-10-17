@@ -7,7 +7,7 @@ import { registerDevice, unregisterDevice } from "../api/notifications";
 import type { DevicePlatform } from "../api/realtime-types";
 import { runExclusive } from "../permissions/permission-queue";
 import { parsePushPayload } from "./deep-links";
-import { openChatRideId } from "./open-chat";
+import { openChatThread } from "./open-chat";
 
 /**
  * Push plumbing (NTF-01, UC-S-25) — the ONLY module touching
@@ -272,11 +272,13 @@ export function onNotificationReceived(
  */
 export function isPushForOpenChat(data: unknown): boolean {
   if (AppState.currentState !== "active") return false;
-  const openRideId = openChatRideId();
-  if (!openRideId) return false;
+  const open = openChatThread();
+  if (!open) return false;
   const { link, event } = parsePushPayload(data);
   const isChat = event === "chat.message" || link?.screen === "chat";
-  return isChat && link?.params?.rideId === openRideId;
+  // M12 (review H5): on a shared ride the push names the member's thread.
+  const memberId = link?.params?.memberId ?? null;
+  return isChat && link?.params?.rideId === open.rideId && memberId === open.memberId;
 }
 
 /**

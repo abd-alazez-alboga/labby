@@ -40,6 +40,7 @@ export default function RateRiderRoute() {
   if (target) {
     return (
       <RateRiderScreen
+        key={ratingKey(target)}
         target={target}
         payment={null}
         mode="history"

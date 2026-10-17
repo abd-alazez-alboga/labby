@@ -412,8 +412,14 @@ export function DriverRideProvider({
           if (offerRef.current?.offer.id === frame.offerId) {
             replaceOffer(null);
             setError(null);
+            // M12 review H1: an offer withdrawn because the driver's scheduled
+            // claim just went live needs no notice — the converted ride shows.
             setNotice(
-              frame.reason === "ride_ended" ? "offerCancelled" : "offerExpired",
+              frame.reason === "scheduled_converted"
+                ? null
+                : frame.reason === "ride_ended"
+                  ? "offerCancelled"
+                  : "offerExpired",
             );
           }
           return;

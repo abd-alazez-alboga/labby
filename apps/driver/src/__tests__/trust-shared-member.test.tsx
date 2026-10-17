@@ -9,10 +9,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import { screen } from "expo-router/testing-library";
+import { AppState } from "react-native";
 
 import { clearSession } from "../auth/session";
 import { initI18n, setAppLanguage } from "../i18n";
 import { hrefForLink } from "../notifications/deep-links";
+import { setOpenChatRideId } from "../notifications/open-chat";
+import { isPushForOpenChat } from "../notifications/push";
 import { availabilityFixture } from "../test-utils/realtime";
 import { RIDE_ID } from "../test-utils/rides";
 import { LINA, OMAR, RANA, sharedRide } from "../test-utils/scheduled";
@@ -57,21 +60,26 @@ describe("shared ride: rating and reporting each member (M12)", () => {
       "How was Rana as a rider?",
     );
     fireEvent.press(screen.getByTestId("rate-star-5"));
+    fireEvent.changeText(screen.getByTestId("rate-comment"), "Friendly");
     fireEvent.press(screen.getByTestId("rate-submit"));
 
-    // The same ride's next member is asked for right away.
+    // The same ride's next member is asked for right away — and starts empty
+    // (review H4: nothing of Rana's rating carries over).
     await waitFor(() =>
       expect(screen.getByTestId("rate-title")).toHaveTextContent(
         "How was Omar as a rider?",
       ),
     );
+    expect(screen.getByTestId("rate-score-label")).toHaveTextContent("Tap a star to rate");
+    expect(screen.getByTestId("rate-comment").props.value).toBe("");
+    expect(screen.getByTestId("rate-submit").props.accessibilityState.disabled).toBe(true);
     fireEvent.press(screen.getByTestId("rate-star-4"));
     fireEvent.press(screen.getByTestId("rate-submit"));
 
     expect(await screen.findByTestId("home-screen")).toBeTruthy();
     expect(contract.requestsTo(rateOf(RANA.memberId))[0].body).toEqual({
       score: 5,
-      comment: null,
+      comment: "Friendly",
     });
     expect(contract.requestsTo(rateOf(OMAR.memberId))[0].body).toEqual({
       score: 4,
@@ -161,6 +169,24 @@ describe("shared ride: rating and reporting each member (M12)", () => {
     expect(screen.getByTestId(`report-member-${OMAR.memberId}`)).toHaveTextContent(
       /في السيارة/,
     );
+  });
+
+  it("a member's chat push still shows while ANOTHER member's thread is open (review H5)", () => {
+    const previous = AppState.currentState;
+    Object.defineProperty(AppState, "currentState", { value: "active", configurable: true });
+    const clear = setOpenChatRideId(RIDE_ID, OMAR.memberId);
+    try {
+      const push = (memberId: string) => ({
+        event: "chat.message",
+        screen: "chat",
+        params: JSON.stringify({ rideId: RIDE_ID, memberId }),
+      });
+      expect(isPushForOpenChat(push(OMAR.memberId))).toBe(true);
+      expect(isPushForOpenChat(push(LINA.memberId))).toBe(false);
+    } finally {
+      clear();
+      Object.defineProperty(AppState, "currentState", { value: previous, configurable: true });
+    }
   });
 
   it("a chat push on a shared ride opens that member's thread", () => {

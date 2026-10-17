@@ -28,6 +28,7 @@ import { RideScreen } from "./ride/ride-screen";
 import { FloorBlockedCard, FloorWarningBanner } from "./money/floor";
 import { TripEarningsScreen } from "./money/trip-earnings-screen";
 import { RateRiderScreen, reportHrefFor } from "./trust/rate-rider-screen";
+import { ratingKey } from "../api/trust-types";
 import type { BridgeZone } from "../map/leaflet-bridge";
 import { useOptionalHeatmap } from "../heatmap/HeatmapProvider";
 import { mapZones } from "../heatmap/levels";
@@ -237,6 +238,8 @@ export function HomeScreen() {
     const { target, payment } = ratings.prompt;
     return (
       <RateRiderScreen
+        // M12 review H4: a fresh screen per prompt — the next member starts empty.
+        key={ratingKey(target)}
         target={target}
         payment={payment}
         mode="prompt"
