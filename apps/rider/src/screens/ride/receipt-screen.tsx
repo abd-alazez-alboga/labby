@@ -79,21 +79,29 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
     })();
   }, [load]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getRide(rideId)
-      .then((ride) => {
-        if (!cancelled && ride.kind === "shared" && ride.shared) {
-          setSharedInfo(ride.shared);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+  // M12 review W9: a shared receipt needs the member's own split and status
+  // from the ride — a failed read is shown with a retry, never as "Pending".
+  const [sharedFailure, setSharedFailure] = useState<FailureKind | null>(null);
+  const loadShared = useCallback(async () => {
+    setSharedFailure(null);
+    try {
+      const ride = await getRide(rideId);
+      if (ride.kind === "shared" && ride.shared) setSharedInfo(ride.shared);
+    } catch (error) {
+      setSharedFailure(failureKind(error));
+    }
   }, [rideId]);
 
+  useEffect(() => {
+    (async () => {
+      await loadShared();
+    })();
+  }, [loadShared]);
+
   if (failure) return <ErrorView kind={failure} onRetry={() => void load()} />;
+  if (receipt?.paymentStatus === "split" && sharedFailure) {
+    return <ErrorView kind={sharedFailure} onRetry={() => void loadShared()} />;
+  }
   if (!receipt) return <LoadingView testID="receipt-loading" />;
 
   const service = serviceName(

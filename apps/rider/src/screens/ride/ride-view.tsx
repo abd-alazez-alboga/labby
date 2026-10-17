@@ -492,6 +492,25 @@ export function RideView({
         )}
       </BottomSheet>
     );
+  } else if (ride.state === "no_driver_found" && ride.kind === "shared") {
+    // M12 review W5 (owner ruling 2026-10-17): a shared ride ends here —
+    // no retry; the member creates or joins another one.
+    sheet = (
+      <BottomSheet testID="ride-no-driver-shared">
+        <IconWell name="car-outline" />
+        <View style={styles.titleBlock}>
+          <AppText variant="title">{t("shared.noDriverTitle")}</AppText>
+          <AppText variant="body" tone="secondary">
+            {t("shared.noDriverBody")}
+          </AppText>
+        </View>
+        <PrimaryButton
+          label={t("shared.findAnother")}
+          onPress={() => router.replace("/shared" as never)}
+          testID="ride-shared-find-another"
+        />
+      </BottomSheet>
+    );
   } else if (ride.state === "no_driver_found") {
     sheet = (
       <BottomSheet testID="ride-no-driver">

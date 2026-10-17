@@ -444,9 +444,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timeChip: {
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
-    borderRadius: 22,
+    borderRadius: 24,
     backgroundColor: colors.surfaceFill,
     alignItems: "center",
     gap: spacing.sm,

@@ -436,10 +436,15 @@ describe("create a shared ride (UC-R-12)", () => {
     expect(await screen.findByTestId("shared-create-estimate")).toHaveTextContent(
       "~SYP 22,000 whole ride · you pay your seats' share",
     );
-    expect(api.callsTo("POST", "/api/v1/rides/estimate")[0].body).toEqual({
+    // M12 review W6: priced like the published ride — at the departure time.
+    const estimateBody = api.callsTo("POST", "/api/v1/rides/estimate")[0].body as {
+      scheduledAt?: string;
+    };
+    expect(estimateBody).toMatchObject({
       pickup: { lat: 33.5138, lng: 36.2765, label: "Current location" },
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
     });
+    expect(Date.parse(estimateBody.scheduledAt ?? "")).toBeGreaterThan(Date.now());
     await fireEvent.press(screen.getByTestId("shared-create-mode-when_full"));
     expect(
       screen.getByText(
@@ -490,6 +495,42 @@ describe("create a shared ride (UC-R-12)", () => {
     };
     expect(body.departure.mode).toBe("at_time");
     expect(Date.parse(body.departure.departAt)).toBeGreaterThan(Date.now());
+  });
+
+  it("explains party_too_large on create", async () => {
+    mockApi({
+      ...ACTIVE_NONE,
+      "GET /api/v1/rider/saved-locations": { status: 200, body: [savedWork] },
+      "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+      "POST /api/v1/shared-rides": {
+        status: 422,
+        body: { status: 422, message: "party_too_large", code: "party_too_large" },
+      },
+    });
+    await withProviders(<SharedCreateScreen />);
+    await planRoute();
+    await fireEvent.press(await screen.findByTestId("shared-create-publish"));
+    expect(await screen.findByTestId("shared-create-error")).toHaveTextContent(
+      "Your party can't be bigger than the seats in the ride.",
+    );
+  });
+
+  it("explains departure_in_past on create", async () => {
+    mockApi({
+      ...ACTIVE_NONE,
+      "GET /api/v1/rider/saved-locations": { status: 200, body: [savedWork] },
+      "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+      "POST /api/v1/shared-rides": {
+        status: 422,
+        body: { status: 422, message: "departure_in_past", code: "departure_in_past" },
+      },
+    });
+    await withProviders(<SharedCreateScreen />);
+    await planRoute();
+    await fireEvent.press(await screen.findByTestId("shared-create-publish"));
+    expect(await screen.findByTestId("shared-create-error")).toHaveTextContent(
+      "Pick a departure time in the future.",
+    );
   });
 
   it("explains an active ride in the way", async () => {
@@ -650,5 +691,66 @@ describe("after dispatch (UC-R-14 E1, UC-R-15 completion)", () => {
       /Split by seat.*Seats that rode4.*Your shareSYP 12,850/,
     );
     expect(screen.getByText(/^Shared ride · Economy/)).toBeOnTheScreen();
+  });
+});
+
+describe("M12 review fixes", () => {
+  it("W7: a ride the rider left is not marked \"You're in\"", async () => {
+    mockApi({
+      ...ACTIVE_NONE,
+      "GET /api/v1/rider/saved-locations": { status: 200, body: [] },
+      "GET /api/v1/shared-rides": {
+        status: 200,
+        body: {
+          items: [sharedRide({ me: member({ status: "left" }) })],
+          page: 0,
+          size: 20,
+          totalItems: 1,
+        },
+      },
+    });
+    await withProviders(<SharedRidesScreen />);
+    await screen.findByTestId(`shared-card-${SHARED_ID}`);
+    expect(screen.queryByTestId(`shared-card-member-${SHARED_ID}`)).toBeNull();
+  });
+
+  it("W5: a shared ride with no driver ends without retry", async () => {
+    const ended = liveSharedRide({ state: "no_driver_found", driver: null });
+    mockApi({ "GET /api/v1/rides/active": { status: 204 } });
+    await withProviders(<RideView ride={ended} onDone={() => {}} />);
+    expect(await screen.findByTestId("ride-no-driver-shared")).toHaveTextContent(
+      /No driver for this shared ride/,
+    );
+    expect(screen.queryByTestId("ride-retry")).toBeNull();
+    await fireEvent.press(screen.getByTestId("ride-shared-find-another"));
+    expect(mockReplace).toHaveBeenCalledWith("/shared");
+  });
+
+  it("W9: a shared receipt whose ride read fails offers a retry, never 'Pending'", async () => {
+    const api = mockApi({
+      ...ACTIVE_NONE,
+      [`GET /api/v1/rides/${SHARED_ID}/receipt`]: {
+        status: 200,
+        body: receiptFixture({ rideId: SHARED_ID, paymentStatus: "split" }),
+      },
+      [`GET /api/v1/rides/${SHARED_ID}`]: [
+        { status: 500, body: { status: 500, message: "down" } },
+        {
+          status: 200,
+          body: liveSharedRide({
+            state: "completed",
+            shared: {
+              ...liveSharedRide().shared!,
+              me: member({ status: "completed", shareAmount: 12850, paymentStatus: "paid_cash" }),
+              split: { fareTotal: 25700, currency: "SYP", boardedSeats: 4, perSeatAmount: 6425 },
+            },
+          }),
+        },
+      ],
+    });
+    await withProviders(<ReceiptScreen rideId={SHARED_ID} />);
+    await fireEvent.press(await screen.findByTestId("error-retry"));
+    expect(await screen.findByTestId("receipt-shared-split")).toBeOnTheScreen();
+    expect(api.callsTo("GET", `/api/v1/rides/${SHARED_ID}`)).toHaveLength(2);
   });
 });

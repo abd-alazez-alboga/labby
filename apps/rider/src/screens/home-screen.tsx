@@ -355,9 +355,9 @@ const styles = StyleSheet.create({
   later: {
     alignItems: "center",
     gap: 6,
-    height: 44,
+    height: 48,
     paddingHorizontal: 14,
-    borderRadius: 22,
+    borderRadius: 24,
     backgroundColor: colors.surface,
   },
   upcoming: {

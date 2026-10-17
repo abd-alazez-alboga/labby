@@ -123,7 +123,8 @@ function SharedCard({
           })}
         </AppText>
       </View>
-      {ride.me ? (
+      {/* M12 review W7: only a membership that still holds seats. */}
+      {ride.me?.status === "joined" ? (
         <StatusChip
           tone="accent"
           label={t("shared.youreIn")}
@@ -369,8 +370,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   clear: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
   },

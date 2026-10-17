@@ -81,6 +81,11 @@ export const m12En = {
       "You were still on another ride when it was due. You weren't charged.",
   },
   shared: {
+    // M12 review W5: a shared ride ends at no_driver_found — no retry.
+    noDriverTitle: "No driver for this shared ride",
+    noDriverBody:
+      "No driver took this shared ride, so it ended. You weren't charged. Create or join another shared ride.",
+    findAnother: "Find another shared ride",
     homeTitle: "Shared rides",
     homeSubtitle: "Ride with others going your way · split the fare",
     browseTitle: "Shared rides",
@@ -283,6 +288,10 @@ export const m12Ar = {
     riderBusyBody: "كنت ما تزال في رحلة أخرى عند موعدها. لم تُحاسَب.",
   },
   shared: {
+    noDriverTitle: "لا يوجد سائق لهذه الرحلة المشتركة",
+    noDriverBody:
+      "لم يقبل أي سائق هذه الرحلة المشتركة، فانتهت. لم تُحتسب عليك أي رسوم. أنشئ رحلة مشتركة أخرى أو انضم إلى واحدة.",
+    findAnother: "ابحث عن رحلة مشتركة أخرى",
     homeTitle: "الرحلات المشتركة",
     homeSubtitle: "اركب مع آخرين في طريقك · وتقاسموا الأجرة",
     browseTitle: "الرحلات المشتركة",

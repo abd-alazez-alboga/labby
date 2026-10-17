@@ -12,7 +12,7 @@
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
@@ -72,11 +72,35 @@ export default function SharedCreateScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // M12 review W6: the published estimate has no surge and the departure
+  // time's surcharge (surge locks at dispatch) — the estimate asks for the
+  // same: the departure time, or now for "when full".
+  const pricedAt = mode === "at_time" ? departAt.toISOString() : null;
+  const estimateFor = (next: PlannedRoute) =>
+    estimateRide(
+      { pickup: next.pickup, destination: next.destination },
+      pricedAt ?? new Date().toISOString(),
+    );
+
+  useEffect(() => {
+    if (!route) return;
+    let cancelled = false;
+    estimateFor(route)
+      .then((result) => {
+        if (!cancelled) setEstimate(result);
+      })
+      .catch(() => {
+        // Keep the previous estimate; the create call prices the ride anyway.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Re-price only when the departure changes (the route has its own call).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricedAt]);
+
   const planned = async (next: PlannedRoute) => {
-    const result = await estimateRide({
-      pickup: next.pickup,
-      destination: next.destination,
-    });
+    const result = await estimateFor(next);
     setRoute({ ...next, stops: [] });
     setEstimate(result);
     setServiceTypeId((current) =>
@@ -425,7 +449,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    height: 44,
+    height: 48,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
