@@ -272,7 +272,7 @@ class SharedRideIntegrationTest extends AbstractRideIntegrationTest {
     List<Map<String, Object>> shares =
         jdbcTemplate.queryForList(
             "SELECT is_creator, party_size, share_amount, status FROM shared_ride_members WHERE"
-                + " ride_id = ? AND status = 'completed' ORDER BY joined_at",
+                + " ride_id = ? AND status = 'completed' ORDER BY is_creator DESC, joined_at",
             rideId);
     assertThat(shares).hasSize(2);
     BigDecimal sum =
