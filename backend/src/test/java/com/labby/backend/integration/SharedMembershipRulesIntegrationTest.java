@@ -90,6 +90,55 @@ class SharedMembershipRulesIntegrationTest extends AbstractRideIntegrationTest {
   }
 
   @Test
+  @DisplayName("H2: a creator on another live ride at dispatch → the group is cancelled, all told")
+  void shouldCancelGroupOfBusyCreatorAtDispatch() {
+    driverAt(PICKUP_LAT, PICKUP_LNG);
+    Account creator = rider();
+    UUID shared = create(creator, 3, 1, "cash");
+    Account member = rider();
+    ok(join(member, shared, 1, "cash"), HttpStatus.OK);
+    // The creator's own live ride, reached around the booking rule (another path / instance).
+    jdbcTemplate.update(
+        "UPDATE shared_ride_members SET status = 'left', left_at = now() WHERE ride_id = ? AND"
+            + " rider_user_id = ?",
+        shared,
+        creator.userId());
+    book(creator);
+    jdbcTemplate.update(
+        "UPDATE shared_ride_members SET status = 'joined', left_at = NULL WHERE ride_id = ? AND"
+            + " rider_user_id = ?",
+        shared,
+        creator.userId());
+
+    ok(post("/api/v1/shared-rides/" + shared + "/start", null, creator.token()), HttpStatus.OK);
+
+    assertThat(stateOf(shared)).isEqualTo("cancelled_by_rider");
+    assertThat(sharedCancelReason(creator)).isEqualTo("own_ride_busy");
+    assertThat(sharedCancelReason(member)).isEqualTo("creator_busy");
+  }
+
+  @Test
+  @DisplayName("Re-audit N3: a suspended member still reaches their live shared ride to finish it")
+  void shouldLetSuspendedMemberFinishTheSharedRide() {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    Account creator = rider();
+    UUID shared = create(creator, 2, 1, "cash");
+    Account member = rider();
+    ok(join(member, shared, 1, "cash"), HttpStatus.OK);
+    dispatchAndAccept(shared, driver);
+    assertThat(
+            post(
+                    "/api/v1/admin/users/" + member.userId() + "/suspend",
+                    Map.of("note", "Investigation"),
+                    admin)
+                .getStatusCode()
+                .is2xxSuccessful())
+        .isTrue();
+    assertThat(get("/api/v1/rides/" + shared, member.token()).getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
   @DisplayName("H3: a creator who leaves after acceptance is free; the group rides on")
   void shouldFreeCreatorWhoLeftAfterDispatch() {
     Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
@@ -301,5 +350,13 @@ class SharedMembershipRulesIntegrationTest extends AbstractRideIntegrationTest {
       }
     }
     throw new AssertionError("ride " + rideId + " not in history");
+  }
+
+  private String sharedCancelReason(Account rider) {
+    return jdbcTemplate.queryForObject(
+        "SELECT params ->> 'reason' FROM notification_outbox WHERE user_id = ? AND event ="
+            + " 'shared.cancelled' ORDER BY created_at DESC LIMIT 1",
+        String.class,
+        rider.userId());
   }
 }

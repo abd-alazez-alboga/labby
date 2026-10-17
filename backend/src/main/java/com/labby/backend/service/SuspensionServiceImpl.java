@@ -45,6 +45,7 @@ public class SuspensionServiceImpl implements SuspensionService {
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final RideRepository rideRepository;
   private final SharedRideMemberRepository sharedRideMemberRepository;
+  private final RideParties rideParties;
   private final RideLifecycle rideLifecycle;
   private final RideEvents rideEvents;
   private final DriverRoleService driverRoleService;
@@ -228,9 +229,11 @@ public class SuspensionServiceImpl implements SuspensionService {
         .findById(rideId)
         .filter(Ride::isAssigned)
         .filter(
-            ride ->
-                (side != RideParty.DRIVER && userId.equals(ride.getRiderUserId()))
-                    || (side != RideParty.RIDER && userId.equals(ride.getDriverUserId())))
+            ride -> {
+              // Review re-audit N3: on a shared ride the rider side is decided by membership.
+              RideParty party = rideParties.sideOf(ride, userId, RideParties.RIDING);
+              return party != null && (side == null || party == side);
+            })
         .isPresent();
   }
 

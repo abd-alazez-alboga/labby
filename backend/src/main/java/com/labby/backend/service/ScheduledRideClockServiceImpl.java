@@ -5,6 +5,7 @@ import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.CancellationReason;
 import com.labby.backend.enums.ClaimReleaseReason;
 import com.labby.backend.enums.NotificationEvent;
+import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.enums.RideState;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
@@ -158,6 +159,9 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
    * ride another transaction holds right now.
    */
   private boolean execute(Ride ride, ScheduledRide scheduled, Region region, Instant now) {
+    // Under the rider's own lock (ride row → rider lock, the join order): a membership committing
+    // at this moment is either seen here or waits (review re-audit N4).
+    rideRepository.lockRider(ride.getRiderUserId());
     if (riderBusy(ride.getRiderUserId())) {
       cancelRiderBusy(ride, scheduled, now);
       return true;
@@ -237,7 +241,18 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
     if (offered.isEmpty()) {
       return false;
     }
-    rideLifecycle.withdrawOpenOffer(offered.get(), now, "scheduled_converted");
+    // Re-read under the ride's lock: its dispatch may have closed that offer and offered the
+    // ride to someone else meanwhile — only the claimer's still-open offer is withdrawn.
+    rideOfferRepository
+        .findById(open.get().getId())
+        .filter(offer -> offer.getResponse() == null)
+        .ifPresent(
+            offer -> {
+              offer.setResponse(OfferResponse.WITHDRAWN);
+              offer.setRespondedAt(now);
+              rideOfferRepository.saveAndFlush(offer);
+              rideEvents.offerWithdrawn(offer, "scheduled_converted");
+            });
     return true;
   }
 

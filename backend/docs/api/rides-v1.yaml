@@ -175,7 +175,8 @@ info:
     - `{"type":"offer.new","offer":RideOffer}` — to the offered driver.
 
     - `{"type":"offer.withdrawn","offerId","rideId","reason"}` — to that driver; reason
-    `timeout` or `ride_ended`.
+    `timeout`, `ride_ended` or (M12, scheduled-shared-v1) `scheduled_converted` — the driver's
+    scheduled claim went live, so their open live offer was withdrawn.
 
     - `{"type":"ride.driver_position","rideId","lat","lng","headingDeg"?,"recordedAt","etaSeconds"?}`
     — to the rider for every accepted sample from `accepted` until `completed`; `etaSeconds` is
@@ -530,7 +531,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Ride' }
         '404': { description: Not this driver's offer }
-        '409': { description: 'code `offer_closed` — expired, already answered, or the ride ended (UC-D-06 E1)' }
+        '409': { description: 'code `offer_closed` — expired, already answered, or the ride ended (UC-D-06 E1); `driver_busy` — the driver is already on a live ride (M12, one live ride per driver)' }
 
   /api/v1/driver/offers/{offerId}/decline:
     parameters:

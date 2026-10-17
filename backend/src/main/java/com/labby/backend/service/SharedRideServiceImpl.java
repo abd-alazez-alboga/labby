@@ -624,7 +624,7 @@ public class SharedRideServiceImpl implements SharedRideService {
         rideEvents.push(
             member.getRiderUserId(),
             NotificationEvent.SHARED_CANCELLED,
-            Map.of("rideId", ride.getId().toString(), "reason", "rider_busy"));
+            Map.of("rideId", ride.getId().toString(), "reason", "own_ride_busy"));
         return;
       }
       member.setStatus(SharedMemberStatus.LEFT);

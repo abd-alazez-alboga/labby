@@ -480,6 +480,16 @@ public class NotificationRenderer {
                   "أُلغيت الرحلة المشتركة",
                   "كنت في رحلة أخرى عند انطلاق رحلتك المشتركة، فانطلقت دونك. لم تُحتسب عليك أي"
                       + " رسوم.");
+          case "own_ride_busy" ->
+              toRider(
+                  event,
+                  params,
+                  "Shared ride cancelled",
+                  "You were on another ride when your shared ride was due to start, so it was"
+                      + " cancelled for everyone. You weren't charged.",
+                  "أُلغيت الرحلة المشتركة",
+                  "كنت في رحلة أخرى عند موعد انطلاق رحلتك المشتركة، فأُلغيت للجميع. لم تُحتسب عليك"
+                      + " أي رسوم.");
           case "creator_busy" ->
               toRider(
                   event,

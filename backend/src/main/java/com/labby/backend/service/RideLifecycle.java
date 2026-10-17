@@ -102,27 +102,14 @@ public class RideLifecycle {
    * @param now the moment
    */
   public void withdrawOpenOffer(Ride ride, Instant now) {
-    withdrawOpenOffer(ride, now, "ride_ended");
-  }
-
-  /**
-   * {@link #withdrawOpenOffer(Ride, Instant)} with the frame's reason — {@code scheduled_converted}
-   * when the offered driver's scheduled claim just went live (review H1); the ride's dispatch
-   * offers the next candidate on its next step.
-   *
-   * @param ride the offered ride (locked)
-   * @param now the moment
-   * @param reason the {@code offer.withdrawn} reason
-   */
-  public void withdrawOpenOffer(Ride ride, Instant now, String reason) {
     rideOfferRepository
         .findFirstByRideIdAndResponseIsNull(ride.getId())
         .ifPresent(
             offer -> {
               offer.setResponse(OfferResponse.WITHDRAWN);
               offer.setRespondedAt(now);
-              rideOfferRepository.saveAndFlush(offer);
-              rideEvents.offerWithdrawn(offer, reason);
+              rideOfferRepository.save(offer);
+              rideEvents.offerWithdrawn(offer, "ride_ended");
             });
   }
 
@@ -246,8 +233,9 @@ public class RideLifecycle {
                   Fare fare = fares.get(ride.getId());
                   return summary(
                       ride,
-                      member != null
-                          ? member.getShareAmount()
+                      // Never the group's fare on a shared rider row (re-audit N5).
+                      side == RideParty.RIDER && ride.getKind() == RideKind.SHARED
+                          ? (member == null ? null : member.getShareAmount())
                           : (fare == null ? null : fare.getTotal()),
                       member != null ? member.getCancellationFee() : ride.getCancellationFee(),
                       ratings.get(ride.getId()),

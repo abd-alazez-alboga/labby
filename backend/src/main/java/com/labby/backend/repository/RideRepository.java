@@ -40,8 +40,6 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
   @Query("SELECT r FROM Ride r WHERE r.id = :rideId")
   Optional<Ride> findForUpdate(@Param("rideId") UUID rideId);
 
-  Optional<Ride> findFirstByRiderUserIdAndStateIn(UUID riderUserId, Collection<RideState> states);
-
   /**
    * The rider's OWN live ride (on-demand or scheduled, review H3): on a shared ride whether the
    * rider rides along is their membership's business, never {@code rides.rider_user_id}.
