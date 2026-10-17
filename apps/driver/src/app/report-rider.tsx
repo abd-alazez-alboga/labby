@@ -4,8 +4,10 @@ import React from "react";
 import { ReportRiderScreen } from "../components/trust/report-rider-screen";
 
 export default function ReportRiderRoute() {
-  const { rideId, name, when, place } = useLocalSearchParams<{
+  const { rideId, memberId, name, when, place } = useLocalSearchParams<{
     rideId?: string;
+    /** M12: the reported member of a shared ride. */
+    memberId?: string;
     name?: string;
     when?: string;
     place?: string;
@@ -14,6 +16,7 @@ export default function ReportRiderRoute() {
   return (
     <ReportRiderScreen
       rideId={rideId}
+      memberId={memberId ?? null}
       name={name ?? ""}
       when={when ?? null}
       place={place ?? null}

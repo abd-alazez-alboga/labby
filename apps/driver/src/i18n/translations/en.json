@@ -914,7 +914,15 @@
         "invalid": "Something in this report wasn't accepted. Check it and try again.",
         "network": "We couldn't reach Labby. Check your connection and try again.",
         "server": "Something went wrong on our side. Please try again in a moment."
-      }
+      },
+      "pickTitle": "Report a rider",
+      "pickIntro": "Who do you want to report? Each report is about one party. Nobody is told who reported them.",
+      "pickOnBoard": "{{party}} · on board",
+      "pickAbsent": "{{party}} · marked absent",
+      "pickCancelled": "{{party}} · cancelled",
+      "pickAlready": "Already reported",
+      "pickFootnote": "Everyone who was on this trip after it left is listed, including parties marked absent or who cancelled.",
+      "pickNone": "This shared ride isn't active any more."
     },
     "reports": {
       "title": "Your reports",

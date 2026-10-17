@@ -24,6 +24,19 @@ export interface PendingRating {
   counterpartPhotoUrl?: string | null;
   pickupLabel?: string | null;
   destinationLabel?: string | null;
+  /**
+   * M12: on a shared ride one prompt per completed member — rated with
+   * `?memberId=` (null on a one-rider ride).
+   */
+  memberId?: string | null;
+}
+
+/** One prompt's identity: the ride, plus the member on a shared ride. */
+export function ratingKey(target: {
+  rideId: string;
+  memberId?: string | null;
+}): string {
+  return target.memberId ? `${target.rideId}/${target.memberId}` : target.rideId;
 }
 
 /**

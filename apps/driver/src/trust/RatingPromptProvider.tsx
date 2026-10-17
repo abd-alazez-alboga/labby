@@ -15,6 +15,9 @@
  *     driver has not skipped before.
  * - Skipping is remembered on the device (best-effort) so a cold start does
  *   not ask again for the same ride; the ride stays rateable from Trips.
+ * - M12: a shared ride lists one prompt per completed member (`memberId`);
+ *   prompts are keyed by `ratingKey` and, after one member is rated, the
+ *   next member of the same ride is asked for right away.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
@@ -29,12 +32,12 @@ import React, {
 
 import type { PaymentStatus } from "../api/ride-types";
 import { getPendingRatings } from "../api/trust";
-import type { PendingRating } from "../api/trust-types";
+import { ratingKey, type PendingRating } from "../api/trust-types";
 import { useAuth } from "../auth/AuthProvider";
 import { useOptionalDriverRide } from "../rides/DriverRideProvider";
 
 export const RATING_SKIPS_KEY = "labby-driver.rating-skips";
-/** Skipped ride ids kept on the device (the window is 7 days anyway). */
+/** Skipped prompt keys kept on the device (the window is 7 days anyway). */
 const SKIPS_MAX = 50;
 
 /** How the just-finished ride was paid — the prompt's "cash collected" line. */
@@ -53,8 +56,11 @@ export interface RatingPromptContextValue {
   refresh: () => Promise<PendingRating[] | null>;
   /** "Skip": closes the prompt; the ride stays rateable from Trips. */
   skip: () => void;
-  /** Rated (or no longer rateable): drops the ride from the list and the prompt. */
-  finish: (rideId: string) => void;
+  /**
+   * Rated (or no longer rateable): drops that prompt (`ratingKey`) from the
+   * list; the next member of the same shared ride is prompted next.
+   */
+  finish: (key: string) => void;
 }
 
 const RatingPromptContext = createContext<RatingPromptContextValue | null>(
@@ -87,10 +93,10 @@ async function readSkips(): Promise<string[]> {
   }
 }
 
-async function rememberSkip(rideId: string): Promise<void> {
+async function rememberSkip(key: string): Promise<void> {
   try {
-    const skips = (await readSkips()).filter((id) => id !== rideId);
-    skips.push(rideId);
+    const skips = (await readSkips()).filter((id) => id !== key);
+    skips.push(key);
     await AsyncStorage.setItem(
       RATING_SKIPS_KEY,
       JSON.stringify(skips.slice(-SKIPS_MAX)),
@@ -152,7 +158,7 @@ export function RatingPromptProvider({
     void (async () => {
       const [list, skips] = await Promise.all([refresh(), readSkips()]);
       if (cancelled || !list || promptRef.current) return;
-      const next = list.find((item) => !skips.includes(item.rideId));
+      const next = list.find((item) => !skips.includes(ratingKey(item)));
       if (next) setPrompt({ target: next, payment: null });
     })();
     return () => {
@@ -194,14 +200,20 @@ export function RatingPromptProvider({
     const current = promptRef.current;
     if (!current) return;
     setPrompt(null);
-    void rememberSkip(current.target.rideId);
+    void rememberSkip(ratingKey(current.target));
   }, []);
 
-  const finish = useCallback((rideId: string) => {
-    setPending((list) => list.filter((item) => item.rideId !== rideId));
-    setPrompt((current) =>
-      current && current.target.rideId === rideId ? null : current,
-    );
+  const pendingRef = useRef<PendingRating[]>([]);
+  pendingRef.current = pending;
+  const finish = useCallback((key: string) => {
+    const rest = pendingRef.current.filter((item) => ratingKey(item) !== key);
+    setPending(rest);
+    setPrompt((current) => {
+      if (!current || ratingKey(current.target) !== key) return current;
+      // M12: the same shared ride's next member, else done.
+      const next = rest.find((item) => item.rideId === current.target.rideId);
+      return next ? { target: next, payment: current.payment } : null;
+    });
   }, []);
 
   const value = useMemo<RatingPromptContextValue>(

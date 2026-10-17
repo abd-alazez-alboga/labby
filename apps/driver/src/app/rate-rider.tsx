@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { ratingKey } from "../api/trust-types";
 import {
   RateRiderScreen,
   reportHrefFor,
@@ -16,10 +17,15 @@ import { useOptionalRatingPrompt } from "../trust/RatingPromptProvider";
 export default function RateRiderRoute() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { rideId } = useLocalSearchParams<{ rideId?: string }>();
+  // M12: a shared ride's member prompt carries `memberId` too.
+  const { rideId, memberId } = useLocalSearchParams<{
+    rideId?: string;
+    memberId?: string;
+  }>();
   const prompts = useOptionalRatingPrompt();
+  const key = rideId ? ratingKey({ rideId, memberId: memberId ?? null }) : null;
   const target =
-    prompts?.pending.find((item) => item.rideId === rideId) ?? null;
+    prompts?.pending.find((item) => ratingKey(item) === key) ?? null;
   const [checked, setChecked] = useState(false);
   const refresh = prompts?.refresh;
 
@@ -38,8 +44,8 @@ export default function RateRiderRoute() {
         payment={null}
         mode="history"
         onSkip={() => router.back()}
-        onDone={(id) => {
-          prompts?.finish(id);
+        onDone={(done) => {
+          prompts?.finish(done);
           router.back();
         }}
         onReport={() => router.push(reportHrefFor(target))}

@@ -156,6 +156,10 @@ function AppStack() {
           options={{ title: t("trust.report.send") }}
         />
         <Stack.Screen
+          name="report-member"
+          options={{ title: t("trust.report.pickTitle") }}
+        />
+        <Stack.Screen
           name="reports"
           options={{ title: t("trust.reports.title") }}
         />

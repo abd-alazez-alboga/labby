@@ -12,6 +12,7 @@ import {
 import { ApiError, isAccountSuspendedError } from "../../api/client";
 import { rideErrorOf } from "../../api/rides";
 import { submitReport, uploadReportFile } from "../../api/trust";
+import { markReported } from "../../trust/reported-members";
 import {
   DRIVER_REPORT_CATEGORIES,
   REPORT_PHOTOS_MAX,
@@ -79,15 +80,19 @@ function uploadErrorKey(error: unknown): string {
  * driver → rider categories, optional text (≤ 2000), up to 3 photos
  * uploaded first through `POST /report-files` (each removable before
  * sending — a removed upload is simply not referenced), then `POST /rides/{id}/reports`.
- * Sent → the reports list with the "Report sent" confirmation.
+ * Sent → the reports list with the "Report sent" confirmation. M12: on a
+ * shared ride the report is about one member (`memberId`, picked first).
  */
 export function ReportRiderScreen({
   rideId,
+  memberId = null,
   name,
   when,
   place,
 }: {
   rideId: string;
+  /** The reported member of a shared ride, else null. */
+  memberId?: string | null;
   name: string;
   /** The trip's completion (or acceptance) time, ISO. */
   when?: string | null;
@@ -134,14 +139,21 @@ export function ReportRiderScreen({
     setSending(true);
     setError(null);
     try {
-      await submitReport(rideId, {
-        category,
-        description: description.trim() || null,
-        photoFileIds: photos.map((photo) => photo.fileId),
-      });
+      await submitReport(
+        rideId,
+        {
+          category,
+          description: description.trim() || null,
+          photoFileIds: photos.map((photo) => photo.fileId),
+        },
+        memberId,
+      );
+      if (memberId) markReported(rideId, memberId);
       router.replace({ pathname: "/reports", params: { sent: "1" } });
     } catch (caught) {
-      setError(sendErrorOf(caught));
+      const failure = sendErrorOf(caught);
+      if (failure === "already" && memberId) markReported(rideId, memberId);
+      setError(failure);
       setSending(false);
     }
   };

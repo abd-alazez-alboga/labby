@@ -189,7 +189,20 @@ export function SafetyRow({ ride }: { ride: Ride }) {
       ) : null}
       {/* M11 (UC-S-18): the rider can be reported from acceptance on —
           during the ride too (same text link as the rider app); never on a
-          whole-account suspension, which refuses reports. */}
+          whole-account suspension, which refuses reports. M12: a shared
+          ride first asks which member (one report per party). */}
+      {!accountSuspended && shared ? (
+        <TextButton
+          title={t("trust.report.pickTitle")}
+          onPress={() =>
+            router.push({
+              pathname: "/report-member",
+              params: { rideId: ride.id },
+            })
+          }
+          testID="safety-report-member"
+        />
+      ) : null}
       {accountSuspended || shared ? null : (
         <TextButton
           title={t("trust.report.title", { name: riderName })}

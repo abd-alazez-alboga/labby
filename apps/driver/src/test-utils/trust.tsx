@@ -17,6 +17,7 @@ import { LocaleProvider } from "../i18n/LocaleProvider";
 import { AvailabilityProvider } from "../realtime/AvailabilityProvider";
 import { DriverRideProvider } from "../rides/DriverRideProvider";
 import RateRiderRoute from "../app/rate-rider";
+import ReportMemberRoute from "../app/report-member";
 import ReportRiderRoute from "../app/report-rider";
 import ReportsRoute from "../app/reports";
 import { RatingPromptProvider } from "../trust/RatingPromptProvider";
@@ -160,6 +161,7 @@ export async function renderTrustApp(
       index: () => <HomeScreen />,
       "rate-rider": () => <RateRiderRoute />,
       "report-rider": () => <ReportRiderRoute />,
+      "report-member": () => <ReportMemberRoute />,
       reports: () => <ReportsRoute />,
       performance: () => <PerformanceScreen />,
       earnings: () => <EarningsScreen />,

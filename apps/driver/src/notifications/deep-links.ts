@@ -48,10 +48,15 @@ export function hrefForLink(
     case "ride_offer":
       return context.isDriver ? "/" : NOTIFICATIONS_HREF;
     case "chat": {
-      // M10 (UC-S-13): a chat push opens the ride's thread directly.
+      // M10 (UC-S-13): a chat push opens the ride's thread directly; M12: on
+      // a shared ride the push names the member whose thread it is.
       const rideId = link.params?.rideId;
+      const memberId = link.params?.memberId;
       return context.isDriver && rideId
-        ? { pathname: "/chat", params: { rideId } }
+        ? {
+            pathname: "/chat",
+            params: memberId ? { rideId, memberId } : { rideId },
+          }
         : NOTIFICATIONS_HREF;
     }
     case "notifications":

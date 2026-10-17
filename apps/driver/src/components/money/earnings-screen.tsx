@@ -280,7 +280,10 @@ function RateChip({ pending }: { pending: PendingRating }) {
       onPress={() =>
         router.push({
           pathname: "/rate-rider",
-          params: { rideId: pending.rideId },
+          params: {
+            rideId: pending.rideId,
+            ...(pending.memberId ? { memberId: pending.memberId } : {}),
+          },
         })
       }
       style={({ pressed }) => [

@@ -15,12 +15,22 @@ import type {
  * The caller's side is always `driver` here. A 204 parses to null.
  */
 
-/** `POST /rides/{id}/rating` — 204; 409 `ride_not_completed` | `rating_window_closed` | `rating_already_submitted`. */
+/** M12: the member a driver rates / reports on a shared ride (`?memberId=`). */
+function memberQuery(memberId?: string | null): string {
+  return memberId ? `?memberId=${encodeURIComponent(memberId)}` : "";
+}
+
+/**
+ * `POST /rides/{id}/rating` — 204; 409 `ride_not_completed` |
+ * `rating_window_closed` | `rating_already_submitted`. On a shared ride the
+ * rated member is required (400 `member_required`).
+ */
 export async function submitRating(
   rideId: string,
   body: RatingRequest,
+  memberId?: string | null,
 ): Promise<void> {
-  await authFetch<null>(`/api/v1/rides/${rideId}/rating`, {
+  await authFetch<null>(`/api/v1/rides/${rideId}/rating${memberQuery(memberId)}`, {
     method: "POST",
     body,
   });
@@ -50,12 +60,17 @@ export function uploadReportFile(file: LocalFile): Promise<UploadedReportFile> {
   });
 }
 
-/** `POST /rides/{id}/reports` — 201; 409 `no_counterpart` | `report_already_submitted`. */
+/**
+ * `POST /rides/{id}/reports` — 201; 409 `no_counterpart` |
+ * `report_already_submitted`. On a shared ride the reported member is
+ * required (400 `member_required`).
+ */
 export function submitReport(
   rideId: string,
   body: ReportRequest,
+  memberId?: string | null,
 ): Promise<OwnReport> {
-  return authFetch<OwnReport>(`/api/v1/rides/${rideId}/reports`, {
+  return authFetch<OwnReport>(`/api/v1/rides/${rideId}/reports${memberQuery(memberId)}`, {
     method: "POST",
     body,
   });

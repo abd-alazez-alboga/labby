@@ -6,7 +6,7 @@ import { isAccountSuspendedError } from "../../api/client";
 import { submitRating } from "../../api/trust";
 import { useOptionalAuth } from "../../auth/AuthProvider";
 import { rideErrorOf } from "../../api/rides";
-import { RATING_COMMENT_MAX } from "../../api/trust-types";
+import { RATING_COMMENT_MAX, ratingKey } from "../../api/trust-types";
 import type { PendingRating } from "../../api/trust-types";
 import { useOptionalAvailability } from "../../realtime/AvailabilityProvider";
 import { formatTime } from "../../rides/format";
@@ -82,8 +82,8 @@ export function RateRiderScreen({
   /** `prompt` after a trip / cold start; `history` from the Trips list. */
   mode: "prompt" | "history";
   onSkip: () => void;
-  /** Rated, or no longer rateable. */
-  onDone: (rideId: string) => void;
+  /** Rated, or no longer rateable — the prompt's `ratingKey`. */
+  onDone: (key: string) => void;
   onReport: () => void;
 }) {
   const { t } = useTranslation();
@@ -105,10 +105,11 @@ export function RateRiderScreen({
     setBusy(true);
     setError(null);
     try {
-      await submitRating(target.rideId, {
-        score,
-        comment: comment.trim() || null,
-      });
+      await submitRating(
+        target.rideId,
+        { score, comment: comment.trim() || null },
+        target.memberId,
+      );
       // "Submit and go online": back on the road if the driver is offline.
       const load = availability?.load;
       if (
@@ -120,7 +121,7 @@ export function RateRiderScreen({
       ) {
         void availability?.goOnline();
       }
-      onDone(target.rideId);
+      onDone(ratingKey(target));
     } catch (caught) {
       setError(errorOf(caught));
     } finally {
@@ -251,7 +252,7 @@ export function RateRiderScreen({
         {closed ? (
           <PrimaryButton
             title={t("trust.rate.done")}
-            onPress={() => onDone(target.rideId)}
+            onPress={() => onDone(ratingKey(target))}
             testID="rate-done"
           />
         ) : (
@@ -345,6 +346,7 @@ export function reportHrefFor(target: PendingRating) {
       name: target.counterpartFirstName,
       when: target.completedAt,
       ...(place ? { place } : {}),
+      ...(target.memberId ? { memberId: target.memberId } : {}),
     },
   };
 }
