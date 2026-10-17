@@ -211,3 +211,36 @@ Gates after the fixes:
 - **Rider:** 457 tests green.
 - **Driver:** 479 tests green, with the same 3 lint warnings as before.
 - **Admin:** 341 tests green.
+
+## Re-audit (`2e99bb8..515e181`, 2026-10-17)
+_Two independent read-only reviewers (backend, apps); the lead ran every gate._
+
+**Verdict:** Pass. Every High finding is resolved as the owner ruled, with no regressions from V22/V23: no legitimate flow binds a driver twice, and the lock order across ride row → rider lock → offered ride was checked for deadlocks. The re-audit raised a few new issues in the fix code; all are fixed except two minor ones left as backlog:
+
+| New | Severity | Outcome | Commit |
+|---|---|---|---|
+| N1 conversion could withdraw ANOTHER driver's offer if the claimer's offer closed between read and lock | Warning | fixed: re-read the claimer's offer under the ride lock; only that offer is withdrawn | e07e2c6 |
+| N2 a busy creator got the "went ahead without you" text | Warning | fixed: own reason `own_ride_busy` with its own EN/AR text (owner proofread) | e07e2c6 |
+| N3 `isActiveRideParty` (suspension interceptor) still decided the rider side by ride row | Warning | fixed: membership via `RideParties`; test: a suspended member still reaches their live shared ride | e07e2c6 |
+| N4 the T−15 rider-busy check did not take the rider lock | Info | fixed: `lockRider` before the check | e07e2c6 |
+| N5 history could fall back to the group fare for a shared rider row | Info | fixed: never the group fare on a shared rider row | e07e2c6 |
+| N6 rides-v1 did not list `scheduled_converted` / `driver_busy` | Info | fixed (docs) | e07e2c6 |
+| N7 dead `findFirstByRiderUserIdAndStateIn` | Info | removed | e07e2c6 |
+| Apps N1 "Find another shared ride" left the ended ride on the facade | Warning | fixed: `facade.dismiss()` before navigating | 515e181 |
+| Apps Info items (stale badge count after a failed read, board spinner on refocus, estimate race, ref written during render) | Info | not fixed (cosmetic) | — |
+
+Gates at `515e181`:
+- **Backend `make check`:** 577 tests, BUILD SUCCESS, 0 Checkstyle violations.
+- **Rider:** 457 tests green.
+- **Driver:** 479 tests green, with 3 lint warnings that existed before M12 (no driver changes since the fix round).
+- **Admin:** 341 tests green.
+
+**Backlog (non-blocking):**
+- W10: a home entry for an open shared ride (needs an artboard).
+- I3: a converted ride keeps the booking time as `requested_at`.
+- I4: a redispatched scheduled ride loses its scheduled block.
+- The apps' cosmetic Info items above.
+- Owner proofread of the new EN/AR copy:
+  - backend: `scheduled.claim_lost`, the shared no-driver text, and the `rider_busy` / `creator_busy` / `own_ride_busy` reasons;
+  - rider app: the shared no-driver sheet;
+  - driver app: report-member picker strings.
