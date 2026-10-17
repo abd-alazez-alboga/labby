@@ -1,4 +1,5 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n/i18n';
@@ -221,6 +222,76 @@ describe('ride detail page (UC-A-18, CHAT-03)', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/rider Lina K\./)).toBeInTheDocument();
     expect(screen.getByText(/driver Samer A\./)).toBeInTheDocument();
+  });
+
+  it('switches between the private threads of a shared ride (M12, one read per member)', async () => {
+    const shared = {
+      ...RIDE_DETAIL,
+      ride: {
+        ...RIDE_DETAIL.ride,
+        kind: 'shared' as const,
+        shared: {
+          members: [
+            {
+              memberId: 'm-rana',
+              firstName: 'Rana',
+              isCreator: true,
+              partySize: 2,
+              status: 'completed' as const,
+            },
+            {
+              memberId: 'm-omar',
+              firstName: 'Omar',
+              isCreator: false,
+              partySize: 1,
+              status: 'no_show' as const,
+            },
+            {
+              memberId: 'm-sami',
+              firstName: 'Sami',
+              isCreator: false,
+              partySize: 1,
+              status: 'left' as const,
+            },
+          ],
+        },
+      },
+    };
+    const fetchMock = stubDetail(SUPPORT_VIEWER, (method, path, _init, url) => {
+      if (method === 'GET' && path === DETAIL_PATH) {
+        return jsonResponse(200, shared);
+      }
+      if (method === 'GET' && path === CHAT_PATH) {
+        return url?.searchParams.get('memberId') === 'm-omar'
+          ? jsonResponse(200, { ...CHAT_LOG, items: [CHAT_LOG.items[1]] })
+          : jsonResponse(200, CHAT_LOG);
+      }
+      return null;
+    });
+    renderShell();
+    const user = userEvent.setup();
+
+    const chat = (await screen.findByRole('heading', { name: 'Chat log' })).closest('section')!;
+    expect(
+      within(chat).getByText(
+        'Each member chats privately with the driver. Pick a member to read their thread.',
+      ),
+    ).toBeInTheDocument();
+    const group = within(chat).getByRole('group', { name: 'Member threads' });
+    const tabs = within(group).getAllByRole('button');
+    // A pre-dispatch leaver never had a thread: not listed.
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Rana · creator', 'Omar']);
+    expect(tabs[0]).toHaveAttribute('aria-pressed', 'true');
+    const first = await within(chat).findAllByRole('listitem');
+    expect(first[1]).toHaveTextContent('Rana');
+
+    await user.click(tabs[1]);
+    await waitFor(() => expect(within(chat).getAllByRole('listitem')).toHaveLength(1));
+    expect(within(chat).getByRole('listitem')).toHaveTextContent('Omar');
+    const asked = callsTo(fetchMock, CHAT_PATH).map(([input]) =>
+      new URL(String(input)).searchParams.get('memberId'),
+    );
+    expect(asked).toEqual(['m-rana', 'm-omar']);
   });
 
   it('renders Arabic with Western digits and the Arabic service type', async () => {

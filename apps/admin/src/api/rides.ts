@@ -165,6 +165,17 @@ export interface AdminRide {
   fare?: FinalFare | null;
   paymentStatus?: PaymentStatus | null;
   tip?: number | null;
+  /** M12 — kind `shared` only: every party (admin view, first names). */
+  shared?: { members: AdminSharedMember[] } | null;
+}
+
+/** One party of a shared ride as the admin view lists it (scheduled-shared-v1 MemberView). */
+export interface AdminSharedMember {
+  memberId: string;
+  firstName?: string | null;
+  isCreator: boolean;
+  partySize: number;
+  status: 'joined' | 'left' | 'cancelled' | 'no_show' | 'completed';
 }
 
 /** One entry of the dispatch trail, in candidate order (RIDE-03). */

@@ -1241,7 +1241,13 @@
       "empty": "No messages were sent.",
       "loadFailed": "Couldn't load the chat log.",
       "loadEarlier": "Load earlier messages",
-      "driverFallback": "Driver"
+      "driverFallback": "Driver",
+      "memberIntro": "Each member chats privately with the driver. Pick a member to read their thread.",
+      "memberTabs": "Member threads",
+      "creator": "{{name}} · creator",
+      "memberFallback": "Member {{n}}",
+      "memberRequired": "This is a shared ride with one private chat per member. Open the ride's page to read a member's chat.",
+      "memberNoThread": "No chat with this member — they left before the ride was accepted."
     },
     "errors": {
       "notFound": "No ride with this ID.",

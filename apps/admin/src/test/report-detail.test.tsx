@@ -260,6 +260,25 @@ describe('report detail', () => {
     expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });
 
+  it("explains a shared ride's per-member chat instead of failing (M12)", async () => {
+    stubDetail(TRUST_ADMIN, (method, path) =>
+      method === 'GET' && path === `/api/v1/admin/rides/${SOS_RIDE_ID}/chat`
+        ? jsonResponse(400, {
+            status: 400,
+            message: 'memberId is required',
+            code: 'member_required',
+          })
+        : null,
+    );
+    renderShell();
+
+    expect(
+      await screen.findByText(
+        "This is a shared ride with one private chat per member. Open the ride's page to read a member's chat.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('renders in Arabic, right to left, with Western digits', async () => {
     stubDetail();
     await i18n.changeLanguage('ar');

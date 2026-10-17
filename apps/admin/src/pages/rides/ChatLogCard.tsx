@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '../../api/client';
 import { getAdminChatLog, type AdminChatLog, type ChatMessage } from '../../api/comms';
+import type { AdminSharedMember } from '../../api/rides';
 import { useAuth } from '../../auth/AuthContext';
 import { Section } from '../../ui';
 import { formatClock } from '../surge';
@@ -11,28 +12,40 @@ import { formatClock } from '../surge';
  * CHAT-03: the ride's full chat log, read-only and audited. Rendered only
  * for admins with `support:view` (the page gates); the backend enforces the
  * same code on GET /admin/rides/{rideId}/chat. 404 = the ride was never
- * accepted, so no thread exists.
+ * accepted, so no thread exists. M12 (artboard "shared ride chat log per
+ * member"): a shared ride has one private thread per member — given its
+ * `members`, the card switches between them (one audited read per opened
+ * thread, never a fan-out); without them (the report page) it explains.
  */
 export function ChatLogCard({
   rideId,
   riderName,
   driverName,
+  members = null,
 }: {
   rideId: string;
   riderName: string;
   driverName: string | null;
+  /** A shared ride's parties after dispatch (no `left`), else null. */
+  members?: AdminSharedMember[] | null;
 }) {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
   const [log, setLog] = useState<AdminChatLog | null>(null);
-  const [state, setState] = useState<'loading' | 'loaded' | 'noThread' | 'failed'>('loading');
+  const [state, setState] = useState<
+    'loading' | 'loaded' | 'noThread' | 'memberRequired' | 'failed'
+  >('loading');
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const shared = members !== null && members.length > 0;
+  const [memberId, setMemberId] = useState<string | null>(shared ? members[0].memberId : null);
+  const selectedIndex = shared ? members.findIndex((m) => m.memberId === memberId) : -1;
+  const selected = selectedIndex >= 0 && members ? members[selectedIndex] : null;
 
   useEffect(() => {
     let cancelled = false;
     setState('loading');
     setLog(null);
-    getAdminChatLog(apiClient, rideId)
+    getAdminChatLog(apiClient, rideId, undefined, memberId ?? undefined)
       .then((loaded) => {
         if (!cancelled) {
           setLog(loaded);
@@ -41,13 +54,27 @@ export function ChatLogCard({
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setState(error instanceof ApiError && error.status === 404 ? 'noThread' : 'failed');
+          setState(
+            error instanceof ApiError && error.status === 404
+              ? 'noThread'
+              : error instanceof ApiError && error.code === 'member_required'
+                ? 'memberRequired'
+                : 'failed',
+          );
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [apiClient, rideId]);
+  }, [apiClient, rideId, memberId]);
+
+  function memberLabel(member: AdminSharedMember, index: number): string {
+    const name = member.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: index + 1 });
+    return member.isCreator ? t('rideDetail.chat.creator', { name }) : name;
+  }
+  const bubbleRider = selected
+    ? selected.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: selectedIndex + 1 })
+    : riderName;
 
   async function loadOlder() {
     if (!log?.nextCursor) {
@@ -55,7 +82,7 @@ export function ChatLogCard({
     }
     setLoadingOlder(true);
     try {
-      const older = await getAdminChatLog(apiClient, rideId, log.nextCursor);
+      const older = await getAdminChatLog(apiClient, rideId, log.nextCursor, memberId ?? undefined);
       setLog({ ...older, items: [...older.items, ...log.items] });
     } catch {
       // Keep what is shown; the button stays for a retry.
@@ -76,10 +103,32 @@ export function ChatLogCard({
       title={t('rideDetail.chat.title')}
       actions={<span className="panel__hint">{t('rideDetail.chat.readOnly')}</span>}
     >
+      {shared ? (
+        <>
+          <p className="panel__hint">{t('rideDetail.chat.memberIntro')}</p>
+          <div className="segmented" role="group" aria-label={t('rideDetail.chat.memberTabs')}>
+            {members.map((member, index) => (
+              <button
+                key={member.memberId}
+                type="button"
+                className="segmented__option"
+                aria-pressed={member.memberId === memberId}
+                onClick={() => setMemberId(member.memberId)}
+              >
+                {memberLabel(member, index)}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
       {state === 'loading' ? (
         <div className="loading">{t('common.loading')}</div>
       ) : state === 'noThread' ? (
-        <p className="panel__hint">{t('rideDetail.chat.noThread')}</p>
+        <p className="panel__hint">
+          {shared ? t('rideDetail.chat.memberNoThread') : t('rideDetail.chat.noThread')}
+        </p>
+      ) : state === 'memberRequired' ? (
+        <p className="panel__hint">{t('rideDetail.chat.memberRequired')}</p>
       ) : state === 'failed' ? (
         <p className="banner banner--error" role="alert">
           {t('rideDetail.chat.loadFailed')}
@@ -110,7 +159,7 @@ export function ChatLogCard({
               >
                 <span className="chat-log__meta">
                   {message.senderRole === 'rider'
-                    ? riderName
+                    ? bubbleRider
                     : (driverName ?? t('rideDetail.chat.driverFallback'))}
                   {' · '}
                   {formatClock(message.sentAt, i18n.language)}

@@ -398,6 +398,11 @@ export default function RideDetailPage() {
               rideId={ride.id}
               riderName={detail.riderName}
               driverName={detail.driverName ?? null}
+              members={
+                ride.kind === 'shared'
+                  ? (ride.shared?.members ?? []).filter((member) => member.status !== 'left')
+                  : null
+              }
             />
           ) : null}
         </div>

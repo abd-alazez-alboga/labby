@@ -182,13 +182,24 @@ export interface AdminChatLog {
 
 /**
  * GET /admin/rides/{rideId}/chat — the full read-only log, audited
- * (support:view). 404 = no thread (the ride was never accepted).
+ * (support:view). 404 = no thread (the ride was never accepted). M12: a
+ * shared ride has one thread per member — `memberId` is required there
+ * (400 `member_required`).
  */
 export function getAdminChatLog(
   client: ApiClient,
   rideId: string,
   before?: string,
+  memberId?: string,
 ): Promise<AdminChatLog> {
-  const suffix = before ? `?before=${encodeURIComponent(before)}` : '';
+  const query = new URLSearchParams();
+  if (before) {
+    query.set('before', before);
+  }
+  if (memberId) {
+    query.set('memberId', memberId);
+  }
+  const search = query.toString();
+  const suffix = search ? `?${search}` : '';
   return client.get<AdminChatLog>(`/api/v1/admin/rides/${rideId}/chat${suffix}`);
 }
