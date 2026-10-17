@@ -1,0 +1,635 @@
+openapi: 3.1.0
+info:
+  title: Labby Growth API (M13 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M13, growth: promo codes, referrals, loyalty points,
+    badges / levels and challenges. The clients (M13-T3 rider, M13-T4 driver + admin) build
+    against this document; the backend (M13-T2) must implement it exactly — on conflict after T2
+    lands, the implementation is the truth and this file is amended. Schema: migration V24.
+    SRS: GRW-01..04, GAME-01..03; UC-R-04 A1, UC-R-18/19, UC-S-23/24, UC-A-26/28. Every credit
+    lands in the M8 wallet as its typed transaction (`promo`, `referral`, `loyalty_redemption` —
+    money-v1 rails, append-only ledgers, PAY-01 currency isolation).
+
+
+    **Owner money rulings (2026-10-18).**
+
+    (1) **Promos are platform-funded**: the rider pays the discounted total, the driver's
+    commission is computed on the PRE-discount fare, and the driver is made whole — the discount
+    amount reaches the driver as a platform-funded `promo` wallet credit linked to the ride, so
+    driver earnings on a promo ride equal those on the same ride without the promo.
+
+    (2) A promo on a **shared ride** discounts only the redeeming MEMBER'S OWN seat share, applied
+    at the completion split (RIDE-P4); other members' shares are untouched.
+
+    (3) A promo on a **scheduled ride** is validated AND reserved (counted against its caps) at
+    booking; the discount AMOUNT is computed at ride time against the ride-time price
+    (scheduled rides are priced at execution — scheduled-shared-v1). A promo whose window has
+    ended by ride time still applies: the reservation at booking is the commitment.
+
+    (4) Referral reward amounts and the loyalty settings (points rate, redemption threshold,
+    redemption rate) are **per region, admin-editable** (audited, code defaults): `growth_settings`
+    joins the regions-v1 region bundle like `scheduledSettings`.
+
+    (5) **Badges** are the fixed catalog seeded by V24 (10th/50th/100th ride, first shared ride,
+    first referral, 5-star week); **levels** are Bronze 0 / Silver 500 / Gold 2,000 /
+    Platinum 5,000 lifetime points, never decreasing (redemption spends `redeemable` only).
+
+    (6) A referral reward pays at most **once per referee account AND once per phone number,
+    ever** (DB-unique; a deleted then reactivated account never retriggers). Self-referral is
+    refused. **Suspension freezes accrual and redemption but points are kept.**
+
+
+    **Promo application (GRW-01/02).** The booking hook: rides-v1 `POST /rides/estimate` and
+    `POST /rides` gain an optional `promoCode`; the estimate echoes `promoDiscount` and the
+    discounted `total`, and the stored fare breakdown gains a `promoDiscount` component — stored
+    once, NEVER recomputed, floor at zero, applied AFTER extras/surge/surcharge (stacking order:
+    promo is last). Validation (window, active, caps, per-user limit, region / service-type
+    restriction, first-ride flag) runs at validate AND again inside booking under the promo row
+    lock; one redemption per ride ever (DB-unique). One promo per ride; promos never stack.
+
+
+    **Referrals (GRW-03).** Each user shares one code (`referral_codes`, created lazily). A new
+    account enters a code at/after registration (capture, status `pending`); on the referee's
+    FIRST completed ride both sides receive their region-configured `referral` wallet credit in
+    the ride currency, and the row becomes `rewarded` (exactly once). Abuse blocks: self-referral,
+    phone-ever uniqueness, suspended accounts don't trigger rewards (status `blocked`).
+
+
+    **Loyalty (GRW-04).** Accrual on ride completion: `pointsPerCurrencyUnit` (default 1) × the
+    rider's own paid fare — on a shared ride the member's own share. Redemption: at or above the
+    region threshold, points convert at the region rate into a `loyalty_redemption` wallet credit
+    (traceable via `points_transactions.wallet_transaction_id`). `lifetime` only grows; levels
+    derive from it (riders: loyalty earned; drivers: trips + challenge points).
+
+
+    **Challenges (GAME-02).** Admin-created per region and role (window, goal, reward points);
+    progress tracks live events; completion auto-credits the reward points exactly once; an early
+    end (`ended_at`) stops progress but completions already made keep their reward.
+
+
+    **Cross-feature section for T2** (plan these together): promo × shared seat split (ruling 2),
+    promo × scheduled pricing (ruling 3), loyalty accrual on a member's share, referral ×
+    suspension (ruling 6), promo + carried dues ordering at completion (promo shrinks the fare
+    BEFORE dues are carried on top).
+
+
+    Errors use the global ErrorResponse shape (status, message, code?, details?). Rider endpoints
+    need the rider role; driver badge/challenge reads resolve the caller's driver role; admin
+    endpoints are permission-gated `growth:view` / `growth:manage` and audited.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Promos
+  - name: Referrals
+  - name: Loyalty
+  - name: Gamification
+  - name: AdminPromos
+  - name: AdminChallenges
+
+paths:
+  /api/v1/promos/validate:
+    post:
+      tags: [Promos]
+      summary: Validate a promo code before booking (UC-R-04 A1)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ValidatePromoRequest' }
+      responses:
+        '200':
+          description: Valid now for this context; the discount preview uses the given estimate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PromoValidation' }
+        '404': { description: '`promo_not_found` — unknown or inactive code' }
+        '409': { description: '`promo_window` | `promo_exhausted` | `promo_user_limit` | `promo_first_ride_only` | `promo_wrong_region` | `promo_wrong_service`' }
+
+  /api/v1/referrals/me:
+    get:
+      tags: [Referrals]
+      summary: My referral code and referee statuses (UC-R-18)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The code is created on first read
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferralStatus' }
+
+  /api/v1/referrals/enter:
+    post:
+      tags: [Referrals]
+      summary: Enter a referral code (once, at/after registration, before any completed ride)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        '200':
+          description: Captured as pending
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferralStatus' }
+        '404': { description: '`referral_code_not_found`' }
+        '409': { description: '`referral_already_entered` | `referral_self` | `referral_phone_used` | `referral_too_late` (the caller already completed a ride)' }
+
+  /api/v1/loyalty:
+    get:
+      tags: [Loyalty]
+      summary: My points balance, level and the region redemption rule (UC-R-19)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, required: true, schema: { type: string, format: uuid }, description: The region whose redemption rule (threshold, rate, currency) to show }
+      responses:
+        '200':
+          description: Balance and rule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoyaltyBalance' }
+
+  /api/v1/loyalty/transactions:
+    get:
+      tags: [Loyalty]
+      summary: My points history, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PointsTransactionPage' }
+
+  /api/v1/loyalty/redeem:
+    post:
+      tags: [Loyalty]
+      summary: Redeem points into a wallet credit (UC-R-19)
+      description: >
+        `points` must be at least the region threshold and at most the redeemable balance; the
+        credit is `points × redemptionRate` in the region currency, one `loyalty_redemption`
+        wallet transaction, linked back from the points transaction. Refused while suspended
+        (ruling 6).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [regionId, points]
+              properties:
+                regionId: { type: string, format: uuid }
+                points: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Credited
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoyaltyBalance' }
+        '403': { description: '`account_suspended`' }
+        '409': { description: '`below_threshold` (details.thresholdPoints) | `insufficient_points` (details.redeemable)' }
+
+  /api/v1/gamification/me:
+    get:
+      tags: [Gamification]
+      summary: My badges and level (UC-S-23/24; rider or driver view via `as`)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: as, in: query, required: true, schema: { type: string, enum: [rider, driver] } }
+      responses:
+        '200':
+          description: Badges (full catalog with earned flags) and the level ladder
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GamificationView' }
+
+  /api/v1/challenges:
+    get:
+      tags: [Gamification]
+      summary: Open and recent challenges of my region and role, with my progress
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: as, in: query, required: true, schema: { type: string, enum: [rider, driver] } }
+      responses:
+        '200':
+          description: Running first, then upcoming, then recently ended
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ChallengeView' }
+
+  /api/v1/admin/promos:
+    post:
+      tags: [AdminPromos]
+      summary: Create a promo (UC-A-26; growth:manage, audited)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavePromoRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Promo' }
+        '409': { description: '`promo_code_taken`' }
+        '422': { description: 'Validation: `fixed_needs_region` | `window_invalid`' }
+    get:
+      tags: [AdminPromos]
+      summary: List promos (growth:view)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, schema: { type: string, format: uuid } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Newest first, each with its redemption counters
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PromoPage' }
+
+  /api/v1/admin/promos/{promoId}:
+    parameters:
+      - { name: promoId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [AdminPromos]
+      summary: One promo with its redemptions (growth:view)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: The promo and one redemptions page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PromoDetail' }
+        '404': { description: Unknown }
+    patch:
+      tags: [AdminPromos]
+      summary: Edit or deactivate (growth:manage, audited)
+      description: >
+        Editable: window, caps, per-user limit, restrictions, `active` (false = deactivate —
+        existing redemptions stand, new ones are refused). `code`, `type` and `value` are fixed
+        after creation; a different discount is a new promo.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatchPromoRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Promo' }
+        '404': { description: Unknown }
+        '422': { description: '`window_invalid`' }
+
+  /api/v1/admin/challenges:
+    post:
+      tags: [AdminChallenges]
+      summary: Create a challenge (UC-A-28; growth:manage, audited)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveChallengeRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Challenge' }
+        '422': { description: '`window_invalid`' }
+    get:
+      tags: [AdminChallenges]
+      summary: List challenges (growth:view)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, schema: { type: string, format: uuid } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Newest first with participation counters
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChallengePage' }
+
+  /api/v1/admin/challenges/{challengeId}:
+    parameters:
+      - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [AdminChallenges]
+      summary: One challenge with its participation (growth:view)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: The challenge and one participation page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChallengeDetail' }
+        '404': { description: Unknown }
+
+  /api/v1/admin/challenges/{challengeId}/end:
+    parameters:
+      - { name: challengeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [AdminChallenges]
+      summary: End early (growth:manage, audited) — completions already made keep their reward
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Ended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Challenge' }
+        '409': { description: '`already_ended`' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ValidatePromoRequest:
+      type: object
+      required: [code, regionId, serviceTypeId]
+      properties:
+        code: { type: string }
+        regionId: { type: string, format: uuid }
+        serviceTypeId: { type: string, format: uuid }
+        estimateTotal: { type: string, description: Decimal; when given, the preview computes the discount against it }
+        scheduledAt: { type: string, format: date-time, description: Present for a scheduled booking (ruling 3) }
+    PromoValidation:
+      type: object
+      required: [code, type, value, discountPreview]
+      properties:
+        code: { type: string }
+        type: { type: string, enum: [percent, fixed] }
+        value: { type: string, description: Decimal — percent 0–100 or fixed amount in the region currency }
+        maxDiscount: { type: [string, 'null'] }
+        discountPreview: { type: [string, 'null'], description: Against estimateTotal when given; null for a scheduled booking (priced at ride time) }
+    Promo:
+      type: object
+      required: [promoId, code, type, value, startsAt, endsAt, perUserLimit, firstRideOnly, active, redemptionCount]
+      properties:
+        promoId: { type: string, format: uuid }
+        code: { type: string }
+        regionId: { type: [string, 'null'], format: uuid }
+        serviceTypeId: { type: [string, 'null'], format: uuid }
+        type: { type: string, enum: [percent, fixed] }
+        value: { type: string }
+        maxDiscount: { type: [string, 'null'] }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        perUserLimit: { type: integer }
+        totalCap: { type: [integer, 'null'] }
+        firstRideOnly: { type: boolean }
+        active: { type: boolean }
+        redemptionCount: { type: integer }
+        redeemedAmount: { type: [string, 'null'], description: Sum of applied discounts (single-currency promos only) }
+    SavePromoRequest:
+      type: object
+      required: [code, type, value, startsAt, endsAt]
+      properties:
+        code: { type: string, pattern: '^[A-Za-z0-9]{3,20}$', description: Stored uppercase }
+        regionId: { type: [string, 'null'], format: uuid }
+        serviceTypeId: { type: [string, 'null'], format: uuid }
+        type: { type: string, enum: [percent, fixed] }
+        value: { type: string }
+        maxDiscount: { type: [string, 'null'] }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        perUserLimit: { type: integer, minimum: 1, default: 1 }
+        totalCap: { type: [integer, 'null'], minimum: 1 }
+        firstRideOnly: { type: boolean, default: false }
+    PatchPromoRequest:
+      type: object
+      properties:
+        regionId: { type: [string, 'null'], format: uuid }
+        serviceTypeId: { type: [string, 'null'], format: uuid }
+        maxDiscount: { type: [string, 'null'] }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        perUserLimit: { type: integer, minimum: 1 }
+        totalCap: { type: [integer, 'null'], minimum: 1 }
+        firstRideOnly: { type: boolean }
+        active: { type: boolean }
+    PromoPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Promo' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    PromoRedemption:
+      type: object
+      required: [promoRedemptionId, userId, rideId, amount, currency, createdAt]
+      properties:
+        promoRedemptionId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        userName: { type: string }
+        rideId: { type: string, format: uuid }
+        amount: { type: string }
+        currency: { type: string }
+        createdAt: { type: string, format: date-time }
+    PromoDetail:
+      type: object
+      required: [promo, redemptions]
+      properties:
+        promo: { $ref: '#/components/schemas/Promo' }
+        redemptions:
+          type: object
+          required: [items, page, size, totalItems]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/PromoRedemption' } }
+            page: { type: integer }
+            size: { type: integer }
+            totalItems: { type: integer }
+    ReferralStatus:
+      type: object
+      required: [code, referees, enteredCode]
+      properties:
+        code: { type: string, description: The caller's share code }
+        enteredCode: { type: [string, 'null'], description: The code the caller entered as a referee, if any }
+        referees:
+          type: array
+          description: The caller's referees, newest first — status only, never phone or full name
+          items:
+            type: object
+            required: [status, createdAt]
+            properties:
+              firstName: { type: string }
+              status: { type: string, enum: [pending, rewarded, blocked] }
+              createdAt: { type: string, format: date-time }
+              rewardedAt: { type: [string, 'null'], format: date-time }
+    LoyaltyBalance:
+      type: object
+      required: [redeemable, lifetime, level, levels, rule]
+      properties:
+        redeemable: { type: integer }
+        lifetime: { type: integer }
+        level: { type: string, enum: [bronze, silver, gold, platinum] }
+        levels:
+          type: array
+          description: The ladder with thresholds (lifetime points)
+          items:
+            type: object
+            required: [level, thresholdPoints]
+            properties:
+              level: { type: string }
+              thresholdPoints: { type: integer }
+        rule:
+          type: object
+          required: [regionId, currency, pointsPerCurrencyUnit, redemptionThresholdPoints, redemptionRate]
+          properties:
+            regionId: { type: string, format: uuid }
+            currency: { type: string }
+            pointsPerCurrencyUnit: { type: string, description: Decimal }
+            redemptionThresholdPoints: { type: integer }
+            redemptionRate: { type: string, description: Decimal — wallet credit per point }
+    PointsTransaction:
+      type: object
+      required: [pointsTransactionId, type, points, createdAt]
+      properties:
+        pointsTransactionId: { type: string, format: uuid }
+        type: { type: string, enum: [accrual, redemption, challenge, adjustment] }
+        points: { type: integer, description: Signed }
+        rideId: { type: [string, 'null'], format: uuid }
+        challengeId: { type: [string, 'null'], format: uuid }
+        walletTransactionId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    PointsTransactionPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PointsTransaction' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    GamificationView:
+      type: object
+      required: [badges, level, lifetime, levels]
+      properties:
+        badges:
+          type: array
+          description: The whole catalog in sort order, earned or not
+          items:
+            type: object
+            required: [badgeCode, earned]
+            properties:
+              badgeCode: { type: string, enum: [ride_10, ride_50, ride_100, first_shared_ride, first_referral, five_star_week] }
+              earned: { type: boolean }
+              awardedAt: { type: [string, 'null'], format: date-time }
+        level: { type: string, enum: [bronze, silver, gold, platinum] }
+        lifetime: { type: integer, description: Riders — loyalty earned; drivers — trips + challenge points }
+        levels:
+          type: array
+          items:
+            type: object
+            required: [level, thresholdPoints]
+            properties:
+              level: { type: string }
+              thresholdPoints: { type: integer }
+    ChallengeView:
+      type: object
+      required: [challengeId, titleEn, titleAr, goalType, goalTarget, rewardPoints, startsAt, endsAt, ended, myProgress, myCompleted]
+      properties:
+        challengeId: { type: string, format: uuid }
+        titleEn: { type: string }
+        titleAr: { type: string }
+        goalType: { type: string, enum: [completed_rides, shared_rides, five_star_ratings] }
+        goalTarget: { type: integer }
+        rewardPoints: { type: integer }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        ended: { type: boolean, description: True once past endsAt or ended early }
+        myProgress: { type: integer }
+        myCompleted: { type: boolean }
+    Challenge:
+      type: object
+      required: [challengeId, regionId, role, titleEn, titleAr, goalType, goalTarget, rewardPoints, startsAt, endsAt, participantCount, completedCount]
+      properties:
+        challengeId: { type: string, format: uuid }
+        regionId: { type: string, format: uuid }
+        role: { type: string, enum: [rider, driver] }
+        titleEn: { type: string }
+        titleAr: { type: string }
+        goalType: { type: string, enum: [completed_rides, shared_rides, five_star_ratings] }
+        goalTarget: { type: integer }
+        rewardPoints: { type: integer }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        participantCount: { type: integer }
+        completedCount: { type: integer }
+    SaveChallengeRequest:
+      type: object
+      required: [regionId, role, titleEn, titleAr, goalType, goalTarget, rewardPoints, startsAt, endsAt]
+      properties:
+        regionId: { type: string, format: uuid }
+        role: { type: string, enum: [rider, driver] }
+        titleEn: { type: string, maxLength: 120 }
+        titleAr: { type: string, maxLength: 120 }
+        goalType: { type: string, enum: [completed_rides, shared_rides, five_star_ratings] }
+        goalTarget: { type: integer, minimum: 1 }
+        rewardPoints: { type: integer, minimum: 1 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+    ChallengePage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Challenge' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    ChallengeDetail:
+      type: object
+      required: [challenge, participation]
+      properties:
+        challenge: { $ref: '#/components/schemas/Challenge' }
+        participation:
+          type: object
+          required: [items, page, size, totalItems]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [userId, progress, completed]
+                properties:
+                  userId: { type: string, format: uuid }
+                  userName: { type: string }
+                  progress: { type: integer }
+                  completed: { type: boolean }
+                  completedAt: { type: [string, 'null'], format: date-time }
+            page: { type: integer }
+            size: { type: integer }
+            totalItems: { type: integer }
