@@ -66,7 +66,18 @@ public class GamificationServiceImpl implements GamificationService {
             .collect(
                 Collectors.toMap(
                     badge -> BadgeCode.fromValue(badge.getBadgeCode()), UserBadge::getAwardedAt));
-    long lifetime = lifetime(userId, as);
+    Long driverTrips = null;
+    Long challengePoints = null;
+    long lifetime;
+    if (as == RideParty.RIDER) {
+      lifetime = lifetime(userId, as);
+    } else {
+      // The driver board shows the split (owner 2026-10-18), so return the parts too.
+      driverTrips = rideRepository.countByDriverUserIdAndState(userId, RideState.COMPLETED);
+      challengePoints =
+          pointsTransactionRepository.sumByType(userId, PointsTransactionType.CHALLENGE);
+      lifetime = driverTrips + challengePoints;
+    }
     return new GamificationViewDto(
         Arrays.stream(BadgeCode.values())
             .map(
@@ -76,6 +87,8 @@ public class GamificationServiceImpl implements GamificationService {
             .toList(),
         GrowthLevel.of(lifetime),
         lifetime,
+        driverTrips,
+        challengePoints,
         LADDER);
   }
 

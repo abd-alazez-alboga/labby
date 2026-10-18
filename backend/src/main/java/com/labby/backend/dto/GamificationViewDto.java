@@ -7,12 +7,15 @@ import java.util.List;
 
 /**
  * The caller's badges and level (growth-v1 GamificationView; UC-S-23/24). {@code lifetime} counts
- * loyalty earned for riders, trips + challenge points for drivers (GAME-03).
+ * loyalty earned for riders, trips + challenge points for drivers (GAME-03); the driver view also
+ * carries that split ({@code driverTrips}, {@code challengePoints}), null for riders.
  */
 public record GamificationViewDto(
     List<BadgeViewDto> badges,
     GrowthLevel level,
     long lifetime,
+    Long driverTrips,
+    Long challengePoints,
     List<LoyaltyBalanceDto.LevelDto> levels) {
 
   /** One catalog badge, in sort order, earned or not. */

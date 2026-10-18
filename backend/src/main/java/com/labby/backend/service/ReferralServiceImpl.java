@@ -5,9 +5,11 @@ import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Referral;
 import com.labby.backend.model.ReferralCode;
+import com.labby.backend.model.Region;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.ReferralCodeRepository;
 import com.labby.backend.repository.ReferralRepository;
+import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.UserRepository;
 import java.security.SecureRandom;
@@ -33,6 +35,7 @@ public class ReferralServiceImpl implements ReferralService {
 
   private final ReferralCodeRepository referralCodeRepository;
   private final ReferralRepository referralRepository;
+  private final RegionRepository regionRepository;
   private final RideRepository rideRepository;
   private final UserRepository userRepository;
   private final RideAccess rideAccess;
@@ -40,9 +43,30 @@ public class ReferralServiceImpl implements ReferralService {
 
   @Override
   @Transactional
-  public ReferralStatusDto me(UUID userId) {
+  public ReferralStatusDto me(UUID userId, UUID regionId) {
     rideAccess.requireRider(userId);
-    return status(userId);
+    return status(userId, reward(regionId));
+  }
+
+  /** The region's reward amounts for the referral screen; null region = no reward block. */
+  private ReferralStatusDto.RewardDto reward(UUID regionId) {
+    if (regionId == null) {
+      return null;
+    }
+    Region region =
+        regionRepository
+            .findById(regionId)
+            .orElseThrow(
+                () ->
+                    (ResourceNotFoundException)
+                        new ResourceNotFoundException("This region does not exist")
+                            .withCode("region_not_found"));
+    GrowthRules.Settings settings = GrowthRules.settings(region.getGrowthSettings());
+    return new ReferralStatusDto.RewardDto(
+        region.getId(),
+        region.getCurrency(),
+        settings.referralReferrerAmount(),
+        settings.referralRefereeAmount());
   }
 
   @Override
@@ -82,10 +106,10 @@ public class ReferralServiceImpl implements ReferralService {
     } catch (DataIntegrityViolationException ex) {
       throw conflict("A referral was already used with this phone number", "referral_phone_used");
     }
-    return status(userId);
+    return status(userId, null);
   }
 
-  private ReferralStatusDto status(UUID userId) {
+  private ReferralStatusDto status(UUID userId, ReferralStatusDto.RewardDto reward) {
     String ownCode = codeOf(userId);
     String enteredCode =
         referralRepository
@@ -110,7 +134,8 @@ public class ReferralServiceImpl implements ReferralService {
                         referral.getStatus(),
                         referral.getCreatedAt(),
                         referral.getRewardedAt()))
-            .toList());
+            .toList(),
+        reward);
   }
 
   /** The user's share code, created lazily; collisions retry, a creation race re-reads. */

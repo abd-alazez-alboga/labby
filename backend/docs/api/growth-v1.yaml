@@ -119,8 +119,10 @@ paths:
   /api/v1/referrals/me:
     get:
       tags: [Referrals]
-      summary: My referral code and referee statuses (UC-R-18)
+      summary: My referral code, referee statuses and region reward (UC-R-18)
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, required: false, schema: { type: string, format: uuid }, description: "When given, the response's `reward` carries this region's referral amounts (404 `region_not_found` for an unknown id); omitted, `reward` is null (amended at T3 sign-off 2026-10-18: the approved referral screen shows the amounts)" }
       responses:
         '200':
           description: The code is created on first read
@@ -483,10 +485,19 @@ components:
             totalItems: { type: integer }
     ReferralStatus:
       type: object
-      required: [code, referees, enteredCode]
+      required: [code, referees, enteredCode, reward]
       properties:
         code: { type: string, description: The caller's share code }
         enteredCode: { type: [string, 'null'], description: The code the caller entered as a referee, if any }
+        reward:
+          type: [object, 'null']
+          description: The requested region's referral reward, both sides; null when no regionId was given (as on /referrals/enter)
+          required: [regionId, currency, referrerAmount, refereeAmount]
+          properties:
+            regionId: { type: string, format: uuid }
+            currency: { type: string }
+            referrerAmount: { type: string, description: Decimal, region currency }
+            refereeAmount: { type: string, description: Decimal, region currency }
         referees:
           type: array
           description: The caller's referees, newest first — status only, never phone or full name
@@ -558,6 +569,8 @@ components:
               awardedAt: { type: [string, 'null'], format: date-time }
         level: { type: string, enum: [bronze, silver, gold, platinum] }
         lifetime: { type: integer, description: Riders — loyalty earned; drivers — trips + challenge points }
+        driverTrips: { type: [integer, 'null'], description: "Driver view only: completed trips (amended at T4 sign-off 2026-10-18: the approved driver board shows the split); null for riders" }
+        challengePoints: { type: [integer, 'null'], description: "Driver view only: points from challenges; null for riders" }
         levels:
           type: array
           items:

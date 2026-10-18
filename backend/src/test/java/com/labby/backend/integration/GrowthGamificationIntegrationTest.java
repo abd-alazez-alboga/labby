@@ -158,6 +158,12 @@ class GrowthGamificationIntegrationTest extends AbstractRideIntegrationTest {
     JsonNode view = ok(get("/api/v1/gamification/me?as=driver", driver.token()), HttpStatus.OK);
     assertThat(view.get("lifetime").asLong()).isEqualTo(502);
     assertThat(view.get("level").asText()).isEqualTo("silver");
+    // The driver view carries the split (T4 amendment); the rider view does not.
+    assertThat(view.get("driverTrips").asLong()).isEqualTo(2);
+    assertThat(view.get("challengePoints").asLong()).isEqualTo(500);
+    JsonNode riderView = ok(get("/api/v1/gamification/me?as=rider", rider.token()), HttpStatus.OK);
+    assertThat(riderView.get("driverTrips").isNull()).isTrue();
+    assertThat(riderView.get("challengePoints").isNull()).isTrue();
   }
 
   // ---- helpers ------------------------------------------------------------------------------

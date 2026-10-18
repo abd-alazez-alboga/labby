@@ -330,8 +330,16 @@ class GrowthIntegrationTest extends AbstractRideIntegrationTest {
     Account referrer = rider();
     Account referee = rider();
     Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
-    String code =
-        ok(get("/api/v1/referrals/me", referrer.token()), HttpStatus.OK).get("code").asText();
+    JsonNode me =
+        ok(get("/api/v1/referrals/me?regionId=" + regionId, referrer.token()), HttpStatus.OK);
+    String code = me.get("code").asText();
+    // The reward block carries the region amounts only when a regionId is named (T3 amendment).
+    assertThat(me.get("reward").get("referrerAmount").decimalValue()).isEqualByComparingTo("3.00");
+    assertThat(me.get("reward").get("refereeAmount").decimalValue()).isEqualByComparingTo("2.00");
+    assertThat(me.get("reward").get("currency").asText()).isNotBlank();
+    assertThat(
+            ok(get("/api/v1/referrals/me", referrer.token()), HttpStatus.OK).get("reward").isNull())
+        .isTrue();
 
     assertThat(code(enter(referrer, code))).isEqualTo("referral_self");
     JsonNode entered = ok(enter(referee, code), HttpStatus.OK);

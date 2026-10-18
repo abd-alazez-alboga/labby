@@ -7,12 +7,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Referrals (growth-v1 Referrals; UC-R-18, GRW-03). */
@@ -27,12 +29,14 @@ public class ReferralsController {
   /**
    * The caller's referral picture; the share code is created on first read.
    *
+   * @param regionId the region whose reward amounts to include, or null for none
    * @return 200
    */
   @GetMapping("/me")
-  @Operation(summary = "My referral code and referee statuses (UC-R-18)")
-  public ResponseEntity<ReferralStatusDto> me() {
-    return ResponseEntity.ok(referralService.me(SecurityUtils.currentUserId()));
+  @Operation(summary = "My referral code, referee statuses and region reward (UC-R-18)")
+  public ResponseEntity<ReferralStatusDto> me(
+      @RequestParam(name = "regionId", required = false) UUID regionId) {
+    return ResponseEntity.ok(referralService.me(SecurityUtils.currentUserId(), regionId));
   }
 
   /**

@@ -10,9 +10,10 @@ public interface ReferralService {
    * The caller's share code (created on first read), entered code and referees.
    *
    * @param userId the caller
+   * @param regionId the region whose reward amounts to include, or null for none
    * @return the status
    */
-  ReferralStatusDto me(UUID userId);
+  ReferralStatusDto me(UUID userId, UUID regionId);
 
   /**
    * Captures a referral code, once, before any completed ride (abuse blocks: self, phone-ever,
