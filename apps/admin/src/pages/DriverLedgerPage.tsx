@@ -164,6 +164,9 @@ export default function DriverLedgerPage() {
     if (entry.type === 'due_collection') {
       return t('money.ledger.sub.dueCollection');
     }
+    if (entry.type === 'promo_compensation') {
+      return t('money.ledger.sub.promoCompensation');
+    }
     return null;
   }
 

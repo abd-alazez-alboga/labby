@@ -61,6 +61,13 @@ export interface RegisterCompleteRequest {
   name: string;
   /** Must be true; the backend stores the consent timestamp (UC-S-01 step 4). */
   termsAccepted: boolean;
+  /**
+   * A friend's referral share code (GRW-03 / UC-R-18), captured with the
+   * account. Omitted when the rider has none; a refused code answers
+   * 404 `referral_code_not_found` or 409 `referral_phone_used` and creates
+   * no account.
+   */
+  referralCode?: string;
 }
 
 export interface LoginRequest {

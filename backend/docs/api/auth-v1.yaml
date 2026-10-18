@@ -78,6 +78,8 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AuthTokensResponse' }
         '400': { description: Invalid/expired registration token, terms not accepted, or validation failure }
+        '404': { description: '`referral_code_not_found` — the referral code is unknown; no account was created' }
+        '409': { description: 'Phone already registered (no code), or `referral_phone_used` — this phone number already used a referral; no account was created' }
         '409': { description: Phone was registered by a concurrent request (race) }
 
   /api/v1/auth/login:
@@ -362,6 +364,13 @@ components:
         password: { $ref: '#/components/schemas/Password' }
         name: { type: string, maxLength: 100 }
         termsAccepted: { type: boolean, description: Must be true; consent timestamp is stored }
+        referralCode:
+          type: [string, 'null']
+          maxLength: 32
+          description: >
+            M13-T5 (GRW-03, UC-R-18): a friend's referral share code, captured with the account in
+            the same transaction (growth-v1 `/referrals/enter` semantics, status `pending`). Blank
+            or omitted = no referral.
     LoginRequest:
       type: object
       required: [phone, password, client]

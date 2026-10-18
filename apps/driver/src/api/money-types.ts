@@ -23,10 +23,17 @@ export interface TripEarning {
    */
   cancellationFee?: number | null;
   /**
+   * M13 ruling 1: the platform-funded promo discount credited for this ride
+   * (`promo_compensation`), already inside `net`. Null / absent when the
+   * ride had no promo.
+   */
+  promoCompensation?: number | null;
+  /**
    * Signed effect on the balance — the server's number, NEVER recomputed:
-   * wallet ride walletApplied − commission (+ tip; negative when a mixed
-   * ride's wallet part is below the commission); cash ride −commission
-   * (+ tip) — the driver kept the cash fare.
+   * wallet ride walletApplied − commission (+ tip + promo compensation;
+   * negative when a mixed ride's wallet part is below the commission); cash
+   * ride −commission (+ tip + promo compensation) — the driver kept the cash
+   * fare.
    */
   net: number;
 }

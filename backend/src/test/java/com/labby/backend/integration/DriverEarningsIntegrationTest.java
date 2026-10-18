@@ -59,6 +59,52 @@ class DriverEarningsIntegrationTest extends AbstractMoneyIntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "M13 ruling 1: a promo ride's platform compensation rides on the trip row and the period net")
+  void shouldIncludePromoCompensationInTripAndSummary() {
+    Account rider = rider();
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    Map<String, Object> promo = new java.util.LinkedHashMap<>();
+    promo.put("code", "TENOFF");
+    promo.put("type", "percent");
+    promo.put("value", "10");
+    promo.put("startsAt", CLOCK.instant().minus(java.time.Duration.ofHours(1)).toString());
+    promo.put("endsAt", CLOCK.instant().plus(java.time.Duration.ofDays(1)).toString());
+    ok(post("/api/v1/admin/promos", promo, admin), HttpStatus.CREATED);
+    Map<String, Object> body = booking("cash");
+    body.put("promoCode", "TENOFF");
+    UUID rideId = UUID.fromString(ok(tryBook(rider, body), HttpStatus.CREATED).get("id").asText());
+    dispatchAndAccept(rideId, driver);
+    arriveAndStart(rideId, driver);
+    ok(driverAction(driver, rideId, "complete"), HttpStatus.OK);
+    ok(driverAction(driver, rideId, "cash-confirm"), HttpStatus.OK);
+
+    // Commission on the pre-discount 1.50 (−0.38) + the 0.15 compensation = −0.23: the rider paid
+    // 1.35 in cash, so the driver ends exactly where a promo-free 1.50 cash ride leaves them.
+    JsonNode trip =
+        ok(get("/api/v1/driver/earnings", driver.token()), HttpStatus.OK).get("items").get(0);
+    assertThat(trip.get("fareTotal").decimalValue()).isEqualByComparingTo(FARE);
+    assertThat(trip.get("commissionAmount").decimalValue()).isEqualByComparingTo(COMMISSION);
+    assertThat(trip.get("promoCompensation").decimalValue()).isEqualByComparingTo("0.15");
+    assertThat(trip.get("net").decimalValue()).isEqualByComparingTo("-0.23");
+    JsonNode weekly = ok(get(URL + "?period=weekly", driver.token()), HttpStatus.OK);
+    assertThat(weekly.get("trips").asInt()).isEqualTo(1);
+    assertThat(weekly.get("fares").decimalValue()).isEqualByComparingTo(FARE);
+    assertThat(weekly.get("commission").decimalValue()).isEqualByComparingTo(COMMISSION);
+    assertThat(weekly.get("net").decimalValue()).isEqualByComparingTo("-0.23");
+    assertThat(driverBalance(driver.userId())).isEqualByComparingTo("-0.23");
+
+    // A promo-free ride carries no compensation field.
+    UUID plain = completeRide(rider, driver, "cash");
+    ok(driverAction(driver, plain, "cash-confirm"), HttpStatus.OK);
+    JsonNode plainTrip =
+        ok(get("/api/v1/driver/earnings", driver.token()), HttpStatus.OK).get("items").get(0);
+    assertThat(plainTrip.get("rideId").asText()).isEqualTo(plain.toString());
+    assertThat(plainTrip.get("promoCompensation").isNull()).isTrue();
+    assertThat(plainTrip.get("net").decimalValue()).isEqualByComparingTo(COMMISSION.negate());
+  }
+
+  @Test
   @DisplayName("an explicit anchor selects that period — a past week is empty")
   void shouldHonourExplicitAnchor() {
     Account rider = rider();

@@ -32,8 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * UC-D-15/16 views built from the ledger: the earnings page anchors on one entry per ride (the
  * COM-01 fare posting, or the collected cancellation-fee credit of a cancelled ride) with its tip
- * attached; the summary totals the operating region's currency over the period; the balance view
- * evaluates each currency against the operating region's floor.
+ * and its M13 promo compensation attached; the summary totals the operating region's currency over
+ * the period; the balance view evaluates each currency against the operating region's floor.
  */
 @Service
 @Transactional(readOnly = true)
@@ -56,7 +56,8 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
           DriverLedgerType.TIP,
           DriverLedgerType.CANCELLATION_FEE,
           DriverLedgerType.DUE_COLLECTION,
-          DriverLedgerType.BONUS);
+          DriverLedgerType.BONUS,
+          DriverLedgerType.PROMO_COMPENSATION);
 
   private final RideAccess rideAccess;
   private final DriverLedgerRepository driverLedgerRepository;
@@ -82,9 +83,18 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
                 .findByDriverUserIdAndTypeAndRideIdIn(driverUserId, DriverLedgerType.TIP, rideIds)
                 .stream()
                 .collect(Collectors.toMap(DriverLedgerEntry::getRideId, Function.identity()));
+    // M13 ruling 1: the platform-funded promo discount rides on the trip row (one per ride, V25).
+    Map<UUID, DriverLedgerEntry> compensations =
+        rideIds.isEmpty()
+            ? Map.of()
+            : driverLedgerRepository
+                .findByDriverUserIdAndTypeAndRideIdIn(
+                    driverUserId, DriverLedgerType.PROMO_COMPENSATION, rideIds)
+                .stream()
+                .collect(Collectors.toMap(DriverLedgerEntry::getRideId, Function.identity()));
     return new TripEarningPageDto(
         anchors.getContent().stream()
-            .map(anchor -> toTrip(anchor, rides.get(anchor.getRideId()), tips))
+            .map(anchor -> toTrip(anchor, rides.get(anchor.getRideId()), tips, compensations))
             .toList(),
         anchors.getNumber(),
         anchors.getSize(),
@@ -93,7 +103,10 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
   }
 
   private TripEarningDto toTrip(
-      DriverLedgerEntry anchor, Ride ride, Map<UUID, DriverLedgerEntry> tips) {
+      DriverLedgerEntry anchor,
+      Ride ride,
+      Map<UUID, DriverLedgerEntry> tips,
+      Map<UUID, DriverLedgerEntry> compensations) {
     BigDecimal zero = BigDecimal.ZERO.setScale(2);
     if (!FARE_TYPES.contains(anchor.getType())) {
       // A cancelled ride whose fee was credited to this driver: no fare, no commission.
@@ -107,11 +120,20 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
           zero,
           null,
           anchor.getAmount(),
+          null,
           anchor.getAmount());
     }
     DriverLedgerEntry tip = tips.get(anchor.getRideId());
     BigDecimal tipAmount = tip == null ? null : tip.getAmount();
-    BigDecimal net = tipAmount == null ? anchor.getAmount() : anchor.getAmount().add(tipAmount);
+    DriverLedgerEntry compensation = compensations.get(anchor.getRideId());
+    BigDecimal compensationAmount = compensation == null ? null : compensation.getAmount();
+    BigDecimal net = anchor.getAmount();
+    if (tipAmount != null) {
+      net = net.add(tipAmount);
+    }
+    if (compensationAmount != null) {
+      net = net.add(compensationAmount);
+    }
     return new TripEarningDto(
         anchor.getRideId(),
         ride.getCompletedAt(),
@@ -122,6 +144,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
         anchor.getCommissionAmount(),
         tipAmount,
         null,
+        compensationAmount,
         net);
   }
 

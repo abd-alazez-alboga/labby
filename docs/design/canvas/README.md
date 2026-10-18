@@ -1,18 +1,24 @@
-# Labby design canvas — offline copy
+# Labby design canvas — offline copy and gallery source
 
-Snapshot of every artboard on the owner-approved Labby design canvas
-(https://claude.ai/artifact/GNh2Q5ooDiwNLfiJavT1KZ), taken 2026-10-18 so the designs survive
-without access to the account that owns the canvas. All 139 artboards here are implemented in code.
+Every artboard of the owner-approved Labby design canvas. The original canvas lived on an account
+the owner no longer uses (snapshot taken 2026-10-18); since then this folder is the **source** and
+the live canvas is the gallery artifact published from it:
+https://claude.ai/artifact/EcFBr8QR8GLWSS6MF1VceY (rebuilt 2026-10-18 under the owner's current
+account). New screens are added here as `.dc.html` files, registered in `canvas.json`, listed below,
+and the gallery is republished — the owner approves them on the gallery before any code.
 
+- `build-index.py` — regenerates `index.html` from `canvas.json` (pass the boards awaiting approval as
+  the second argument so they get the "Awaiting approval" chip).
+- `index.html` — the gallery page (generated from `canvas.json`; one section per milestone page,
+  every board rendered live at scale, new boards flagged "Awaiting approval" until the owner says
+  go). Publish it as the artifact page with every `*.dc.html` as a supporting file at the same
+  relative path.
 - `canvas.json` — the canvas index: pages, artboard frames, titles and section notes.
 - `*.dc.html` — one file per artboard (mobile 390×844, admin 1440 wide). Each file is plain
-  HTML with inline styles and opens directly in a browser; the `./support.js` line is the
-  canvas editor's runtime and is not needed to view the layout.
-- To rebuild the canvas on another account, create a new Design canvas and publish these files
-  under its `project/` folder with `canvas.json` as the index.
+  HTML with inline styles and opens directly in a browser; the `./support.js` line was the
+  original canvas editor's runtime and is not needed to view the layout.
 
 Tokens and rules live in [../design-system.md](../design-system.md); this folder is the visual reference.
-
 
 ## UI redesign
 
@@ -188,3 +194,5 @@ Tokens and rules live in [../design-system.md](../design-system.md); this folder
 - [Admin · New promo](A13PromoCreate.dc.html)
 - [Admin · Challenges · list & create (UC-A-28)](A13Challenges.dc.html)
 - [Admin · Challenge · participation & early end](A13ChallengeDetail.dc.html)
+- [Rider · Create account · referral code (GRW-03, M13-T5)](R13RegisterReferral.dc.html)
+- [Rider · Create account · referral code (AR, RTL)](R13RegisterReferralAr.dc.html)

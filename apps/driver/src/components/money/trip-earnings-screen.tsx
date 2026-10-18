@@ -234,6 +234,14 @@ export function TripEarningsScreen({
                   testID="earning-line-tip"
                 />
               ) : null}
+              {earning.promoCompensation ? (
+                <FareLine
+                  label={t("tripEarnings.promoCompensation")}
+                  value={formatSignedMoney(earning.promoCompensation, currency, language, { alwaysSign: true })}
+                  valueColor={colors.accent}
+                  testID="earning-line-promo"
+                />
+              ) : null}
               {earning.cancellationFee ? (
                 <FareLine
                   label={t("tripEarnings.fee")}

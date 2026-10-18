@@ -113,6 +113,13 @@ export const translations = {
       nameInvalid: "Enter your name (up to 100 characters).",
       termsLabel: "I accept the Terms of Service",
       termsRequired: "You must accept the Terms of Service to continue.",
+      referralLabel: "Referral code (optional)",
+      referralHint:
+        "Got a code from a friend? You both get wallet credit after your first ride.",
+      referralUnknown:
+        "We don't know this code. Check the spelling, or clear the field to continue.",
+      referralPhoneUsed:
+        "This phone number already used a referral. Clear the field to continue.",
       submit: "Create account",
       tokenExpired: "Your verification expired. Please start over.",
       startOver: "Start over",
@@ -379,6 +386,12 @@ export const translations = {
       nameInvalid: "أدخل اسمك (حتى 100 حرف).",
       termsLabel: "أوافق على شروط الخدمة",
       termsRequired: "يجب الموافقة على شروط الخدمة للمتابعة.",
+      referralLabel: "رمز الدعوة (اختياري)",
+      referralHint:
+        "لديك رمز من صديق؟ تحصلان معًا على رصيد في المحفظة بعد رحلتك الأولى.",
+      referralUnknown:
+        "لا نعرف هذا الرمز. تأكد من كتابته، أو امسح الحقل للمتابعة.",
+      referralPhoneUsed: "استُخدمت دعوة بهذا الرقم من قبل. امسح الحقل للمتابعة.",
       submit: "إنشاء الحساب",
       tokenExpired: "انتهت صلاحية التحقق. يرجى البدء من جديد.",
       startOver: "البدء من جديد",

@@ -262,6 +262,17 @@ function tripParts(
       }),
     );
   }
+  if (earning.promoCompensation) {
+    // M13 ruling 1: the promo discount Labby covered for this ride.
+    parts.push(
+      t("earnings.rowPromo", {
+        amount: isolateDigits(
+          `+${formatAmountValue(earning.promoCompensation)}`,
+          language,
+        ),
+      }),
+    );
+  }
   return parts;
 }
 

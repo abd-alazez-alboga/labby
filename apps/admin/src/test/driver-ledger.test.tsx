@@ -70,6 +70,37 @@ describe('driver ledger page', () => {
     expect(screen.getByText('+150,000')).toBeInTheDocument();
   });
 
+  it('labels the M13 promo compensation entry as platform-funded', async () => {
+    stubMoneyRoutes(SETTLER, (method, path) => {
+      if (method === 'GET' && path === `/api/v1/admin/drivers/${DRIVER_ID}/ledger`) {
+        return jsonResponse(
+          200,
+          ledgerView({
+            entries: [
+              ledgerEntry(),
+              ledgerEntry({
+                id: 'led-promo',
+                amount: 2800,
+                type: 'promo_compensation',
+                fareAmount: null,
+                commissionRate: null,
+                commissionAmount: null,
+                balanceAfter: -427200,
+                createdAt: '2026-10-11T12:24:01Z',
+              }),
+            ],
+          }),
+        );
+      }
+      return null;
+    });
+    renderShell();
+
+    expect(await screen.findByText('Promo top-up · platform-funded')).toBeInTheDocument();
+    expect(screen.getByText('promo discount on this ride, covered by Labby')).toBeInTheDocument();
+    expect(screen.getByText('+2,800')).toBeInTheDocument();
+  });
+
   it('records a pay-in with a floor preview and instant feedback', async () => {
     let recorded = false;
     const fetchMock = stubMoneyRoutes(SETTLER, (method, path) => {

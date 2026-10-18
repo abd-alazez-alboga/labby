@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create account · referral code</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 12px;">
+  <a href="Main.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.6px;">Almost there</div>
+  <div style="font-size: 15px; color: #463C58; line-height: 1.45; margin-top: -4px;">Choose a password and tell us your name.</div>
+
+  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Full name
+    <input value="Sami Haddad" style="height: 52px; border: 1.5px solid #DCD8E2; border-radius: 14px; padding: 0 14px; font-family: Manrope, sans-serif; font-size: 16px; font-weight: 700; color: #141018; background: #FFFFFF;">
+  </label>
+
+  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Password
+    <span style="display: flex; align-items: center; height: 52px; border: 1.5px solid #DCD8E2; border-radius: 14px; padding: 0 4px 0 14px;">
+      <input type="password" value="••••••••••" style="flex-grow: 1; min-width: 0; border: none; outline: none; font-family: Manrope, sans-serif; font-size: 16px; font-weight: 700; color: #141018; background: transparent;">
+      <button aria-label="Show password" style="width: 44px; height: 44px; border: none; background: transparent; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+    </span>
+  </label>
+
+  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Confirm password
+    <span style="display: flex; align-items: center; height: 52px; border: 1.5px solid #DCD8E2; border-radius: 14px; padding: 0 4px 0 14px;">
+      <input type="password" value="••••••••••" style="flex-grow: 1; min-width: 0; border: none; outline: none; font-family: Manrope, sans-serif; font-size: 16px; font-weight: 700; color: #141018; background: transparent;">
+      <button aria-label="Show password" style="width: 44px; height: 44px; border: none; background: transparent; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+    </span>
+  </label>
+
+  <!-- NEW (M13-T5, GRW-03 / UC-R-18): the referee enters the friend's code at registration. -->
+  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Referral code <span style="font-weight: 600; color: #6E6780;">(optional)</span>
+    <span style="display: flex; align-items: center; gap: 10px; height: 52px; border: 2px solid #59128A; border-radius: 14px; padding: 0 14px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#59128A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M20 12v10H4V12"></path><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+      <input value="LB-SAMI42" autocapitalize="characters" style="flex-grow: 1; min-width: 0; border: none; outline: none; font-family: Manrope, sans-serif; font-size: 17px; font-weight: 800; letter-spacing: 1px; color: #141018; background: transparent;" dir="ltr">
+    </span>
+    <span style="font-size: 13px; font-weight: 600; color: #6E6780; line-height: 1.45;">Got a code from a friend? You both get wallet credit after your first ride.</span>
+  </label>
+
+  <div style="display: flex; align-items: center; gap: 12px; min-height: 48px;">
+    <span style="width: 24px; height: 24px; border-radius: 7px; background: #59128A; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+    <span style="font-size: 15px; color: #463C58;">I accept the Terms of Service</span>
+  </div>
+
+  <button style="height: 56px; border-radius: 14px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 17px; font-weight: 800;">Create account</button>
+
+  <div style="font-size: 13px; font-weight: 800; color: #6E6780; margin-top: auto;">What the code check can say (under the field, account not created)</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="background: #FEF3F2; border-radius: 12px; padding: 10px 13px;"><span style="font-size: 13px; color: #B42318; line-height: 1.45;"><strong>We don't know this code.</strong> Check the spelling, or clear the field to continue.</span></div>
+    <div style="background: #FEF3F2; border-radius: 12px; padding: 10px 13px;"><span style="font-size: 13px; color: #B42318; line-height: 1.45;"><strong>This phone number already used a referral.</strong> Clear the field to continue.</span></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

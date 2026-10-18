@@ -414,12 +414,18 @@ components:
         commissionAmount: { type: number }
         tip: { type: [number, 'null'] }
         cancellationFee: { type: [number, 'null'], description: Collected fee credited for this ride }
+        promoCompensation:
+          type: [number, 'null']
+          description: >
+            M13 ruling 1 (amended at M13-T5): the platform-funded promo discount credited for this
+            ride (`promo_compensation`), already inside `net`; null when the ride had no promo.
         net:
           type: number
           description: >
-            Signed effect on the balance: wallet ride fare − commission (+ tip); cash ride
-            −commission (+ tip) — the driver kept the cash fare. (Dues collected in cash through
-            this driver pass outside the trip rows; they show in the admin ledger.)
+            Signed effect on the balance: wallet ride fare − commission (+ tip + promo
+            compensation); cash ride −commission (+ tip + promo compensation) — the driver kept
+            the cash fare. (Dues collected in cash through this driver pass outside the trip rows;
+            they show in the admin ledger.)
     TripEarningPage:
       type: object
       required: [items, page, size, totalItems, totalPages]
@@ -447,7 +453,8 @@ components:
           type: number
           description: >
             Signed balance effect of the period's ride money (fares, commissions, tips,
-            cancellation-fee credits, due collections, bonuses) — settlements excluded
+            cancellation-fee credits, due collections, bonuses, M13 promo compensations) —
+            settlements excluded
     CommissionStatus:
       type: object
       description: COM-02 — the driver's current weekly rate and next-tier progress (UC-D-15)
@@ -496,8 +503,12 @@ components:
             - { type: 'null' }
     DriverLedgerType:
       type: string
+      description: >
+        `promo_compensation` (M13 ruling 1, V25): the platform-funded promo discount credited to
+        the ride's driver, one per ride, so a promo ride pays the driver like the same ride without
+        the promo.
       enum: [ride_earning, commission_due, tip, cancellation_fee, settlement_pay_in,
-             settlement_pay_out, bonus, due_collection]
+             settlement_pay_out, bonus, due_collection, promo_compensation]
     DriverLedgerEntry:
       type: object
       required: [id, currency, amount, type, balanceAfter, createdAt]

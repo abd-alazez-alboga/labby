@@ -73,6 +73,7 @@ public class AuthServiceImpl implements AuthService {
   private final ProfileService profileService;
   private final AuthProperties authProperties;
   private final DeviceTokenService deviceTokenService;
+  private final ReferralService referralService;
 
   @Override
   public void registerStart(RegisterStartRequestDto request) {
@@ -129,6 +130,12 @@ public class AuthServiceImpl implements AuthService {
     }
     roleAssignmentRepository.save(
         RoleAssignment.builder().userId(user.getId()).role(Role.RIDER).build());
+    if (request.referralCode() != null && !request.referralCode().isBlank()) {
+      // GRW-03 / UC-R-18: the referee enters the code AT registration. Same transaction — a
+      // refused code (unknown, phone already used) rolls the account back, so the rider can fix
+      // or clear the field and try again.
+      referralService.enter(user.getId(), request.referralCode());
+    }
 
     return issueSession(user);
   }

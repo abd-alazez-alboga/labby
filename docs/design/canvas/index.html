@@ -1,0 +1,2124 @@
+<title>Labby Design Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap">
+<style>
+  /* Layout: one long canvas, one section per milestone page, boards rendered live at scale in rows that mirror the original artboard rows. */
+  :root {
+    --bg: #F7F6F9;          /* surface-page */
+    --surface: #FFFFFF;
+    --fg: #141018;
+    --fg-2: #463C58;
+    --muted: #6E6780;
+    --line: #EEEBF2;
+    --line-strong: #DCD8E2;
+    --accent: #59128A;
+    --accent-tint: #F1EAF8;
+    --ok: #067647; --ok-bg: #ECFDF3;
+    --warn: #93370D; --warn-bg: #FFF6E5;
+    --font: Manrope, "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17131C; --surface: #211B28; --fg: #F3EFF7; --fg-2: #CFC6DB; --muted: #9A90AB;
+      --line: #2E2637; --line-strong: #3E3449; --accent: #C89BE6; --accent-tint: #2C1C3A;
+      --ok: #6FD3A0; --ok-bg: #11301F; --warn: #F2B46B; --warn-bg: #3A2A12; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17131C; --surface: #211B28; --fg: #F3EFF7; --fg-2: #CFC6DB; --muted: #9A90AB;
+    --line: #2E2637; --line-strong: #3E3449; --accent: #C89BE6; --accent-tint: #2C1C3A;
+    --ok: #6FD3A0; --ok-bg: #11301F; --warn: #F2B46B; --warn-bg: #3A2A12; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+  .wrap { max-width: 1680px; margin: 0 auto; padding-inline: 20px; padding-block: 0 48px; }
+  .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .top-inner { max-width: 1680px; margin: 0 auto; padding: 14px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+  .brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 16px; }
+  h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.4px; text-wrap: balance; }
+  .lede { margin: 0; color: var(--fg-2); max-width: 70ch; }
+  nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: thin; }
+  nav a { flex: none; padding: 7px 12px; border-radius: 10px; font-weight: 700; font-size: 13px; color: var(--fg-2); text-decoration: none; border: 1px solid var(--line-strong); background: var(--surface); }
+  nav a:hover, nav a:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; color: var(--muted); font-size: 13px; padding-block: 18px 6px; }
+  .page { padding-block: 26px 10px; border-bottom: 1px solid var(--line); scroll-margin-top: 120px; }
+  .page-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+  .count { color: var(--muted); font-size: 13px; font-weight: 600; }
+  .row { padding-block: 16px 6px; }
+  h3 { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .grid { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .board { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; scroll-margin-top: 130px; }
+  .frame { width: calc(var(--w) * var(--s)); height: calc(var(--h) * var(--s)); max-width: 100%; overflow: hidden; background: #ECE9F0; border-bottom: 1px solid var(--line); }
+  .frame iframe { width: var(--w); height: var(--h); border: 0; transform: scale(var(--s)); transform-origin: top left; pointer-events: none; display: block; background: #fff; }
+  .meta { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; max-width: calc(var(--w) * var(--s)); }
+  h4 { margin: 0; font-size: 13.5px; font-weight: 700; line-height: 1.35; }
+  .meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: var(--muted); }
+  .chip { padding: 2px 8px; border-radius: 8px; font-weight: 700; font-size: 11.5px; }
+  .chip-approved { color: var(--ok); background: var(--ok-bg); }
+  .chip-pending { color: var(--warn); background: var(--warn-bg); }
+  .dims { font-variant-numeric: tabular-nums; }
+  .open { color: var(--accent); font-weight: 700; text-decoration: none; margin-inline-start: auto; }
+  .open:hover, .open:focus-visible { text-decoration: underline; outline: none; }
+  @media (max-width: 480px) {
+    .frame { --s: 0.42 !important; }
+    .board { max-width: 100%; }
+  }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+<div class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <h1>Labby Design Canvas</h1>
+      <p class="lede">The owner-approved artboards for the rider app, driver app and admin dashboard (mobile 390×844, admin 1440 wide), one section per milestone. New screens land here first and are implemented only after approval.</p>
+    </div>
+    <nav aria-label="Milestone pages"><a href="#redesign">UI redesign</a><a href="#m7">M7 · Ride loop</a><a href="#m8">M8 · Money</a><a href="#m9">M9 · Surge</a><a href="#m10">M10 · Comms &amp; safety</a><a href="#m11">M11 · Trust</a><a href="#m12driver">M12 driver</a><a href="#m12rider">M12 rider</a><a href="#m12admin">M12 admin</a><a href="#m13">M13 · Growth</a></nav>
+  </div>
+</div>
+<div class="wrap">
+  <div class="legend">
+    <span>141 boards</span>
+    <span class="chip chip-approved">Owner-approved</span>
+    <span class="chip chip-pending">Awaiting approval</span>
+    <span>2 awaiting approval</span>
+    <span>Source of truth for tokens: docs/design/design-system.md</span>
+  </div>
+  <section class="page" id="redesign">
+    <header class="page-head">
+      <h2>UI redesign</h2>
+      <span class="count">9 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app</h3>
+      <div class="grid">
+      <article class="board" id="Main">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="Main.dc.html" title="Rider · Home" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Home</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="Main.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderChooseRide">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderChooseRide.dc.html" title="Rider · Choose a ride" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Choose a ride</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderChooseRide.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderDriverOnWay">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderDriverOnWay.dc.html" title="Rider · Driver on the way" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Driver on the way</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderDriverOnWay.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app</h3>
+      <div class="grid">
+      <article class="board" id="DriverOffline">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverOffline.dc.html" title="Driver · Offline" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Offline</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverOffline.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverOffer">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverOffer.dc.html" title="Driver · Ride offer" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Ride offer</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverOffer.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverDocuments">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverDocuments.dc.html" title="Driver · Documents" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Documents</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverDocuments.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Admin dashboard</h3>
+      <div class="grid">
+      <article class="board" id="AdminApplications">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminApplications.dc.html" title="Admin · Driver applications" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Driver applications</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminApplications.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminApplicationReview">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminApplicationReview.dc.html" title="Admin · Review an application" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Review an application</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminApplicationReview.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminDocumentExpiry">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminDocumentExpiry.dc.html" title="Admin · Document expiry" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Document expiry</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminDocumentExpiry.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m7">
+    <header class="page-head">
+      <h2>M7 · Ride loop</h2>
+      <span class="count">28 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app · ride loop (M7-T3)</h3>
+      <div class="grid">
+      <article class="board" id="RiderWhereTo">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderWhereTo.dc.html" title="Rider · Where to?" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Where to?</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderWhereTo.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderWhereToAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderWhereToAr.dc.html" title="Rider · Where to? (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Where to? (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderWhereToAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderFinding">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderFinding.dc.html" title="Rider · Finding your driver" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Finding your driver</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderFinding.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderNoDriver">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderNoDriver.dc.html" title="Rider · No driver found" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · No driver found</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderNoDriver.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderArrived">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderArrived.dc.html" title="Rider · Driver arrived" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Driver arrived</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderArrived.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderInRide">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderInRide.dc.html" title="Rider · On the ride" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · On the ride</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderInRide.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderCancel">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderCancel.dc.html" title="Rider · Cancel ride" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Cancel ride</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderCancel.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderComplete">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderComplete.dc.html" title="Rider · Ride complete" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Ride complete</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderComplete.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderHistory">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderHistory.dc.html" title="Rider · Your rides" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Your rides</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderHistory.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderReceipt">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderReceipt.dc.html" title="Rider · Receipt" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Receipt</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderReceipt.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSavedPlaces">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSavedPlaces.dc.html" title="Rider · Saved places" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Saved places</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSavedPlaces.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderPreferences">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderPreferences.dc.html" title="Rider · Ride preferences" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Ride preferences</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderPreferences.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · ride loop (M7-T4)</h3>
+      <div class="grid">
+      <article class="board" id="DriverToPickup">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverToPickup.dc.html" title="Driver · To pickup" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · To pickup</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverToPickup.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverAtPickup">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverAtPickup.dc.html" title="Driver · At pickup" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · At pickup</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverAtPickup.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverInRide">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverInRide.dc.html" title="Driver · On the ride" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · On the ride</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverInRide.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverComplete">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverComplete.dc.html" title="Driver · Collect cash" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Collect cash</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverComplete.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverCancel">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverCancel.dc.html" title="Driver · Cancel ride" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Cancel ride</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverCancel.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Rider app · ride loop (M7-T3)</h3>
+      <div class="grid">
+      <article class="board" id="RiderOnWayCancel">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderOnWayCancel.dc.html" title="Rider · Driver on the way · Cancel (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Driver on the way · Cancel (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderOnWayCancel.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderPlanComfort">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderPlanComfort.dc.html" title="Rider · Plan your ride · comfort summary (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Plan your ride · comfort summary (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderPlanComfort.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderRideEndedCancel">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderRideEndedCancel.dc.html" title="Rider · Ride ended · you cancelled (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Ride ended · you cancelled (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderRideEndedCancel.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderRideEndedNoShow">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderRideEndedNoShow.dc.html" title="Rider · Ride ended · no-show (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Ride ended · no-show (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderRideEndedNoShow.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSettingsRides">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSettingsRides.dc.html" title="Rider · Settings · Rides (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Settings · Rides (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSettingsRides.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · ride loop (M7-T4)</h3>
+      <div class="grid">
+      <article class="board" id="DriverStreamLost">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverStreamLost.dc.html" title="Driver · Connection lost on ride (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Connection lost on ride (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverStreamLost.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverOfferSurge">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverOfferSurge.dc.html" title="Driver · Offer · surge note (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Offer · surge note (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverOfferSurge.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverNoticeCash">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverNoticeCash.dc.html" title="Driver · Notice · cash received (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Notice · cash received (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverNoticeCash.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverNoticeUnpaid">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverNoticeUnpaid.dc.html" title="Driver · Notice · unpaid (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Notice · unpaid (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverNoticeUnpaid.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverNoticeRiderCancel">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverNoticeRiderCancel.dc.html" title="Driver · Notice · rider cancelled (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Notice · rider cancelled (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverNoticeRiderCancel.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverNoShowCancel">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverNoShowCancel.dc.html" title="Driver · Cancel · no-show wording (addition)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Cancel · no-show wording (addition)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverNoShowCancel.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m8">
+    <header class="page-head">
+      <h2>M8 · Money</h2>
+      <span class="count">13 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app · wallet &amp; fees (M8-T3)</h3>
+      <div class="grid">
+      <article class="board" id="RiderWallet">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderWallet.dc.html" title="Rider · Wallet" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Wallet</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderWallet.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderWalletAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderWalletAr.dc.html" title="Rider · Wallet (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Wallet (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderWalletAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderTip">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderTip.dc.html" title="Rider · Tip your driver" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Tip your driver</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderTip.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderWalletShort">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderWalletShort.dc.html" title="Rider · Choose a ride · wallet short" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Choose a ride · wallet short</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderWalletShort.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderWaitCharge">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderWaitCharge.dc.html" title="Rider · Waiting charge notice" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Waiting charge notice</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderWaitCharge.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderReceiptSplit">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderReceiptSplit.dc.html" title="Rider · Receipt · wallet + cash + due" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Receipt · wallet + cash + due</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderReceiptSplit.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderCancelFee">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderCancelFee.dc.html" title="Rider · Cancel · fee carried" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Cancel · fee carried</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderCancelFee.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · earnings &amp; balance (M8-T4)</h3>
+      <div class="grid">
+      <article class="board" id="DriverTripEarnings">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverTripEarnings.dc.html" title="Driver · Trip earnings" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Trip earnings</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverTripEarnings.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverEarnings">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverEarnings.dc.html" title="Driver · Earnings &amp; commission" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Earnings &amp; commission</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverEarnings.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverBalance">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverBalance.dc.html" title="Driver · Balance · warning" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Balance · warning</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverBalance.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverBlocked">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverBlocked.dc.html" title="Driver · Blocked · settle to resume" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Blocked · settle to resume</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverBlocked.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Admin · grants, refunds, settlements (M8-T5)</h3>
+      <div class="grid">
+      <article class="board" id="AdminUserWallet">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminUserWallet.dc.html" title="Admin · User wallet &amp; credits" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · User wallet &amp; credits</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminUserWallet.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminDriverLedger">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminDriverLedger.dc.html" title="Admin · Driver ledger &amp; settlement" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Driver ledger &amp; settlement</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminDriverLedger.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m9">
+    <header class="page-head">
+      <h2>M9 · Surge</h2>
+      <span class="count">5 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app · surge (M9-T2)</h3>
+      <div class="grid">
+      <article class="board" id="RiderSurgeChoose">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSurgeChoose.dc.html" title="Rider · Choose a ride · surge" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Choose a ride · surge</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSurgeChoose.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSurgeChooseAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSurgeChooseAr.dc.html" title="Rider · Choose a ride · surge (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Choose a ride · surge (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSurgeChooseAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSurgeChanged">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSurgeChanged.dc.html" title="Rider · Price changed · confirm again" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Price changed · confirm again</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSurgeChanged.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · heatmap (M9-T2)</h3>
+      <div class="grid">
+      <article class="board" id="DriverHeatmap">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverHeatmap.dc.html" title="Driver · Demand heatmap" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Demand heatmap</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverHeatmap.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Admin · surge zones (M9-T2)</h3>
+      <div class="grid">
+      <article class="board" id="AdminSurgeZones">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminSurgeZones.dc.html" title="Admin · Surge zones &amp; override" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Surge zones &amp; override</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminSurgeZones.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m10">
+    <header class="page-head">
+      <h2>M10 · Comms &amp; safety</h2>
+      <span class="count">10 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app &amp; share page · chat, call, share, SOS (M10-T3)</h3>
+      <div class="grid">
+      <article class="board" id="RiderChat">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderChat.dc.html" title="Rider · Chat with driver" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Chat with driver</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderChat.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderChatAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderChatAr.dc.html" title="Rider · Chat (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Chat (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderChatAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSafetyActions">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSafetyActions.dc.html" title="Rider · On the ride · chat, call, share, SOS" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · On the ride · chat, call, share, SOS</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSafetyActions.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSosConfirm">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSosConfirm.dc.html" title="Rider · SOS · confirm" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · SOS · confirm</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSosConfirm.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="SharePage">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="SharePage.dc.html" title="Public · Shared trip page (no login)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Public · Shared trip page (no login)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="SharePage.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · chat &amp; safety (M10-T3)</h3>
+      <div class="grid">
+      <article class="board" id="DriverChat">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverChat.dc.html" title="Driver · Chat · one-tap quick replies" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Chat · one-tap quick replies</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverChat.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverSafetyActions">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverSafetyActions.dc.html" title="Driver · On the ride · chat, call, share, SOS" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · On the ride · chat, call, share, SOS</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverSafetyActions.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Admin · live ops map, SOS, rides (M10-T4)</h3>
+      <div class="grid">
+      <article class="board" id="AdminLiveOps">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminLiveOps.dc.html" title="Admin · Live ops map &amp; SOS alerts" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Live ops map &amp; SOS alerts</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminLiveOps.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminRides">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminRides.dc.html" title="Admin · Rides search" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Rides search</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminRides.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminRideDetail">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminRideDetail.dc.html" title="Admin · Ride detail · timeline, trace, chat" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Ride detail · timeline, trace, chat</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminRideDetail.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m11">
+    <header class="page-head">
+      <h2>M11 · Trust</h2>
+      <span class="count">16 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app · rate, report, suspended (M11-T3)</h3>
+      <div class="grid">
+      <article class="board" id="RiderRate">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderRate.dc.html" title="Rider · Rate your driver" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Rate your driver</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderRate.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderRateAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderRateAr.dc.html" title="Rider · Rate (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Rate (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderRateAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderHistoryRate">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderHistoryRate.dc.html" title="Rider · Your rides · rate later" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Your rides · rate later</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderHistoryRate.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderReport">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderReport.dc.html" title="Rider · Report your driver" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Report your driver</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderReport.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderReports">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderReports.dc.html" title="Rider · Report sent · your reports" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Report sent · your reports</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderReports.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSuspended">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSuspended.dc.html" title="Rider · Account suspended" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Account suspended</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSuspended.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · rate, report, performance (M11-T3)</h3>
+      <div class="grid">
+      <article class="board" id="DriverRateRider">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverRateRider.dc.html" title="Driver · Rate your rider" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Rate your rider</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverRateRider.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverReportRider">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverReportRider.dc.html" title="Driver · Report your rider" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Report your rider</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverReportRider.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverPerformance">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverPerformance.dc.html" title="Driver · Performance · metric warning" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Performance · metric warning</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverPerformance.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverPerformanceAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverPerformanceAr.dc.html" title="Driver · Performance (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Performance (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverPerformanceAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverRatingWarning">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverRatingWarning.dc.html" title="Driver · Performance · rating near limit" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Performance · rating near limit</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverRatingWarning.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="DriverSuspended">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="DriverSuspended.dc.html" title="Driver · Suspended · low rating" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Suspended · low rating</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="DriverSuspended.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Admin · reports, flags, suspension (M11-T4)</h3>
+      <div class="grid">
+      <article class="board" id="AdminReports">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminReports.dc.html" title="Admin · Reports queue" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Reports queue</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminReports.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminReportDetail">
+        <div class="frame" style="--w:1440px;--h:1100px;--s:0.3">
+          <iframe src="AdminReportDetail.dc.html" title="Admin · Report · evidence &amp; resolve" loading="lazy" width="1440" height="1100" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Report · evidence &amp; resolve</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×1100</span>
+            <a class="open" href="AdminReportDetail.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminFlags">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="AdminFlags.dc.html" title="Admin · Flagged accounts" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Flagged accounts</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="AdminFlags.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="AdminUserTrust">
+        <div class="frame" style="--w:1440px;--h:1000px;--s:0.3">
+          <iframe src="AdminUserTrust.dc.html" title="Admin · User · ratings, reports, flags, suspend" loading="lazy" width="1440" height="1000" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · User · ratings, reports, flags, suspend</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×1000</span>
+            <a class="open" href="AdminUserTrust.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m12driver">
+    <header class="page-head">
+      <h2>M12 driver</h2>
+      <span class="count">21 boards</span>
+    </header>
+    <div class="row">
+      <h3>Driver app · availability &amp; claim board (M12-T4)</h3>
+      <div class="grid">
+      <article class="board" id="D12Home">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12Home.dc.html" title="Home · scheduled entry" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Home · scheduled entry</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12Home.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12Availability">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12Availability.dc.html" title="Availability (UC-D-05)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Availability (UC-D-05)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12Availability.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12AvailabilityAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12AvailabilityAr.dc.html" title="Availability · AR" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Availability · AR</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12AvailabilityAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12AvailabilityAdd">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12AvailabilityAdd.dc.html" title="Add a window" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Add a window</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12AvailabilityAdd.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12ClaimBoard">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12ClaimBoard.dc.html" title="Claim board (UC-D-11)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Claim board (UC-D-11)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12ClaimBoard.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12ClaimBoardAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12ClaimBoardAr.dc.html" title="Claim board · AR" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Claim board · AR</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12ClaimBoardAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12ClaimRace">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12ClaimRace.dc.html" title="Already claimed (E1)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Already claimed (E1)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12ClaimRace.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12ClaimBoardEmpty">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12ClaimBoardEmpty.dc.html" title="Board · no availability" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Board · no availability</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12ClaimBoardEmpty.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12MyRides">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12MyRides.dc.html" title="My claimed rides + reminders" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>My claimed rides + reminders</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12MyRides.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12Release">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12Release.dc.html" title="Release a claim (UC-D-12 E1)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Release a claim (UC-D-12 E1)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12Release.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12Converted">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12Converted.dc.html" title="Live at T−15 (UC-D-12)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Live at T−15 (UC-D-12)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12Converted.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12Notices">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12Notices.dc.html" title="System release / rider busy" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>System release / rider busy</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12Notices.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · shared rides (M12-T4)</h3>
+      <div class="grid">
+      <article class="board" id="D12SharedOffer">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12SharedOffer.dc.html" title="Shared offer (UC-D-13)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Shared offer (UC-D-13)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12SharedOffer.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12SharedPickup">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12SharedPickup.dc.html" title="Members at pickup" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Members at pickup</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12SharedPickup.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12SharedPickupAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12SharedPickupAr.dc.html" title="Members at pickup · AR (after grace)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Members at pickup · AR (after grace)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12SharedPickupAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12NoShowConfirm">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12NoShowConfirm.dc.html" title="Mark absent (E1)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Mark absent (E1)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12NoShowConfirm.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12SharedChats">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12SharedChats.dc.html" title="Per-member chats" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Per-member chats</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12SharedChats.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12SharedCollect">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12SharedCollect.dc.html" title="Per-member collection" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Per-member collection</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12SharedCollect.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12SharedCollectAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12SharedCollectAr.dc.html" title="Per-member collection · AR" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Per-member collection · AR</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12SharedCollectAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · report a member (M12-T5)</h3>
+      <div class="grid">
+      <article class="board" id="D12ReportWho">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12ReportWho.dc.html" title="Report a rider · pick the member (shared)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Report a rider · pick the member (shared)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12ReportWho.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D12ReportWhoAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D12ReportWhoAr.dc.html" title="Report a rider · pick the member · AR" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Report a rider · pick the member · AR</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D12ReportWhoAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m12rider">
+    <header class="page-head">
+      <h2>M12 rider</h2>
+      <span class="count">21 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app · scheduled rides (M12-T3)</h3>
+      <div class="grid">
+      <article class="board" id="RiderM12Home">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderM12Home.dc.html" title="Rider · Home · Later + scheduled + shared entries" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Home · Later + scheduled + shared entries</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderM12Home.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedWhen">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedWhen.dc.html" title="Rider · Schedule · pickup time (UC-R-10)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Schedule · pickup time (UC-R-10)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedWhen.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedChoose">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedChoose.dc.html" title="Rider · Schedule · priced at ride time" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Schedule · priced at ride time</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedChoose.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedTooSoon">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedTooSoon.dc.html" title="Rider · Schedule · too soon (E1, book now instead)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Schedule · too soon (E1, book now instead)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedTooSoon.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedUpcoming">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedUpcoming.dc.html" title="Rider · Scheduled rides · claim status (UC-R-11)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Scheduled rides · claim status (UC-R-11)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedUpcoming.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedUpcomingAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedUpcomingAr.dc.html" title="Rider · Scheduled rides (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Scheduled rides (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedUpcomingAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedDetail">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedDetail.dc.html" title="Rider · Scheduled ride · detail" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Scheduled ride · detail</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedDetail.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedCancel">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedCancel.dc.html" title="Rider · Scheduled ride · cancel free" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Scheduled ride · cancel free</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedCancel.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSchedWarn">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSchedWarn.dc.html" title="Rider · Book now · scheduled ride within 60 min" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Book now · scheduled ride within 60 min</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSchedWarn.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Rider app · shared rides (M12-T3)</h3>
+      <div class="grid">
+      <article class="board" id="RiderSharedBrowse">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedBrowse.dc.html" title="Rider · Shared rides · browse (UC-R-13)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared rides · browse (UC-R-13)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedBrowse.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedBrowseAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedBrowseAr.dc.html" title="Rider · Shared rides · browse (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared rides · browse (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedBrowseAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedJoin">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedJoin.dc.html" title="Rider · Shared ride · join" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · join</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedJoin.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedJoinErrors">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedJoinErrors.dc.html" title="Rider · Shared ride · join blocked (E1, E2)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · join blocked (E1, E2)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedJoinErrors.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedCreate">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedCreate.dc.html" title="Rider · Share a ride · create (UC-R-12)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Share a ride · create (UC-R-12)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedCreate.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedGathering">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedGathering.dc.html" title="Rider · Shared ride · creator: start / cancel (UC-R-15)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · creator: start / cancel (UC-R-15)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedGathering.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedMember">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedMember.dc.html" title="Rider · Shared ride · member view, leave free (UC-R-14)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · member view, leave free (UC-R-14)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedMember.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedOnWay">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedOnWay.dc.html" title="Rider · Shared ride · driver on the way" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · driver on the way</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedOnWay.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedLeave">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedLeave.dc.html" title="Rider · Shared ride · leave after dispatch (fee quote)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · leave after dispatch (fee quote)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedLeave.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedChat">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedChat.dc.html" title="Rider · Shared ride · private chat with driver" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · private chat with driver</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedChat.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedReceipt">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedReceipt.dc.html" title="Rider · Shared ride · per-seat receipt (RIDE-P4)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Shared ride · per-seat receipt (RIDE-P4)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedReceipt.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="RiderSharedHomeCard">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="RiderSharedHomeCard.dc.html" title="Rider · Home · open shared ride card (W10)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Home · open shared ride card (W10)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="RiderSharedHomeCard.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m12admin">
+    <header class="page-head">
+      <h2>M12 admin</h2>
+      <span class="count">1 boards</span>
+    </header>
+    <div class="row">
+      <h3>Admin · shared ride chat log (M12-T5)</h3>
+      <div class="grid">
+      <article class="board" id="A12ChatLogMembers">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="A12ChatLogMembers.dc.html" title="Admin · Ride detail · shared ride chat log per member" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Ride detail · shared ride chat log per member</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="A12ChatLogMembers.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="m13">
+    <header class="page-head">
+      <h2>M13 · Growth</h2>
+      <span class="count">17 boards</span>
+    </header>
+    <div class="row">
+      <h3>Rider app · promos, referrals, points (M13-T3)</h3>
+      <div class="grid">
+      <article class="board" id="R13PromoChoose">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13PromoChoose.dc.html" title="Rider · Choose a ride · promo applied (UC-R-18)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Choose a ride · promo applied (UC-R-18)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13PromoChoose.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13PromoErrors">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13PromoErrors.dc.html" title="Rider · Promo code · validation messages" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Promo code · validation messages</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13PromoErrors.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13Referral">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13Referral.dc.html" title="Rider · Invite friends (GRW-03)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Invite friends (GRW-03)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13Referral.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13ReferralAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13ReferralAr.dc.html" title="Rider · Invite friends (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Invite friends (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13ReferralAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13Loyalty">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13Loyalty.dc.html" title="Rider · Labby Points (GRW-04)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Labby Points (GRW-04)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13Loyalty.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13Redeem">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13Redeem.dc.html" title="Rider · Redeem points · sheet" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Redeem points · sheet</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13Redeem.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13Profile">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13Profile.dc.html" title="Rider · Level &amp; badges (GAME-01)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Level &amp; badges (GAME-01)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13Profile.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13Challenges">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13Challenges.dc.html" title="Rider · Challenges (GAME-02)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Challenges (GAME-02)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13Challenges.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Driver app · badges &amp; challenges (M13-T4)</h3>
+      <div class="grid">
+      <article class="board" id="D13Badges">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D13Badges.dc.html" title="Driver · Level &amp; badges" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Level &amp; badges</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D13Badges.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D13Challenges">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D13Challenges.dc.html" title="Driver · Challenges" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Challenges</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D13Challenges.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="D13ChallengesAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="D13ChallengesAr.dc.html" title="Driver · Challenges (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Driver · Challenges (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="D13ChallengesAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Admin · promos &amp; challenges (M13-T4)</h3>
+      <div class="grid">
+      <article class="board" id="A13Promos">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="A13Promos.dc.html" title="Admin · Promotions · list &amp; deactivate (UC-A-26)" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Promotions · list &amp; deactivate (UC-A-26)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="A13Promos.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="A13PromoCreate">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="A13PromoCreate.dc.html" title="Admin · New promo" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · New promo</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="A13PromoCreate.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="A13Challenges">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="A13Challenges.dc.html" title="Admin · Challenges · list &amp; create (UC-A-28)" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Challenges · list &amp; create (UC-A-28)</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="A13Challenges.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="A13ChallengeDetail">
+        <div class="frame" style="--w:1440px;--h:900px;--s:0.3">
+          <iframe src="A13ChallengeDetail.dc.html" title="Admin · Challenge · participation &amp; early end" loading="lazy" width="1440" height="900" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Admin · Challenge · participation &amp; early end</h4>
+          <div class="meta-row">
+            <span class="chip chip-approved">Owner-approved</span>
+            <span class="dims">1440×900</span>
+            <a class="open" href="A13ChallengeDetail.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+    <div class="row">
+      <h3>Rider app · promos, referrals, points (M13-T3)</h3>
+      <div class="grid">
+      <article class="board" id="R13RegisterReferral">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13RegisterReferral.dc.html" title="Rider · Create account · referral code (GRW-03, M13-T5)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Create account · referral code (GRW-03, M13-T5)</h4>
+          <div class="meta-row">
+            <span class="chip chip-pending">Awaiting approval</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13RegisterReferral.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      <article class="board" id="R13RegisterReferralAr">
+        <div class="frame" style="--w:390px;--h:844px;--s:0.5">
+          <iframe src="R13RegisterReferralAr.dc.html" title="Rider · Create account · referral code (AR, RTL)" loading="lazy" width="390" height="844" scrolling="no"></iframe>
+        </div>
+        <div class="meta">
+          <h4>Rider · Create account · referral code (AR, RTL)</h4>
+          <div class="meta-row">
+            <span class="chip chip-pending">Awaiting approval</span>
+            <span class="dims">390×844</span>
+            <a class="open" href="R13RegisterReferralAr.dc.html" target="_blank" rel="noopener">Open full size</a>
+          </div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+</div>

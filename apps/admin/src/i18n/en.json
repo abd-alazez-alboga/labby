@@ -946,9 +946,11 @@
         "settlement_pay_in": "Settlement · pay-in",
         "settlement_pay_out": "Settlement · pay-out",
         "bonus": "Bonus",
-        "due_collection": "Due collected in cash"
+        "due_collection": "Due collected in cash",
+        "promo_compensation": "Promo top-up · platform-funded"
       },
       "sub": {
+        "promoCompensation": "promo discount on this ride, covered by Labby",
         "commission": "fare {{fare}} · {{rate}}%",
         "tip": "commission-free",
         "cancellationFee": "100% to the driver",

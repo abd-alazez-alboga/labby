@@ -43,6 +43,7 @@ import com.labby.backend.service.DeviceTokenService;
 import com.labby.backend.service.LoginThrottle;
 import com.labby.backend.service.OtpService;
 import com.labby.backend.service.ProfileServiceImpl;
+import com.labby.backend.service.ReferralService;
 import com.labby.backend.util.UserMapper;
 import java.time.Instant;
 import java.util.Arrays;
@@ -73,6 +74,7 @@ class AuthServiceImplTest {
   @Mock private JwtService jwtService;
   @Mock private LoginThrottle loginThrottle;
   @Mock private DeviceTokenService deviceTokenService;
+  @Mock private ReferralService referralService;
 
   private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
   @Mock private RbacRoleRepository rbacRoleRepository;
@@ -95,7 +97,8 @@ class AuthServiceImplTest {
             loginThrottle,
             new ProfileServiceImpl(userMapper, rbacRoleRepository),
             new AuthProperties("test-secret-test-secret-test-secret!!", 900, 1209600, 10, 900),
-            deviceTokenService);
+            deviceTokenService,
+            referralService);
     user =
         User.builder()
             .phone(PHONE)

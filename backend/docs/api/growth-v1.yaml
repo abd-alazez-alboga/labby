@@ -57,7 +57,10 @@ info:
 
 
     **Referrals (GRW-03).** Each user shares one code (`referral_codes`, created lazily). A new
-    account enters a code at/after registration (capture, status `pending`); on the referee's
+    account enters a code AT registration (UC-R-18: auth-v1 `POST /auth/register/complete`
+    `referralCode`, amended at M13-T5 — the rider app's register step carries the field; the
+    `/referrals/enter` endpoint below is the same capture as a standalone primitive, accepted
+    until the first completed ride) (capture, status `pending`); on the referee's
     FIRST completed ride both sides receive their region-configured `referral` wallet credit in
     the ride currency, and the row becomes `rewarded` (exactly once). Abuse blocks: self-referral,
     phone-ever uniqueness, suspended accounts don't trigger rewards (status `blocked`).

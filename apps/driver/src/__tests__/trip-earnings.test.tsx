@@ -114,6 +114,35 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     expect(await screen.findByTestId("availability-online")).toBeTruthy();
   });
 
+  it("promo ride: the platform-covered discount is its own line inside the balance change (M13)", async () => {
+    const contract = await renderDriverApp(
+      {
+        [ACTIVE_RIDE]: ok(completedRide()),
+        [CASH]: ok(completedRide({ paymentStatus: "paid_cash" })),
+        [EARNINGS]: ok(
+          earningPage([
+            tripEarningFixture({ promoCompensation: 2800, net: 800 }),
+          ]),
+        ),
+        [BALANCE]: ok(balanceViewFixture()),
+      },
+      { money: true },
+    );
+    await goLive();
+    await waitForResync(contract);
+    fireEvent.press(await screen.findByTestId("cash-received"));
+
+    expect(await screen.findByTestId("earning-line-promo")).toHaveTextContent(
+      "Promo discount · covered by Labby+SYP 2,800",
+    );
+    expect(screen.getByTestId("earning-line-commission")).toHaveTextContent(
+      "Commission · 25%−SYP 7,000",
+    );
+    expect(screen.getByTestId("earning-line-net")).toHaveTextContent(
+      "Balance change+SYP 800",
+    );
+  });
+
   it("wallet ride: completion settles instantly and the net is credited", async () => {
     const walletRide = completedRide({
       paymentMethod: "wallet",

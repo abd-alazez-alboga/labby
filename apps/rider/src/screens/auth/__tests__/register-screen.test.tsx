@@ -31,6 +31,27 @@ async function goToOtpStep() {
   expect(await screen.findByTestId("register-step-otp")).toBeOnTheScreen();
 }
 
+/** Phone → OTP → the details step filled and the terms accepted (not yet submitted). */
+async function fillDetails() {
+  await goToOtpStep();
+  await fireEvent.changeText(
+    screen.getByTestId("register-otp-code-input"),
+    "123456",
+  );
+  await fireEvent.press(screen.getByTestId("register-otp-verify"));
+  expect(await screen.findByTestId("register-step-details")).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByTestId("register-name"), "New Rider");
+  await fireEvent.changeText(
+    screen.getByTestId("register-password"),
+    "supersecret1",
+  );
+  await fireEvent.changeText(
+    screen.getByTestId("register-confirm-password"),
+    "supersecret1",
+  );
+  await fireEvent.press(screen.getByTestId("register-terms"));
+}
+
 describe("RegisterScreen (UC-S-01 / UC-S-08)", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -93,6 +114,79 @@ describe("RegisterScreen (UC-S-01 / UC-S-08)", () => {
       accessToken: "access-1",
       refreshToken: "refresh-1",
     });
+  });
+
+  it("sends a friend's referral code with the account (GRW-03 / UC-R-18)", async () => {
+    const api = mockApi({
+      [START]: { status: 204 },
+      [VERIFY]: {
+        status: 200,
+        body: { mode: "new", registrationToken: "reg-token-1" },
+      },
+      [COMPLETE]: { status: 201, body: tokensResponse() },
+    });
+    await fillDetails();
+    expect(screen.getByTestId("register-referral-hint")).toHaveTextContent(
+      "Got a code from a friend?",
+      { exact: false },
+    );
+    await fireEvent.changeText(
+      screen.getByTestId("register-referral-code"),
+      " lb-sami42 ",
+    );
+    await fireEvent.press(screen.getByTestId("register-complete"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-status")).toHaveTextContent("signedIn");
+    });
+    expect(
+      api.callsTo("POST", "/api/v1/auth/register/complete")[0].body,
+    ).toEqual({
+      registrationToken: "reg-token-1",
+      password: "supersecret1",
+      name: "New Rider",
+      termsAccepted: true,
+      referralCode: "lb-sami42",
+    });
+  });
+
+  it("keeps the rider on the details step with a field error when the code is refused", async () => {
+    mockApi({
+      [START]: { status: 204 },
+      [VERIFY]: {
+        status: 200,
+        body: { mode: "new", registrationToken: "reg-token-1" },
+      },
+      [COMPLETE]: [
+        {
+          status: 404,
+          body: { status: 404, code: "referral_code_not_found", message: "no" },
+        },
+        {
+          status: 409,
+          body: { status: 409, code: "referral_phone_used", message: "used" },
+        },
+      ],
+    });
+    await fillDetails();
+    await fireEvent.changeText(
+      screen.getByTestId("register-referral-code"),
+      "LB-NOSUCH",
+    );
+    await fireEvent.press(screen.getByTestId("register-complete"));
+    expect(
+      await screen.findByTestId("register-referral-code-error"),
+    ).toHaveTextContent("We don't know this code", { exact: false });
+    expect(screen.getByTestId("register-step-details")).toBeOnTheScreen();
+    expect(screen.getByTestId("auth-status")).toHaveTextContent("signedOut");
+
+    // A 409 that names the referral stays on the field — it is not "phone taken".
+    await fireEvent.press(screen.getByTestId("register-complete"));
+    expect(
+      await screen.findByTestId("register-referral-code-error"),
+    ).toHaveTextContent("already used a referral", { exact: false });
+    expect(screen.getByTestId("register-step-details")).toBeOnTheScreen();
+    expect(screen.queryByTestId("register-step-phone")).toBeNull();
   });
 
   it("blocks registering before the terms of service are accepted", async () => {

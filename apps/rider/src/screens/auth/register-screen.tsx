@@ -40,6 +40,8 @@ type Step = "phone" | "otp" | "details" | "reactivated";
  * - E4 SMS send failure (network / 5xx)
  * - E5 phone already registered (409) → redirect to login
  * - expired registrationToken on complete (400) → start over
+ * - M13 (GRW-03 / UC-R-18): an optional referral code on the details step,
+ *   refused codes (404 / 409 `referral_phone_used`) shown under the field
  */
 export default function RegisterScreen() {
   const { t } = useLocale();
@@ -64,6 +66,8 @@ export default function RegisterScreen() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralError, setReferralError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [tokenExpired, setTokenExpired] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -158,12 +162,15 @@ export default function RegisterScreen() {
     }
     setBusy(true);
     setCompleteError(null);
+    setReferralError(null);
+    const trimmedCode = referralCode.trim();
     try {
       const session = await registerComplete({
         registrationToken,
         password,
         name: name.trim(),
         termsAccepted,
+        ...(trimmedCode ? { referralCode: trimmedCode } : {}),
       });
       await signIn(session);
       // The (auth) group guard redirects into the app once signed in.
@@ -171,6 +178,19 @@ export default function RegisterScreen() {
       if (error instanceof ApiError && error.status === 400) {
         setTokenExpired(true);
         setCompleteError(t("register.tokenExpired"));
+      } else if (
+        error instanceof ApiError &&
+        error.status === 404 &&
+        error.body?.code === "referral_code_not_found"
+      ) {
+        // GRW-03: the code is checked with the account; nothing was created.
+        setReferralError(t("register.referralUnknown"));
+      } else if (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.body?.code === "referral_phone_used"
+      ) {
+        setReferralError(t("register.referralPhoneUsed"));
       } else if (error instanceof ApiError && error.status === 409) {
         // Concurrent registration won the race — the phone is now taken.
         setPhoneTaken(true);
@@ -301,6 +321,26 @@ export default function RegisterScreen() {
             error={confirmError}
             testID="register-confirm-password"
           />
+          <TextField
+            label={t("register.referralLabel")}
+            value={referralCode}
+            onChangeText={(value) => {
+              setReferralCode(value);
+              setReferralError(null);
+            }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={32}
+            error={referralError}
+            testID="register-referral-code"
+          />
+          <AppText
+            variant="secondary"
+            tone="secondary"
+            testID="register-referral-hint"
+          >
+            {t("register.referralHint")}
+          </AppText>
           <Pressable
             accessibilityRole="checkbox"
             accessibilityState={{ checked: termsAccepted }}

@@ -328,6 +328,21 @@ describe("earnings screen (UC-D-15)", () => {
     );
   });
 
+  it("shows a promo ride's platform top-up on the row and inside its net (M13 ruling 1)", async () => {
+    // Fare 28,000 cash, 25% → −7,000, tip +5,000, promo top-up +2,800 → net +800.
+    const promo = tripEarningFixture({ promoCompensation: 2800, net: 800 });
+    await renderMoneyScreens(
+      { ...baseRoutes(), [EARNINGS]: ok(earningPage([promo])) },
+      { initialUrl: "/earnings" },
+    );
+    const row = await screen.findByTestId(`trip-row-${promo.rideId}`);
+    expect(row).toHaveTextContent("promo top-up +2,800", { exact: false });
+    expect(row).toHaveTextContent("commission −7,000", { exact: false });
+    expect(screen.getByTestId(`trip-net-${promo.rideId}`)).toHaveTextContent(
+      "+SYP 800",
+    );
+  });
+
   it("shows the empty state when there are no earnings", async () => {
     await renderMoneyScreens(
       {

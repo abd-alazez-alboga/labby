@@ -946,9 +946,11 @@
         "settlement_pay_in": "تسوية · دفعة واردة",
         "settlement_pay_out": "تسوية · دفعة صادرة",
         "bonus": "مكافأة",
-        "due_collection": "مستحق حُصِّل نقدًا"
+        "due_collection": "مستحق حُصِّل نقدًا",
+        "promo_compensation": "تعويض عرض ترويجي · على حساب المنصة"
       },
       "sub": {
+        "promoCompensation": "خصم العرض في هذه الرحلة، تتحمّله لبي",
         "commission": "الأجرة {{fare}} · {{rate}}%",
         "tip": "بدون عمولة",
         "cancellationFee": "100% للسائق",

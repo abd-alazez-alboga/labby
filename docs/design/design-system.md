@@ -1,7 +1,7 @@
 # Labby design system
 
 Owner-approved 2026-10-07. Visual reference: the Labby design canvas
-https://claude.ai/artifact/GNh2Q5ooDiwNLfiJavT1KZ (rider: Home / Choose a ride / Driver on the way;
+https://claude.ai/artifact/EcFBr8QR8GLWSS6MF1VceY (rider: Home / Choose a ride / Driver on the way;
 driver: Offline + GO / Ride offer / Documents; admin: Driver applications / Review an application /
 Document expiry). Every new screen gets an artboard there and owner approval **before** code
 (CLAUDE.md "Design first").

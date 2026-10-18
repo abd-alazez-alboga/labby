@@ -2,6 +2,7 @@ package com.labby.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.dto.AuthTokensResponseDto;
 import com.labby.backend.dto.RegisterVerifyResponseDto;
 import com.labby.backend.dto.UserProfileDto;
@@ -10,6 +11,7 @@ import com.labby.backend.enums.ClientType;
 import com.labby.backend.enums.Language;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -174,6 +176,105 @@ class AuthFlowIntegrationTest extends AbstractAuthIntegrationTest {
         .isEqualTo(HttpStatus.OK);
     assertThat(tryLogin(phone, "Secret123!", ClientType.ADMIN).getStatusCode())
         .isEqualTo(HttpStatus.FORBIDDEN);
+  }
+
+  @Test
+  @DisplayName("GRW-03 / UC-R-18: a referral code on register complete is captured as pending")
+  void shouldCaptureReferralCodeAtRegistration() {
+    AuthTokensResponseDto referrer = register("+963911100061", "Secret123!", "Sami Referrer");
+    ResponseEntity<JsonNode> share =
+        restTemplate.exchange(
+            "/api/v1/referrals/me",
+            HttpMethod.GET,
+            new HttpEntity<>(bearer(referrer.accessToken())),
+            JsonNode.class);
+    assertThat(share.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String code = share.getBody().get("code").asText();
+
+    String phone = "+963911100062";
+    ResponseEntity<JsonNode> created =
+        tryRegisterComplete(phone, "Rama Referee", code.toLowerCase());
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    ResponseEntity<JsonNode> mine =
+        restTemplate.exchange(
+            "/api/v1/referrals/me",
+            HttpMethod.GET,
+            new HttpEntity<>(bearer(created.getBody().get("accessToken").asText())),
+            JsonNode.class);
+    assertThat(mine.getBody().get("enteredCode").asText()).isEqualTo(code);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT status FROM referrals WHERE referee_phone = ?", String.class, phone))
+        .isEqualTo("pending");
+  }
+
+  @Test
+  @DisplayName("a refused referral code refuses the registration — no account is created")
+  void shouldRefuseRegistrationOnBadReferralCode() {
+    AuthTokensResponseDto referrer = register("+963911100063", "Secret123!", "Sami Referrer");
+    String code =
+        restTemplate
+            .exchange(
+                "/api/v1/referrals/me",
+                HttpMethod.GET,
+                new HttpEntity<>(bearer(referrer.accessToken())),
+                JsonNode.class)
+            .getBody()
+            .get("code")
+            .asText();
+
+    // Unknown code → 404 referral_code_not_found, the phone stays free.
+    String phone = "+963911100064";
+    ResponseEntity<JsonNode> unknown = tryRegisterComplete(phone, "Nobody", "LB-NOSUCH");
+    assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(unknown.getBody().get("code").asText()).isEqualTo("referral_code_not_found");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
+        .isZero();
+
+    // Phone already used a referral (ruling 6: a deleted account's referral stays on its phone) →
+    // 409 referral_phone_used, no account either.
+    AuthTokensResponseDto earlier = register("+963911100065", "Secret123!", "Earlier Account");
+    jdbcTemplate.update(
+        "INSERT INTO referrals (referrer_user_id, referee_user_id, referee_phone) VALUES"
+            + " (?, ?, ?)",
+        referrer.user().id(),
+        earlier.user().id(),
+        phone);
+    ResponseEntity<JsonNode> used = tryRegisterComplete(phone, "Nobody", code);
+    assertThat(used.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(used.getBody().get("code").asText()).isEqualTo("referral_phone_used");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
+        .isZero();
+
+    // The same phone then registers fine without a code.
+    ResponseEntity<JsonNode> plain = tryRegisterComplete(phone, "Nobody", null);
+    assertThat(plain.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+  }
+
+  /** start → verify → complete with an optional referral code; the complete response as JSON. */
+  private ResponseEntity<JsonNode> tryRegisterComplete(
+      String phone, String name, String referralCode) {
+    ageOtpCodes(phone);
+    restTemplate.postForEntity("/api/v1/auth/register/start", Map.of("phone", phone), Void.class);
+    ResponseEntity<RegisterVerifyResponseDto> verify =
+        restTemplate.postForEntity(
+            "/api/v1/auth/register/verify",
+            Map.of("phone", phone, "code", lastCodeFor(phone)),
+            RegisterVerifyResponseDto.class);
+    assertThat(verify.getBody()).isNotNull();
+    Map<String, Object> body = new HashMap<>();
+    body.put("registrationToken", verify.getBody().registrationToken());
+    body.put("password", "Secret123!");
+    body.put("name", name);
+    body.put("termsAccepted", true);
+    if (referralCode != null) {
+      body.put("referralCode", referralCode);
+    }
+    return restTemplate.postForEntity("/api/v1/auth/register/complete", body, JsonNode.class);
   }
 
   @Test

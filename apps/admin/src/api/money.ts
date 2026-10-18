@@ -100,7 +100,9 @@ export type DriverLedgerType =
   | 'settlement_pay_in'
   | 'settlement_pay_out'
   | 'bonus'
-  | 'due_collection';
+  | 'due_collection'
+  /** M13 ruling 1: the platform-funded promo discount credited to the ride's driver. */
+  | 'promo_compensation';
 
 export interface DriverLedgerEntry {
   id: string;
