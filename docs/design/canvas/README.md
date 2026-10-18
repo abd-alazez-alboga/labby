@@ -1,22 +1,26 @@
-# Labby design canvas — offline copy and gallery source
+# Labby design canvas — offline copy
 
-Every artboard of the owner-approved Labby design canvas. The original canvas lived on an account
-the owner no longer uses (snapshot taken 2026-10-18); since then this folder is the **source** and
-the live canvas is the gallery artifact published from it:
-https://claude.ai/artifact/EcFBr8QR8GLWSS6MF1VceY (rebuilt 2026-10-18 under the owner's current
-account). New screens are added here as `.dc.html` files, registered in `canvas.json`, listed below,
-and the gallery is republished — the owner approves them on the gallery before any code.
+Every artboard of the owner-approved Labby design canvas. The live canvas is the owner's Design
+canvas https://claude.ai/artifact/2pihbKeV5dgzEJYaomYDZU (recreated 2026-10-18 under the owner's
+current account from this snapshot; the original account's canvas is gone). Claude Code cannot
+publish into a Design canvas, so the approval loop for NEW screens is:
 
-- `build-index.py` — regenerates `index.html` from `canvas.json` (pass the boards awaiting approval as
-  the second argument so they get the "Awaiting approval" chip).
-- `index.html` — the gallery page (generated from `canvas.json`; one section per milestone page,
-  every board rendered live at scale, new boards flagged "Awaiting approval" until the owner says
-  go). Publish it as the artifact page with every `*.dc.html` as a supporting file at the same
-  relative path.
-- `canvas.json` — the canvas index: pages, artboard frames, titles and section notes.
-- `*.dc.html` — one file per artboard (mobile 390×844, admin 1440 wide). Each file is plain
-  HTML with inline styles and opens directly in a browser; the `./support.js` line was the
-  original canvas editor's runtime and is not needed to view the layout.
+1. Draw the board here as a `.dc.html` file (mobile 390×844, admin 1440 wide), register it in
+   `canvas.json` and in the list below.
+2. Regenerate the gallery (`python3 docs/design/canvas/build-index.py docs/design/canvas
+   "<new boards, comma-separated>"`) and republish it to the review gallery artifact
+   https://claude.ai/artifact/EcFBr8QR8GLWSS6MF1VceY (page `index.html`, every `*.dc.html` as a
+   supporting file at the same relative path) — new boards show there as "Awaiting approval".
+3. The owner approves on the gallery (or on the rendered files sent in chat), then adds the
+   approved boards to the Design canvas by hand; only then is the screen implemented.
+
+- `canvas.json` — this snapshot's index: pages, artboard frames, titles and section notes (the
+  live canvas keeps its own index with its own page ids and frame positions).
+- `*.dc.html` — one file per artboard. Each file is plain HTML with inline styles and opens
+  directly in a browser; the `./support.js` line is the canvas editor's runtime and is not needed
+  to view the layout.
+- `build-index.py` + `index.html` — the gallery page above (every board rendered live at scale,
+  boards awaiting approval flagged).
 
 Tokens and rules live in [../design-system.md](../design-system.md); this folder is the visual reference.
 
