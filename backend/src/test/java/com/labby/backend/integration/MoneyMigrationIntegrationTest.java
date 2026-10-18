@@ -69,7 +69,11 @@ class MoneyMigrationIntegrationTest extends AbstractIntegrationTest {
   void cleanOwnRows() {
     // The ledgers are append-only by design; TRUNCATE bypasses row-level triggers (same approach
     // as audit_log in AbstractAuthIntegrationTest) so the shared test DB resets between tests.
-    jdbcTemplate.execute("TRUNCATE driver_ledger, wallet_transactions, settlements");
+    // M13 growth rows reference wallet_transactions (points) and each other, so they truncate
+    // with the ledgers even though this class never creates them.
+    jdbcTemplate.execute(
+        "TRUNCATE challenge_progress, points_transactions, driver_ledger, wallet_transactions,"
+            + " settlements");
     for (UUID userId : createdUsers) {
       jdbcTemplate.update("DELETE FROM rider_dues WHERE rider_user_id = ?", userId);
       jdbcTemplate.update("DELETE FROM wallet_balances WHERE user_id = ?", userId);

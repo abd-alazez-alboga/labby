@@ -58,6 +58,9 @@ class NotificationRendererTest {
       if (event.getValue().startsWith("scheduled.") || event.getValue().startsWith("shared.")) {
         continue; // M12 events: see shouldRenderScheduledEvents / shouldRenderSharedEvents.
       }
+      if (event.getValue().startsWith("growth.")) {
+        continue; // M13 growth events: see shouldRenderGrowthEvents.
+      }
       Map<String, Object> params =
           switch (event) {
             case DOCUMENT_EXPIRY_REMINDER -> REMINDER_PARAMS;
@@ -674,6 +677,52 @@ class NotificationRendererTest {
         assertThat(text).isNotBlank().doesNotContain("%s", "null");
         assertThat(text).doesNotContainPattern("[\\u0660-\\u0669]");
       }
+    }
+  }
+
+  @Test
+  @DisplayName("M13 growth events render bilingual, category promotions, audience from `as`")
+  void shouldRenderGrowthEvents() {
+    Rendered badge =
+        renderer
+            .render("growth.badge_awarded", Map.of("badgeCode", "five_star_week", "as", "driver"))
+            .orElseThrow();
+    Rendered challenge =
+        renderer
+            .render(
+                "growth.challenge_completed",
+                Map.of("challengeId", "c-1", "points", "150", "as", "driver"))
+            .orElseThrow();
+    Rendered referrer =
+        renderer
+            .render(
+                "growth.referral_rewarded",
+                Map.of("as", "referrer", "amount", "5000", "currency", "SYP"))
+            .orElseThrow();
+    Rendered referee =
+        renderer
+            .render(
+                "growth.referral_rewarded",
+                Map.of("as", "referee", "amount", "5000", "currency", "SYP"))
+            .orElseThrow();
+
+    assertThat(badge.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(badge.bodyEn()).contains("5-star week");
+    assertThat(badge.bodyAr()).contains("أسبوع 5 نجوم");
+    assertThat(challenge.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(challenge.bodyEn()).contains("150");
+    assertThat(referrer.audience()).isEqualTo(NotificationAudience.RIDER);
+    assertThat(referee.audience()).isEqualTo(NotificationAudience.RIDER);
+    assertThat(referrer.bodyEn()).isNotEqualTo(referee.bodyEn());
+    for (Rendered one : List.of(badge, challenge, referrer, referee)) {
+      assertThat(one.category()).isEqualTo(NotificationCategory.PROMOTIONS);
+      assertThat(one.linkScreen()).isNull();
+      for (String text : new String[] {one.titleEn(), one.bodyEn(), one.titleAr(), one.bodyAr()}) {
+        assertThat(text).isNotBlank().doesNotContain("%s", "{", "}", "null");
+        assertThat(text.toLowerCase(Locale.ROOT)).doesNotContain("verification", "verify");
+        assertThat(text).doesNotContain("التحقق").doesNotContainPattern("[\\u0660-\\u0669]");
+      }
+      assertThat(one.titleAr()).containsPattern("[\\u0600-\\u06FF]");
     }
   }
 }

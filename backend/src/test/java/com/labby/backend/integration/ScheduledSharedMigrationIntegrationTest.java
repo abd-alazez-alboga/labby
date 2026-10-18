@@ -67,7 +67,11 @@ class ScheduledSharedMigrationIntegrationTest extends AbstractIntegrationTest {
   void cleanOwnRows() {
     // Ledgers, ratings and the claim-release trail refuse DELETE by trigger; TRUNCATE bypasses
     // row-level triggers (same approach as the money and trust migration tests).
-    jdbcTemplate.execute("TRUNCATE driver_ledger, wallet_transactions, settlements");
+    // M13 growth rows reference wallet_transactions (points) and each other, so they truncate
+    // with the ledgers even though this class never creates them.
+    jdbcTemplate.execute(
+        "TRUNCATE challenge_progress, points_transactions, driver_ledger, wallet_transactions,"
+            + " settlements");
     jdbcTemplate.execute("TRUNCATE ratings");
     jdbcTemplate.execute("TRUNCATE scheduled_claim_releases");
     for (UUID userId : createdUsers) {
