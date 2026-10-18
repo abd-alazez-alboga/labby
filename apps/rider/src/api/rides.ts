@@ -477,6 +477,11 @@ export type BookRideRequest = RouteInput & {
    * a mismatch with the current value → 409 `surge_changed` (PRC-02).
    */
   expectedSurgeMultiplier?: number | null;
+  /**
+   * M13 (growth-v1): a promo to reserve on this ride — re-validated at
+   * booking; a refused code fails the booking with the `promo_*` codes.
+   */
+  promoCode?: string | null;
 };
 
 /**

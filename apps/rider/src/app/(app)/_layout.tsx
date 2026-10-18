@@ -128,6 +128,23 @@ export default function AppLayout() {
           />
           <Stack.Screen name="shared/create" options={{ headerShown: false }} />
           <Stack.Screen name="shared/[rideId]" options={{ headerShown: false }} />
+          {/* M13 growth: referral, loyalty, badges/level, challenges. */}
+          <Stack.Screen
+            name="referral"
+            options={{ title: t("growth.referral.title") }}
+          />
+          <Stack.Screen
+            name="loyalty"
+            options={{ title: t("growth.loyalty.title") }}
+          />
+          <Stack.Screen
+            name="badges"
+            options={{ title: t("growth.badges.title") }}
+          />
+          <Stack.Screen
+            name="challenges"
+            options={{ title: t("growth.challenges.title") }}
+          />
         </Stack>
       </NotificationsProvider>
       </ChatProvider>

@@ -17,6 +17,7 @@ import React, { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import type { PromoValidation } from "../../api/growth";
 import {
   estimateRide,
   type EstimateResponse,
@@ -50,6 +51,7 @@ import {
 } from "../../ride/ride-format";
 import { formatScheduleDay } from "../../ride/schedule-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { RideMap } from "../ride/ride-parts";
 import { type PlannedRoute, RoutePlanner } from "../ride/route-planner";
 import { earliestSlot, WhenPicker } from "./when-picker";
@@ -119,6 +121,8 @@ export default function ScheduleScreen() {
   const [estimate, setEstimate] = useState<EstimateResponse | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  // M13 ruling 3: validated + reserved at booking, amount at ride time.
+  const [promo, setPromo] = useState<PromoValidation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -166,13 +170,14 @@ export default function ScheduleScreen() {
         serviceTypeId: option.serviceTypeId,
         paymentMethod,
         scheduledAt: scheduledAt.toISOString(),
+        ...(promo ? { promoCode: promo.code } : {}),
       });
       router.replace("/scheduled" as never);
     } catch (failure) {
       if (rideErrorCode(failure) === "scheduled_too_soon") {
         setTooSoon(rideErrorNumber(failure, "minLeadMinutes") ?? minLead);
       } else {
-        setError(rideErrorMessage(failure, t));
+        setError(promoErrorMessage(failure, t) ?? rideErrorMessage(failure, t));
       }
     } finally {
       setBusy(false);
@@ -380,6 +385,22 @@ export default function ScheduleScreen() {
                 </Pressable>
               );
             })}
+            {option ? (
+              // M13 ruling 3: the code is reserved now, the amount worked
+              // out at ride time — the chip copy says so (no preview).
+              <PromoRow
+                context={{
+                  regionId: estimate.regionId,
+                  serviceTypeId: option.serviceTypeId,
+                  currency: option.estimate.components.currency,
+                  scheduledAt: scheduledAt.toISOString(),
+                }}
+                variant="scheduled"
+                promo={promo}
+                onChange={setPromo}
+                testID="schedule-promo"
+              />
+            ) : null}
             {error ? (
               <Banner tone="danger" message={error} testID="schedule-error" />
             ) : null}

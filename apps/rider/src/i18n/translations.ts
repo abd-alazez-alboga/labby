@@ -4,9 +4,11 @@
  * The M7 ride slice lives in ride-translations.ts, the M8 money slice in
  * money-translations.ts, the M10 comms & safety slice in
  * comms-translations.ts, the M11 trust slice in trust-translations.ts, the
- * M12 scheduled & shared slice in m12-translations.ts — all merged in here.
+ * M12 scheduled & shared slice in m12-translations.ts, the M13 growth slice
+ * in growth-translations.ts — all merged in here.
  */
 import { commsAr, commsEn } from "./comms-translations";
+import { growthAr, growthEn } from "./growth-translations";
 import { m12Ar, m12En } from "./m12-translations";
 import { moneyAr, moneyEn } from "./money-translations";
 import { rideAr, rideEn } from "./ride-translations";
@@ -19,6 +21,7 @@ export const translations = {
     ...commsEn,
     ...trustEn,
     ...m12En,
+    ...growthEn,
     common: {
       appName: "Labby",
       back: "Back",
@@ -287,6 +290,7 @@ export const translations = {
     ...commsAr,
     ...trustAr,
     ...m12Ar,
+    ...growthAr,
     common: {
       appName: "لبي",
       back: "رجوع",

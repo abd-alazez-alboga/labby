@@ -41,6 +41,7 @@ import {
   type Ride,
   type RiderPreferences,
 } from "../../api/rides";
+import type { PromoValidation } from "../../api/growth";
 import {
   listScheduledRides,
   SCHEDULED_WARNING_MIN,
@@ -69,6 +70,7 @@ import {
   serviceName,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { RideMap } from "./ride-parts";
 import { type PlannedRoute, RoutePlanner } from "./route-planner";
 import { ScheduledCancelSheet } from "../scheduled/scheduled-cancel-sheet";
@@ -286,6 +288,9 @@ export default function BookingScreen({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [walletFailed, setWalletFailed] = useState(false);
+  // M13 (UC-R-04 A1): the validated promo, reserved at booking. The
+  // estimate stays promo-free; the discount lands on the receipt.
+  const [promo, setPromo] = useState<PromoValidation | null>(null);
   // M12: the rider's upcoming scheduled rides (for the 60-min warning).
   const [scheduledRides, setScheduledRides] = useState<Ride[]>([]);
   const [warning, setWarning] = useState<Ride | null>(null);
@@ -437,6 +442,7 @@ export default function BookingScreen({
         paymentMethod,
         expectedSurgeMultiplier:
           expectedSurgeMultiplier ?? shown.surgeMultiplier,
+        ...(promo ? { promoCode: promo.code } : {}),
       });
       setSurgeChange(null);
       router.back();
@@ -451,7 +457,8 @@ export default function BookingScreen({
         );
       } else {
         setSurgeChange(null);
-        setBookError(rideErrorMessage(error, t));
+        // A promo_* refusal at booking is about the code, not the ride.
+        setBookError(promoErrorMessage(error, t) ?? rideErrorMessage(error, t));
       }
     } finally {
       setBooking(false);
@@ -652,6 +659,22 @@ export default function BookingScreen({
                   })}
                 </AppText>
               </View>
+            ) : null}
+            {option ? (
+              // M13 (approved artboard R13PromoChoose): promo entry between
+              // the options and the payment row.
+              <PromoRow
+                context={{
+                  regionId: estimate.regionId,
+                  serviceTypeId: option.serviceTypeId,
+                  currency: option.estimate.components.currency,
+                  estimateTotal: option.estimate.components.total,
+                }}
+                variant="onDemand"
+                promo={promo}
+                onChange={setPromo}
+                testID="booking-promo"
+              />
             ) : null}
             {bookError ? (
               <Banner tone="danger" message={bookError} testID="booking-error" />

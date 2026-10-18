@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import type { PromoValidation } from "../../api/growth";
 import { failureKind, type FailureKind } from "../../api/http-client";
 import {
   type PaymentMethod,
@@ -54,6 +55,7 @@ import { useOptionalActiveRide } from "../../ride/ride-context";
 import { rideErrorMessage } from "../../ride/ride-errors";
 import { formatMoney, placeLabel, serviceName } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { RideMap } from "../ride/ride-parts";
 import {
   departureRule,
@@ -290,6 +292,9 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
   const [failure, setFailure] = useState<FailureKind | null>(null);
   const [party, setParty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  // M13 ruling 2: a joining member's promo discounts their own seat share;
+  // one promo per ride (409 promo_already_applied).
+  const [promo, setPromo] = useState<PromoValidation | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // E1: the backend said fewer seats are left than the party needs.
@@ -385,7 +390,7 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
     setError(null);
     setShortOf(null);
     try {
-      show(await joinSharedRide(ride.rideId, party, paymentMethod));
+      show(await joinSharedRide(ride.rideId, party, paymentMethod, promo?.code));
     } catch (failed) {
       const code = rideErrorCode(failed);
       if (code === "insufficient_seats") {
@@ -404,7 +409,7 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
       } else if (code === "active_ride_exists") {
         setError(t("shared.activeRideExists"));
       } else {
-        setError(rideErrorMessage(failed, t));
+        setError(promoErrorMessage(failed, t) ?? rideErrorMessage(failed, t));
       }
     } finally {
       setBusy(false);
@@ -647,6 +652,18 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
             testID="shared-ride-payment-change"
           />
         </View>
+        <PromoRow
+          context={{
+            regionId: ride.regionId,
+            serviceTypeId: ride.serviceTypeId,
+            currency: ride.currency,
+            estimateTotal: perSeat(ride.estimateTotal, ride.totalSeats) * party,
+          }}
+          variant="shared"
+          promo={promo}
+          onChange={setPromo}
+          testID="shared-ride-promo"
+        />
         {error ? <Banner tone="danger" message={error} testID="shared-ride-error-banner" /> : null}
         <PrimaryButton
           label={

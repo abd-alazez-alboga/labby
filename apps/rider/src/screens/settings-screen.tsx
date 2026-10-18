@@ -102,6 +102,39 @@ export default function SettingsScreen() {
     },
   ];
 
+  // M13 growth (approved boards R13Referral/Loyalty/Profile/Challenges).
+  const rewardsRows: {
+    key: string;
+    label: string;
+    icon: IconName;
+    href: "/loyalty" | "/referral" | "/badges" | "/challenges";
+  }[] = [
+    {
+      key: "loyalty",
+      label: t("growth.rowLoyalty"),
+      icon: "sparkles-outline",
+      href: "/loyalty",
+    },
+    {
+      key: "referral",
+      label: t("growth.rowReferral"),
+      icon: "gift-outline",
+      href: "/referral",
+    },
+    {
+      key: "badges",
+      label: t("growth.rowBadges"),
+      icon: "ribbon-outline",
+      href: "/badges",
+    },
+    {
+      key: "challenges",
+      label: t("growth.rowChallenges"),
+      icon: "flag-outline",
+      href: "/challenges",
+    },
+  ];
+
   const rideRows: {
     key: string;
     label: string;
@@ -253,6 +286,23 @@ export default function SettingsScreen() {
               icon={item.icon}
               chevron
               last={index === walletRows.length - 1}
+              onPress={() => router.push(item.href as never)}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <AppText variant="heading">{t("growth.rewardsSection")}</AppText>
+        <View>
+          {rewardsRows.map((item, index) => (
+            <ListRow
+              key={item.key}
+              testID={`settings-${item.key}`}
+              title={item.label}
+              icon={item.icon}
+              chevron
+              last={index === rewardsRows.length - 1}
               onPress={() => router.push(item.href as never)}
             />
           ))}

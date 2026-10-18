@@ -150,6 +150,8 @@ export interface ScheduleRideRequest {
   paymentMethod: PaymentMethod;
   /** Pickup time; ≥ now + minLeadMin, no upper bound. */
   scheduledAt: string;
+  /** M13 ruling 3: validated + reserved now, the amount computed at ride time. */
+  promoCode?: string | null;
 }
 
 export interface CreateSharedRideRequest {
@@ -160,6 +162,8 @@ export interface CreateSharedRideRequest {
   totalSeats: number;
   partySize: number;
   departure: { mode: DepartureMode; departAt?: string | null };
+  /** M13 ruling 2: discounts the creator's own seat share at the split. */
+  promoCode?: string | null;
 }
 
 export const SHARED_MIN_SEATS = 2;
@@ -276,16 +280,23 @@ export function createSharedRide(
   });
 }
 
-/** `POST /shared-rides/{id}/join` — first-come; 409 `insufficient_seats` / `shared_ride_closed`. */
+/**
+ * `POST /shared-rides/{id}/join` — first-come; 409 `insufficient_seats` /
+ * `shared_ride_closed`. `promoCode` (M13 ruling 2) discounts the member's
+ * own seat share; one promo per ride → 409 `promo_already_applied`.
+ */
 export function joinSharedRide(
   rideId: string,
   partySize: number,
   paymentMethod: PaymentMethod,
+  promoCode?: string | null,
 ): Promise<SharedRide> {
   return apiFetch<SharedRide>(sharedUrl(rideId, "/join"), {
     method: "POST",
     auth: true,
-    body: json({ partySize, paymentMethod }),
+    body: json(
+      promoCode ? { partySize, paymentMethod, promoCode } : { partySize, paymentMethod },
+    ),
   });
 }
 

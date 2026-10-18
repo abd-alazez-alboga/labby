@@ -92,6 +92,24 @@ export function formatRating(value: number, locale: AppLocale): string {
   return formatNumber(value, locale, { min: 1, max: 1 });
 }
 
+/**
+ * A points figure with grouping ("1,240"), Western digits (M13 loyalty /
+ * gamification); up to 2 decimals for the rare fractional accrual.
+ */
+export function formatPoints(value: number, locale: AppLocale): string {
+  return formatNumber(value, locale, { min: 0, max: 2 });
+}
+
+/**
+ * A signed points figure for the loyalty activity list: "+275" / "−500";
+ * in Arabic the whole figure sits in an LTR isolate.
+ */
+export function formatSignedPoints(value: number, locale: AppLocale): string {
+  const sign = value < 0 ? "−" : "+";
+  const text = `${sign}${formatNumber(Math.abs(value), locale, { min: 0, max: 2 })}`;
+  return locale === "ar" ? `⁦${text}⁩` : text;
+}
+
 /** Kilometres with one decimal ("4.2"). */
 export function formatKm(meters: number, locale: AppLocale): string {
   return formatNumber(meters / 1000, locale, { min: 1, max: 1 });

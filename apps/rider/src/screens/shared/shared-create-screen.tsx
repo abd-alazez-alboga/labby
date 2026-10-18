@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
+import type { PromoValidation } from "../../api/growth";
 import {
   estimateRide,
   type EstimateResponse,
@@ -44,6 +45,7 @@ import { rideErrorMessage } from "../../ride/ride-errors";
 import { formatMoney, placeLabel, serviceName } from "../../ride/ride-format";
 import { formatScheduleDay } from "../../ride/schedule-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { type PlannedRoute, RoutePlanner } from "../ride/route-planner";
 import { earliestSlot, WhenPicker } from "../scheduled/when-picker";
 import { Stepper } from "./shared-parts";
@@ -69,6 +71,8 @@ export default function SharedCreateScreen() {
   const [serviceTypeId, setServiceTypeId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [optionsOpen, setOptionsOpen] = useState(false);
+  // M13 ruling 2: discounts only the creator's own seat share at the split.
+  const [promo, setPromo] = useState<PromoValidation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -151,6 +155,7 @@ export default function SharedCreateScreen() {
           mode === "at_time"
             ? { mode, departAt: departAt.toISOString() }
             : { mode },
+        ...(promo ? { promoCode: promo.code } : {}),
       });
       if (created.state === "gathering") {
         router.replace(`/shared/${encodeURIComponent(created.rideId)}` as never);
@@ -172,7 +177,7 @@ export default function SharedCreateScreen() {
       } else if (code === "active_ride_exists") {
         setError(t("shared.activeRideExists"));
       } else {
-        setError(rideErrorMessage(failed, t));
+        setError(promoErrorMessage(failed, t) ?? rideErrorMessage(failed, t));
       }
     } finally {
       setBusy(false);
@@ -315,6 +320,21 @@ export default function SharedCreateScreen() {
             </AppText>
           </Pressable>
         </View>
+        {option ? (
+          // M13 ruling 2: the promo discounts the creator's own seat share.
+          <PromoRow
+            context={{
+              regionId: estimate.regionId,
+              serviceTypeId: option.serviceTypeId,
+              currency: option.estimate.components.currency,
+              estimateTotal: option.estimate.components.total,
+            }}
+            variant="shared"
+            promo={promo}
+            onChange={setPromo}
+            testID="shared-create-promo"
+          />
+        ) : null}
         {error ? (
           <Banner tone="danger" message={error} testID="shared-create-error" />
         ) : null}

@@ -33,6 +33,11 @@ jest.mock('expo-location', () => ({
   watchPositionAsync: jest.fn(() => new Promise(() => {})),
 }));
 
+// expo-clipboard touches the native clipboard; tests get a plain jest.fn.
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(async () => true),
+}));
+
 // expo-localization touches native code; tests pin the device locale to EN.
 jest.mock('expo-localization', () => ({
   getLocales: () => [{ languageCode: 'en' }],
