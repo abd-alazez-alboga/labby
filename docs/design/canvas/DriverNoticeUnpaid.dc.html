@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home · unpaid notice</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #DCD8E2;">
+  <div style="position: absolute; left: -40px; top: 200px; width: 520px; height: 18px; background: #F4F2F7; transform: rotate(-12deg);"></div>
+  <div style="position: absolute; left: 120px; top: -40px; width: 14px; height: 560px; background: #F4F2F7; transform: rotate(14deg);"></div>
+
+  <div style="position: absolute; top: 56px; left: 50%; transform: translateX(-50%); height: 40px; padding: 0 16px; border-radius: 20px; background: #FFFFFF; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 10px rgba(20,16,24,0.16); font-size: 14px; font-weight: 700;">
+    <span style="width: 10px; height: 10px; border-radius: 50%; background: #12B76A;"></span>
+    Online
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgba(20,16,24,0.14); padding: 10px 20px 34px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #D9D5DF;"></div>
+
+    <div style="display: flex; align-items: flex-start; gap: 10px; background: #F2F0F5; border-radius: 14px; padding: 14px 12px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#463C58" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16"></line><line x1="12" y1="8" x2="12" y2="8.01"></line></svg>
+      <span style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 14px; color: #463C58;">Marked as unpaid — the ride is closed.</span>
+        <button style="align-self: flex-start; border: none; background: transparent; padding: 0; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #59128A;">OK</button>
+      </span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: #12B76A;"></span>
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 22px; font-weight: 800;">You're online</span>
+        <span style="font-size: 14px; color: #463C58;">Online since 12:08</span>
+      </span>
+      <span style="height: 32px; padding: 0 12px; border-radius: 12px; background: #ECFDF3; color: #067647; display: flex; align-items: center; font-size: 13px; font-weight: 700;">Sharing your location</span>
+    </div>
+
+    <button style="height: 56px; border-radius: 14px; border: none; background: #F2F0F5; color: #141018; font-family: Manrope, sans-serif; font-size: 17px; font-weight: 800;">Go offline</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

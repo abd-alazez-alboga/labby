@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>On the ride</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #DCD8E2;">
+  <div style="position: absolute; left: -40px; top: 300px; width: 520px; height: 18px; background: #F4F2F7; transform: rotate(-12deg);"></div>
+  <div style="position: absolute; left: 230px; top: -40px; width: 14px; height: 600px; background: #F4F2F7; transform: rotate(10deg);"></div>
+  <div style="position: absolute; left: 120px; top: 470px; width: 7px; height: 190px; background: #59128A; border-radius: 4px; transform: rotate(-150deg); transform-origin: top left;"></div>
+  <div style="position: absolute; left: 106px; top: 456px; width: 32px; height: 32px; border-radius: 50%; background: #141018; display: flex; align-items: center; justify-content: center;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2l7 18-7-4-7 4z"></path></svg>
+  </div>
+  <div style="position: absolute; left: 200px; top: 290px; width: 18px; height: 18px; border-radius: 50%; border: 4px solid #141018; background: #FFFFFF;"></div>
+  <div style="position: absolute; left: 270px; top: 200px; width: 20px; height: 20px; background: #59128A; border: 4px solid #FFFFFF;"></div>
+
+  <div style="position: absolute; top: 56px; left: 12px; right: 12px; border-radius: 18px; background: #141018; color: #FFFFFF; padding: 14px 18px; display: flex; align-items: center; gap: 14px;">
+    <span style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; flex-shrink: 0;">1</span>
+    <span style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 15px; color: #D9D5DF;">Next stop · 4 min</span>
+      <span style="font-size: 24px; font-weight: 800; letter-spacing: -0.4px;">Abu Rummaneh</span>
+    </span>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgba(20,16,24,0.14); padding: 10px 20px 34px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #D9D5DF;"></div>
+    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+      <span style="font-size: 22px; font-weight: 800;">Rana's ride</span>
+      <span style="font-size: 22px; font-weight: 800; color: #59128A;">12:41</span>
+    </div>
+
+    <div style="display: flex; gap: 12px;">
+      <div style="display: flex; flex-direction: column; align-items: center; padding-top: 6px;">
+        <span style="width: 10px; height: 10px; border-radius: 50%; border: 2px solid #141018;"></span>
+        <span style="width: 2px; flex-grow: 1; background: #D9D5DF; margin: 4px 0;"></span>
+        <span style="width: 12px; height: 12px; background: #59128A;"></span>
+      </div>
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 14px;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 14px; color: #6E6780; font-weight: 700;">Stop 1</span>
+          <span style="font-size: 18px; font-weight: 800;">Abu Rummaneh</span>
+        </span>
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 14px; color: #6E6780; font-weight: 700;">Drop-off · route updated by rider</span>
+          <span style="font-size: 18px; font-weight: 800;">Umayyad Square</span>
+        </span>
+      </div>
+    </div>
+
+    <span style="font-size: 14px; color: #463C58;">Cash · fare is metered from the trip</span>
+
+    <a href="DriverComplete.dc.html" style="height: 72px; border-radius: 18px; background: #141018; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 24px; font-weight: 800;">End ride</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

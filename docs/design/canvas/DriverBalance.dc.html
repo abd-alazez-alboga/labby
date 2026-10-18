@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Balance</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 14px;">
+  <a href="DriverEarnings.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.6px;">Balance</div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px; background: #141018; color: #FFFFFF; border-radius: 20px; padding: 20px;">
+    <span style="font-size: 14px; font-weight: 700; color: #D9D5DF;">You owe Labby</span>
+    <span style="font-size: 44px; font-weight: 800; letter-spacing: -1px;">SYP 430,000</span>
+    <span style="font-size: 13px; color: #D9D5DF;">Cash-ride commission since your last settlement on 3 Oct.</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; background: #FFF6E5; border-radius: 16px; padding: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6A2C0A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12" y2="17"></line></svg>
+      <span style="font-size: 15px; font-weight: 800; color: #6A2C0A;">You're close to the limit</span>
+    </div>
+    <div style="height: 8px; border-radius: 4px; background: #F2E3C4; overflow: hidden;">
+      <div style="width: 86%; height: 100%; background: #D97706;"></div>
+    </div>
+    <span style="font-size: 13px; color: #6A2C0A; line-height: 1.45;">Ride offers stop when your debt reaches <strong>SYP 500,000</strong>. Settle at the office to keep driving — SYP 70,000 to go.</span>
+  </div>
+
+  <div style="font-size: 17px; font-weight: 800; padding-top: 2px;">Recent activity</div>
+  <div style="display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid #EEEBF2;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">Commission · cash ride 12:24</span>
+        <span style="font-size: 13px; color: #6E6780;">Sat 11 Oct · fare 28,000 · 25%</span>
+      </span>
+      <span style="font-size: 15px; font-weight: 700; color: #463C58;">−SYP 7,000</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid #EEEBF2;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">Tip · Rana</span>
+        <span style="font-size: 13px; color: #6E6780;">Sat 11 Oct · commission-free</span>
+      </span>
+      <span style="font-size: 15px; font-weight: 800; color: #59128A;">+SYP 5,000</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid #EEEBF2;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">Cancellation fee · rider no-show</span>
+        <span style="font-size: 13px; color: #6E6780;">Fri 10 Oct · all yours</span>
+      </span>
+      <span style="font-size: 15px; font-weight: 800; color: #59128A;">+SYP 10,000</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 56px;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">Settlement · paid at office</span>
+        <span style="font-size: 13px; color: #6E6780;">Fri 3 Oct · recorded by Labby</span>
+      </span>
+      <span style="font-size: 15px; font-weight: 800; color: #59128A;">+SYP 150,000</span>
+    </div>
+  </div>
+
+  <button style="margin-top: auto; height: 56px; border-radius: 14px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 16px; font-weight: 800;">How to settle</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

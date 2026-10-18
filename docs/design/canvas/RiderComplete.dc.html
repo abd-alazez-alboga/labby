@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ride complete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 72px 20px 34px; box-sizing: border-box; gap: 20px;">
+  <div style="width: 56px; height: 56px; border-radius: 50%; background: #59128A; display: flex; align-items: center; justify-content: center;">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font-size: 28px; font-weight: 800; letter-spacing: -0.6px;">You've arrived</span>
+    <span style="font-size: 15px; color: #463C58;">Umayyad Square · 12:43</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px; background: #F2F0F5; border-radius: 16px; padding: 16px;">
+    <span style="font-size: 14px; font-weight: 700; color: #463C58;">Pay your driver in cash</span>
+    <span style="font-size: 40px; font-weight: 800; letter-spacing: -1px;">SYP 27,250</span>
+    <span style="font-size: 13px; color: #6E6780;">Metered on the actual route · 4.2 km · 14 min</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; min-height: 40px; align-items: center; font-size: 15px;"><span style="color: #463C58;">Base fare</span><span style="font-weight: 700;">SYP 5,000</span></div>
+    <div style="display: flex; justify-content: space-between; min-height: 40px; align-items: center; font-size: 15px;"><span style="color: #463C58;">Distance · 4.2 km</span><span style="font-weight: 700;">SYP 12,600</span></div>
+    <div style="display: flex; justify-content: space-between; min-height: 40px; align-items: center; font-size: 15px;"><span style="color: #463C58;">Time · 14 min</span><span style="font-weight: 700;">SYP 4,200</span></div>
+    <div style="display: flex; justify-content: space-between; min-height: 40px; align-items: center; font-size: 15px;"><span style="color: #463C58;">Morning rush +25%</span><span style="font-weight: 700;">SYP 5,450</span></div>
+    <div style="display: flex; justify-content: space-between; min-height: 48px; align-items: center; font-size: 17px; border-top: 1px solid #EEEBF2; margin-top: 4px;"><span style="font-weight: 800;">Total</span><span style="font-weight: 800;">SYP 27,250</span></div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #EEEBF2;">
+    <div style="width: 44px; height: 44px; border-radius: 50%; background: #E8DCF0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #59128A;">SK</div>
+    <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 16px; font-weight: 800;">Samer</span>
+      <span style="font-size: 13px; color: #463C58;">Silver Hyundai Accent · Economy</span>
+    </span>
+  </div>
+
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+    <a href="RiderReceipt.dc.html" style="height: 56px; border-radius: 14px; border: 1.5px solid #D9D5DF; color: #141018; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 17px; font-weight: 800;">View receipt</a>
+    <a href="Main.dc.html" style="height: 56px; border-radius: 14px; background: #59128A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 18px; font-weight: 800;">Done</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

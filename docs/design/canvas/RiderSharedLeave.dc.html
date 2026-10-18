@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Leave shared ride · after dispatch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #ECE9F0;">
+  <div style="position: absolute; left: -40px; top: 230px; width: 520px; height: 16px; background: #FFFFFF; transform: rotate(-10deg);"></div>
+  <div style="position: absolute; left: 196px; top: -40px; width: 12px; height: 520px; background: #FFFFFF; transform: rotate(8deg);"></div>
+  <div style="position: absolute; inset: 0; background: rgba(20,16,24,0.48);"></div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 24px 24px 0 0; padding: 10px 20px 34px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #D9D5DF;"></div>
+    <span style="font-size: 24px; font-weight: 800; letter-spacing: -0.4px;">Leave this shared ride?</span>
+
+    <div style="display: flex; align-items: flex-start; gap: 12px; background: #FFF4E5; border: 1.5px solid #E8A33D; border-radius: 14px; padding: 12px 14px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C3A06" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12" y2="16"></line></svg>
+      <span style="display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 15px; font-weight: 800; color: #5C3A06;">SYP 2,000 cancellation fee</span>
+        <span style="font-size: 13px; color: #5C3A06;">The ride has left and a driver accepted at 17:31. Free leaving ended at 17:33. The others keep riding.</span>
+      </span>
+    </div>
+
+    <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+      <legend style="font-size: 14px; font-weight: 700; color: #463C58; padding: 0 0 6px;">Why are you leaving?</legend>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid #EEEBF2; font-size: 16px; font-weight: 700;">
+        <input type="radio" name="reason" checked style="width: 22px; height: 22px; accent-color: #59128A; margin: 0;">
+        I changed my mind
+      </label>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid #EEEBF2; font-size: 16px; font-weight: 700;">
+        <input type="radio" name="reason" style="width: 22px; height: 22px; accent-color: #59128A; margin: 0;">
+        The driver is too far away
+      </label>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid #EEEBF2; font-size: 16px; font-weight: 700;">
+        <input type="radio" name="reason" style="width: 22px; height: 22px; accent-color: #59128A; margin: 0;">
+        Wrong pickup point
+      </label>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 52px; font-size: 16px; font-weight: 700;">
+        <input type="radio" name="reason" style="width: 22px; height: 22px; accent-color: #59128A; margin: 0;">
+        Something else
+      </label>
+    </fieldset>
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <a href="RiderSharedOnWay.dc.html" style="height: 56px; border-radius: 14px; background: #59128A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 18px; font-weight: 800;">Stay in the ride</a>
+      <button style="height: 56px; border-radius: 14px; border: 1.5px solid #B42318; background: #FFFFFF; color: #B42318; font-family: Manrope, sans-serif; font-size: 17px; font-weight: 800;">Leave · SYP 2,000 fee</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

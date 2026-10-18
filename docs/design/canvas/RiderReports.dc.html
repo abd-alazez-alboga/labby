@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your reports</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 16px;">
+  <a href="Main.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="display: flex; gap: 12px; align-items: center; background: #F1EAF8; border-radius: 16px; padding: 14px 16px;">
+    <div style="width: 40px; height: 40px; border-radius: 50%; background: #59128A; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    </div>
+    <span style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 16px; font-weight: 800;">Report sent</span>
+      <span style="font-size: 13px; color: #463C58;">We'll notify you when it's reviewed.</span>
+    </span>
+  </div>
+  <div style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px; padding-top: 6px;">Your reports</div>
+
+  <div style="display: flex; flex-direction: column;">
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 68px; border-bottom: 1px solid #EEEBF2;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 15px; font-weight: 800;">Unsafe driving</span>
+        <span style="font-size: 13px; color: #6E6780;">Ride today 12:43 · sent 12:50</span>
+      </span>
+      <span style="font-size: 13px; font-weight: 700; color: #463C58; background: #F2F0F5; padding: 5px 10px; border-radius: 12px;">In review</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 68px; border-bottom: 1px solid #EEEBF2;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 15px; font-weight: 800;">Vehicle condition</span>
+        <span style="font-size: 13px; color: #6E6780;">Ride 2 Oct · reviewed 4 Oct</span>
+      </span>
+      <span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Action taken</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 68px;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 15px; font-weight: 800;">Other</span>
+        <span style="font-size: 13px; color: #6E6780;">Ride 21 Sep · reviewed 23 Sep</span>
+      </span>
+      <span style="font-size: 13px; font-weight: 700; color: #463C58; background: #F2F0F5; padding: 5px 10px; border-radius: 12px;">Not confirmed</span>
+    </div>
+  </div>
+  <span style="font-size: 13px; color: #6E6780; line-height: 1.5;">"Action taken" means our review confirmed the report. Details of the action stay private.</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

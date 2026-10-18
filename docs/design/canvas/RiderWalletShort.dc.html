@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose a ride — wallet short</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #ECE9F0;">
+  <div style="position: absolute; left: -40px; top: 100px; width: 520px; height: 14px; background: #FFFFFF; transform: rotate(-8deg);"></div>
+  <div style="position: absolute; left: 210px; top: -40px; width: 12px; height: 300px; background: #FFFFFF; transform: rotate(14deg);"></div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgba(20,16,24,0.12); padding: 10px 20px 34px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #D9D5DF;"></div>
+    <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.3px;">Choose a ride</div>
+
+    <div style="display: flex; align-items: center; gap: 14px; border: 2px solid #141018; border-radius: 16px; padding: 12px 14px;">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14l-1.5-5h-11z"></path><path d="M7 12l1-3h8l1 3"></path><circle cx="7.5" cy="17" r="2"></circle><circle cx="16.5" cy="17" r="2"></circle></svg>
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 16px; font-weight: 800;">Economy</span>
+        <span style="font-size: 13px; color: #6E6780;">4 seats · 3 min away</span>
+      </span>
+      <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
+        <span style="font-size: 16px; font-weight: 800;">~SYP 29,750</span>
+        <span style="font-size: 12px; color: #6E6780;">estimate</span>
+      </span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px; background: #F2F0F5; border-radius: 16px; padding: 14px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>
+        <span style="flex-grow: 1; font-size: 15px; font-weight: 800;">Paying with wallet</span>
+        <button style="border: none; background: transparent; color: #59128A; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800; padding: 6px;">Change</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: #463C58;">
+        <span style="display: flex; justify-content: space-between;"><span>Wallet covers</span><strong style="color: #141018;">SYP 15,000</strong></span>
+        <span style="display: flex; justify-content: space-between;"><span>Remaining in cash</span><strong style="color: #141018;">~SYP 14,750</strong></span>
+      </div>
+      <div style="height: 8px; border-radius: 4px; background: #D9D5DF; overflow: hidden;">
+        <div style="width: 50%; height: 100%; background: #59128A;"></div>
+      </div>
+      <span style="font-size: 12px; color: #6E6780;">Your wallet doesn't cover the full estimate — the rest is due in cash at the end.</span>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid #EEEBF2; border-radius: 14px; padding: 12px 14px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#463C58" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="13"></line><line x1="12" y1="16" x2="12" y2="16"></line></svg>
+      <span style="font-size: 13px; color: #463C58; line-height: 1.45;">You accept distant drivers: beyond 10 km a pickup fee of <strong>SYP 500/km</strong> is added. It shows on your receipt.</span>
+    </div>
+
+    <a href="RiderFinding.dc.html" style="height: 56px; border-radius: 14px; background: #59128A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 18px; font-weight: 800;">Book Economy</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ride offer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #DCD8E2;">
+  <div style="position: absolute; left: -40px; top: 200px; width: 520px; height: 18px; background: #F4F2F7; transform: rotate(-12deg);"></div>
+  <div style="position: absolute; left: 120px; top: -40px; width: 14px; height: 560px; background: #F4F2F7; transform: rotate(14deg);"></div>
+  <div style="position: absolute; left: 146px; top: 212px; width: 6px; height: 120px; background: #141018; border-radius: 3px; transform: rotate(-50deg); transform-origin: top left;"></div>
+  <div style="position: absolute; left: 132px; top: 200px; width: 30px; height: 30px; border-radius: 50%; background: #141018; display: flex; align-items: center; justify-content: center;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2l7 18-7-4-7 4z"></path></svg>
+  </div>
+  <div style="position: absolute; left: 236px; top: 276px; width: 18px; height: 18px; border-radius: 50%; background: #59128A; border: 4px solid #FFFFFF;"></div>
+
+  <div style="position: absolute; top: 56px; left: 50%; transform: translateX(-50%); height: 40px; padding: 0 16px; border-radius: 20px; background: #FFFFFF; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 10px rgba(20,16,24,0.16); font-size: 14px; font-weight: 700;">
+    <span style="width: 10px; height: 10px; border-radius: 50%; background: #12B76A;"></span>
+    Online
+  </div>
+
+  <div style="position: absolute; left: 12px; right: 12px; bottom: 30px; background: #FFFFFF; border-radius: 24px; box-shadow: 0 8px 32px rgba(20,16,24,0.22); padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <span style="font-size: 14px; font-weight: 800; color: #59128A; background: #EFE9FF; padding: 6px 12px; border-radius: 14px;">Economy · Cash</span>
+      <div style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: conic-gradient(#59128A 0 66%, #EEEBF2 66% 100%); display: flex; align-items: center; justify-content: center;">
+        <div style="width: 42px; height: 42px; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 800;">10</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 34px; font-weight: 800; letter-spacing: -0.8px;">SYP 22,000</span>
+      <span style="font-size: 14px; color: #463C58;">Estimated fare · rider rating 4.8 ★</span>
+    </div>
+    <div style="display: flex; gap: 12px;">
+      <div style="display: flex; flex-direction: column; align-items: center; padding-top: 6px;">
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #141018;"></span>
+        <span style="width: 2px; flex-grow: 1; background: #D9D5DF; margin: 4px 0;"></span>
+        <span style="width: 10px; height: 10px; background: #59128A;"></span>
+      </div>
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 14px;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 13px; color: #6E6780; font-weight: 600;">3 min · 1.1 km away</span>
+          <span style="font-size: 17px; font-weight: 800;">Mazzeh Autostrad</span>
+        </span>
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 13px; color: #6E6780; font-weight: 600;">12 min trip · 4.2 km</span>
+          <span style="font-size: 17px; font-weight: 800;">Umayyad Square</span>
+        </span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button aria-label="Decline" style="width: 64px; height: 64px; border-radius: 16px; border: none; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+      </button>
+      <button style="flex-grow: 1; height: 64px; border-radius: 16px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 20px; font-weight: 800;">Accept</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

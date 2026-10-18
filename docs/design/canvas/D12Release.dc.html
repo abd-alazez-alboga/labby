@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Release claim</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #ECE9F0;">
+  <div style="position: absolute; left: -40px; top: 200px; width: 520px; height: 18px; background: #FFFFFF; transform: rotate(-12deg);"></div>
+  <div style="position: absolute; left: -40px; top: 420px; width: 520px; height: 12px; background: #FFFFFF; transform: rotate(8deg);"></div>
+  <div style="position: absolute; left: 120px; top: -40px; width: 14px; height: 760px; background: #FFFFFF; transform: rotate(14deg);"></div>
+  <div style="position: absolute; left: 290px; top: -40px; width: 10px; height: 760px; background: #FFFFFF; transform: rotate(-6deg);"></div>
+  <div style="position: absolute; left: 30px; top: 290px; width: 90px; height: 70px; background: #DDEBD8; border-radius: 10px;"></div>
+  <div style="position: absolute; left: 180px; top: 300px; width: 30px; height: 30px; border-radius: 50%; background: #141018; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(20,16,24,0.3);">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 2l7 18-7-4-7 4z"></path></svg>
+  </div>
+  <div style="position: absolute; inset: 0; background: rgba(20,16,24,0.48);"></div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgba(20,16,24,0.12); padding: 10px 20px 34px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #D9D5DF;"></div>
+    <span style="font-size: 26px; font-weight: 800; letter-spacing: -0.4px;">Release Omar's ride?</span>
+    <span style="font-size: 15px; color: #463C58; margin-top: -6px; line-height: 1.5;">Sat 07:30 goes back on the board and Omar is told. Releases count toward your cancellation rate.</span>
+    <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+      <legend style="font-size: 14px; font-weight: 700; color: #463C58; padding: 0 0 6px;">Reason (required)</legend>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid #EEEBF2; font-size: 17px; font-weight: 700;">
+        <input type="radio" name="reason" style="width: 24px; height: 24px; accent-color: #59128A; margin: 0;">
+        Vehicle problem
+      </label>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid #EEEBF2; font-size: 17px; font-weight: 700;">
+        <input type="radio" name="reason" style="width: 24px; height: 24px; accent-color: #59128A; margin: 0;">
+        Pickup point feels unsafe
+      </label>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 56px; font-size: 17px; font-weight: 700;">
+        <input type="radio" name="reason" checked style="width: 24px; height: 24px; accent-color: #59128A; margin: 0;">
+        Something else
+      </label>
+    </fieldset>
+    <label style="display: flex; flex-direction: column; gap: 6px; margin-top: -6px;">
+      <span style="font-size: 14px; font-weight: 700; color: #463C58;">Tell us what happened (required)</span>
+      <textarea style="height: 76px; border: 1.5px solid #D9D5DF; border-radius: 14px; padding: 12px 14px; font-family: Manrope, sans-serif; font-size: 15px; resize: none; box-sizing: border-box;">Family emergency that morning</textarea>
+    </label>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <a href="D12MyRides.dc.html" style="height: 64px; border-radius: 16px; background: #59128A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 20px; font-weight: 800;">Keep the ride</a>
+      <button style="height: 56px; border-radius: 14px; border: 1.5px solid #B42318; background: #FFFFFF; color: #B42318; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 800; ">Release ride</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

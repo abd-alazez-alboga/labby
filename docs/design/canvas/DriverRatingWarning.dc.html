@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Performance · rating warning</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 14px;">
+  <a href="DriverOffline.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.6px;">Performance</div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; background: #FFF4E5; border-radius: 16px; padding: 16px;">
+    <span style="display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: #6A2C0A;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6A2C0A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      Your rating is close to the limit
+    </span>
+    <span style="font-size: 14px; color: #6A2C0A; line-height: 1.5;">Your average is <strong>3.38</strong>. In Damascus, driver accounts are suspended when the average falls below <strong>3.0</strong> after <strong>20 or more</strong> rated rides.</span>
+    <span style="font-size: 13px; color: #6A2C0A; line-height: 1.5;">Being on time, keeping the car clean and taking the shortest route help the most.</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 14px; border: 1.5px solid #EEEBF2; border-radius: 16px; padding: 16px;">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="#59128A" aria-hidden="true"><polygon points="12 2 15.1 8.6 22 9.3 16.8 14 18.2 21 12 17.4 5.8 21 7.2 14 2 9.3 8.9 8.6"></polygon></svg>
+    <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 22px; font-weight: 800;">3.38 <span style="font-size: 14px; font-weight: 700; color: #463C58;">average rating</span></span>
+      <span style="font-size: 12px; color: #6E6780;">All-time · 34 ratings · updated daily</span>
+    </span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span style="font-size: 13px; font-weight: 700; color: #463C58;">Where you stand</span>
+    <div style="position: relative; height: 12px; border-radius: 6px; background: #F2F0F5; margin-top: 6px;">
+      <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 50%; border-radius: 6px 0 0 6px; background: #E7B37A;"></div>
+      <div style="position: absolute; left: 59.5%; top: -6px; width: 4px; height: 24px; border-radius: 2px; background: #141018;"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6E6780; padding-top: 4px;">
+      <span>1.0</span><span>3.0 limit</span><span>5.0</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 6px;">
+    <div style="border: 1.5px solid #EEEBF2; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 13px; font-weight: 700; color: #463C58;">Acceptance</span>
+      <span style="font-size: 26px; font-weight: 800;">72%</span>
+    </div>
+    <div style="border: 1.5px solid #EEEBF2; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 13px; font-weight: 700; color: #463C58;">Cancellation</span>
+      <span style="font-size: 26px; font-weight: 800;">6%</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

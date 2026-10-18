@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New promo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminRides.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="A13Promos.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Promotions</a>
+    <a href="A13Challenges.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Challenges</a>
+    <a href="AdminSurgeZones.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Promotions / New promo</span>
+      <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">New promo</h1>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <section style="flex: 1 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box;">
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Code
+            <input value="EID26" autocapitalize="characters" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 1px; color: #141018;">
+            <span style="font-size: 12px; font-weight: 600; color: #6E6780;">Letters and digits · what riders type</span>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Discount type
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>Percent of the fare</option>
+              <option>Fixed amount</option>
+            </select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Percent
+            <input value="15" inputmode="numeric" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Max discount (SYP)
+            <input value="8,000" inputmode="numeric" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Starts
+            <input value="1 Nov 2026, 00:00" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Ends
+            <input value="15 Nov 2026, 23:59" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Total uses (blank = no cap)
+            <input value="1,000" inputmode="numeric" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Uses per rider
+            <input value="1" inputmode="numeric" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Region
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>All regions</option>
+              <option>Damascus</option>
+              <option>Aleppo</option>
+            </select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Ride type
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>All ride types</option>
+              <option>Economy</option>
+              <option>Comfort</option>
+            </select>
+          </label>
+        </div>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: #141018; min-height: 44px;">
+          <input type="checkbox" style="width: 20px; height: 20px; accent-color: #59128A;">
+          First ride only
+          <span style="font-size: 13px; font-weight: 600; color: #6E6780;">riders with no completed ride yet</span>
+        </label>
+      </section>
+
+      <aside style="flex: 0 1 360px; min-width: 300px; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Summary</h2>
+        <div style="display: flex; flex-direction: column; gap: 8px; background: #F1EAF8; border-radius: 12px; padding: 14px; font-size: 14px; color: #3D0B57; line-height: 1.5;">
+          <span style="font-weight: 800;" dir="ltr">EID26</span>
+          <span>15% off, up to SYP 8,000 · 1 Nov – 15 Nov · 1,000 uses, 1 per rider · all regions, all ride types.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; background: #FFF6E5; border-radius: 12px; padding: 12px 14px; font-size: 13px; color: #6A2C0A; line-height: 1.5;">
+          <span style="font-weight: 800;">Money</span>
+          <span>The discount is platform-funded: commission is charged on the fare before the discount and the driver gets a wallet credit for the difference. On a shared ride it discounts one member's own seat share.</span>
+        </div>
+        <button style="height: 48px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 800;">Create promo</button>
+        <a href="A13Promos.dc.html" style="height: 48px; border-radius: 12px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; text-decoration: none; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center;">Cancel</a>
+        <span style="font-size: 12px; color: #6E6780; line-height: 1.5;">A code can't be reused while another promo with the same code is active. Creating is audit-logged and needs the Edit promotions permission.</span>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

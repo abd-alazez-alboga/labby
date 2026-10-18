@@ -1,0 +1,1557 @@
+{
+"v": 3,
+"attachments": {},
+"boards": {
+"DriverDocuments.dc.html": {
+"h": 844,
+"title": "Driver · Documents",
+"w": 390,
+"x": 940,
+"y": 1190
+},
+"DriverOffer.dc.html": {
+"h": 844,
+"title": "Driver · Ride offer",
+"w": 390,
+"x": 470,
+"y": 1190
+},
+"DriverOffline.dc.html": {
+"h": 844,
+"title": "Driver · Offline",
+"w": 390,
+"x": 0,
+"y": 1190
+},
+"Main.dc.html": {
+"h": 844,
+"title": "Rider · Home",
+"w": 390,
+"x": 0,
+"y": 0
+},
+"RiderChooseRide.dc.html": {
+"h": 844,
+"title": "Rider · Choose a ride",
+"w": 390,
+"x": 470,
+"y": 0
+},
+"RiderDriverOnWay.dc.html": {
+"h": 844,
+"title": "Rider · Driver on the way",
+"w": 390,
+"x": 940,
+"y": 0
+},
+"AdminApplications.dc.html": {
+"x": 0,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Driver applications",
+"expand": "fill"
+},
+"AdminApplicationReview.dc.html": {
+"x": 1520,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Review an application",
+"expand": "fill"
+},
+"AdminDocumentExpiry.dc.html": {
+"x": 3040,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Document expiry",
+"expand": "fill"
+},
+"RiderWhereTo.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Where to?",
+"page": "m7"
+},
+"RiderWhereToAr.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Where to? (AR, RTL)",
+"page": "m7"
+},
+"RiderFinding.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Finding your driver",
+"page": "m7"
+},
+"RiderNoDriver.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · No driver found",
+"page": "m7"
+},
+"RiderArrived.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Driver arrived",
+"page": "m7"
+},
+"RiderInRide.dc.html": {
+"x": 2350,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · On the ride",
+"page": "m7"
+},
+"RiderCancel.dc.html": {
+"x": 2820,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Cancel ride",
+"page": "m7"
+},
+"RiderComplete.dc.html": {
+"x": 3290,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Ride complete",
+"page": "m7"
+},
+"RiderHistory.dc.html": {
+"x": 3760,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Your rides",
+"page": "m7"
+},
+"RiderReceipt.dc.html": {
+"x": 4230,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Receipt",
+"page": "m7"
+},
+"RiderSavedPlaces.dc.html": {
+"x": 4700,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Saved places",
+"page": "m7"
+},
+"RiderPreferences.dc.html": {
+"x": 5170,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Ride preferences",
+"page": "m7"
+},
+"DriverToPickup.dc.html": {
+"x": 0,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · To pickup",
+"page": "m7"
+},
+"DriverAtPickup.dc.html": {
+"x": 470,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · At pickup",
+"page": "m7"
+},
+"DriverInRide.dc.html": {
+"x": 940,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · On the ride",
+"page": "m7"
+},
+"DriverComplete.dc.html": {
+"x": 1410,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Collect cash",
+"page": "m7"
+},
+"DriverCancel.dc.html": {
+"x": 1880,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Cancel ride",
+"page": "m7"
+},
+"RiderOnWayCancel.dc.html": {
+"x": 5640,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Driver on the way · Cancel (addition)",
+"page": "m7"
+},
+"RiderPlanComfort.dc.html": {
+"x": 6110,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Plan your ride · comfort summary (addition)",
+"page": "m7"
+},
+"RiderRideEndedCancel.dc.html": {
+"x": 6580,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Ride ended · you cancelled (addition)",
+"page": "m7"
+},
+"RiderRideEndedNoShow.dc.html": {
+"x": 7050,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Ride ended · no-show (addition)",
+"page": "m7"
+},
+"RiderSettingsRides.dc.html": {
+"x": 7520,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Settings · Rides (addition)",
+"page": "m7"
+},
+"DriverStreamLost.dc.html": {
+"x": 2350,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Connection lost on ride (addition)",
+"page": "m7"
+},
+"DriverOfferSurge.dc.html": {
+"x": 2820,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Offer · surge note (addition)",
+"page": "m7"
+},
+"DriverNoticeCash.dc.html": {
+"x": 3290,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Notice · cash received (addition)",
+"page": "m7"
+},
+"DriverNoticeUnpaid.dc.html": {
+"x": 3760,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Notice · unpaid (addition)",
+"page": "m7"
+},
+"DriverNoticeRiderCancel.dc.html": {
+"x": 4230,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Notice · rider cancelled (addition)",
+"page": "m7"
+},
+"DriverNoShowCancel.dc.html": {
+"x": 4700,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Cancel · no-show wording (addition)",
+"page": "m7"
+},
+"RiderWallet.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Wallet",
+"page": "m8"
+},
+"RiderWalletAr.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Wallet (AR, RTL)",
+"page": "m8"
+},
+"RiderTip.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Tip your driver",
+"page": "m8"
+},
+"RiderWalletShort.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Choose a ride · wallet short",
+"page": "m8"
+},
+"RiderWaitCharge.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Waiting charge notice",
+"page": "m8"
+},
+"RiderReceiptSplit.dc.html": {
+"x": 2350,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Receipt · wallet + cash + due",
+"page": "m8"
+},
+"RiderCancelFee.dc.html": {
+"x": 2820,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Cancel · fee carried",
+"page": "m8"
+},
+"DriverTripEarnings.dc.html": {
+"x": 0,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Trip earnings",
+"page": "m8"
+},
+"DriverEarnings.dc.html": {
+"x": 470,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Earnings & commission",
+"page": "m8"
+},
+"DriverBalance.dc.html": {
+"x": 940,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Balance · warning",
+"page": "m8"
+},
+"DriverBlocked.dc.html": {
+"x": 1410,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Blocked · settle to resume",
+"page": "m8"
+},
+"AdminUserWallet.dc.html": {
+"x": 0,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · User wallet & credits",
+"expand": "fill",
+"page": "m8"
+},
+"AdminDriverLedger.dc.html": {
+"x": 1520,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Driver ledger & settlement",
+"expand": "fill",
+"page": "m8"
+},
+"RiderSurgeChoose.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Choose a ride · surge",
+"page": "m9"
+},
+"RiderSurgeChooseAr.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Choose a ride · surge (AR, RTL)",
+"page": "m9"
+},
+"RiderSurgeChanged.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Price changed · confirm again",
+"page": "m9"
+},
+"DriverHeatmap.dc.html": {
+"x": 0,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Demand heatmap",
+"page": "m9"
+},
+"AdminSurgeZones.dc.html": {
+"x": 0,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Surge zones & override",
+"page": "m9",
+"expand": "fill"
+},
+"RiderChat.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Chat with driver",
+"page": "m10"
+},
+"RiderChatAr.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Chat (AR, RTL)",
+"page": "m10"
+},
+"RiderSafetyActions.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · On the ride · chat, call, share, SOS",
+"page": "m10"
+},
+"RiderSosConfirm.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · SOS · confirm",
+"page": "m10"
+},
+"SharePage.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Public · Shared trip page (no login)",
+"page": "m10"
+},
+"DriverChat.dc.html": {
+"x": 0,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Chat · one-tap quick replies",
+"page": "m10"
+},
+"DriverSafetyActions.dc.html": {
+"x": 470,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · On the ride · chat, call, share, SOS",
+"page": "m10"
+},
+"AdminLiveOps.dc.html": {
+"x": 0,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Live ops map & SOS alerts",
+"page": "m10",
+"expand": "fill"
+},
+"AdminRides.dc.html": {
+"x": 1520,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Rides search",
+"page": "m10",
+"expand": "fill"
+},
+"AdminRideDetail.dc.html": {
+"x": 3040,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Ride detail · timeline, trace, chat",
+"page": "m10",
+"expand": "fill"
+},
+"RiderRate.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Rate your driver",
+"page": "m11"
+},
+"RiderRateAr.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Rate (AR, RTL)",
+"page": "m11"
+},
+"RiderHistoryRate.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Your rides · rate later",
+"page": "m11"
+},
+"RiderReport.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Report your driver",
+"page": "m11"
+},
+"RiderReports.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Report sent · your reports",
+"page": "m11"
+},
+"RiderSuspended.dc.html": {
+"x": 2350,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Account suspended",
+"page": "m11"
+},
+"DriverRateRider.dc.html": {
+"x": 0,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Rate your rider",
+"page": "m11"
+},
+"DriverReportRider.dc.html": {
+"x": 470,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Report your rider",
+"page": "m11"
+},
+"DriverPerformance.dc.html": {
+"x": 940,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Performance · metric warning",
+"page": "m11"
+},
+"DriverPerformanceAr.dc.html": {
+"x": 1410,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Performance (AR, RTL)",
+"page": "m11"
+},
+"DriverRatingWarning.dc.html": {
+"x": 1880,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Performance · rating near limit",
+"page": "m11"
+},
+"DriverSuspended.dc.html": {
+"x": 2350,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Suspended · low rating",
+"page": "m11"
+},
+"AdminReports.dc.html": {
+"x": 0,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Reports queue",
+"page": "m11",
+"expand": "fill"
+},
+"AdminReportDetail.dc.html": {
+"x": 1520,
+"y": 2400,
+"w": 1440,
+"h": 1100,
+"title": "Admin · Report · evidence & resolve",
+"page": "m11",
+"expand": "fill"
+},
+"AdminFlags.dc.html": {
+"x": 3040,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Flagged accounts",
+"page": "m11",
+"expand": "fill"
+},
+"AdminUserTrust.dc.html": {
+"x": 4560,
+"y": 2400,
+"w": 1440,
+"h": 1000,
+"title": "Admin · User · ratings, reports, flags, suspend",
+"page": "m11",
+"expand": "fill"
+},
+"D12Home.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Home · scheduled entry",
+"is_interactive": true
+},
+"D12Availability.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Availability (UC-D-05)",
+"is_interactive": true
+},
+"D12AvailabilityAr.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Availability · AR",
+"is_interactive": true
+},
+"D12AvailabilityAdd.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Add a window",
+"is_interactive": true
+},
+"D12ClaimBoard.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Claim board (UC-D-11)",
+"is_interactive": true
+},
+"D12ClaimBoardAr.dc.html": {
+"x": 2350,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Claim board · AR",
+"is_interactive": true
+},
+"D12ClaimRace.dc.html": {
+"x": 2820,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Already claimed (E1)",
+"is_interactive": true
+},
+"D12ClaimBoardEmpty.dc.html": {
+"x": 3290,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Board · no availability",
+"is_interactive": true
+},
+"D12MyRides.dc.html": {
+"x": 3760,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "My claimed rides + reminders",
+"is_interactive": true
+},
+"D12Release.dc.html": {
+"x": 4230,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Release a claim (UC-D-12 E1)",
+"is_interactive": true
+},
+"D12Converted.dc.html": {
+"x": 4700,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Live at T−15 (UC-D-12)",
+"is_interactive": true
+},
+"D12Notices.dc.html": {
+"x": 5170,
+"y": 0,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "System release / rider busy",
+"is_interactive": true
+},
+"D12SharedOffer.dc.html": {
+"x": 0,
+"y": 1224,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Shared offer (UC-D-13)",
+"is_interactive": true
+},
+"D12SharedPickup.dc.html": {
+"x": 470,
+"y": 1224,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Members at pickup",
+"is_interactive": true
+},
+"D12SharedPickupAr.dc.html": {
+"x": 940,
+"y": 1224,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Members at pickup · AR (after grace)",
+"is_interactive": true
+},
+"D12NoShowConfirm.dc.html": {
+"x": 1410,
+"y": 1224,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Mark absent (E1)",
+"is_interactive": true
+},
+"D12SharedChats.dc.html": {
+"x": 1880,
+"y": 1224,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Per-member chats",
+"is_interactive": true
+},
+"D12SharedCollect.dc.html": {
+"x": 2350,
+"y": 1224,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Per-member collection",
+"is_interactive": true
+},
+"D12SharedCollectAr.dc.html": {
+"x": 2820,
+"y": 1224,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Per-member collection · AR",
+"is_interactive": true
+},
+"RiderM12Home.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Home · Later + scheduled + shared entries",
+"page": "m12rider"
+},
+"RiderSchedWhen.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Schedule · pickup time (UC-R-10)",
+"page": "m12rider"
+},
+"RiderSchedChoose.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Schedule · priced at ride time",
+"page": "m12rider"
+},
+"RiderSchedTooSoon.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Schedule · too soon (E1, book now instead)",
+"page": "m12rider"
+},
+"RiderSchedUpcoming.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Scheduled rides · claim status (UC-R-11)",
+"page": "m12rider"
+},
+"RiderSchedUpcomingAr.dc.html": {
+"x": 2350,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Scheduled rides (AR, RTL)",
+"page": "m12rider"
+},
+"RiderSchedDetail.dc.html": {
+"x": 2820,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Scheduled ride · detail",
+"page": "m12rider"
+},
+"RiderSchedCancel.dc.html": {
+"x": 3290,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Scheduled ride · cancel free",
+"page": "m12rider"
+},
+"RiderSchedWarn.dc.html": {
+"x": 3760,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Book now · scheduled ride within 60 min",
+"page": "m12rider"
+},
+"RiderSharedBrowse.dc.html": {
+"x": 0,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared rides · browse (UC-R-13)",
+"page": "m12rider"
+},
+"RiderSharedBrowseAr.dc.html": {
+"x": 470,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared rides · browse (AR, RTL)",
+"page": "m12rider"
+},
+"RiderSharedJoin.dc.html": {
+"x": 940,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · join",
+"page": "m12rider"
+},
+"RiderSharedJoinErrors.dc.html": {
+"x": 1410,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · join blocked (E1, E2)",
+"page": "m12rider"
+},
+"RiderSharedCreate.dc.html": {
+"x": 1880,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Share a ride · create (UC-R-12)",
+"page": "m12rider"
+},
+"RiderSharedGathering.dc.html": {
+"x": 2350,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · creator: start / cancel (UC-R-15)",
+"page": "m12rider"
+},
+"RiderSharedMember.dc.html": {
+"x": 2820,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · member view, leave free (UC-R-14)",
+"page": "m12rider"
+},
+"RiderSharedOnWay.dc.html": {
+"x": 3290,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · driver on the way",
+"page": "m12rider"
+},
+"RiderSharedLeave.dc.html": {
+"x": 3760,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · leave after dispatch (fee quote)",
+"page": "m12rider"
+},
+"RiderSharedChat.dc.html": {
+"x": 4230,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · private chat with driver",
+"page": "m12rider"
+},
+"RiderSharedReceipt.dc.html": {
+"x": 4700,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Rider · Shared ride · per-seat receipt (RIDE-P4)",
+"page": "m12rider"
+},
+"D12ReportWho.dc.html": {
+"x": 0,
+"y": 2420,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Report a rider · pick the member (shared)",
+"is_interactive": true
+},
+"D12ReportWhoAr.dc.html": {
+"x": 470,
+"y": 2420,
+"w": 390,
+"h": 844,
+"page": "m12driver",
+"title": "Report a rider · pick the member · AR",
+"is_interactive": true
+},
+"A12ChatLogMembers.dc.html": {
+"x": 0,
+"y": 0,
+"w": 1440,
+"h": 900,
+"page": "m12admin",
+"title": "Admin · Ride detail · shared ride chat log per member",
+"expand": "fill"
+},
+"RiderSharedHomeCard.dc.html": {
+"x": 5170,
+"y": 1190,
+"w": 390,
+"h": 844,
+"page": "m12rider",
+"title": "Rider · Home · open shared ride card (W10)"
+},
+"R13PromoChoose.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Choose a ride · promo applied (UC-R-18)",
+"page": "m13"
+},
+"R13PromoErrors.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Promo code · validation messages",
+"page": "m13"
+},
+"R13Referral.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Invite friends (GRW-03)",
+"page": "m13"
+},
+"R13ReferralAr.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Invite friends (AR, RTL)",
+"page": "m13"
+},
+"R13Loyalty.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Labby Points (GRW-04)",
+"page": "m13"
+},
+"R13Redeem.dc.html": {
+"x": 2350,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Redeem points · sheet",
+"page": "m13"
+},
+"R13Profile.dc.html": {
+"x": 2820,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Level & badges (GAME-01)",
+"page": "m13"
+},
+"R13Challenges.dc.html": {
+"x": 3290,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Rider · Challenges (GAME-02)",
+"page": "m13"
+},
+"D13Badges.dc.html": {
+"x": 0,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Level & badges",
+"page": "m13"
+},
+"D13Challenges.dc.html": {
+"x": 470,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Challenges",
+"page": "m13"
+},
+"D13ChallengesAr.dc.html": {
+"x": 940,
+"y": 1190,
+"w": 390,
+"h": 844,
+"title": "Driver · Challenges (AR, RTL)",
+"page": "m13"
+},
+"A13Promos.dc.html": {
+"x": 0,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Promotions · list & deactivate (UC-A-26)",
+"page": "m13",
+"expand": "fill"
+},
+"A13PromoCreate.dc.html": {
+"x": 1520,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · New promo",
+"page": "m13",
+"expand": "fill"
+},
+"A13Challenges.dc.html": {
+"x": 3040,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Challenges · list & create (UC-A-28)",
+"page": "m13",
+"expand": "fill"
+},
+"A13ChallengeDetail.dc.html": {
+"x": 4560,
+"y": 2400,
+"w": 1440,
+"h": 900,
+"title": "Admin · Challenge · participation & early end",
+"page": "m13",
+"expand": "fill"
+}
+},
+"createdOnFiles": {
+"at": "2026-10-07T09:19:58Z",
+"v": 1
+},
+"designSystems": [],
+"launch": {
+"view": "canvas"
+},
+"notes": {
+"driverTitle": {
+"kind": "title1",
+"maxW": 1330,
+"text": "Driver app",
+"w": 240,
+"x": 0,
+"y": 930
+},
+"riderTitle": {
+"kind": "title1",
+"maxW": 1330,
+"text": "Rider app",
+"w": 240,
+"x": 0,
+"y": -260
+},
+"adminTitle": {
+"kind": "title1",
+"maxW": 4480,
+"text": "Admin dashboard",
+"x": 0,
+"y": 2120
+},
+"m7RiderTitle": {
+"kind": "title1",
+"maxW": 5560,
+"text": "Rider app · ride loop (M7-T3)",
+"x": 0,
+"y": -260,
+"page": "m7"
+},
+"m7DriverTitle": {
+"kind": "title1",
+"maxW": 5560,
+"text": "Driver app · ride loop (M7-T4)",
+"x": 0,
+"y": 930,
+"page": "m7"
+},
+"m7RiderAdditionsTitle": {
+"kind": "title1",
+"maxW": 2270,
+"text": "Rider additions · for approval",
+"x": 5640,
+"y": -260,
+"page": "m7"
+},
+"m8RiderTitle": {
+"kind": "title1",
+"maxW": 3210,
+"text": "Rider app · wallet & fees (M8-T3)",
+"x": 0,
+"y": -260,
+"page": "m8"
+},
+"m8DriverTitle": {
+"kind": "title1",
+"maxW": 1800,
+"text": "Driver app · earnings & balance (M8-T4)",
+"x": 0,
+"y": 930,
+"page": "m8"
+},
+"m8AdminTitle": {
+"kind": "title1",
+"maxW": 2960,
+"text": "Admin · grants, refunds, settlements (M8-T5)",
+"x": 0,
+"y": 2120,
+"page": "m8"
+},
+"m9RiderTitle": {
+"kind": "title1",
+"maxW": 1330,
+"text": "Rider app · surge (M9-T2)",
+"x": 0,
+"y": -260,
+"page": "m9"
+},
+"m9DriverTitle": {
+"kind": "title1",
+"maxW": 1330,
+"text": "Driver app · heatmap (M9-T2)",
+"x": 0,
+"y": 930,
+"page": "m9"
+},
+"m9AdminTitle": {
+"kind": "title1",
+"maxW": 1440,
+"text": "Admin · surge zones (M9-T2)",
+"x": 0,
+"y": 2120,
+"page": "m9"
+},
+"m10RiderTitle": {
+"kind": "title1",
+"maxW": 2270,
+"text": "Rider app & share page · chat, call, share, SOS (M10-T3)",
+"x": 0,
+"y": -260,
+"page": "m10"
+},
+"m10DriverTitle": {
+"kind": "title1",
+"maxW": 1330,
+"text": "Driver app · chat & safety (M10-T3)",
+"x": 0,
+"y": 930,
+"page": "m10"
+},
+"m10AdminTitle": {
+"kind": "title1",
+"maxW": 4480,
+"text": "Admin · live ops map, SOS, rides (M10-T4)",
+"x": 0,
+"y": 2120,
+"page": "m10"
+},
+"m11RiderTitle": {
+"kind": "title1",
+"maxW": 2740,
+"text": "Rider app · rate, report, suspended (M11-T3)",
+"x": 0,
+"y": -260,
+"page": "m11"
+},
+"m11DriverTitle": {
+"kind": "title1",
+"maxW": 2740,
+"text": "Driver app · rate, report, performance (M11-T3)",
+"x": 0,
+"y": 930,
+"page": "m11"
+},
+"m11AdminTitle": {
+"kind": "title1",
+"maxW": 6000,
+"text": "Admin · reports, flags, suspension (M11-T4)",
+"x": 0,
+"y": 2120,
+"page": "m11"
+},
+"m12DriverSchedTitle": {
+"kind": "title1",
+"maxW": 5560,
+"text": "Driver app · availability & claim board (M12-T4)",
+"x": 0,
+"y": -260,
+"page": "m12driver"
+},
+"m12DriverSharedTitle": {
+"kind": "title1",
+"maxW": 3210,
+"text": "Driver app · shared rides (M12-T4)",
+"x": 0,
+"y": 964,
+"page": "m12driver"
+},
+"m12RiderSchedTitle": {
+"kind": "title1",
+"maxW": 4150,
+"text": "Rider app · scheduled rides (M12-T3)",
+"x": 0,
+"y": -260,
+"page": "m12rider"
+},
+"m12RiderSharedTitle": {
+"kind": "title1",
+"maxW": 5560,
+"text": "Rider app · shared rides (M12-T3)",
+"x": 0,
+"y": 930,
+"page": "m12rider"
+},
+"m12DriverTrustTitle": {
+"kind": "title1",
+"maxW": 860,
+"text": "Driver app · report a member (M12-T5)",
+"x": 0,
+"y": 2160,
+"page": "m12driver"
+},
+"m12AdminTitle": {
+"kind": "title1",
+"maxW": 1440,
+"text": "Admin · shared ride chat log (M12-T5)",
+"x": 0,
+"y": -260,
+"page": "m12admin"
+},
+"m13RiderTitle": {
+"kind": "title1",
+"maxW": 3680,
+"text": "Rider app · promos, referrals, points (M13-T3)",
+"x": 0,
+"y": -260,
+"page": "m13"
+},
+"m13DriverTitle": {
+"kind": "title1",
+"maxW": 1330,
+"text": "Driver app · badges & challenges (M13-T4)",
+"x": 0,
+"y": 930,
+"page": "m13"
+},
+"m13AdminTitle": {
+"kind": "title1",
+"maxW": 6000,
+"text": "Admin · promos & challenges (M13-T4)",
+"x": 0,
+"y": 2120,
+"page": "m13"
+}
+},
+"order": [
+"Main.dc.html",
+"RiderChooseRide.dc.html",
+"RiderDriverOnWay.dc.html",
+"DriverOffline.dc.html",
+"DriverOffer.dc.html",
+"DriverDocuments.dc.html",
+"AdminApplications.dc.html",
+"AdminApplicationReview.dc.html",
+"AdminDocumentExpiry.dc.html",
+"RiderWhereTo.dc.html",
+"RiderWhereToAr.dc.html",
+"RiderFinding.dc.html",
+"RiderNoDriver.dc.html",
+"RiderArrived.dc.html",
+"RiderInRide.dc.html",
+"RiderCancel.dc.html",
+"RiderComplete.dc.html",
+"RiderHistory.dc.html",
+"RiderReceipt.dc.html",
+"RiderSavedPlaces.dc.html",
+"RiderPreferences.dc.html",
+"DriverToPickup.dc.html",
+"DriverAtPickup.dc.html",
+"DriverInRide.dc.html",
+"DriverComplete.dc.html",
+"DriverCancel.dc.html",
+"RiderOnWayCancel.dc.html",
+"RiderPlanComfort.dc.html",
+"RiderRideEndedCancel.dc.html",
+"RiderRideEndedNoShow.dc.html",
+"RiderSettingsRides.dc.html",
+"DriverStreamLost.dc.html",
+"DriverOfferSurge.dc.html",
+"DriverNoticeCash.dc.html",
+"DriverNoticeUnpaid.dc.html",
+"DriverNoticeRiderCancel.dc.html",
+"DriverNoShowCancel.dc.html",
+"RiderWallet.dc.html",
+"RiderWalletAr.dc.html",
+"RiderTip.dc.html",
+"RiderWalletShort.dc.html",
+"RiderWaitCharge.dc.html",
+"RiderReceiptSplit.dc.html",
+"RiderCancelFee.dc.html",
+"DriverTripEarnings.dc.html",
+"DriverEarnings.dc.html",
+"DriverBalance.dc.html",
+"DriverBlocked.dc.html",
+"AdminUserWallet.dc.html",
+"AdminDriverLedger.dc.html",
+"RiderSurgeChoose.dc.html",
+"RiderSurgeChooseAr.dc.html",
+"RiderSurgeChanged.dc.html",
+"DriverHeatmap.dc.html",
+"AdminSurgeZones.dc.html",
+"RiderChat.dc.html",
+"RiderChatAr.dc.html",
+"RiderSafetyActions.dc.html",
+"RiderSosConfirm.dc.html",
+"SharePage.dc.html",
+"DriverChat.dc.html",
+"DriverSafetyActions.dc.html",
+"AdminLiveOps.dc.html",
+"AdminRides.dc.html",
+"AdminRideDetail.dc.html",
+"RiderRate.dc.html",
+"RiderRateAr.dc.html",
+"RiderHistoryRate.dc.html",
+"RiderReport.dc.html",
+"RiderReports.dc.html",
+"RiderSuspended.dc.html",
+"DriverRateRider.dc.html",
+"DriverReportRider.dc.html",
+"DriverPerformance.dc.html",
+"DriverPerformanceAr.dc.html",
+"DriverRatingWarning.dc.html",
+"DriverSuspended.dc.html",
+"AdminReports.dc.html",
+"AdminReportDetail.dc.html",
+"AdminFlags.dc.html",
+"AdminUserTrust.dc.html",
+"D12Home.dc.html",
+"D12Availability.dc.html",
+"D12AvailabilityAr.dc.html",
+"D12AvailabilityAdd.dc.html",
+"D12ClaimBoard.dc.html",
+"D12ClaimBoardAr.dc.html",
+"D12ClaimRace.dc.html",
+"D12ClaimBoardEmpty.dc.html",
+"D12MyRides.dc.html",
+"D12Release.dc.html",
+"D12Converted.dc.html",
+"D12Notices.dc.html",
+"D12SharedOffer.dc.html",
+"D12SharedPickup.dc.html",
+"D12SharedPickupAr.dc.html",
+"D12NoShowConfirm.dc.html",
+"D12SharedChats.dc.html",
+"D12SharedCollect.dc.html",
+"D12SharedCollectAr.dc.html",
+"RiderM12Home.dc.html",
+"RiderSchedWhen.dc.html",
+"RiderSchedChoose.dc.html",
+"RiderSchedTooSoon.dc.html",
+"RiderSchedUpcoming.dc.html",
+"RiderSchedUpcomingAr.dc.html",
+"RiderSchedDetail.dc.html",
+"RiderSchedCancel.dc.html",
+"RiderSchedWarn.dc.html",
+"RiderSharedBrowse.dc.html",
+"RiderSharedBrowseAr.dc.html",
+"RiderSharedJoin.dc.html",
+"RiderSharedJoinErrors.dc.html",
+"RiderSharedCreate.dc.html",
+"RiderSharedGathering.dc.html",
+"RiderSharedMember.dc.html",
+"RiderSharedOnWay.dc.html",
+"RiderSharedLeave.dc.html",
+"RiderSharedChat.dc.html",
+"RiderSharedReceipt.dc.html",
+"D12ReportWho.dc.html",
+"D12ReportWhoAr.dc.html",
+"A12ChatLogMembers.dc.html",
+"RiderSharedHomeCard.dc.html",
+"R13PromoChoose.dc.html",
+"R13PromoErrors.dc.html",
+"R13Referral.dc.html",
+"R13ReferralAr.dc.html",
+"R13Loyalty.dc.html",
+"R13Redeem.dc.html",
+"R13Profile.dc.html",
+"R13Challenges.dc.html",
+"D13Badges.dc.html",
+"D13Challenges.dc.html",
+"D13ChallengesAr.dc.html",
+"A13Promos.dc.html",
+"A13PromoCreate.dc.html",
+"A13Challenges.dc.html",
+"A13ChallengeDetail.dc.html"
+],
+"pages": [
+{
+"id": "redesign",
+"name": "UI redesign"
+},
+{
+"id": "m7",
+"name": "M7 · Ride loop"
+},
+{
+"id": "m8",
+"name": "M8 · Money"
+},
+{
+"id": "m9",
+"name": "M9 · Surge"
+},
+{
+"id": "m10",
+"name": "M10 · Comms & safety"
+},
+{
+"id": "m11",
+"name": "M11 · Trust"
+},
+{
+"id": "m12driver",
+"name": "M12 driver"
+},
+{
+"id": "m12rider",
+"name": "M12 rider"
+},
+{
+"id": "m12admin",
+"name": "M12 admin"
+},
+{
+"id": "m13",
+"name": "M13 · Growth"
+}
+],
+"title": "Labby UI Redesign"
+}

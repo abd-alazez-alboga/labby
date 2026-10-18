@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shared trip page</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF;">
+  <div style="padding: 18px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #EEEBF2;">
+    <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+    <span style="font-size: 17px; font-weight: 800;">Labby</span>
+    <span style="margin-left: auto; font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px; display: flex; align-items: center; gap: 6px;">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #067647;"></span>
+      Live
+    </span>
+  </div>
+
+  <div style="flex-grow: 1; position: relative; overflow: hidden; background: #ECE9F0;">
+    <div style="position: absolute; left: -40px; top: 170px; width: 520px; height: 16px; background: #FFFFFF; transform: rotate(-8deg);"></div>
+    <div style="position: absolute; left: 230px; top: -40px; width: 12px; height: 520px; background: #FFFFFF; transform: rotate(12deg);"></div>
+    <div style="position: absolute; left: 90px; top: 300px; width: 6px; height: 180px; background: #59128A; border-radius: 3px; transform: rotate(-140deg); transform-origin: top left;"></div>
+    <div style="position: absolute; left: 76px; top: 286px; width: 30px; height: 30px; border-radius: 50%; background: #141018; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(20,16,24,0.3);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 2l7 18-7-4-7 4z"></path></svg>
+    </div>
+    <div style="position: absolute; left: 196px; top: 136px; width: 18px; height: 18px; background: #59128A; border: 4px solid #FFFFFF;"></div>
+    <div style="position: absolute; left: 120px; top: 96px; background: #141018; color: #FFFFFF; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 8px;">Umayyad Square · 12:41</div>
+  </div>
+
+  <div style="background: #FFFFFF; border-top: 1px solid #EEEBF2; padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="width: 52px; height: 52px; border-radius: 50%; background: #F1EAF8; color: #59128A; font-weight: 800; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">S</span>
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 18px; font-weight: 800;">Samer is driving</span>
+        <span style="font-size: 14px; color: #463C58;">Silver Hyundai Accent · <span dir="ltr">دمشق 509876</span></span>
+      </span>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <span style="flex: 1; background: #F7F6F9; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 12px; font-weight: 700; color: #6E6780;">Status</span>
+        <span style="font-size: 16px; font-weight: 800;">On the ride</span>
+      </span>
+      <span style="flex: 1; background: #F7F6F9; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 12px; font-weight: 700; color: #6E6780;">Arriving</span>
+        <span style="font-size: 16px; font-weight: 800;">12:41 · 12 min</span>
+      </span>
+    </div>
+    <span style="font-size: 12px; color: #6E6780; line-height: 1.5;">This page updates live and stops working when the trip ends. No sign-in needed.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

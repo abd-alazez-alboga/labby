@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Challenges admin</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminRides.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="A13Promos.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Promotions</a>
+    <a href="#" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Challenges</a>
+    <a href="AdminSurgeZones.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Challenges</h1>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <section style="flex: 1 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+        <div style="padding: 18px 24px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">All challenges</h2>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 760px;">
+          <thead>
+            <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+              <th style="padding: 12px 24px; font-weight: 700;">Challenge</th>
+              <th style="padding: 12px; font-weight: 700;">Who</th>
+              <th style="padding: 12px; font-weight: 700;">Goal → reward</th>
+              <th style="padding: 12px; font-weight: 700;">Window</th>
+              <th style="padding: 12px; font-weight: 700;">Joined / done</th>
+              <th style="padding: 12px 24px; font-weight: 700;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top: 1px solid #F0EEF3;">
+              <td style="padding: 14px 24px; font-weight: 800;"><a href="A13ChallengeDetail.dc.html" style="color: #59128A; text-decoration: none;">Weekly 40</a></td>
+              <td style="padding: 14px 12px; color: #463C58;">Drivers · Damascus</td>
+              <td style="padding: 14px 12px; color: #463C58;">40 rides → 500 pts</td>
+              <td style="padding: 14px 12px; color: #463C58;">13 – 19 Oct</td>
+              <td style="padding: 14px 12px; color: #463C58;">148 / 31</td>
+              <td style="padding: 14px 24px;"><span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Active</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #F0EEF3;">
+              <td style="padding: 14px 24px; font-weight: 800;"><a href="A13ChallengeDetail.dc.html" style="color: #59128A; text-decoration: none;">Weekend rider</a></td>
+              <td style="padding: 14px 12px; color: #463C58;">Riders · Damascus</td>
+              <td style="padding: 14px 12px; color: #463C58;">5 rides → 300 pts</td>
+              <td style="padding: 14px 12px; color: #463C58;">17 – 19 Oct</td>
+              <td style="padding: 14px 12px; color: #463C58;">2,103 / 388</td>
+              <td style="padding: 14px 24px;"><span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Active</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #F0EEF3;">
+              <td style="padding: 14px 24px; font-weight: 800;"><a href="A13ChallengeDetail.dc.html" style="color: #59128A; text-decoration: none;">Share the road</a></td>
+              <td style="padding: 14px 12px; color: #463C58;">Riders · all regions</td>
+              <td style="padding: 14px 12px; color: #463C58;">2 shared rides → 400 pts</td>
+              <td style="padding: 14px 12px; color: #463C58;">1 – 31 Oct</td>
+              <td style="padding: 14px 12px; color: #463C58;">941 / 112</td>
+              <td style="padding: 14px 24px;"><span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Active</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #F0EEF3;">
+              <td style="padding: 14px 24px; font-weight: 800; color: #6E6780;">September sprint</td>
+              <td style="padding: 14px 12px; color: #6E6780;">Drivers · Aleppo</td>
+              <td style="padding: 14px 12px; color: #6E6780;">30 rides → 400 pts</td>
+              <td style="padding: 14px 12px; color: #6E6780;">1 – 30 Sep</td>
+              <td style="padding: 14px 12px; color: #6E6780;">96 / 58</td>
+              <td style="padding: 14px 24px;"><span style="font-size: 13px; font-weight: 700; color: #B42318; background: #FEF3F2; padding: 5px 10px; border-radius: 12px;">Ended early</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="padding: 12px 24px 18px; font-size: 12px; color: #6E6780; line-height: 1.5;">Points reward the level only — they never change payouts. Create and end need the Edit challenges permission; both are audit-logged.</div>
+      </section>
+
+      <aside style="flex: 0 1 360px; min-width: 300px; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 800;">New challenge</h2>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Name
+          <input value="Weekly 40" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+        </label>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Who
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>Drivers</option>
+              <option>Riders</option>
+            </select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Region
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>Damascus</option>
+              <option>All regions</option>
+            </select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Goal
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>Completed rides</option>
+              <option>Shared rides</option>
+              <option>5-star ratings</option>
+            </select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Count
+            <input value="40" inputmode="numeric" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">From
+            <input value="20 Oct, 00:00" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">To
+            <input value="26 Oct, 23:59" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          </label>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Reward points
+          <input value="500" inputmode="numeric" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+        </label>
+        <button style="height: 48px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 800;">Create challenge</button>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

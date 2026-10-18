@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your rides · rate</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 14px;">
+  <a href="Main.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.6px;">Your rides</div>
+
+  <div style="display: flex; flex-direction: column;">
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px solid #EEEBF2;">
+      <div style="display: flex; justify-content: space-between; gap: 12px;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 16px; font-weight: 800;">Umayyad Square</span>
+          <span style="font-size: 13px; color: #6E6780;">Today 12:43 · Samer · Economy</span>
+        </span>
+        <span style="font-size: 16px; font-weight: 800;">SYP 27,250</span>
+      </div>
+      <a href="RiderRate.dc.html" style="align-self: flex-start; height: 44px; padding: 0 16px; border-radius: 22px; background: #59128A; color: #FFFFFF; display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 14px; font-weight: 800;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><polygon points="12 2 15.1 8.6 22 9.3 16.8 14 18.2 21 12 17.4 5.8 21 7.2 14 2 9.3 8.9 8.6"></polygon></svg>
+        Rate Samer · 7 days left
+      </a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px solid #EEEBF2;">
+      <div style="display: flex; justify-content: space-between; gap: 12px;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 16px; font-weight: 800;">Abu Rummaneh</span>
+          <span style="font-size: 13px; color: #6E6780;">Sat 11 Oct 19:05 · Lina · Comfort</span>
+        </span>
+        <span style="font-size: 16px; font-weight: 800;">SYP 31,500</span>
+      </div>
+      <a href="RiderRate.dc.html" style="align-self: flex-start; height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid #59128A; color: #59128A; display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 14px; font-weight: 800;">Rate Lina · 3 days left</a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 0; border-bottom: 1px solid #EEEBF2;">
+      <div style="display: flex; justify-content: space-between; gap: 12px;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 16px; font-weight: 800;">Mazzeh</span>
+          <span style="font-size: 13px; color: #6E6780;">Thu 9 Oct 08:20 · Omar · Economy</span>
+        </span>
+        <span style="font-size: 16px; font-weight: 800;">SYP 19,000</span>
+      </div>
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#463C58" aria-hidden="true"><polygon points="12 2 15.1 8.6 22 9.3 16.8 14 18.2 21 12 17.4 5.8 21 7.2 14 2 9.3 8.9 8.6"></polygon></svg>
+        You rated 5
+      </span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 0;">
+      <div style="display: flex; justify-content: space-between; gap: 12px;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 16px; font-weight: 800;">Kafr Sousa</span>
+          <span style="font-size: 13px; color: #6E6780;">Mon 1 Oct 17:44 · Rami · Economy</span>
+        </span>
+        <span style="font-size: 16px; font-weight: 800;">SYP 22,000</span>
+      </div>
+      <span style="font-size: 13px; color: #6E6780;">Rating window closed</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reports</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live ops</a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="AdminUserTrust.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminReports.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Reports <span style="font-size: 12px; font-weight: 800; background: #59128A; color: #FFFFFF; border-radius: 10px; padding: 2px 8px;">7</span></a>
+    <a href="AdminFlags.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Flagged accounts <span style="font-size: 12px; font-weight: 800; background: #F2F0F5; color: #463C58; border-radius: 10px; padding: 2px 8px;">4</span></a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Driver applications</a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Reports</h1>
+        <span style="font-size: 15px; color: #6E6780;">Oldest first. Resolve each as substantiated or not, with notes.</span>
+      </div>
+      <div role="group" aria-label="Status" style="display: flex; background: #ECEAF0; border-radius: 12px; padding: 4px;">
+        <button aria-pressed="true" style="height: 38px; padding: 0 16px; border-radius: 9px; border: none; background: #FFFFFF; font-family: Manrope, sans-serif; font-weight: 800; font-size: 14px; box-shadow: 0 1px 3px rgba(20,16,24,0.12);">Open · 7</button>
+        <button aria-pressed="false" style="height: 38px; padding: 0 16px; border-radius: 9px; border: none; background: transparent; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #463C58;">Substantiated</button>
+        <button aria-pressed="false" style="height: 38px; padding: 0 16px; border-radius: 9px; border: none; background: transparent; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #463C58;">Unsubstantiated</button>
+      </div>
+    </div>
+
+    <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 860px;">
+        <thead>
+          <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+            <th style="padding: 14px 24px; font-weight: 700;">Category</th>
+            <th style="padding: 14px 12px; font-weight: 700;">Reported</th>
+            <th style="padding: 14px 12px; font-weight: 700;">By</th>
+            <th style="padding: 14px 12px; font-weight: 700;">Ride</th>
+            <th style="padding: 14px 12px; font-weight: 700;">Evidence</th>
+            <th style="padding: 14px 12px; font-weight: 700;">Waiting</th>
+            <th style="padding: 14px 24px;"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Action</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 16px 24px; font-weight: 800;">Unsafe driving</td>
+            <td style="padding: 16px 12px;"><a href="AdminUserTrust.dc.html" style="font-weight: 700;">Samer Haddad</a><div style="font-size: 12px; color: #6E6780;">driver · 2 prior substantiated</div></td>
+            <td style="padding: 16px 12px;">Rana Khoury<div style="font-size: 12px; color: #6E6780;">rider</div></td>
+            <td style="padding: 16px 12px; color: #463C58;">15 Oct 12:29</td>
+            <td style="padding: 16px 12px; color: #463C58;">text · 1 photo</td>
+            <td style="padding: 16px 12px; font-weight: 700; color: #6A2C0A;">2 d</td>
+            <td style="padding: 16px 24px; text-align: right;"><a href="AdminReportDetail.dc.html" style="height: 40px; padding: 0 16px; border-radius: 10px; background: #59128A; color: #FFFFFF; display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 800;">Investigate</a></td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 16px 24px; font-weight: 800;">Damage to vehicle</td>
+            <td style="padding: 16px 12px;"><a href="#" style="font-weight: 700;">Rana Khoury</a><div style="font-size: 12px; color: #6E6780;">rider · none prior</div></td>
+            <td style="padding: 16px 12px;">Samer Haddad<div style="font-size: 12px; color: #6E6780;">driver</div></td>
+            <td style="padding: 16px 12px; color: #463C58;">15 Oct 12:29</td>
+            <td style="padding: 16px 12px; color: #463C58;">text · 2 photos</td>
+            <td style="padding: 16px 12px; color: #463C58;">1 d</td>
+            <td style="padding: 16px 24px; text-align: right;"><a href="AdminReportDetail.dc.html" style="height: 40px; padding: 0 16px; border-radius: 10px; border: 1.5px solid #D9D5DF; color: #141018; display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 800;">Investigate</a></td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 16px 24px; font-weight: 800;">Inappropriate behavior</td>
+            <td style="padding: 16px 12px;"><a href="#" style="font-weight: 700;">Omar Saleh</a><div style="font-size: 12px; color: #6E6780;">driver · none prior</div></td>
+            <td style="padding: 16px 12px;">Lina Aziz<div style="font-size: 12px; color: #6E6780;">rider</div></td>
+            <td style="padding: 16px 12px; color: #463C58;">14 Oct 21:10</td>
+            <td style="padding: 16px 12px; color: #463C58;">text</td>
+            <td style="padding: 16px 12px; color: #463C58;">20 h</td>
+            <td style="padding: 16px 24px; text-align: right;"><a href="AdminReportDetail.dc.html" style="height: 40px; padding: 0 16px; border-radius: 10px; border: 1.5px solid #D9D5DF; color: #141018; display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 800;">Investigate</a></td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 16px 24px; font-weight: 800;">Other</td>
+            <td style="padding: 16px 12px;"><a href="#" style="font-weight: 700;">Rami Nassar</a><div style="font-size: 12px; color: #6E6780;">driver · 1 prior substantiated</div></td>
+            <td style="padding: 16px 12px;">Hala Mourad<div style="font-size: 12px; color: #6E6780;">rider</div></td>
+            <td style="padding: 16px 12px; color: #463C58;">14 Oct 18:02</td>
+            <td style="padding: 16px 12px; color: #463C58;">text</td>
+            <td style="padding: 16px 12px; color: #463C58;">18 h</td>
+            <td style="padding: 16px 24px; text-align: right;"><a href="AdminReportDetail.dc.html" style="height: 40px; padding: 0 16px; border-radius: 10px; border: 1.5px solid #D9D5DF; color: #141018; display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 800;">Investigate</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ride detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminLiveOps.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live map</a>
+    <a href="AdminRides.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Rides</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminSurgeZones.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Rides / R-2481</span>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Ride R-2481</h1>
+        <span style="font-size: 13px; font-weight: 800; color: #3D0B57; background: #F1EAF8; padding: 5px 10px; border-radius: 12px;">In progress</span>
+        <span style="font-size: 13px; font-weight: 800; color: #FFFFFF; background: #D92D20; padding: 5px 10px; border-radius: 12px; display: flex; align-items: center; gap: 6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg>
+          SOS open · 12:40
+        </span>
+      </div>
+      <span style="font-size: 14px; color: #463C58;">Today 12:28 · Damascus · Economy · Cash · rider Lina K. · driver Samer A. — phones on this page need the Handle support permission.</span>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <div style="flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Timeline</h2>
+          <div style="display: flex; flex-direction: column; gap: 0;">
+            <div style="display: flex; gap: 14px;">
+              <span style="display: flex; flex-direction: column; align-items: center;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #59128A; margin-top: 5px;"></span><span style="width: 2px; flex-grow: 1; background: #E4E1EA;"></span></span>
+              <span style="padding-bottom: 14px; display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 800;">Requested · 12:28:04</span><span style="font-size: 13px; color: #6E6780;">Estimate SYP 24,500 · surge 1.0×</span></span>
+            </div>
+            <div style="display: flex; gap: 14px;">
+              <span style="display: flex; flex-direction: column; align-items: center;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #59128A; margin-top: 5px;"></span><span style="width: 2px; flex-grow: 1; background: #E4E1EA;"></span></span>
+              <span style="padding-bottom: 14px; display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 800;">Accepted · 12:29:12 — Samer A.</span><span style="font-size: 13px; color: #6E6780;">2nd offer · pickup 1.1 km away</span></span>
+            </div>
+            <div style="display: flex; gap: 14px;">
+              <span style="display: flex; flex-direction: column; align-items: center;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #59128A; margin-top: 5px;"></span><span style="width: 2px; flex-grow: 1; background: #E4E1EA;"></span></span>
+              <span style="padding-bottom: 14px; display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 800;">Started · 12:36:40</span></span>
+            </div>
+            <div style="display: flex; gap: 14px;">
+              <span style="display: flex; flex-direction: column; align-items: center;"><span style="width: 12px; height: 12px; border-radius: 50%; background: #D92D20; margin-top: 4px; box-shadow: 0 0 0 3px #FEE4E2;"></span></span>
+              <span style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 800; color: #B42318;">SOS by rider · 12:40:51</span><span style="font-size: 13px; color: #6E6780;">Near Umayyad Square · event is permanent</span></span>
+            </div>
+          </div>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Offers trail</h2>
+          <span style="display: flex; justify-content: space-between; font-size: 14px;"><span style="font-weight: 700;">Yara M. · 0.6 km</span><span style="color: #B42318; font-weight: 700;">Declined · 12:28:31</span></span>
+          <span style="display: flex; justify-content: space-between; font-size: 14px;"><span style="font-weight: 700;">Samer A. · 1.1 km</span><span style="color: #067647; font-weight: 700;">Accepted · 12:29:12</span></span>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Fare</h2>
+          <span style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #6E6780; font-weight: 700;">Base + distance + time</span><span style="font-weight: 700;" dir="ltr">SYP 23,000</span></span>
+          <span style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #6E6780; font-weight: 700;">Booking fee</span><span style="font-weight: 700;" dir="ltr">SYP 1,500</span></span>
+          <span style="display: flex; justify-content: space-between; font-size: 15px; border-top: 1px solid #F0EEF3; padding-top: 10px;"><span style="font-weight: 800;">Estimate (metered)</span><span style="font-weight: 800;" dir="ltr">SYP 24,500</span></span>
+        </section>
+      </div>
+
+      <div style="flex: 1 1 420px; min-width: 300px; display: flex; flex-direction: column; gap: 16px;">
+        <section aria-label="Trace map" style="position: relative; overflow: hidden; min-height: 300px; background: #ECE9F0; border: 1px solid #ECEAF0; border-radius: 16px;">
+          <div style="position: absolute; left: -40px; top: 110px; width: 640px; height: 14px; background: #FFFFFF; transform: rotate(-9deg);"></div>
+          <div style="position: absolute; left: 260px; top: -40px; width: 12px; height: 420px; background: #FFFFFF; transform: rotate(13deg);"></div>
+          <div style="position: absolute; left: 90px; top: 210px; width: 6px; height: 200px; background: #59128A; border-radius: 3px; transform: rotate(-120deg); transform-origin: top left;"></div>
+          <span style="position: absolute; left: 76px; top: 196px; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #463C58; background: #FFFFFF;"></span>
+          <span style="position: absolute; left: 268px; top: 96px; width: 16px; height: 16px; background: #59128A; border: 4px solid #FFFFFF;"></span>
+          <span style="position: absolute; left: 196px; top: 150px; width: 30px; height: 30px; border-radius: 50% 50% 50% 4px; transform: rotate(-45deg); background: #D92D20; box-shadow: 0 2px 10px rgba(217,45,32,0.5); display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true" style="transform: rotate(45deg);"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg>
+          </span>
+          <span style="position: absolute; left: 16px; bottom: 14px; font-size: 12px; font-weight: 700; color: #463C58; background: #FFFFFF; padding: 5px 10px; border-radius: 10px;">GPS trace · SOS at 12:40</span>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Chat log</h2>
+            <span style="font-size: 12px; font-weight: 700; color: #6E6780;">Read-only · View support permission</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="align-self: flex-start; max-width: 300px; background: #F7F6F9; border-radius: 12px 12px 12px 4px; padding: 8px 12px; font-size: 14px;">Samer · 12:30 — On my way</span>
+            <span style="align-self: flex-end; max-width: 300px; background: #F1EAF8; border-radius: 12px 12px 4px 12px; padding: 8px 12px; font-size: 14px;">Lina · 12:31 — I'm at the pharmacy entrance, blue jacket</span>
+            <span style="align-self: flex-start; max-width: 300px; background: #F7F6F9; border-radius: 12px 12px 12px 4px; padding: 8px 12px; font-size: 14px;">Samer · 12:33 — Stuck in traffic</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

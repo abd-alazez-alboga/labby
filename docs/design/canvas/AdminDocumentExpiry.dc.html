@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Document expiry</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminApplications.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Driver applications</a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Vehicle switches</a>
+    <a href="AdminDocumentExpiry.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Document expiry <span style="font-size: 12px; background: #B42318; color: #FFFFFF; border-radius: 10px; padding: 2px 8px;">1</span></a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Document expiry</h1>
+      <span style="font-size: 15px; color: #6E6780;">Renewals to review, documents expiring soon, and expired documents. Expired documents suspend the driver automatically.</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Renewals waiting</span>
+        <span style="font-size: 34px; font-weight: 800;">1</span>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Expiring in 30 days</span>
+        <span style="font-size: 34px; font-weight: 800;">2</span>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Expired · drivers suspended</span>
+        <span style="font-size: 34px; font-weight: 800; color: #B42318;">1</span>
+      </div>
+    </div>
+
+    <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <div style="padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Renewals waiting for review</h2>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 760px;">
+        <thead>
+          <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+            <th style="padding: 12px 24px; font-weight: 700;">Driver</th>
+            <th style="padding: 12px; font-weight: 700;">Document</th>
+            <th style="padding: 12px; font-weight: 700;">Current expiry</th>
+            <th style="padding: 12px; font-weight: 700;">New expiry</th>
+            <th style="padding: 12px; font-weight: 700;">State</th>
+            <th style="padding: 12px 24px; font-weight: 700; text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 16px 24px;"><div style="font-weight: 800;">Khaled Darwish</div><div style="font-size: 13px; color: #6E6780;">+963 955 301 778</div></td>
+            <td style="padding: 16px 12px;">Insurance</td>
+            <td style="padding: 16px 12px; color: #B42318; font-weight: 700;">5 Oct 2026 · expired</td>
+            <td style="padding: 16px 12px;">6 Oct 2027</td>
+            <td style="padding: 16px 12px;"><span style="font-size: 13px; font-weight: 700; color: #B42318; background: #FEF3F2; padding: 5px 10px; border-radius: 12px;">Driver suspended</span></td>
+            <td style="padding: 16px 24px; text-align: right;"><a href="#" style="display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 10px; background: #59128A; color: #FFFFFF; text-decoration: none; font-weight: 800; font-size: 14px;">Review renewal</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <div style="padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Expiring soon</h2>
+        <div role="group" aria-label="Horizon" style="display: flex; background: #F2F0F5; border-radius: 12px; padding: 4px;">
+          <button aria-pressed="true" style="height: 34px; padding: 0 16px; border-radius: 9px; border: none; background: #FFFFFF; font-family: Manrope, sans-serif; font-weight: 800; box-shadow: 0 1px 3px rgba(20,16,24,0.12);">30 days</button>
+          <button aria-pressed="false" style="height: 34px; padding: 0 16px; border-radius: 9px; border: none; background: transparent; font-family: Manrope, sans-serif; font-weight: 700; color: #463C58;">7 days</button>
+        </div>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 760px;">
+        <thead>
+          <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+            <th style="padding: 12px 24px; font-weight: 700;">Driver</th>
+            <th style="padding: 12px; font-weight: 700;">Document</th>
+            <th style="padding: 12px; font-weight: 700;">Expires</th>
+            <th style="padding: 12px; font-weight: 700;">Days left</th>
+            <th style="padding: 12px 24px; font-weight: 700;">Reminders</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 16px 24px;"><div style="font-weight: 800;">Layla Haddad</div><div style="font-size: 13px; color: #6E6780;">+963 900 000 006</div></td>
+            <td style="padding: 16px 12px;">Insurance</td>
+            <td style="padding: 16px 12px;">27 Oct 2026</td>
+            <td style="padding: 16px 12px;"><span style="font-size: 13px; font-weight: 800; color: #6A2C0A; background: #FFF6E5; padding: 5px 10px; border-radius: 12px;">20 days</span></td>
+            <td style="padding: 16px 24px; font-size: 13px; color: #463C58;">30-day sent 6 Oct · 7-day not yet</td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 16px 24px;"><div style="font-weight: 800;">Omar Nouri</div><div style="font-size: 13px; color: #6E6780;">+963 900 000 007</div></td>
+            <td style="padding: 16px 12px;">Driver's license</td>
+            <td style="padding: 16px 12px;">2 Nov 2026</td>
+            <td style="padding: 16px 12px;"><span style="font-size: 13px; font-weight: 800; color: #6A2C0A; background: #FFF6E5; padding: 5px 10px; border-radius: 12px;">26 days</span></td>
+            <td style="padding: 16px 24px; font-size: 13px; color: #463C58;">30-day sent 3 Oct · 7-day not yet</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

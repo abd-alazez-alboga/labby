@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Redeem points</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: rgba(20,16,24,0.45); display: flex; flex-direction: column; justify-content: flex-end;">
+  <div style="background: #FFFFFF; border-radius: 24px 24px 0 0; padding: 18px 20px 34px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="width: 44px; height: 4px; border-radius: 2px; background: #D9D5DF; align-self: center;"></div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.4px;">Turn points into wallet credit</div>
+      <span style="font-size: 14px; color: #6E6780;">You have 1,240 points · 100 points = SYP 1,000</span>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <button aria-label="Less" style="width: 56px; height: 56px; border-radius: 16px; border: 1.5px solid #D9D5DF; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+      <span style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+        <span style="font-size: 44px; font-weight: 800; letter-spacing: -1px;">1,000</span>
+        <span style="font-size: 13px; font-weight: 700; color: #6E6780;">points</span>
+      </span>
+      <button aria-label="More" style="width: 56px; height: 56px; border-radius: 16px; border: 1.5px solid #D9D5DF; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px; background: #F1EAF8; border-radius: 16px; padding: 16px;">
+      <div style="display: flex; justify-content: space-between; font-size: 15px;"><span style="color: #463C58; font-weight: 600;">Wallet credit</span><span style="font-weight: 800; color: #3D0B57;">+SYP 10,000</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: #6E6780;">Points left after</span><span style="font-weight: 700; color: #463C58;">240</span></div>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: flex-start; background: #F2F0F5; border-radius: 12px; padding: 11px 13px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#463C58" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="13"></line><line x1="12" y1="16" x2="12" y2="16"></line></svg>
+      <span style="font-size: 12.5px; color: #463C58; line-height: 1.5;">The credit lands in your wallet right away and is spent on your next rides. This can't be undone, and your level keeps counting every point you've ever earned.</span>
+    </div>
+
+    <button style="height: 56px; border-radius: 16px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 17px; font-weight: 800;">Redeem 1,000 points</button>
+    <button style="height: 48px; border-radius: 14px; border: none; background: none; color: #463C58; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700;">Not now</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Earnings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 14px;">
+  <a href="DriverOffline.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.6px;">Earnings</div>
+    <div role="group" aria-label="Period" style="display: flex; background: #F2F0F5; border-radius: 12px; padding: 4px;">
+      <button aria-pressed="true" style="height: 36px; padding: 0 14px; border-radius: 9px; border: none; background: #FFFFFF; font-family: Manrope, sans-serif; font-weight: 800; font-size: 13px; box-shadow: 0 1px 3px rgba(20,16,24,0.12);">Week</button>
+      <button aria-pressed="false" style="height: 36px; padding: 0 14px; border-radius: 9px; border: none; background: transparent; font-family: Manrope, sans-serif; font-weight: 700; font-size: 13px; color: #463C58;">Month</button>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <button aria-label="Previous week" style="width: 44px; height: 44px; border-radius: 50%; border: none; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+    <span style="flex-grow: 1; text-align: center; font-size: 15px; font-weight: 800;">Mon 6 – Sun 12 Oct</span>
+    <button aria-label="Next week" style="width: 44px; height: 44px; border-radius: 50%; border: none; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px; background: #141018; color: #FFFFFF; border-radius: 20px; padding: 20px;">
+    <span style="font-size: 14px; font-weight: 700; color: #D9D5DF;">Your earnings this week</span>
+    <span style="font-size: 42px; font-weight: 800; letter-spacing: -1px;">SYP 846,000</span>
+    <div style="display: flex; gap: 16px; font-size: 13px; color: #D9D5DF; padding-top: 4px;">
+      <span><strong style="color: #FFFFFF;">38</strong> trips</span>
+      <span>fares <strong style="color: #FFFFFF;">1,064,000</strong></span>
+      <span>tips <strong style="color: #FFFFFF;">48,000</strong></span>
+      <span>commission <strong style="color: #FFFFFF;">−266,000</strong></span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; border: 1.5px solid #EEEBF2; border-radius: 16px; padding: 14px;">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <span style="font-size: 15px; font-weight: 800;">Commission this week: 25%</span>
+      <span style="font-size: 13px; font-weight: 700; color: #59128A; background: #F1EAF8; padding: 5px 10px; border-radius: 12px;">Tier 1</span>
+    </div>
+    <div style="height: 8px; border-radius: 4px; background: #F2F0F5; overflow: hidden;">
+      <div style="width: 38%; height: 100%; background: #59128A;"></div>
+    </div>
+    <span style="font-size: 13px; color: #463C58; line-height: 1.45;">38 trips so far this week. Finish <strong>101+</strong> and next week's commission drops to <strong>20%</strong> · 201+ → 15%.</span>
+  </div>
+
+  <div style="font-size: 17px; font-weight: 800; padding-top: 2px;">Trips</div>
+  <div style="display: flex; flex-direction: column; overflow: hidden;">
+    <a href="DriverTripEarnings.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 58px; border-bottom: 1px solid #EEEBF2; text-decoration: none; color: #141018;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">12:24 · Umayyad Square</span>
+        <span style="font-size: 13px; color: #6E6780;">cash · fare 28,000 · commission −7,000 · tip +5,000</span>
+      </span>
+      <span style="font-size: 15px; font-weight: 800;">−SYP 2,000</span>
+    </a>
+    <a href="DriverTripEarnings.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 58px; border-bottom: 1px solid #EEEBF2; text-decoration: none; color: #141018;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">11:02 · Abu Rummaneh</span>
+        <span style="font-size: 13px; color: #6E6780;">wallet · fare 31,500 · commission −7,875</span>
+      </span>
+      <span style="font-size: 15px; font-weight: 800; color: #59128A;">+SYP 23,625</span>
+    </a>
+    <a href="DriverTripEarnings.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 58px; text-decoration: none; color: #141018;">
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">09:40 · Mazzeh</span>
+        <span style="font-size: 13px; color: #6E6780;">cash · fare 19,000 · commission −4,750</span>
+      </span>
+      <span style="font-size: 15px; font-weight: 800;">−SYP 4,750</span>
+    </a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Surge zones</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminApplications.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Driver applications</a>
+    <a href="AdminDriverLedger.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Driver ledgers</a>
+    <a href="#" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Regions / Damascus / Surge</span>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Surge zones</h1>
+        <span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Live · every 2 min</span>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <div style="flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+          <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Zones surging</span>
+            <span style="font-size: 34px; font-weight: 800;">2 <span style="font-size: 18px; color: #6E6780; font-weight: 700;">of 4</span></span>
+          </div>
+          <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Next cycle</span>
+            <span style="font-size: 34px; font-weight: 800;">12:42</span>
+            <span style="font-size: 12px; color: #6E6780;">Last run 12:40</span>
+          </div>
+          <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Region cap</span>
+            <span style="font-size: 34px; font-weight: 800;" dir="ltr">2.0×</span>
+          </div>
+        </div>
+
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+          <div style="padding: 18px 24px;">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Zones</h2>
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 640px;">
+            <thead>
+              <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+                <th style="padding: 12px 24px; font-weight: 700;">Zone</th>
+                <th style="padding: 12px; font-weight: 700;">Now</th>
+                <th style="padding: 12px; font-weight: 700;">Automatic</th>
+                <th style="padding: 12px; font-weight: 700;">Requests / free drivers</th>
+                <th style="padding: 12px 24px; font-weight: 700;">Manual override</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-top: 1px solid #F0EEF3;">
+                <td style="padding: 14px 24px; font-weight: 800;">Mazzeh</td>
+                <td style="padding: 14px 12px;"><span style="font-weight: 800; color: #FFFFFF; background: #59128A; padding: 4px 10px; border-radius: 12px;" dir="ltr">2.0×</span></td>
+                <td style="padding: 14px 12px; color: #463C58;" dir="ltr">2.0×</td>
+                <td style="padding: 14px 12px; color: #463C58;">11 / 2</td>
+                <td style="padding: 14px 24px; color: #6E6780;">Automatic</td>
+              </tr>
+              <tr style="border-top: 1px solid #F0EEF3;">
+                <td style="padding: 14px 24px; font-weight: 800;">Old City</td>
+                <td style="padding: 14px 12px;"><span style="font-weight: 800; color: #3D0B57; background: #F1EAF8; padding: 4px 10px; border-radius: 12px;" dir="ltr">1.5×</span></td>
+                <td style="padding: 14px 12px; color: #463C58;" dir="ltr">1.2×</td>
+                <td style="padding: 14px 12px; color: #463C58;">5 / 2</td>
+                <td style="padding: 14px 24px;"><span style="font-weight: 800;" dir="ltr">1.5×</span> <span style="font-size: 12px; color: #6E6780;">· set by Samir A. 11:58</span></td>
+              </tr>
+              <tr style="border-top: 1px solid #F0EEF3; background: #FBF9FD;">
+                <td style="padding: 14px 24px; font-weight: 800;">Kafr Sousa</td>
+                <td style="padding: 14px 12px; color: #463C58; font-weight: 700;" dir="ltr">1.0×</td>
+                <td style="padding: 14px 12px; color: #463C58;" dir="ltr">1.0×</td>
+                <td style="padding: 14px 12px; color: #463C58;">1 / 4</td>
+                <td style="padding: 14px 24px;"><span style="font-weight: 800;" dir="ltr">1.8×</span> <span style="font-size: 12px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 3px 8px; border-radius: 10px;">applies at 12:42</span></td>
+              </tr>
+              <tr style="border-top: 1px solid #F0EEF3;">
+                <td style="padding: 14px 24px; font-weight: 800;">Baramkeh</td>
+                <td style="padding: 14px 12px; color: #463C58; font-weight: 700;" dir="ltr">1.0×</td>
+                <td style="padding: 14px 12px; color: #463C58;" dir="ltr">1.0×</td>
+                <td style="padding: 14px 12px; color: #463C58;">0 / 3</td>
+                <td style="padding: 14px 24px; color: #6E6780;">Automatic</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="padding: 12px 24px 18px; font-size: 12px; color: #6E6780; line-height: 1.5;">Automatic steps: 2+ requests per free driver → 1.2×, 3+ → 1.5×, 5+ → 2.0×, capped at the zone and region cap. Drivers below the balance floor or without an active vehicle don't count as free.</div>
+        </section>
+      </div>
+
+      <aside style="flex: 0 1 360px; min-width: 300px; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Kafr Sousa</h2>
+          <span style="font-size: 13px; color: #6E6780;">Now 1.0× · automatic 1.0× · cap 2.0×</span>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Manual multiplier
+          <input value="1.8" inputmode="decimal" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 12px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; color: #141018;">
+          <span style="font-size: 12px; font-weight: 600; color: #6E6780;">Between 1.0× and the 2.0× cap</span>
+        </label>
+        <div style="display: flex; flex-direction: column; gap: 6px; background: #FFF6E5; border-radius: 12px; padding: 12px 14px; font-size: 13px; color: #6A2C0A;">
+          <span style="font-weight: 800;">Pending</span>
+          <span>1.8× takes effect at the next cycle (12:42) and stays until you reset it. Rides already booked keep their locked rate.</span>
+        </div>
+        <button style="height: 48px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 800;">Update override</button>
+        <button style="height: 48px; border-radius: 12px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700;">Reset to automatic</button>
+        <span style="font-size: 12px; color: #6E6780; line-height: 1.5;">Overrides and resets are audit-logged. Needs the Edit pricing permission.</span>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

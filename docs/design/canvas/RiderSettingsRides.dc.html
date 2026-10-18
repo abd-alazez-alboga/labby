@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings · Rides</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=IBM+Plex+Sans+Arabic:wght@600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 72px 20px 0; box-sizing: border-box; gap: 20px;">
+  <span style="font-size: 28px; font-weight: 800; letter-spacing: -0.6px;">Settings</span>
+
+  <div style="display: flex; align-items: center; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid #EEEBF2;">
+    <div style="width: 56px; height: 56px; border-radius: 50%; background: #E8DCF0; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #59128A;">R</div>
+    <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 17px; font-weight: 800;">Rana</span>
+      <span style="font-size: 14px; color: #463C58;">+963 900 000 001</span>
+    </span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <span style="font-size: 20px; font-weight: 800;">Language</span>
+    <div style="display: flex; gap: 8px;">
+      <span style="height: 44px; padding: 0 18px; border-radius: 22px; border: 2px solid #141018; display: flex; align-items: center; font-size: 15px; font-weight: 700;">English</span>
+      <span style="height: 44px; padding: 0 18px; border-radius: 22px; border: 1.5px solid #D9D5DF; display: flex; align-items: center; font-size: 15px; font-weight: 600; font-family: 'IBM Plex Sans Arabic', sans-serif;">العربية</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 4px;">
+    <span style="font-size: 20px; font-weight: 800; padding-bottom: 8px;">Rides</span>
+
+    <button style="display: flex; align-items: center; gap: 14px; min-height: 64px; border: none; border-bottom: 1px solid #EEEBF2; background: transparent; padding: 0; font-family: Manrope, sans-serif; text-align: left;">
+      <span style="width: 40px; height: 40px; border-radius: 50%; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linejoin="round"><path d="M4 15v-3l4-5h8l5 5h1a1 1 0 0 1 1 1v2h-2"></path><circle cx="8" cy="16" r="2.5"></circle><circle cx="17" cy="16" r="2.5"></circle><line x1="10.5" y1="16" x2="14.5" y2="16"></line></svg>
+      </span>
+      <span style="flex-grow: 1; font-size: 17px; font-weight: 700; color: #141018;">Your rides</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+
+    <button style="display: flex; align-items: center; gap: 14px; min-height: 64px; border: none; border-bottom: 1px solid #EEEBF2; background: transparent; padding: 0; font-family: Manrope, sans-serif; text-align: left;">
+      <span style="width: 40px; height: 40px; border-radius: 50%; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+      </span>
+      <span style="flex-grow: 1; font-size: 17px; font-weight: 700; color: #141018;">Saved places</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+
+    <button style="display: flex; align-items: center; gap: 14px; min-height: 64px; border: none; background: transparent; padding: 0; font-family: Manrope, sans-serif; text-align: left;">
+      <span style="width: 40px; height: 40px; border-radius: 50%; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"></line><circle cx="9" cy="7" r="2.5" fill="#FFFFFF"></circle><line x1="4" y1="12" x2="20" y2="12"></line><circle cx="15" cy="12" r="2.5" fill="#FFFFFF"></circle><line x1="4" y1="17" x2="20" y2="17"></line><circle cx="7" cy="17" r="2.5" fill="#FFFFFF"></circle></svg>
+      </span>
+      <span style="flex-grow: 1; font-size: 17px; font-weight: 700; color: #141018;">Ride preferences</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 4px;">
+    <span style="font-size: 20px; font-weight: 800; padding-bottom: 8px;">Notifications</span>
+    <button style="display: flex; align-items: center; gap: 14px; min-height: 64px; border: none; background: transparent; padding: 0; font-family: Manrope, sans-serif; text-align: left;">
+      <span style="width: 40px; height: 40px; border-radius: 50%; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+      </span>
+      <span style="flex-grow: 1; font-size: 17px; font-weight: 700; color: #141018;">Notification preferences</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

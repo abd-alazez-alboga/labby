@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flagged accounts</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live ops</a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="AdminUserTrust.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminReports.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Reports</a>
+    <a href="AdminFlags.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Flagged accounts</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Flagged accounts</h1>
+        <span style="font-size: 15px; color: #6E6780;">Flags never suspend anyone — you decide. Oldest first.</span>
+      </div>
+      <div role="group" aria-label="Kind" style="display: flex; background: #ECEAF0; border-radius: 12px; padding: 4px; flex-wrap: wrap;">
+        <button aria-pressed="true" style="height: 38px; padding: 0 14px; border-radius: 9px; border: none; background: #FFFFFF; font-family: Manrope, sans-serif; font-weight: 800; font-size: 14px; box-shadow: 0 1px 3px rgba(20,16,24,0.12);">All · 4</button>
+        <button aria-pressed="false" style="height: 38px; padding: 0 14px; border-radius: 9px; border: none; background: transparent; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #463C58;">Low rating</button>
+        <button aria-pressed="false" style="height: 38px; padding: 0 14px; border-radius: 9px; border: none; background: transparent; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #463C58;">Metric warning</button>
+        <button aria-pressed="false" style="height: 38px; padding: 0 14px; border-radius: 9px; border: none; background: transparent; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #463C58;">Report threshold</button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <section style="flex: 1 1 620px; min-width: 0; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 640px;">
+          <thead>
+            <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+              <th style="padding: 14px 24px; font-weight: 700;">Account</th>
+              <th style="padding: 14px 12px; font-weight: 700;">Flag</th>
+              <th style="padding: 14px 12px; font-weight: 700;">Triggering rule</th>
+              <th style="padding: 14px 24px; font-weight: 700;">Raised</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top: 1px solid #F0EEF3; background: #FBF8FD; box-shadow: inset 3px 0 0 #59128A;">
+              <td style="padding: 16px 24px;"><a href="AdminUserTrust.dc.html" style="font-weight: 800;">Samer Haddad</a><div style="font-size: 12px; color: #6E6780;">driver</div></td>
+              <td style="padding: 16px 12px; font-weight: 800;">Report threshold</td>
+              <td style="padding: 16px 12px; color: #463C58;">3 substantiated in 90 days (limit 3)</td>
+              <td style="padding: 16px 24px; color: #463C58;">13 Oct</td>
+            </tr>
+            <tr style="border-top: 1px solid #F0EEF3;">
+              <td style="padding: 16px 24px;"><a href="AdminUserTrust.dc.html" style="font-weight: 800;">Samer Haddad</a><div style="font-size: 12px; color: #6E6780;">driver</div></td>
+              <td style="padding: 16px 12px; font-weight: 800;">Low rating</td>
+              <td style="padding: 16px 12px; color: #463C58;">3.38 avg &lt; 3.5 after 34 ratings · Damascus</td>
+              <td style="padding: 16px 24px; color: #463C58;">12 Oct</td>
+            </tr>
+            <tr style="border-top: 1px solid #F0EEF3;">
+              <td style="padding: 16px 24px;"><a href="#" style="font-weight: 800;">Omar Saleh</a><div style="font-size: 12px; color: #6E6780;">driver</div></td>
+              <td style="padding: 16px 12px; font-weight: 800;">Metric warning</td>
+              <td style="padding: 16px 12px; color: #463C58;">Acceptance 46% &lt; 50% · 52 offers / 30 d</td>
+              <td style="padding: 16px 24px; color: #463C58;">11 Oct</td>
+            </tr>
+            <tr style="border-top: 1px solid #F0EEF3;">
+              <td style="padding: 16px 24px;"><a href="#" style="font-weight: 800;">Hala Mourad</a><div style="font-size: 12px; color: #6E6780;">rider</div></td>
+              <td style="padding: 16px 12px; font-weight: 800;">Low rating</td>
+              <td style="padding: 16px 12px; color: #463C58;">2.86 avg &lt; 3.0 after 14 ratings · Damascus</td>
+              <td style="padding: 16px 24px; color: #463C58;">10 Oct</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <aside style="flex: 0 1 360px; min-width: 300px; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
+        <span style="font-size: 12px; font-weight: 700; color: #6E6780;">Selected flag</span>
+        <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Samer Haddad · report threshold</h2>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px;">
+          <a href="AdminReportDetail.dc.html" style="font-weight: 700;">Unsafe driving · 13 Oct</a>
+          <a href="#" style="font-weight: 700;">Inappropriate behavior · 2 Oct</a>
+          <a href="#" style="font-weight: 700;">Unsafe driving · 21 Aug</a>
+        </div>
+        <a href="AdminUserTrust.dc.html" style="height: 48px; border-radius: 12px; background: #59128A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 15px; font-weight: 800;">Open profile to suspend</a>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58; border-top: 1px solid #F0EEF3; padding-top: 14px;">Close the flag · note required
+          <textarea rows="3" style="border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 10px 12px; font-family: Manrope, sans-serif; font-size: 14px; color: #141018; resize: vertical;">Called the driver, warned about speeding.</textarea>
+        </label>
+        <div style="display: flex; gap: 10px;">
+          <button style="flex: 1; height: 44px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800; color: #141018;">Mark actioned</button>
+          <button style="flex: 1; height: 44px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800; color: #141018;">Dismiss</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

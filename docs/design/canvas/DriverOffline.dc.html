@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Driver offline</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #ECE9F0;">
+  <div style="position: absolute; left: -40px; top: 200px; width: 520px; height: 18px; background: #FFFFFF; transform: rotate(-12deg);"></div>
+  <div style="position: absolute; left: -40px; top: 420px; width: 520px; height: 12px; background: #FFFFFF; transform: rotate(8deg);"></div>
+  <div style="position: absolute; left: 120px; top: -40px; width: 14px; height: 760px; background: #FFFFFF; transform: rotate(14deg);"></div>
+  <div style="position: absolute; left: 290px; top: -40px; width: 10px; height: 760px; background: #FFFFFF; transform: rotate(-6deg);"></div>
+  <div style="position: absolute; left: 30px; top: 290px; width: 90px; height: 70px; background: #DDEBD8; border-radius: 10px;"></div>
+  <div style="position: absolute; left: 180px; top: 352px; width: 30px; height: 30px; border-radius: 50%; background: #141018; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(20,16,24,0.3);">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2l7 18-7-4-7 4z"></path></svg>
+  </div>
+
+  <div style="position: absolute; top: 56px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center;">
+    <button aria-label="Menu" style="width: 48px; height: 48px; border-radius: 50%; border: none; background: #FFFFFF; box-shadow: 0 2px 10px rgba(20,16,24,0.16); display: flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+    </button>
+    <div style="height: 48px; padding: 0 20px; border-radius: 24px; background: #141018; color: #FFFFFF; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(20,16,24,0.2);">
+      <span style="font-size: 14px; font-weight: 600; color: #B7AECB;">SYP</span>
+      <span style="font-size: 20px; font-weight: 800;">0</span>
+    </div>
+    <button aria-label="Notifications" style="width: 48px; height: 48px; border-radius: 50%; border: none; background: #FFFFFF; box-shadow: 0 2px 10px rgba(20,16,24,0.16); display: flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+    </button>
+  </div>
+
+  <button aria-label="Go online" style="position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: 96px; height: 96px; border-radius: 50%; border: 5px solid #FFFFFF; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 26px; font-weight: 800; box-shadow: 0 6px 20px rgba(61,11,87,0.45);">GO</button>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgba(20,16,24,0.12); padding: 22px 24px 34px; display: flex; align-items: center; gap: 14px;">
+    <span style="width: 12px; height: 12px; border-radius: 50%; background: #B7AECB;"></span>
+    <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 20px; font-weight: 800;">You're offline</span>
+      <span style="font-size: 14px; color: #463C58;">Damascus · Economy, Comfort</span>
+    </span>
+    <button aria-label="Driving preferences" style="width: 48px; height: 48px; border-radius: 50%; border: none; background: #F2F0F5; display: flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"></line><circle cx="9" cy="7" r="2.5" fill="#F2F0F5"></circle><line x1="4" y1="17" x2="20" y2="17"></line><circle cx="15" cy="17" r="2.5" fill="#F2F0F5"></circle></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Report · investigate</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live ops</a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="AdminUserTrust.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminReports.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Reports</a>
+    <a href="AdminFlags.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Flagged accounts</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <a href="AdminReports.dc.html" style="font-size: 13px; font-weight: 700; color: #6E6780; text-decoration: none;">Reports / Unsafe driving</a>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Unsafe driving</h1>
+        <span style="font-size: 13px; font-weight: 700; color: #463C58; background: #ECEAF0; padding: 5px 10px; border-radius: 12px;">Open · filed 13 Oct 12:50</span>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <div style="flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 800;">What the rider wrote</h2>
+          <p style="margin: 0; font-size: 15px; line-height: 1.6;">"He was speeding on the Mezzeh highway and using his phone."</p>
+          <div style="display: flex; gap: 10px;">
+            <a href="#" style="width: 120px; height: 90px; border-radius: 12px; background: #D9D5DF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #463C58; text-decoration: none;">[photo 1]</a>
+          </div>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow: hidden;">
+          <div style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 800;">Ride 13 Oct 12:29 · Economy · cash · SYP 27,250</h2>
+            <a href="AdminRideDetail.dc.html" style="font-size: 14px; font-weight: 800;">Open ride detail</a>
+          </div>
+          <svg viewBox="0 0 800 220" role="img" aria-label="GPS trace of the ride from Mazzeh to Umayyad Square" style="display: block; width: 100%; height: 220px; background: #EEF0EC;">
+            <path d="M0 160 L800 120 M120 0 L180 220 M420 0 L460 220 M640 0 L600 220" stroke="#FFFFFF" stroke-width="14" fill="none"></path>
+            <polyline points="90,180 160,150 260,140 360,128 470,110 560,92 660,70 720,56" fill="none" stroke="#59128A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            <circle cx="90" cy="180" r="9" fill="#141018"></circle>
+            <rect x="712" y="48" width="16" height="16" fill="#141018"></rect>
+          </svg>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 16px 24px; font-size: 13px;">
+            <span style="display: flex; flex-direction: column; gap: 2px;"><span style="color: #6E6780; font-weight: 700;">Accepted</span><span style="font-weight: 800;">12:29</span></span>
+            <span style="display: flex; flex-direction: column; gap: 2px;"><span style="color: #6E6780; font-weight: 700;">Arrived</span><span style="font-weight: 800;">12:33</span></span>
+            <span style="display: flex; flex-direction: column; gap: 2px;"><span style="color: #6E6780; font-weight: 700;">Completed</span><span style="font-weight: 800;">12:43 · 4.2 km</span></span>
+            <span style="display: flex; flex-direction: column; gap: 2px;"><span style="color: #6E6780; font-weight: 700;">SOS</span><span style="font-weight: 800;">none</span></span>
+          </div>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 24px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 800;">Chat log · 4 messages</h2>
+            <a href="AdminRideDetail.dc.html" style="font-size: 14px; font-weight: 800;">Full chat</a>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px;">
+            <span><strong>Samer</strong> <span style="color: #6E6780;">12:30</span> · On my way</span>
+            <span><strong>Rana</strong> <span style="color: #6E6780;">12:31</span> · I'm at the pharmacy entrance, blue jacket</span>
+            <span><strong>Samer</strong> <span style="color: #6E6780;">12:33</span> · Stuck in traffic</span>
+            <span><strong>Rana</strong> <span style="color: #6E6780;">12:33</span> · Okay</span>
+          </div>
+        </section>
+      </div>
+
+      <aside style="flex: 0 1 380px; min-width: 300px; display: flex; flex-direction: column; gap: 16px;">
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; font-weight: 700; color: #6E6780;">Reported · driver</span>
+            <a href="AdminUserTrust.dc.html" style="font-size: 16px; font-weight: 800;">Samer Haddad</a>
+            <span style="font-size: 13px; color: #463C58;">5 reports against · 2 substantiated · 0 filed</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #F0EEF3; padding-top: 12px;">
+            <span style="font-size: 12px; font-weight: 700; color: #6E6780;">Reporter · rider</span>
+            <a href="#" style="font-size: 16px; font-weight: 800;">Rana Khoury</a>
+            <span style="font-size: 13px; color: #463C58;">0 reports against · 1 filed before</span>
+          </div>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Resolve</h2>
+          <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;">
+            <legend style="font-size: 13px; font-weight: 700; color: #463C58; padding-bottom: 6px;">Outcome</legend>
+            <label style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid #59128A; background: #F1EAF8; font-size: 15px; font-weight: 800;"><input type="radio" name="o" checked style="width: 18px; height: 18px; accent-color: #59128A; margin: 0;">Substantiated</label>
+            <label style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1.5px solid #D9D5DF; font-size: 15px; font-weight: 700;"><input type="radio" name="o" style="width: 18px; height: 18px; accent-color: #59128A; margin: 0;">Unsubstantiated</label>
+          </fieldset>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Notes · required, internal only
+            <textarea rows="4" style="border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 10px 12px; font-family: Manrope, sans-serif; font-size: 14px; color: #141018; resize: vertical;">Trace shows 92 km/h stretch on Mezzeh highway (limit 60). Consistent with report.</textarea>
+          </label>
+          <span style="font-size: 12px; color: #6E6780; line-height: 1.5;">This is Samer's 3rd substantiated report in 90 days — resolving it flags his account for review.</span>
+          <button style="height: 48px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 800;">Resolve as substantiated</button>
+          <span style="font-size: 12px; color: #6E6780; line-height: 1.5;">Final once saved. Rana is told the outcome only; notes stay internal. Logged under your name.</span>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

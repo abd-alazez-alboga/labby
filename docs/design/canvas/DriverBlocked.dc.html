@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Offers paused</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #ECE9F0;">
+  <div style="position: absolute; left: -40px; top: 140px; width: 520px; height: 14px; background: #FFFFFF; transform: rotate(-9deg); opacity: 0.6;"></div>
+  <div style="position: absolute; left: 200px; top: -40px; width: 12px; height: 340px; background: #FFFFFF; transform: rotate(12deg); opacity: 0.6;"></div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgba(20,16,24,0.12); padding: 10px 20px 34px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #D9D5DF;"></div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; background: #FEF3F2; border: 2px solid #B42318; border-radius: 18px; padding: 16px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="5.7" y1="5.7" x2="18.3" y2="18.3"></line></svg>
+        <span style="font-size: 20px; font-weight: 800; color: #B42318;">Ride offers are paused</span>
+      </div>
+      <span style="font-size: 14px; color: #6A1711; line-height: 1.5;">Your debt reached <strong>SYP 520,000</strong> — past the <strong>SYP 500,000</strong> limit. You won't get new offers until you settle.</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 14px; font-weight: 700; color: #6E6780;">You owe Labby</span>
+      <span style="font-size: 40px; font-weight: 800; letter-spacing: -1px;">SYP 520,000</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; border: 1.5px solid #EEEBF2; border-radius: 16px; padding: 14px;">
+      <span style="font-size: 15px; font-weight: 800;">How to get back on the road</span>
+      <div style="display: flex; gap: 12px; align-items: flex-start;">
+        <span style="width: 26px; height: 26px; border-radius: 50%; background: #F1EAF8; color: #59128A; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">1</span>
+        <span style="font-size: 14px; color: #463C58; line-height: 1.45;">Visit the Labby office — Baghdad Street, Sat–Thu 9:00–17:00 — and hand in your settlement.</span>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: flex-start;">
+        <span style="width: 26px; height: 26px; border-radius: 50%; background: #F1EAF8; color: #59128A; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">2</span>
+        <span style="font-size: 14px; color: #463C58; line-height: 1.45;">An admin records it on the spot — no paperwork for you.</span>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: flex-start;">
+        <span style="width: 26px; height: 26px; border-radius: 50%; background: #F1EAF8; color: #59128A; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">3</span>
+        <span style="font-size: 14px; color: #463C58; line-height: 1.45;">Offers resume automatically the moment your balance is back above the limit. We'll notify you.</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <a href="DriverBalance.dc.html" style="height: 56px; border-radius: 14px; background: #59128A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 17px; font-weight: 800;">See my balance</a>
+      <button disabled style="height: 64px; border-radius: 18px; border: none; background: #D9D5DF; color: #8E8798; font-family: Manrope, sans-serif; font-size: 20px; font-weight: 800;">GO — unavailable</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

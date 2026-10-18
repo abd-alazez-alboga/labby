@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ride preferences</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 14px;">
+  <a href="Main.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.6px;">Ride preferences</div>
+
+  <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;">
+    <legend style="font-size: 17px; font-weight: 800; padding: 0 0 8px;">Matching</legend>
+    <label style="display: flex; gap: 12px; align-items: flex-start; border: 2px solid #141018; border-radius: 14px; padding: 12px 14px;">
+      <input type="radio" name="matching" checked style="width: 22px; height: 22px; accent-color: #59128A; margin: 2px 0 0;">
+      <span style="display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 16px; font-weight: 800;">Nearby drivers only</span>
+        <span style="font-size: 13px; color: #463C58;">Drivers within 10 km. No pickup fee.</span>
+      </span>
+    </label>
+    <label style="display: flex; gap: 12px; align-items: flex-start; border: 2px solid #EEEBF2; border-radius: 14px; padding: 12px 14px;">
+      <input type="radio" name="matching" style="width: 22px; height: 22px; accent-color: #59128A; margin: 2px 0 0;">
+      <span style="display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 16px; font-weight: 800;">Accept distant drivers</span>
+        <span style="font-size: 13px; color: #463C58;">Faster matching. Beyond 10 km a pickup fee of SYP 500 per km may apply.</span>
+      </span>
+    </label>
+  </fieldset>
+
+  <div style="font-size: 17px; font-weight: 800; padding-top: 6px;">Comfort <span style="font-size: 13px; font-weight: 600; color: #6E6780;">· shown to your driver</span></div>
+
+  <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+    <legend style="font-size: 14px; font-weight: 700; color: #463C58; padding: 0 0 6px;">Temperature</legend>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="temp" style="position: absolute; opacity: 0; width: 1px; height: 1px;">No pref.</label>
+      <label style="height: 44px; border-radius: 12px; background: #141018; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="temp" checked style="position: absolute; opacity: 0; width: 1px; height: 1px;">Cool</label>
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="temp" style="position: absolute; opacity: 0; width: 1px; height: 1px;">Normal</label>
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="temp" style="position: absolute; opacity: 0; width: 1px; height: 1px;">Warm</label>
+    </div>
+  </fieldset>
+
+  <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+    <legend style="font-size: 14px; font-weight: 700; color: #463C58; padding: 0 0 6px;">Conversation</legend>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="talk" style="position: absolute; opacity: 0; width: 1px; height: 1px;">No pref.</label>
+      <label style="height: 44px; border-radius: 12px; background: #141018; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="talk" checked style="position: absolute; opacity: 0; width: 1px; height: 1px;">Quiet</label>
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="talk" style="position: absolute; opacity: 0; width: 1px; height: 1px;">Chatty</label>
+    </div>
+  </fieldset>
+
+  <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+    <legend style="font-size: 14px; font-weight: 700; color: #463C58; padding: 0 0 6px;">Music</legend>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+      <label style="height: 44px; border-radius: 12px; background: #141018; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="music" checked style="position: absolute; opacity: 0; width: 1px; height: 1px;">No pref.</label>
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="music" style="position: absolute; opacity: 0; width: 1px; height: 1px;">None</label>
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="music" style="position: absolute; opacity: 0; width: 1px; height: 1px;">Soft</label>
+      <label style="height: 44px; border-radius: 12px; background: #F2F0F5; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;"><input type="radio" name="music" style="position: absolute; opacity: 0; width: 1px; height: 1px;">Any</label>
+    </div>
+  </fieldset>
+
+  <button style="margin-top: auto; height: 56px; border-radius: 14px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800;">Save preferences</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

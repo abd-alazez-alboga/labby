@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ride detail · shared ride chat log</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminLiveOps.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live map</a>
+    <a href="AdminRides.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Rides</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminSurgeZones.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Rides / R-3107</span>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Ride R-3107</h1>
+        <span style="font-size: 13px; font-weight: 800; color: #3D0B57; background: #F1EAF8; padding: 5px 10px; border-radius: 12px;">Shared · 4 seats</span>
+        <span style="font-size: 13px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Completed</span>
+      </div>
+      <span style="font-size: 14px; color: #463C58;">Today 12:28 · Damascus · Economy · created by Rana H. · driver Samer A. · 3 parties</span>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Members</h2>
+          <span style="display: flex; justify-content: space-between; font-size: 14px; gap: 12px;"><span style="font-weight: 700;">Rana H. · creator · party of 2</span><span style="color: #067647; font-weight: 700;">Completed · paid cash</span></span>
+          <span style="display: flex; justify-content: space-between; font-size: 14px; gap: 12px;"><span style="font-weight: 700;">Omar K. · party of 1</span><span style="color: #067647; font-weight: 700;">Completed · paid wallet</span></span>
+          <span style="display: flex; justify-content: space-between; font-size: 14px; gap: 12px;"><span style="font-weight: 700;">Lina S. · party of 1</span><span style="color: #B42318; font-weight: 700;">Absent · fee charged</span></span>
+        </section>
+      </div>
+
+      <div style="flex: 1 1 480px; min-width: 300px; display: flex; flex-direction: column; gap: 16px;">
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 800;">Chat log</h2>
+            <span style="font-size: 12px; font-weight: 700; color: #6E6780;">Read-only · View support permission</span>
+          </div>
+          <span style="font-size: 13px; color: #463C58; margin-top: -6px;">Each member chats privately with the driver. Pick a member to read their thread.</span>
+          <div role="tablist" aria-label="Member threads" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button role="tab" aria-selected="true" style="height: 44px; padding: 0 16px; border-radius: 22px; border: 2px solid #59128A; background: #F1EAF8; color: #3D0B57; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800;">Rana H. · 3</button>
+            <button role="tab" aria-selected="false" style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700;">Omar K. · 1</button>
+            <button role="tab" aria-selected="false" style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700;">Lina S. · 2</button>
+          </div>
+          <div role="tabpanel" style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #F0EEF3; padding-top: 14px;">
+            <span style="align-self: flex-start; max-width: 320px; background: #F7F6F9; border-radius: 12px 12px 12px 4px; padding: 8px 12px; font-size: 14px;">Samer · 12:30 — On my way</span>
+            <span style="align-self: flex-end; max-width: 320px; background: #F1EAF8; border-radius: 12px 12px 4px 12px; padding: 8px 12px; font-size: 14px;">Rana · 12:31 — We're by the yellow kiosk</span>
+            <span style="align-self: flex-start; max-width: 320px; background: #F7F6F9; border-radius: 12px 12px 12px 4px; padding: 8px 12px; font-size: 14px;">Samer · 12:33 — I've arrived</span>
+          </div>
+          <span style="font-size: 12px; color: #6E6780;">Window closed 24 h after the ride ended · opening a thread is recorded in the audit log</span>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
