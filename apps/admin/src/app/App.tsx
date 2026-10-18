@@ -36,6 +36,10 @@ const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 const ReportDetailPage = lazy(() => import('../pages/ReportDetailPage'));
 const FlagsPage = lazy(() => import('../pages/FlagsPage'));
 const UserTrustPage = lazy(() => import('../pages/UserTrustPage'));
+const PromosPage = lazy(() => import('../pages/PromosPage'));
+const PromoCreatePage = lazy(() => import('../pages/PromoCreatePage'));
+const ChallengesPage = lazy(() => import('../pages/ChallengesPage'));
+const ChallengeDetailPage = lazy(() => import('../pages/ChallengeDetailPage'));
 
 export function App() {
   return (
@@ -162,6 +166,47 @@ export function App() {
                     <Suspense fallback={<div className="loading" />}>
                       <RequirePermission permission="reports:view">
                         <ReportDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* M13 growth (UC-A-26/28): promos and challenges. */}
+                <Route
+                  path="promos"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="promos:view">
+                        <PromosPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="promos/new"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="promos:manage">
+                        <PromoCreatePage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="challenges"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="challenges:view">
+                        <ChallengesPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="challenges/:challengeId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="challenges:view">
+                        <ChallengeDetailPage />
                       </RequirePermission>
                     </Suspense>
                   }

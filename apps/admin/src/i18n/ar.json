@@ -18,7 +18,9 @@
     "auditLog": "سجل التدقيق",
     "reports": "البلاغات",
     "flags": "الحسابات المُعلَّمة",
-    "openCount": "{{count}} مفتوحة"
+    "openCount": "{{count}} مفتوحة",
+    "promos": "العروض",
+    "challenges": "التحديات"
   },
   "api": {
     "checking": "جارٍ فحص الخادم…",
@@ -674,7 +676,8 @@
     "audit": "التدقيق",
     "admins": "حسابات المشرفين",
     "roles": "الأدوار",
-    "reports": "البلاغات"
+    "reports": "البلاغات",
+    "challenges": "التحديات"
   },
   "permissionCodes": {
     "users": {
@@ -730,6 +733,10 @@
     "reports": {
       "view": "عرض بلاغات المستخدمين",
       "handle": "البتّ في بلاغات المستخدمين"
+    },
+    "challenges": {
+      "view": "عرض التحديات",
+      "manage": "إدارة التحديات"
     }
   },
   "toast": {
@@ -1483,6 +1490,175 @@
       "account_deleted": "هذا الحساب محذوف ولا يمكن إيقافه.",
       "validation": "رفض الخادم الطلب. تحقق من النص المطلوب وطوله.",
       "conflict": "تغيّر هذا في الأثناء. حُدِّثت الصفحة."
+    }
+  },
+  "promos": {
+    "title": "العروض",
+    "subtitle": "رموز الخصم مع عدّادات استخدام حيّة.",
+    "new": "عرض جديد",
+    "kpiActive": "عروض فعّالة",
+    "kpiActiveHint": "جارية الآن",
+    "regionFilter": "المنطقة",
+    "allRegions": "كل المناطق",
+    "allRideTypes": "كل أنواع الرحلات",
+    "columns": {
+      "code": "الرمز",
+      "discount": "الخصم",
+      "window": "الفترة",
+      "limits": "الحدود",
+      "redeemed": "الاستخدام",
+      "status": "الحالة",
+      "action": "إجراءات"
+    },
+    "percentOff": "{{value}}%",
+    "maxDiscountShort": "بحد أقصى {{amount}}",
+    "fixedOff": "خصم {{amount}}",
+    "perUser": "{{count}} / راكب",
+    "firstRideOnlyShort": "الرحلة الأولى فقط",
+    "rideTypeLimited": "نوع رحلة واحد",
+    "redeemedOf": "{{redeemed}} من {{cap}}",
+    "status": {
+      "active": "فعّال",
+      "scheduled": "مجدول",
+      "ended": "منتهٍ",
+      "deactivated": "موقوف"
+    },
+    "deactivate": "إيقاف",
+    "confirmDeactivate": "إيقاف الاستخدامات الجديدة؟",
+    "deactivated": "أُوقف {{code}} — الرحلات المحجوزة تحتفظ بخصمها.",
+    "deactivateFailed": "تعذّر إيقاف العرض. حاول مجددًا.",
+    "empty": "لا توجد عروض بعد.",
+    "footnote": "الإيقاف يمنع الاستخدامات الجديدة فورًا؛ الرحلات التي حجزت العرض تحتفظ بخصمها. التغييرات تتطلب صلاحية إدارة العروض وتُسجَّل في سجل التدقيق. تُحتسب العمولة على الأجرة قبل الخصم، ويُعوَّض السائق برصيد محفظة من المنصة.",
+    "createTitle": "عرض جديد",
+    "created": "أُنشئ {{code}}.",
+    "form": {
+      "section": "العرض",
+      "code": "الرمز",
+      "codeHint": "أحرف وأرقام · ما يكتبه الركاب",
+      "type": "نوع الخصم",
+      "typePercent": "نسبة من الأجرة",
+      "typeFixed": "مبلغ ثابت",
+      "percent": "النسبة",
+      "amount": "المبلغ",
+      "amountIn": "المبلغ ({{currency}})",
+      "maxDiscount": "أقصى خصم",
+      "maxDiscountIn": "أقصى خصم ({{currency}})",
+      "starts": "يبدأ",
+      "ends": "ينتهي",
+      "totalCap": "إجمالي الاستخدامات (فارغ = بلا حد)",
+      "perUser": "استخدامات لكل راكب",
+      "region": "المنطقة",
+      "fixedRegionHint": "المبلغ الثابت يتطلب منطقة — المنطقة تحدد عملته.",
+      "rideType": "نوع الرحلة",
+      "rideTypeHint": "اختر منطقة لتقييد نوع الرحلة.",
+      "firstRideOnly": "الرحلة الأولى فقط",
+      "firstRideOnlyHint": "ركاب بلا أي رحلة مكتملة",
+      "submit": "إنشاء العرض",
+      "footnote": "لا يمكن استخدام الرمز ما دام عرض آخر بالرمز نفسه فعّالًا. الإنشاء يُسجَّل في سجل التدقيق ويتطلب صلاحية إدارة العروض."
+    },
+    "summary": {
+      "title": "الملخص",
+      "percent": "خصم {{value}}%",
+      "percentCapped": "خصم {{value}}% حتى {{max}}",
+      "fixed": "خصم {{amount}}",
+      "limits": "{{total}} استخدام، {{perUser}} لكل راكب",
+      "perUserOnly": "{{perUser}} لكل راكب"
+    },
+    "money": {
+      "title": "المال",
+      "body": "الخصم على حساب المنصة: تُحتسب العمولة على الأجرة قبل الخصم ويحصل السائق على رصيد محفظة بالفرق. وفي الرحلة المشتركة يُخصم من حصة العضو نفسه فقط."
+    },
+    "errors": {
+      "codeTaken": "هذا الرمز مستخدم في عرض آخر.",
+      "fixedNeedsRegion": "عرض المبلغ الثابت يتطلب منطقة.",
+      "window": "تحقق من البداية والنهاية — الفترة غير صالحة.",
+      "generic": "تعذّر إنشاء العرض. حاول مجددًا."
+    }
+  },
+  "challenges": {
+    "title": "التحديات",
+    "subtitle": "النقاط تُحتسب للمستوى فقط — ولا تغيّر الأرباح أبدًا.",
+    "columns": {
+      "challenge": "التحدي",
+      "who": "لمن",
+      "goal": "الهدف ← المكافأة",
+      "window": "الفترة",
+      "participation": "المنضمون / المكملون",
+      "status": "الحالة",
+      "progress": "التقدم",
+      "completedAt": "اكتمل",
+      "reward": "المكافأة"
+    },
+    "role": {
+      "driver": "السائقون",
+      "rider": "الركاب"
+    },
+    "goal": {
+      "completed_rides": "{{count}} رحلة",
+      "shared_rides": "{{count}} رحلة مشتركة",
+      "five_star_ratings": "{{count}} تقييم 5 نجوم"
+    },
+    "goalType": {
+      "completed_rides": "رحلات مكتملة",
+      "shared_rides": "رحلات مشتركة",
+      "five_star_ratings": "تقييمات 5 نجوم"
+    },
+    "goalReward": "{{goal}} ← {{points}} نقطة",
+    "participation": "{{joined}} / {{done}}",
+    "status": {
+      "active": "فعّال",
+      "scheduled": "مجدول",
+      "ended": "منتهٍ",
+      "endedEarly": "أُنهي مبكرًا"
+    },
+    "empty": "لا توجد تحديات بعد.",
+    "footnote": "النقاط تُحتسب للمستوى فقط — ولا تغيّر الأرباح أبدًا. الإنشاء والإنهاء يتطلبان صلاحية إدارة التحديات ويُسجَّلان في سجل التدقيق.",
+    "form": {
+      "title": "تحدٍّ جديد",
+      "nameEn": "الاسم (بالإنجليزية)",
+      "nameAr": "الاسم (بالعربية)",
+      "who": "لمن",
+      "region": "المنطقة",
+      "pickRegion": "اختر منطقة",
+      "goal": "الهدف",
+      "count": "العدد",
+      "from": "من",
+      "to": "إلى",
+      "reward": "نقاط المكافأة",
+      "submit": "إنشاء التحدي"
+    },
+    "created": "أُنشئ {{title}}.",
+    "detailTitle": "التحدي",
+    "detailMeta": "{{who}} · {{region}} · {{goal}} بين {{window}} ← {{points}} نقطة",
+    "kpi": {
+      "participants": "المشاركون",
+      "completed": "المكملون",
+      "pointsGranted": "النقاط الممنوحة",
+      "pointsGrantedHint": "الإكمالات × المكافأة"
+    },
+    "participantColumn": {
+      "driver": "السائق",
+      "rider": "الراكب"
+    },
+    "progressOf": "{{progress}} من {{target}}",
+    "rewardCredited": "أُضيفت {{points}} نقطة",
+    "participationEmpty": "لا مشاركين بعد.",
+    "detailFootnote": "يُمنح الإكمال نقاطه مرة واحدة بالضبط عند بلوغ الهدف.",
+    "end": {
+      "title": "إنهاء التحدي مبكرًا",
+      "whatHappens": "ماذا يحدث",
+      "body": "يتوقف التقدم الجديد فورًا. من أكملوا وعددهم {{done}} يحتفظون بنقاطهم {{points}}. لا أحد يخسر نقاطًا. يرى المشاركون التحدي منتهيًا.",
+      "confirmText": "إنهاء التحدي الآن؟",
+      "action": "إنهاء مبكر",
+      "footnote": "الإنهاء المبكر يُسجَّل في سجل التدقيق ويتطلب صلاحية إدارة التحديات."
+    },
+    "endedToast": "أُنهي التحدي — المكملون يحتفظون بنقاطهم.",
+    "errors": {
+      "window": "تحقق من التواريخ — الفترة غير صالحة.",
+      "generic": "تعذّر إنشاء التحدي. حاول مجددًا.",
+      "alreadyEnded": "التحدي منتهٍ بالفعل.",
+      "endFailed": "تعذّر إنهاء التحدي. حاول مجددًا.",
+      "notFound": "التحدي غير موجود."
     }
   }
 }

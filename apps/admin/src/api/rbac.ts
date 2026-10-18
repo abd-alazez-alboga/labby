@@ -28,6 +28,8 @@ export type PermissionCode =
   | 'wallets:manage'
   | 'promos:view'
   | 'promos:manage'
+  | 'challenges:view'
+  | 'challenges:manage'
   | 'analytics:view'
   | 'analytics:export'
   | 'audit:view'

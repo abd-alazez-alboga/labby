@@ -18,7 +18,9 @@
     "auditLog": "Audit log",
     "reports": "Reports",
     "flags": "Flagged accounts",
-    "openCount": "{{count}} open"
+    "openCount": "{{count}} open",
+    "promos": "Promotions",
+    "challenges": "Challenges"
   },
   "api": {
     "checking": "Checking API…",
@@ -674,7 +676,8 @@
     "audit": "Audit",
     "admins": "Admin accounts",
     "roles": "Roles",
-    "reports": "Reports"
+    "reports": "Reports",
+    "challenges": "Challenges"
   },
   "permissionCodes": {
     "users": {
@@ -730,6 +733,10 @@
     "reports": {
       "view": "View user reports",
       "handle": "Resolve user reports"
+    },
+    "challenges": {
+      "view": "View challenges",
+      "manage": "Manage challenges"
     }
   },
   "toast": {
@@ -1483,6 +1490,175 @@
       "account_deleted": "This account was deleted and can't be suspended.",
       "validation": "The server rejected this. Check the required text and its length.",
       "conflict": "This changed in the meantime. The page is refreshed."
+    }
+  },
+  "promos": {
+    "title": "Promotions",
+    "subtitle": "Promo codes with live redemption counters.",
+    "new": "New promo",
+    "kpiActive": "Active promos",
+    "kpiActiveHint": "running right now",
+    "regionFilter": "Region",
+    "allRegions": "All regions",
+    "allRideTypes": "All ride types",
+    "columns": {
+      "code": "Code",
+      "discount": "Discount",
+      "window": "Window",
+      "limits": "Limits",
+      "redeemed": "Redeemed",
+      "status": "Status",
+      "action": "Actions"
+    },
+    "percentOff": "{{value}}%",
+    "maxDiscountShort": "max {{amount}}",
+    "fixedOff": "{{amount}} off",
+    "perUser": "{{count}} / user",
+    "firstRideOnlyShort": "first ride only",
+    "rideTypeLimited": "1 ride type",
+    "redeemedOf": "{{redeemed}} of {{cap}}",
+    "status": {
+      "active": "Active",
+      "scheduled": "Scheduled",
+      "ended": "Ended",
+      "deactivated": "Deactivated"
+    },
+    "deactivate": "Deactivate",
+    "confirmDeactivate": "Stop new redemptions?",
+    "deactivated": "{{code}} deactivated — reserved rides keep their discount.",
+    "deactivateFailed": "Couldn't deactivate the promo. Try again.",
+    "empty": "No promos yet.",
+    "footnote": "Deactivating stops new redemptions immediately; rides that already reserved the promo keep their discount. Changes need the Edit promotions permission and are audit-logged. Commission is charged on the fare before the discount; the driver is made whole with a platform-funded wallet credit.",
+    "createTitle": "New promo",
+    "created": "{{code}} created.",
+    "form": {
+      "section": "Promo",
+      "code": "Code",
+      "codeHint": "Letters and digits · what riders type",
+      "type": "Discount type",
+      "typePercent": "Percent of the fare",
+      "typeFixed": "Fixed amount",
+      "percent": "Percent",
+      "amount": "Amount",
+      "amountIn": "Amount ({{currency}})",
+      "maxDiscount": "Max discount",
+      "maxDiscountIn": "Max discount ({{currency}})",
+      "starts": "Starts",
+      "ends": "Ends",
+      "totalCap": "Total uses (blank = no cap)",
+      "perUser": "Uses per rider",
+      "region": "Region",
+      "fixedRegionHint": "A fixed amount needs a region — the region sets its currency.",
+      "rideType": "Ride type",
+      "rideTypeHint": "Pick a region to restrict by ride type.",
+      "firstRideOnly": "First ride only",
+      "firstRideOnlyHint": "riders with no completed ride yet",
+      "submit": "Create promo",
+      "footnote": "A code can't be reused while another promo with the same code is active. Creating is audit-logged and needs the Edit promotions permission."
+    },
+    "summary": {
+      "title": "Summary",
+      "percent": "{{value}}% off",
+      "percentCapped": "{{value}}% off, up to {{max}}",
+      "fixed": "{{amount}} off",
+      "limits": "{{total}} uses, {{perUser}} per rider",
+      "perUserOnly": "{{perUser}} per rider"
+    },
+    "money": {
+      "title": "Money",
+      "body": "The discount is platform-funded: commission is charged on the fare before the discount and the driver gets a wallet credit for the difference. On a shared ride it discounts one member's own seat share."
+    },
+    "errors": {
+      "codeTaken": "That code is already in use by another promo.",
+      "fixedNeedsRegion": "A fixed-amount promo needs a region.",
+      "window": "Check the start and end — the window is invalid.",
+      "generic": "Couldn't create the promo. Try again."
+    }
+  },
+  "challenges": {
+    "title": "Challenges",
+    "subtitle": "Points reward the level only — they never change payouts.",
+    "columns": {
+      "challenge": "Challenge",
+      "who": "Who",
+      "goal": "Goal → reward",
+      "window": "Window",
+      "participation": "Joined / done",
+      "status": "Status",
+      "progress": "Progress",
+      "completedAt": "Completed",
+      "reward": "Reward"
+    },
+    "role": {
+      "driver": "Drivers",
+      "rider": "Riders"
+    },
+    "goal": {
+      "completed_rides": "{{count}} rides",
+      "shared_rides": "{{count}} shared rides",
+      "five_star_ratings": "{{count}} five-star ratings"
+    },
+    "goalType": {
+      "completed_rides": "Completed rides",
+      "shared_rides": "Shared rides",
+      "five_star_ratings": "5-star ratings"
+    },
+    "goalReward": "{{goal}} → {{points}} pts",
+    "participation": "{{joined}} / {{done}}",
+    "status": {
+      "active": "Active",
+      "scheduled": "Scheduled",
+      "ended": "Ended",
+      "endedEarly": "Ended early"
+    },
+    "empty": "No challenges yet.",
+    "footnote": "Points reward the level only — they never change payouts. Create and end need the Edit challenges permission; both are audit-logged.",
+    "form": {
+      "title": "New challenge",
+      "nameEn": "Name (English)",
+      "nameAr": "Name (Arabic)",
+      "who": "Who",
+      "region": "Region",
+      "pickRegion": "Pick a region",
+      "goal": "Goal",
+      "count": "Count",
+      "from": "From",
+      "to": "To",
+      "reward": "Reward points",
+      "submit": "Create challenge"
+    },
+    "created": "{{title}} created.",
+    "detailTitle": "Challenge",
+    "detailMeta": "{{who}} · {{region}} · {{goal}} between {{window}} → {{points}} points",
+    "kpi": {
+      "participants": "Participants",
+      "completed": "Completed",
+      "pointsGranted": "Points granted",
+      "pointsGrantedHint": "completions × reward"
+    },
+    "participantColumn": {
+      "driver": "Driver",
+      "rider": "Rider"
+    },
+    "progressOf": "{{progress}} of {{target}}",
+    "rewardCredited": "+{{points}} pts credited",
+    "participationEmpty": "No participants yet.",
+    "detailFootnote": "A completion credits its points exactly once, when the goal is reached.",
+    "end": {
+      "title": "End this challenge early",
+      "whatHappens": "What happens",
+      "body": "New progress stops right away. The {{done}} already finished keep their {{points}} points. Nobody loses points. Participants see the challenge as ended.",
+      "confirmText": "End the challenge now?",
+      "action": "End early",
+      "footnote": "Ending early is audit-logged and needs the Edit challenges permission."
+    },
+    "endedToast": "Challenge ended — completions keep their points.",
+    "errors": {
+      "window": "Check the dates — the window is invalid.",
+      "generic": "Couldn't create the challenge. Try again.",
+      "alreadyEnded": "The challenge is already ended.",
+      "endFailed": "Couldn't end the challenge. Try again.",
+      "notFound": "Challenge not found."
     }
   }
 }

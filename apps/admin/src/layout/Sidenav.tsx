@@ -94,6 +94,16 @@ export function Sidenav() {
             </NavLink>
           </>
         ) : null}
+        {can('promos:view') ? (
+          <NavLink to="/promos" className={linkClass}>
+            {t('nav.promos')}
+          </NavLink>
+        ) : null}
+        {can('challenges:view') ? (
+          <NavLink to="/challenges" className={linkClass}>
+            {t('nav.challenges')}
+          </NavLink>
+        ) : null}
         {can('settlements:view') ? (
           <NavLink to="/driver-ledgers" className={linkClass}>
             {t('nav.driverLedgers')}
