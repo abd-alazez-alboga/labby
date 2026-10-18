@@ -45,6 +45,19 @@ const DRIVING_LINKS: {
     icon: "flag-outline",
     testID: "reports-link",
   },
+  // M13 (UC-S-23/24): level & badges, challenges.
+  {
+    href: "/level",
+    labelKey: "growth.links.level",
+    icon: "medal-outline",
+    testID: "level-link",
+  },
+  {
+    href: "/challenges",
+    labelKey: "growth.links.challenges",
+    icon: "trophy-outline",
+    testID: "challenges-link",
+  },
   {
     href: "/vehicles",
     labelKey: "home.myVehicle",

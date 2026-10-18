@@ -144,6 +144,16 @@ function AppStack() {
           name="performance"
           options={{ title: t("trust.performance.title") }}
         />
+        {/* Level & badges and challenges (M13, UC-S-23/24) — informational,
+            never affect dispatch, so a role-suspended driver may look. */}
+        <Stack.Screen
+          name="level"
+          options={{ title: t("growth.level.title") }}
+        />
+        <Stack.Screen
+          name="challenges"
+          options={{ title: t("growth.challenges.title") }}
+        />
         {/* Rate / report the rider and the driver's reports (M11,
             UC-S-17/18) — the backend allows them on a ROLE suspension;
             only a whole-account suspension refuses them. */}

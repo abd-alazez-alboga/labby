@@ -1156,5 +1156,74 @@
       "full": "You've reached the limit of {{max}} times a week.",
       "zoneNote": "Times are local to the ride's region · changing them never drops rides you already claimed"
     }
+  },
+  "growth": {
+    "links": {
+      "level": "Your level & badges",
+      "challenges": "Challenges"
+    },
+    "level": {
+      "title": "Your level & badges",
+      "points": "{{value}} points · trips + challenges",
+      "toNext": "{{value}} to {{level}} · your level never goes down",
+      "top": "Highest level · your level never goes down",
+      "trips": "Trips completed",
+      "challengePoints": "Challenge points",
+      "badges": "Badges · {{earned}} of {{total}}",
+      "badge": {
+        "ride_10": "10 rides",
+        "ride_50": "50 rides",
+        "ride_100": "100 rides",
+        "first_shared_ride": "First shared",
+        "first_referral": "First referral",
+        "five_star_week": "5-star week"
+      },
+      "levelName": {
+        "bronze": "Bronze",
+        "silver": "Silver",
+        "gold": "Gold",
+        "platinum": "Platinum"
+      },
+      "note": "5-star week: at least 3 ratings within 7 days, all of them 5★. Badges and levels never affect your payouts or dispatch."
+    },
+    "challenges": {
+      "title": "Challenges",
+      "subtitle": "Points count toward your level. They don't change payouts.",
+      "reward": "{{value}} pts",
+      "of": "{{n}} of {{d}}",
+      "unit": {
+        "completed_rides": {
+          "zero": "{{value}} trips",
+          "one": "{{value}} trip",
+          "two": "{{value}} trips",
+          "few": "{{value}} trips",
+          "many": "{{value}} trips",
+          "other": "{{value}} trips"
+        },
+        "shared_rides": {
+          "zero": "{{value}} shared rides",
+          "one": "{{value}} shared ride",
+          "two": "{{value}} shared rides",
+          "few": "{{value}} shared rides",
+          "many": "{{value}} shared rides",
+          "other": "{{value}} shared rides"
+        },
+        "five_star_ratings": {
+          "zero": "{{value}} five-star ratings",
+          "one": "{{value}} five-star rating",
+          "two": "{{value}} five-star ratings",
+          "few": "{{value}} five-star ratings",
+          "many": "{{value}} five-star ratings",
+          "other": "{{value}} five-star ratings"
+        }
+      },
+      "ends": "Ends {{date}}",
+      "starts": "Starts {{date}}",
+      "endedOn": "Ended {{date}}",
+      "credited": "{{value}} points added",
+      "empty": "No challenges right now — new ones will show up here.",
+      "noRegion": "Challenges follow your region. Turn on location to see them.",
+      "note": "Challenges count trips inside their dates in your region. If one is ended early, what you already finished still pays out."
+    }
   }
 }
