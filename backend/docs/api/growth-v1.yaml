@@ -34,6 +34,8 @@ info:
     (5) **Badges** are the fixed catalog seeded by V24 (10th/50th/100th ride, first shared ride,
     first referral, 5-star week); **levels** are Bronze 0 / Silver 500 / Gold 2,000 /
     Platinum 5,000 lifetime points, never decreasing (redemption spends `redeemable` only).
+    5-star week = at least 3 ratings within any rolling 7 days, all of them 5★ (owner-confirmed
+    at T2 sign-off, 2026-10-18).
 
     (6) A referral reward pays at most **once per referee account AND once per phone number,
     ever** (DB-unique; a deleted then reactivated account never retriggers). Self-referral is
