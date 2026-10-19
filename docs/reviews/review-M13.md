@@ -110,3 +110,22 @@ Fix: include every editable field in both snapshots; store `endedAt` as an Insta
 ## Test run results
 - Full gates at `f382925` (the T5 commit; `15d44d8` is docs only): backend `make check` 608 tests green (format + Checkstyle + unit + Testcontainers + ArchUnit); driver `npm run check` 492 tests / 51 suites green; admin 357 tests / 50 files green; rider 484 tests / 56 suites green. Reviewers did not re-run suites (read-only briefs).
 - CI: run 39136873116 on `15d44d8` was in progress at audit time (the run on `f382925` was superseded and cancelled by the docs push); its result is recorded in the tracker when it lands.
+
+---
+
+## Resolution (labby-fix, 2026-10-19)
+
+Owner rulings 2026-10-19 (all nine decided in one batch, lead's recommendation accepted): W1 one alive first-ride reservation per rider; W3 accepted as moot for single-currency V1 and recorded in the growth contract header; W4 driver challenge rewards feed the level only; W5 the SRS defaults (5/5 referral, 100 pts → 5 credit at 0.05/pt) become the code defaults and a 0/0 region leaves the referral `pending`; W11 badge award dates added (board D13Badges amended); W12 the server's discount preview shown under the applied chip (board R13PromoChoose amended); W17 a window-aware `running` filter backs the KPI; W18 the Limits column names the ride type; W13 a muted "Rider's promo" line itemizes the discount on the trip card (board DriverTripEarnings amended).
+
+**Fixed** — every finding of the report, namely:
+- H1 `releaseMember` on leave / member cancel / no-show / dispatch-drop / suspension sweep (`SharedRideServiceImpl`, `PromoServiceImpl`), + test (cap freed, another member may apply).
+- H2 full before/after snapshots incl. regionId / serviceTypeId / maxDiscount / totalCap / titleAr, `endedAt` as an Instant, + audit round-trip test.
+- W1 `countAliveFirstRideReservations` guard at reservation, + test. W2 badge awards and referral codes via `INSERT … ON CONFLICT DO NOTHING`. W4 level-only driver challenge credits, + redeemable-is-zero assertion. W5 new defaults + pending-when-unpaid, + test; regions-v1/growth-v1 notes amended (SRS rows already said 5+5 and 100→5). W6 live-ride count + completed-rides `appliedAmount` in the admin counters. W7 percent ≤ 100 → 422 `value_invalid`, + test. W8 shared completion passes the actually-applied discounts into the money service. W17 `running` param through repository → service → controller → contract, + filter test.
+- W9 all four rider surfaces drop a booking-refused promo and explain it on the row (tests updated per the approved behavior change). W10 loyalty + challenges render the region-blocked copy with retry, + tests. W12 preview line, + test. Rider Info 4: "Add" label, duplicate progress line dropped, redeem sheet threshold formatted + stepper reset, referral single fetch (test now asserts one call).
+- W11 earned-date captions, + test. W13 "Rider's promo −X" line, + test. W14 the driver challenges loader never records [] as data before a region exists, + no-flash guard test. Driver Info 5 doc comment.
+- W15 currency label hook on the promos page. W16 language-aware ride-type name in the summary. W18 ride-type names in Limits (pricing:view-gated, degrades), + tests. W19 `already_ended` refetches so the panel closes, + assertion. Admin Info 3: only `window_invalid` maps to the window message, "Manage …" footnotes, `_one`/Arabic plural goal keys, `toIso` hoisted, the two CSS rules added.
+- Backend Info: unused repository methods removed, stale javadoc/comments fixed, 400 for a bad `as`, 404 `region_not_found` for an unknown loyalty region, patch validates an unknown promo region, `riderCompletedCount` computed once per completion.
+
+**Deferred (recorded, non-blocking)** — growth-suite concurrency tests; rider pull-to-refresh + loyalty history paging; rider home-card hardcoded purples (pre-existing pattern); Arabic dual forms standalone; driver badge ordering vs board; `myCompletedAt` missing from `ChallengeView` (board's "Done {date}" stays dropped); `GamificationServiceImpl.lifetime` driver-branch reachability claim (not verified, left as is).
+
+Verification: targeted suites green during the round; full gates re-run after (results recorded in the tracker with the re-audit).
