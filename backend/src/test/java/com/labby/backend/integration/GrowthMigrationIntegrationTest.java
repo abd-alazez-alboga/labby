@@ -59,7 +59,7 @@ class GrowthMigrationIntegrationTest extends AbstractIntegrationTest {
     jdbcTemplate.execute(
         "TRUNCATE promo_redemptions, promos, referrals, referral_codes, challenge_progress,"
             + " challenges, points_transactions, points_accounts, user_badges,"
-            + " wallet_transactions, driver_ledger, settlements");
+            + " wallet_transactions, incentive_awards, driver_ledger, settlements");
     jdbcTemplate.update("DELETE FROM rides WHERE region_id = ?", regionId);
     jdbcTemplate.update("DELETE FROM service_types WHERE region_id = ?", regionId);
     jdbcTemplate.update("DELETE FROM regions WHERE region_id = ?", regionId);

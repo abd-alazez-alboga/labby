@@ -348,7 +348,7 @@ components:
       type: object
       required: [screen]
       properties:
-        screen: { type: string, examples: [driver_application, driver_documents, driver_vehicles, notifications, ride, chat] }
+        screen: { type: string, examples: [driver_application, driver_documents, driver_vehicles, notifications, ride, chat, incentives] }
         params:
           type: object
           additionalProperties: { type: string }

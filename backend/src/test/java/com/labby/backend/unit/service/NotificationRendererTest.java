@@ -64,6 +64,9 @@ class NotificationRendererTest {
       if (event.getValue().startsWith("support.") || event.getValue().startsWith("lost_item.")) {
         continue; // M14 support events: see shouldRenderSupportEvents.
       }
+      if (event.getValue().startsWith("incentive.")) {
+        continue; // M15 incentive events: see shouldRenderIncentiveEvents.
+      }
       Map<String, Object> params =
           switch (event) {
             case DOCUMENT_EXPIRY_REMINDER -> REMINDER_PARAMS;
@@ -90,6 +93,46 @@ class NotificationRendererTest {
       assertThat(rendered.bodyAr().length()).isLessThanOrEqualTo(1000);
     }
     assertThat(renderer.supportedEvents()).hasSize(NotificationEvent.values().length);
+  }
+
+  @Test
+  @DisplayName("M15 incentive awards: bilingual per kind, account/driver, the incentives screen")
+  void shouldRenderIncentiveEvents() {
+    Map<String, String> expectedTitles =
+        Map.of(
+            "weekly_trips", "Weekly trip bonus paid",
+            "peak_hours", "Peak-hour bonus paid",
+            "rating", "Rating reward paid");
+    expectedTitles.forEach(
+        (kind, title) -> {
+          Rendered rendered =
+              renderer
+                  .render(
+                      NotificationEvent.INCENTIVE_AWARDED.getValue(),
+                      Map.of(
+                          "kind", kind,
+                          "amount", "50000.00",
+                          "currency", "SYP",
+                          "weekStart", "2026-10-12",
+                          "trips", 42,
+                          "avgRating", "4.86"))
+                  .orElseThrow();
+          assertThat(rendered.category()).isEqualTo(NotificationCategory.ACCOUNT);
+          assertThat(rendered.audience()).isEqualTo(NotificationAudience.DRIVER);
+          assertThat(rendered.linkScreen()).isEqualTo(NotificationRenderer.SCREEN_INCENTIVES);
+          assertThat(rendered.titleEn()).isEqualTo(title);
+          assertThat(rendered.bodyEn()).contains("SYP 50,000").doesNotContain("%s", "null");
+          assertThat(rendered.bodyAr()).contains("50,000 ل.س").containsPattern("[\\u0600-\\u06FF]");
+        });
+    assertThat(
+            renderer
+                .render(
+                    NotificationEvent.INCENTIVE_AWARDED.getValue(),
+                    Map.of(
+                        "kind", "rating", "amount", "20", "currency", "SYP", "avgRating", "4.80"))
+                .orElseThrow()
+                .bodyEn())
+        .contains("4.80");
   }
 
   @Test

@@ -32,6 +32,13 @@ const DRIVING_LINKS: {
     icon: "wallet-outline",
     testID: "balance-link",
   },
+  // M15 (UC-D-17): weekly trip, peak-hour and rating incentives.
+  {
+    href: "/incentives",
+    labelKey: "incentives.title",
+    icon: "ribbon-outline",
+    testID: "incentives-link",
+  },
   // M11 (UC-D-20, UC-S-18): performance dashboard + the driver's reports.
   {
     href: "/performance",

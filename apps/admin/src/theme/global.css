@@ -1102,6 +1102,59 @@ input[type='radio'] {
   font-weight: 800;
 }
 
+.bundle__subsection {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--labby-text-muted);
+}
+
+.form-field__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--labby-text-secondary);
+}
+
+/* M15-T3 peak-hour bonus sub-section (board A15RegionIncentives). */
+.peak-bonus {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--labby-line);
+  border-radius: var(--labby-radius-card);
+}
+
+.peak-bonus__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.peak-bonus__help {
+  padding-block-end: var(--labby-space-3);
+}
+
+.peak-window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--labby-line);
+  border-radius: 14px;
+}
+
+.peak-window__time {
+  min-inline-size: 110px;
+}
+
+.peak-window__note {
+  flex-grow: 1;
+  font-size: 12px;
+  color: var(--labby-text-muted);
+}
+
 .checklist-status {
   margin: 0;
   padding: 0;

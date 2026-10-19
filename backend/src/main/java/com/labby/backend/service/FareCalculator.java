@@ -3,10 +3,10 @@ package com.labby.backend.service;
 import com.labby.backend.dto.FareComponentsDto;
 import com.labby.backend.model.ServiceType;
 import com.labby.backend.model.SurchargeWindow;
+import com.labby.backend.util.TimeWindows;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collection;
@@ -170,21 +170,8 @@ public class FareCalculator {
   }
 
   private static boolean covers(SurchargeWindow window, ZonedDateTime local) {
-    LocalTime time = local.toLocalTime();
-    LocalTime start = window.getStartsAt();
-    LocalTime end = window.getEndsAt();
-    int today = local.getDayOfWeek().getValue();
-    int yesterday = local.getDayOfWeek().minus(1).getValue();
-    if (start.equals(end)) {
-      return window.getDaysOfWeek().contains(today);
-    }
-    if (start.isBefore(end)) {
-      return window.getDaysOfWeek().contains(today) && !time.isBefore(start) && time.isBefore(end);
-    }
-    // Overnight: the evening part belongs to today's window, the early-morning part to the window
-    // that started yesterday.
-    return (window.getDaysOfWeek().contains(today) && !time.isBefore(start))
-        || (window.getDaysOfWeek().contains(yesterday) && time.isBefore(end));
+    return TimeWindows.covers(
+        window.getDaysOfWeek(), window.getStartsAt(), window.getEndsAt(), local);
   }
 
   private static BigDecimal money(BigDecimal value) {

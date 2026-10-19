@@ -1399,6 +1399,47 @@
    "title": "Admin · Export too large (422 export_too_large)",
    "page": "m15",
    "expand": "fill"
+  },
+  "D15Incentives.dc.html": {
+   "x": 0,
+   "y": 3990,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Incentives (UC-D-17, DRV-08)",
+   "page": "m15"
+  },
+  "D15IncentivesAr.dc.html": {
+   "x": 470,
+   "y": 3990,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Incentives (AR, RTL)",
+   "page": "m15"
+  },
+  "D15IncentivesEmpty.dc.html": {
+   "x": 940,
+   "y": 3990,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Incentives · none in region",
+   "page": "m15"
+  },
+  "D15SettingsIncentives.dc.html": {
+   "x": 1410,
+   "y": 3990,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Menu · Incentives entry (addition)",
+   "page": "m15"
+  },
+  "A15RegionIncentives.dc.html": {
+   "x": 0,
+   "y": 4990,
+   "w": 1440,
+   "h": 1100,
+   "title": "Admin · Region · incentives + peak-hour windows (UC-A-29)",
+   "page": "m15",
+   "expand": "fill"
   }
  },
  "createdOnFiles": {
@@ -1680,6 +1721,22 @@
    "x": 0,
    "y": 2830,
    "page": "m15"
+  },
+  "m15IncentivesTitle": {
+   "kind": "title1",
+   "maxW": 3000,
+   "text": "Driver incentives (M15-T3)",
+   "x": 0,
+   "y": 3940,
+   "page": "m15"
+  },
+  "m15IncentivesAdminTitle": {
+   "kind": "title1",
+   "maxW": 3000,
+   "text": "Admin · incentive config with peak-hour windows (M15-T3)",
+   "x": 0,
+   "y": 4940,
+   "page": "m15"
   }
  },
  "order": [
@@ -1851,7 +1908,12 @@
   "A15Transactions.dc.html",
   "A15RidesExport.dc.html",
   "A15TicketsExport.dc.html",
-  "A15ExportTooLarge.dc.html"
+  "A15ExportTooLarge.dc.html",
+  "D15Incentives.dc.html",
+  "D15IncentivesAr.dc.html",
+  "D15IncentivesEmpty.dc.html",
+  "D15SettingsIncentives.dc.html",
+  "A15RegionIncentives.dc.html"
  ],
  "pages": [
   {

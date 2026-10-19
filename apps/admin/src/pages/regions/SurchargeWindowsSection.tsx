@@ -10,21 +10,10 @@ import {
   type SurchargeWindowUpsertRequest,
 } from '../../api/regions';
 import { useAuth } from '../../auth/AuthContext';
-
-/** ISO day numbers, 1 = Monday … 7 = Sunday (the contract's convention). */
-const ISO_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+import { ISO_DAYS, toContractTime, toTimeInput } from './timeWindows';
 
 type EditorState =
   { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; item: SurchargeWindow };
-
-/** "07:30:00" (contract, format: time) <-> "07:30" (input type=time). */
-function toTimeInput(value: string): string {
-  return value.slice(0, 5);
-}
-
-function toContractTime(value: string): string {
-  return value.length === 5 ? `${value}:00` : value;
-}
 
 function mapWindowError(error: unknown): string {
   if (error instanceof ApiError && error.status === 400) {

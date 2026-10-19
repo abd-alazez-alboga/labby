@@ -265,6 +265,170 @@ describe('region detail page', () => {
     ).toBe(0);
   });
 
+  describe('peak-hour bonus windows (M15-T3)', () => {
+    const PEAK_ERROR = 'A bonus above 0 needs at least one window. Start and end must differ.';
+
+    function putBody(fetchMock: ReturnType<typeof stubRegionRoutes>) {
+      const putCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
+      return putCall ? (JSON.parse(String(putCall[1]?.body)) as Record<string, unknown>) : null;
+    }
+
+    it('loads the windows from the region with day chips, times, overnight note and zone', async () => {
+      seedStoredSession(sessionFor(FULL_ACCESS));
+      stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION);
+      renderShell();
+
+      expect(await screen.findByLabelText('Bonus per trip (SYP)')).toHaveValue(1);
+      expect(
+        screen.getByText(
+          'Paid for each completed trip REQUESTED inside a window, region local time (Asia/Damascus).',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Weekly trip bonus · the highest tier reached pays'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Changes apply from the next weekly evaluation (Monday, region time).'),
+      ).toBeInTheDocument();
+
+      const starts = screen.getAllByLabelText('Starts');
+      const ends = screen.getAllByLabelText('Ends');
+      expect(starts.map((input) => (input as HTMLInputElement).value)).toEqual(['07:00', '22:00']);
+      expect(ends.map((input) => (input as HTMLInputElement).value)).toEqual(['09:30', '02:00']);
+
+      const [weekdays, weekend] = screen.getAllByRole('group', { name: 'Days' });
+      expect(within(weekdays).getByRole('button', { name: 'Mon' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(within(weekdays).getByRole('button', { name: 'Fri' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+      expect(within(weekend).getByRole('button', { name: 'Sat' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      // Only the 22:00–02:00 window runs past midnight.
+      expect(screen.getAllByText('Overnight: ends the next day')).toHaveLength(1);
+    });
+
+    it('adds and removes windows and shows the overnight note when end is before start', async () => {
+      seedStoredSession(sessionFor(FULL_ACCESS));
+      stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION);
+      const user = userEvent.setup();
+      renderShell();
+
+      await user.click(await screen.findByRole('button', { name: 'Add window' }));
+      expect(screen.getAllByRole('group', { name: 'Days' })).toHaveLength(3);
+
+      const starts = screen.getAllByLabelText('Starts');
+      const ends = screen.getAllByLabelText('Ends');
+      await user.type(starts[2], '23:00');
+      await user.type(ends[2], '01:00');
+      expect(screen.getAllByText('Overnight: ends the next day')).toHaveLength(2);
+
+      await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
+      expect(screen.getAllByRole('group', { name: 'Days' })).toHaveLength(2);
+      expect(
+        screen.getAllByLabelText('Starts').map((input) => (input as HTMLInputElement).value),
+      ).toEqual(['22:00', '23:00']);
+    });
+
+    it('sends the edited windows in the bundle PUT as contract times', async () => {
+      seedStoredSession(sessionFor(FULL_ACCESS));
+      const fetchMock = stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION, (method, path) =>
+        method === 'PUT' && path === '/api/v1/admin/regions/region-1'
+          ? jsonResponse(200, COMPLETE_REGION)
+          : null,
+      );
+      const user = userEvent.setup();
+      renderShell();
+
+      const [weekdays] = await screen.findAllByRole('group', { name: 'Days' });
+      await user.click(within(weekdays).getByRole('button', { name: 'Fri' }));
+      await user.click(within(weekdays).getByRole('button', { name: 'Mon' }));
+      await user.click(screen.getByRole('button', { name: 'Save bundle' }));
+
+      expect(await screen.findByText('Region saved.')).toBeInTheDocument();
+      expect(putBody(fetchMock)?.incentiveValues).toEqual({
+        weeklyTripBonuses: [{ trips: 40, amount: 50 }],
+        peakHourBonusPerTrip: 1,
+        peakWindows: [
+          { daysOfWeek: [2, 3, 4, 5], startsAt: '07:00:00', endsAt: '09:30:00' },
+          { daysOfWeek: [5, 6], startsAt: '22:00:00', endsAt: '02:00:00' },
+        ],
+        ratingReward: { amount: 20, minAvgRating: 4.8, minWeeklyTrips: 30 },
+      });
+    });
+
+    it('blocks saving a bonus above 0 without a window, or a window whose start equals its end', async () => {
+      seedStoredSession(sessionFor(FULL_ACCESS));
+      const fetchMock = stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION);
+      const user = userEvent.setup();
+      renderShell();
+
+      await user.click((await screen.findAllByRole('button', { name: 'Remove' }))[1]);
+      await user.click(screen.getByRole('button', { name: 'Remove' }));
+      await user.click(screen.getByRole('button', { name: 'Save bundle' }));
+      expect(await screen.findByText(PEAK_ERROR)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Add window' }));
+      await user.click(screen.getByRole('button', { name: 'Tue' }));
+      await user.type(screen.getByLabelText('Starts'), '08:00');
+      await user.type(screen.getByLabelText('Ends'), '08:00');
+      await user.click(screen.getByRole('button', { name: 'Save bundle' }));
+      expect(await screen.findByText(PEAK_ERROR)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Tue' }));
+      await user.click(screen.getByRole('button', { name: 'Save bundle' }));
+      expect(
+        await screen.findByText('Every window needs at least one day, a start and an end.'),
+      ).toBeInTheDocument();
+      expect(putBody(fetchMock)).toBeNull();
+    });
+
+    it('maps the backend peak-window 400 codes to the peak message', async () => {
+      seedStoredSession(sessionFor(FULL_ACCESS));
+      stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION, (method, path) =>
+        method === 'PUT' && path === '/api/v1/admin/regions/region-1'
+          ? jsonResponse(400, {
+              status: 400,
+              code: 'peak_windows_required',
+              message: 'A peak-hour bonus above 0 needs at least one window',
+            })
+          : null,
+      );
+      const user = userEvent.setup();
+      renderShell();
+
+      await user.click(await screen.findByRole('button', { name: 'Save bundle' }));
+
+      expect(await screen.findByText(PEAK_ERROR)).toBeInTheDocument();
+      expect(
+        screen.queryByText('The request was rejected — check the values and try again.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('renders the peak sub-section in Arabic, right to left', async () => {
+      await i18n.changeLanguage('ar');
+      seedStoredSession(sessionFor(FULL_ACCESS));
+      stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION);
+      renderShell();
+
+      expect(await screen.findByText('مكافأة ساعات الذروة')).toBeInTheDocument();
+      expect(document.documentElement).toHaveAttribute('dir', 'rtl');
+      expect(screen.getByLabelText('المكافأة لكل رحلة (SYP)')).toHaveValue(1);
+      const [weekdays] = screen.getAllByRole('group', { name: 'الأيام' });
+      expect(within(weekdays).getByRole('button', { name: 'الاثنين' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(screen.getAllByText('بعد منتصف الليل: تنتهي في اليوم التالي')).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'إضافة فترة' })).toBeInTheDocument();
+    });
+  });
+
   it('shows the pricing sections read-only with pricing:view but no pricing:edit', async () => {
     seedStoredSession(sessionFor(PRICING_VIEWER));
     stubRegionRoutes(PRICING_VIEWER, COMPLETE_REGION);

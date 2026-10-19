@@ -72,7 +72,8 @@ class MoneyMigrationIntegrationTest extends AbstractIntegrationTest {
     // M13 growth rows reference wallet_transactions (points) and each other, so they truncate
     // with the ledgers even though this class never creates them.
     jdbcTemplate.execute(
-        "TRUNCATE challenge_progress, points_transactions, driver_ledger, wallet_transactions,"
+        "TRUNCATE challenge_progress, points_transactions, incentive_awards, driver_ledger,"
+            + " wallet_transactions,"
             + " settlements");
     for (UUID userId : createdUsers) {
       jdbcTemplate.update("DELETE FROM rider_dues WHERE rider_user_id = ?", userId);

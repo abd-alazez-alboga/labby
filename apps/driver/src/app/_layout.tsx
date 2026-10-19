@@ -174,6 +174,12 @@ function AppStack() {
           name="balance"
           options={{ title: t("balance.title") }}
         />
+        {/* Incentives (M15, UC-D-17) — weekly progress, informational like
+            earnings, so a role-suspended driver may look. */}
+        <Stack.Screen
+          name="incentives"
+          options={{ title: t("incentives.title") }}
+        />
         <Stack.Screen
           name="performance"
           options={{ title: t("trust.performance.title") }}

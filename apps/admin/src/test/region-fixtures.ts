@@ -46,6 +46,7 @@ export const DRAFT_REGION: Region = {
   boundary: null,
   currency: null,
   emergencyNumber: null,
+  timeZone: 'Asia/Damascus',
   cancellationGraceMin: null,
   cancellationFee: null,
   waitGraceMin: null,
@@ -80,6 +81,11 @@ export const COMPLETE_REGION: Region = {
   incentiveValues: {
     weeklyTripBonuses: [{ trips: 40, amount: 50 }],
     peakHourBonusPerTrip: 1,
+    // M15-T3: a weekday morning window and an overnight Fri/Sat one.
+    peakWindows: [
+      { daysOfWeek: [1, 2, 3, 4], startsAt: '07:00:00', endsAt: '09:30:00' },
+      { daysOfWeek: [5, 6], startsAt: '22:00:00', endsAt: '02:00:00' },
+    ],
     ratingReward: { amount: 20, minAvgRating: 4.8, minWeeklyTrips: 30 },
   },
   suspensionThresholds: {

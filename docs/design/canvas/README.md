@@ -234,3 +234,8 @@ Tokens and rules live in [../design-system.md](../design-system.md); this folder
 - [Admin · Rides · Export CSV (addition)](A15RidesExport.dc.html)
 - [Admin · Support queue · Export CSV (addition)](A15TicketsExport.dc.html)
 - [Admin · Export too large](A15ExportTooLarge.dc.html)
+- [Driver · Incentives](D15Incentives.dc.html)
+- [Driver · Incentives (AR, RTL)](D15IncentivesAr.dc.html)
+- [Driver · Incentives · none in region](D15IncentivesEmpty.dc.html)
+- [Driver · Menu · Incentives entry (addition)](D15SettingsIncentives.dc.html)
+- [Admin · Region · incentives + peak-hour windows](A15RegionIncentives.dc.html)

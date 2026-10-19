@@ -391,6 +391,9 @@ class MoneySimulatorIntegrationTest extends AbstractMoneyIntegrationTest {
       ObjectNode incentives = region.putObject("incentiveValues");
       incentives.putArray("weeklyTripBonuses").addObject().put("trips", 40).put("amount", 50);
       incentives.put("peakHourBonusPerTrip", 1.0);
+      ObjectNode window = incentives.putArray("peakWindows").addObject();
+      window.putArray("daysOfWeek").add(1).add(2).add(3).add(4);
+      window.put("startsAt", "07:00").put("endsAt", "09:30");
       incentives
           .putObject("ratingReward")
           .put("amount", 20)

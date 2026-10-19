@@ -1230,6 +1230,79 @@
       "note": "Challenges count trips inside their dates in your region. If one is ended early, what you already finished still pays out."
     }
   },
+  "incentives": {
+    "title": "Incentives",
+    "week": "This week · {{range}} · {{region}}",
+    "dayRange": "{{from}} – {{to}}",
+    "listSeparator": ", ",
+    "day": {
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat",
+      "7": "Sun"
+    },
+    "trips": {
+      "zero": "{{value}} trips",
+      "one": "{{value}} trip",
+      "two": "{{value}} trips",
+      "few": "{{value}} trips",
+      "many": "{{value}} trips",
+      "other": "{{value}} trips"
+    },
+    "ratings": {
+      "zero": "{{value}} ratings",
+      "one": "{{value}} rating",
+      "two": "{{value}} ratings",
+      "few": "{{value}} ratings",
+      "many": "{{value}} ratings",
+      "other": "{{value}} ratings"
+    },
+    "of": "{{n}} of {{d}}",
+    "weekly": {
+      "title": "Weekly trip bonus",
+      "subtitle": "The highest tier you reach pays",
+      "tier": "{{trips}} → {{amount}}",
+      "more": {
+        "zero": "{{value}} more trips",
+        "one": "{{value}} more trip",
+        "two": "{{value}} more trips",
+        "few": "{{value}} more trips",
+        "many": "{{value}} more trips",
+        "other": "{{value}} more trips"
+      },
+      "forAmount": "for {{amount}}",
+      "topReached": "Top tier reached · {{amount}}"
+    },
+    "peak": {
+      "title": "Peak hours",
+      "subtitle": "{{amount}} per trip requested in a window",
+      "earned": "{{trips}} · {{amount}}",
+      "now": "Peak now · until {{time}}"
+    },
+    "rating": {
+      "title": "Rating reward",
+      "subtitle": "Avg {{rating}}+ with {{count}}+ trips this week",
+      "average": "{{average}} average · {{ratings}}",
+      "noRatings": "No ratings yet this week"
+    },
+    "award": {
+      "lastWeek": "Last week",
+      "weekOf": "Week of {{date}}",
+      "kind": {
+        "weekly_trips": "weekly trip bonus",
+        "peak_hours": "peak hours bonus",
+        "rating": "rating reward"
+      },
+      "paid": "{{trips}} · paid {{date}}"
+    },
+    "note": "Paid into your balance Monday morning for the week before.",
+    "emptyTitle": "No incentives in {{region}} yet",
+    "emptyBody": "When Labby turns on weekly bonuses, peak hours or rating rewards for your region, your progress shows here.",
+    "noRegion": "Incentives follow your region. Turn on location to see them."
+  },
   "support": {
     "title": "Support",
     "searchEntry": "Search help",

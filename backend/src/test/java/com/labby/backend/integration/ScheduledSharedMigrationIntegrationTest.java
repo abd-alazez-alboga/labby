@@ -70,7 +70,8 @@ class ScheduledSharedMigrationIntegrationTest extends AbstractIntegrationTest {
     // M13 growth rows reference wallet_transactions (points) and each other, so they truncate
     // with the ledgers even though this class never creates them.
     jdbcTemplate.execute(
-        "TRUNCATE challenge_progress, points_transactions, driver_ledger, wallet_transactions,"
+        "TRUNCATE challenge_progress, points_transactions, incentive_awards, driver_ledger,"
+            + " wallet_transactions,"
             + " settlements");
     jdbcTemplate.execute("TRUNCATE ratings");
     jdbcTemplate.execute("TRUNCATE scheduled_claim_releases");

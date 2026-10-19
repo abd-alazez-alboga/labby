@@ -11,9 +11,13 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.dto.GeoJsonPolygonDto;
+import com.labby.backend.dto.IncentiveValuesDto;
+import com.labby.backend.dto.PeakWindowDto;
+import com.labby.backend.dto.RatingRewardDto;
 import com.labby.backend.dto.RegionConfigDto;
 import com.labby.backend.dto.RegionDto;
 import com.labby.backend.dto.RegionUpsertRequestDto;
+import com.labby.backend.dto.WeeklyTripBonusDto;
 import com.labby.backend.enums.RegionState;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
@@ -27,6 +31,7 @@ import com.labby.backend.service.AuditService;
 import com.labby.backend.service.RegionServiceImpl;
 import com.labby.backend.util.GeoJson;
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -185,6 +190,53 @@ class RegionServiceImplTest {
     assertThat(dto.state()).isEqualTo(RegionState.ACTIVE);
     verify(regionRepository, never()).save(any());
     verify(auditService, never()).record(any(), any(), any(), any(), any(), any());
+  }
+
+  private static RegionUpsertRequestDto withIncentives(IncentiveValuesDto incentives) {
+    return new RegionUpsertRequestDto(
+        "Damascus",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        incentives,
+        null,
+        null,
+        null,
+        null);
+  }
+
+  private static IncentiveValuesDto incentives(String peakBonus, List<PeakWindowDto> windows) {
+    return new IncentiveValuesDto(
+        List.of(new WeeklyTripBonusDto(40, new BigDecimal("50"))),
+        new BigDecimal(peakBonus),
+        new RatingRewardDto(new BigDecimal("20"), new BigDecimal("4.8"), 30),
+        windows);
+  }
+
+  @Test
+  @DisplayName("M15-T3: a peak bonus above 0 needs a window; a window's start and end differ")
+  void shouldValidatePeakWindows() {
+    assertThatThrownBy(() -> service.createRegion(ACTOR, withIncentives(incentives("1.00", null))))
+        .isInstanceOfSatisfying(
+            InvalidRequestException.class,
+            ex -> assertThat(ex.getCode()).isEqualTo("peak_windows_required"));
+    PeakWindowDto allDay = new PeakWindowDto(List.of(1), LocalTime.of(7, 0), LocalTime.of(7, 0));
+    assertThatThrownBy(
+            () -> service.createRegion(ACTOR, withIncentives(incentives("1.00", List.of(allDay)))))
+        .isInstanceOfSatisfying(
+            InvalidRequestException.class,
+            ex -> assertThat(ex.getCode()).isEqualTo("peak_window_invalid"));
+    verify(regionRepository, never()).save(any());
   }
 
   @Test

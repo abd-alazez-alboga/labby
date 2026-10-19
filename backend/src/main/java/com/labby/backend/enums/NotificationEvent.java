@@ -135,6 +135,12 @@ public enum NotificationEvent {
    * as (referrer|referee), amount, currency.
    */
   REFERRAL_REWARDED("growth.referral_rewarded"),
+  // M15 incentives (incentives-v1.yaml; category account, audience driver, screen incentives).
+  /**
+   * To the driver an incentive paid (DRV-08). Params: kind (weekly_trips|peak_hours|rating),
+   * amount, currency, weekStart, trips, avgRating?.
+   */
+  INCENTIVE_AWARDED("incentive.awarded"),
   // M14 support events (support-v1.yaml; category account, audience all — both apps hold support).
   /** To the ticket's user on creation (UC-S-19). Params: ticketId, kind (ticket|lost_item). */
   SUPPORT_TICKET_CREATED("support.ticket_created"),

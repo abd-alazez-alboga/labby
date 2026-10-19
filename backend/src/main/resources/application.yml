@@ -195,6 +195,11 @@ labby:
     # an export holds at most export-max-rows rows (owner ruling 2026-10-20, 422 above it).
     statement-timeout: ${ANALYTICS_STATEMENT_TIMEOUT:10s}
     export-max-rows: ${ANALYTICS_EXPORT_MAX_ROWS:50000}
+  incentives:
+    # M15 incentives engine (incentives-v1.yaml, DRV-08). The weekly evaluation runs on this Spring
+    # cron (operating timezone) and pays the previous Monday–Sunday week in every region's own time
+    # zone, each award exactly once; "-" disables.
+    cron: ${INCENTIVES_CRON:0 30 0 * * MON}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

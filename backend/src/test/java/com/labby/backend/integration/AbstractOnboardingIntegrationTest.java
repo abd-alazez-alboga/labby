@@ -60,7 +60,7 @@ abstract class AbstractOnboardingIntegrationTest extends AbstractAuthIntegration
     jdbcTemplate.execute(
         "TRUNCATE promo_redemptions, promos, challenge_progress, challenges,"
             + " points_transactions, points_accounts, user_badges, referrals, referral_codes,"
-            + " wallet_transactions, driver_ledger, settlements");
+            + " wallet_transactions, incentive_awards, driver_ledger, settlements");
     jdbcTemplate.update("DELETE FROM rider_dues");
     jdbcTemplate.update("DELETE FROM driver_commission_rates");
     jdbcTemplate.update("DELETE FROM wallet_balances");

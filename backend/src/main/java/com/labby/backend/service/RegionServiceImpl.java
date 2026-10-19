@@ -6,6 +6,7 @@ import com.labby.backend.dto.CommissionTierDto;
 import com.labby.backend.dto.GrowthSettingsDto;
 import com.labby.backend.dto.IncentiveValuesDto;
 import com.labby.backend.dto.MetricWarningsDto;
+import com.labby.backend.dto.PeakWindowDto;
 import com.labby.backend.dto.RegionConfigDto;
 import com.labby.backend.dto.RegionDto;
 import com.labby.backend.dto.RegionSummaryDto;
@@ -250,6 +251,7 @@ public class RegionServiceImpl implements RegionService {
         request.commissionTiers() == null
             ? null
             : objectMapper.convertValue(request.commissionTiers(), new TypeReference<>() {}));
+    requireValidPeakWindows(request.incentiveValues());
     region.setIncentiveValues(
         request.incentiveValues() == null
             ? null
@@ -491,5 +493,27 @@ public class RegionServiceImpl implements RegionService {
     snapshot.put("scheduledSettings", region.getScheduledSettings());
     snapshot.put("growthSettings", region.getGrowthSettings());
     return snapshot;
+  }
+
+  /**
+   * M15-T3 (incentives-v1 ruling Q1): a peak-hour bonus above 0 needs at least one window, and a
+   * window's start and end differ (an equal pair would read as the whole day).
+   */
+  private static void requireValidPeakWindows(IncentiveValuesDto incentives) {
+    if (incentives == null) {
+      return;
+    }
+    List<PeakWindowDto> windows =
+        incentives.peakWindows() == null ? List.of() : incentives.peakWindows();
+    for (PeakWindowDto window : windows) {
+      if (window.startsAt().equals(window.endsAt())) {
+        throw new InvalidRequestException("A peak window's start and end must differ")
+            .withCode("peak_window_invalid");
+      }
+    }
+    if (incentives.peakHourBonusPerTrip().signum() > 0 && windows.isEmpty()) {
+      throw new InvalidRequestException("A peak-hour bonus above 0 needs at least one window")
+          .withCode("peak_windows_required");
+    }
   }
 }

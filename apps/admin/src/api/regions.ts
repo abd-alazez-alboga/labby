@@ -31,9 +31,23 @@ export interface RatingReward {
   minWeeklyTrips: number;
 }
 
+/**
+ * A peak-hour bonus window (M15-T3): ISO days (1 = Monday … 7 = Sunday)
+ * and region-local times ("07:00:00"); endsAt before startsAt runs past
+ * midnight, and start must differ from end.
+ */
+export interface PeakWindow {
+  daysOfWeek: number[];
+  startsAt: string;
+  endsAt: string;
+}
+
 export interface IncentiveValues {
   weeklyTripBonuses: WeeklyTripBonus[];
+  /** Above 0 needs at least one peak window (400 `peak_windows_required`). */
   peakHourBonusPerTrip: number;
+  /** Optional; absent = no window. */
+  peakWindows?: PeakWindow[] | null;
   ratingReward: RatingReward;
 }
 
@@ -77,6 +91,8 @@ export interface Region {
   boundary?: GeoJsonPolygon | null;
   currency?: string | null;
   emergencyNumber?: string | null;
+  /** IANA zone (M7), e.g. `Asia/Damascus`; windows are evaluated in it. */
+  timeZone: string;
   cancellationGraceMin?: number | null;
   cancellationFee?: number | null;
   waitGraceMin?: number | null;

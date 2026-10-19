@@ -9,7 +9,9 @@ import {
   type RegionUpsertRequest,
 } from '../../api/regions';
 import { useAuth } from '../../auth/AuthContext';
+import { PeakHourBonusSection, type PeakWindowRow } from './PeakHourBonusSection';
 import { PolygonMapEditor } from './PolygonMapEditor';
+import { toContractTime, toTimeInput } from './timeWindows';
 
 interface TierRow {
   weeklyTripsAbove: string;
@@ -28,6 +30,15 @@ function toInput(value: number | null | undefined): string {
 
 function toNumberOrNull(value: string): number | null {
   return value.trim() === '' ? null : Number(value);
+}
+
+/** The backend's peak-window rule codes (M15-T3) — shown in the peak sub-section. */
+const PEAK_WINDOW_CODES = new Set(['peak_windows_required', 'peak_window_invalid']);
+
+function isPeakWindowError(error: unknown): boolean {
+  return (
+    error instanceof ApiError && error.status === 400 && PEAK_WINDOW_CODES.has(error.code ?? '')
+  );
 }
 
 function mapSaveError(error: unknown): string {
@@ -95,6 +106,13 @@ export function BundleForm({
   const [peakHourBonus, setPeakHourBonus] = useState(
     toInput(region.incentiveValues?.peakHourBonusPerTrip ?? null),
   );
+  const [peakWindows, setPeakWindows] = useState<PeakWindowRow[]>(
+    (region.incentiveValues?.peakWindows ?? []).map((window) => ({
+      days: [...window.daysOfWeek],
+      startsAt: toTimeInput(window.startsAt),
+      endsAt: toTimeInput(window.endsAt),
+    })),
+  );
   const [rewardAmount, setRewardAmount] = useState(
     toInput(region.incentiveValues?.ratingReward.amount ?? null),
   );
@@ -140,6 +158,7 @@ export function BundleForm({
   );
 
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [peakError, setPeakError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -165,12 +184,29 @@ export function BundleForm({
 
     const incentiveFields = [peakHourBonus, rewardAmount, rewardMinAvgRating, rewardMinWeeklyTrips];
     const incentivesTouched =
-      bonuses.length > 0 || incentiveFields.some((field) => field.trim() !== '');
+      bonuses.length > 0 ||
+      peakWindows.length > 0 ||
+      incentiveFields.some((field) => field.trim() !== '');
     const incentivesComplete =
       incentiveFields.every((field) => field.trim() !== '') &&
       bonuses.every((row) => row.trips.trim() !== '' && row.amount.trim() !== '');
     if (incentivesTouched && !incentivesComplete) {
       setSaveError('regionDetail.errors.incompleteIncentives');
+      return null;
+    }
+    // M15-T3: every window needs a day and both times; start and end differ;
+    // a bonus above 0 needs at least one window (the backend's rules).
+    if (
+      peakWindows.some((row) => row.days.length === 0 || row.startsAt === '' || row.endsAt === '')
+    ) {
+      setPeakError('regionDetail.errors.peakWindowIncomplete');
+      return null;
+    }
+    if (
+      peakWindows.some((row) => row.startsAt === row.endsAt) ||
+      (Number(peakHourBonus) > 0 && peakWindows.length === 0)
+    ) {
+      setPeakError('regionDetail.errors.peakWindows');
       return null;
     }
 
@@ -238,6 +274,11 @@ export function BundleForm({
               amount: Number(row.amount),
             })),
             peakHourBonusPerTrip: Number(peakHourBonus),
+            peakWindows: peakWindows.map((row) => ({
+              daysOfWeek: row.days,
+              startsAt: toContractTime(row.startsAt),
+              endsAt: toContractTime(row.endsAt),
+            })),
             ratingReward: {
               amount: Number(rewardAmount),
               minAvgRating: Number(rewardMinAvgRating),
@@ -281,6 +322,7 @@ export function BundleForm({
     event.preventDefault();
     setSaved(false);
     setSaveError(null);
+    setPeakError(null);
     const body = buildBody();
     if (!body) {
       return;
@@ -291,7 +333,11 @@ export function BundleForm({
       onSaved(updated);
       setSaved(true);
     } catch (error) {
-      setSaveError(mapSaveError(error));
+      if (isPeakWindowError(error)) {
+        setPeakError('regionDetail.errors.peakWindows');
+      } else {
+        setSaveError(mapSaveError(error));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -456,6 +502,7 @@ export function BundleForm({
         </p>
 
         <h3 className="bundle__section">{t('regionDetail.incentivesTitle')}</h3>
+        <h4 className="bundle__subsection">{t('regionDetail.weeklyBonusCaption')}</h4>
         {bonuses.map((bonus, index) => (
           <div className="panel__row" key={index}>
             {numberField(
@@ -489,13 +536,17 @@ export function BundleForm({
             {t('regionDetail.addBonus')}
           </button>
         </p>
+        <PeakHourBonusSection
+          bonus={peakHourBonus}
+          onBonusChange={setPeakHourBonus}
+          windows={peakWindows}
+          onWindowsChange={setPeakWindows}
+          currency={/^[A-Za-z]{3}$/.test(currency.trim()) ? currency.trim().toUpperCase() : null}
+          timeZone={region.timeZone}
+          error={peakError}
+        />
+        <h4 className="bundle__subsection">{t('regionDetail.ratingRewardCaption')}</h4>
         <div className="panel__row">
-          {numberField(
-            'bundle-peak-bonus',
-            'regionDetail.fields.peakHourBonusPerTrip',
-            peakHourBonus,
-            setPeakHourBonus,
-          )}
           {numberField(
             'bundle-reward-amount',
             'regionDetail.fields.ratingRewardAmount',
@@ -517,6 +568,7 @@ export function BundleForm({
             { step: '1' },
           )}
         </div>
+        <p className="panel__hint">{t('regionDetail.incentivesNote')}</p>
 
         <h3 className="bundle__section">{t('regionDetail.suspensionTitle')}</h3>
         <div className="panel__row">

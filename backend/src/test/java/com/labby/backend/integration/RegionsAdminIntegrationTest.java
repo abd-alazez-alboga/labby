@@ -106,7 +106,11 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
             "peakHourBonusPerTrip",
             1.0,
             "ratingReward",
-            Map.of("amount", 20, "minAvgRating", 4.8, "minWeeklyTrips", 30)));
+            Map.of("amount", 20, "minAvgRating", 4.8, "minWeeklyTrips", 30),
+            "peakWindows",
+            List.of(
+                Map.of(
+                    "daysOfWeek", List.of(1, 2, 3, 4), "startsAt", "07:00", "endsAt", "09:30"))));
     bundle.put(
         "suspensionThresholds",
         Map.of(

@@ -13,7 +13,8 @@ import type { DeepLink } from "../api/realtime-types";
  * the home route, which IS the ride flow, after the ride facade resynced
  * (`DriverRideContextValue.openLink`); M10 adds `chat` (params `rideId`),
  * which opens the ride's chat thread; M14 adds `ticket` and
- * `lost_item_case` (params `ticketId`) for the support screens. Unknown
+ * `lost_item_case` (params `ticketId`) for the support screens; M15 adds
+ * `incentives` (the driver's incentives screen). Unknown
  * screens open the notification center.
  *
  * The target respects the driver gate (the stacks are guarded): an
@@ -75,6 +76,10 @@ export function hrefForLink(
         ? { pathname: "/lost-item-case", params: { ticketId } }
         : NOTIFICATIONS_HREF;
     }
+    case "incentives":
+      // M15 (incentives-v1, ruling Q6): `incentive.awarded` opens the
+      // driver's incentives screen.
+      return context.isDriver ? "/incentives" : NOTIFICATIONS_HREF;
     case "notifications":
     default:
       return NOTIFICATIONS_HREF;

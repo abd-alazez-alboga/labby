@@ -48,6 +48,9 @@ public class NotificationRenderer {
   /** Deep-link screen: one lost-item case (param {@code ticketId}, M14). */
   public static final String SCREEN_LOST_ITEM_CASE = "lost_item_case";
 
+  /** Deep-link screen: the driver's incentives (M15). */
+  public static final String SCREEN_INCENTIVES = "incentives";
+
   private static final Set<String> EVENTS =
       Arrays.stream(NotificationEvent.values())
           .map(NotificationEvent::getValue)
@@ -339,6 +342,7 @@ public class NotificationRenderer {
               "عادت طلبات الرحلات",
               "شكراً لتسوية رصيدك. رصيدك الآن %s ويمكنك استقبال طلبات الرحلات من جديد."
                   .formatted(moneyAr(params, "balance")));
+      case INCENTIVE_AWARDED -> incentiveAwarded(event, params);
       case CHAT_MESSAGE -> chatMessage(params);
       case SOS_TRIGGERED -> sosTriggered(event, params);
       case ROLE_SUSPENDED -> roleSuspended(event, params);
@@ -1159,6 +1163,56 @@ public class NotificationRenderer {
    * a driver badge/challenge, else the rider app. No deep link: a tap opens the notification
    * center.
    */
+  // ---- M15 incentives (incentives-v1.yaml; category account, screen incentives) ---------------
+
+  private static Rendered incentiveAwarded(NotificationEvent event, Map<String, Object> params) {
+    String amountEn = moneyEn(params, "amount");
+    String amountAr = moneyAr(params, "amount");
+    String trips = text(params.get("trips"));
+    String titleEn;
+    String bodyEn;
+    String titleAr;
+    String bodyAr;
+    switch (text(params.get("kind"))) {
+      case "peak_hours" -> {
+        titleEn = "Peak-hour bonus paid";
+        bodyEn =
+            "%s for %s peak-hour trips last week is in your balance.".formatted(amountEn, trips);
+        titleAr = "تمت إضافة مكافأة ساعات الذروة";
+        bodyAr =
+            "أُضيف %s إلى رصيدك عن %s رحلة في ساعات الذروة الأسبوع الماضي."
+                .formatted(amountAr, trips);
+      }
+      case "rating" -> {
+        String rating = text(params.get("avgRating"));
+        titleEn = "Rating reward paid";
+        bodyEn =
+            "Your %s average last week earned %s. It's in your balance."
+                .formatted(rating, amountEn);
+        titleAr = "تمت إضافة مكافأة التقييم";
+        bodyAr =
+            "حصلت على %s لمتوسط تقييمك %s الأسبوع الماضي، وأُضيفت إلى رصيدك."
+                .formatted(amountAr, rating);
+      }
+      default -> {
+        titleEn = "Weekly trip bonus paid";
+        bodyEn = "%s for %s trips last week is in your balance.".formatted(amountEn, trips);
+        titleAr = "تمت إضافة مكافأة الرحلات الأسبوعية";
+        bodyAr = "أُضيف %s إلى رصيدك عن %s رحلة الأسبوع الماضي.".formatted(amountAr, trips);
+      }
+    }
+    return new Rendered(
+        NotificationCategory.ACCOUNT,
+        NotificationAudience.DRIVER,
+        event.getValue(),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr,
+        SCREEN_INCENTIVES,
+        Map.of());
+  }
+
   // ---- M14 support (support-v1.yaml; category account, screens ticket / lost_item_case) -------
 
   private static Rendered ticketStatusChanged(NotificationEvent event, Map<String, Object> params) {

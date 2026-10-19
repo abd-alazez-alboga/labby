@@ -1,0 +1,148 @@
+openapi: 3.1.0
+info:
+  title: Labby Incentives API (M15 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for M15-T3, the incentives engine (DRV-08, COM-01; UC-D-17, UC-A-29):
+    weekly trip bonuses, the peak-hour bonus and the weekly rating reward, per region, evaluated
+    by a weekly job and credited to the driver ledger as `bonus` entries with a notification. The
+    driver app (incentives screen) and the admin region form (peak-hour windows) build against
+    this document; on conflict after the backend lands, the implementation is the truth and this
+    file is amended. Schema: migration V31. Approved boards: D15Incentives (EN/AR/Empty),
+    D15SettingsIncentives, A15RegionIncentives.
+
+
+    **Owner rulings (2026-10-20, M15-T3 plan gate).**
+
+    (Q1) Peak-hour windows live in the region's `incentiveValues.peakWindows`, in the
+    surcharge-window shape: ISO days of week (1 = Monday … 7 = Sunday) and region-local
+    `startsAt` / `endsAt` (`endsAt` before `startsAt` = the window runs past midnight; the
+    early-morning part belongs to the window that started the day before). `startsAt` must
+    differ from `endsAt`. A completed trip earns the peak bonus when it was REQUESTED inside a
+    window (the moment surcharge pricing uses). A peak bonus above 0 needs at least one window.
+
+    (Q2) Weekly trip tiers are NOT cumulative: the highest tier reached pays (40+ → 50, 60+ →
+    100; a driver with 60 trips gets 100).
+
+    (Q3) All three incentives are paid by the weekly job: Mondays (default 00:30, operating
+    zone `labby.incentives.cron`), for the previous Monday–Sunday week in each region's time
+    zone — the commission week (COM-02). The driver screen shows peak earnings accruing live.
+
+    (Q4) The weekly rating is the average of the ratings drivers received on rides COMPLETED
+    that week; the reward needs at least `minWeeklyTrips` completed trips that week and an
+    average at or above `minAvgRating` (inclusive).
+
+    (Q5) A trip is a completed ride the driver drove, counted in the ride's region by its
+    completion time in that region's zone; every ride kind counts once (a shared ride is one
+    trip). A driver suspended at evaluation time is still paid for that week.
+
+    (Q6) Each award notifies the driver (`incentive.awarded`, category `account`, audience
+    driver) with the new deep-link screen `incentives`.
+
+
+    **Exactly once.** One award per (driver, region, week, kind) — `incentive_awards` holds the
+    unique key and links the ledger entry it posted; re-running a week posts nothing new. The
+    config in force when the job runs is the one applied (UC-A-29: "from the next evaluation
+    cycle"). Amounts are in the region's currency, 2 decimals.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/driver/incentives:
+    get:
+      tags: [DriverIncentives]
+      summary: This week's live incentive progress in a region, plus recent awards — approved driver
+      description: >
+        `regionId` is the region the app is in (the challenges pattern). The current week is the
+        region's Monday–Sunday week containing now. `configured: false` (the empty board) when
+        the region has no incentive values; the other blocks are then null.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncentiveProgress' }
+        '403': { description: Not an approved driver }
+        '404': { description: Unknown region }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Money: { type: number, description: Exact decimal with two places, in the region currency }
+
+    PeakWindow:
+      type: object
+      required: [daysOfWeek, startsAt, endsAt]
+      description: Also the shape of `IncentiveValues.peakWindows[]` in regions-v1 (amendment M15-T3).
+      properties:
+        daysOfWeek: { type: array, minItems: 1, items: { type: integer, minimum: 1, maximum: 7 } }
+        startsAt: { type: string, format: time, example: '07:00:00' }
+        endsAt: { type: string, format: time, example: '09:30:00' }
+
+    Tier:
+      type: object
+      required: [trips, amount]
+      properties:
+        trips: { type: integer }
+        amount: { $ref: '#/components/schemas/Money' }
+
+    IncentiveProgress:
+      type: object
+      required: [regionId, regionName, configured, weekStart, weekEnd, timeZone, recentAwards]
+      properties:
+        regionId: { type: string, format: uuid }
+        regionName: { type: string }
+        configured: { type: boolean }
+        currency: { type: [string, 'null'] }
+        weekStart: { type: string, format: date, description: This week's Monday (region zone) }
+        weekEnd: { type: string, format: date, description: This week's Sunday }
+        timeZone: { type: string, example: Asia/Damascus }
+        weeklyTrips:
+          type: [object, 'null']
+          required: [trips, tiers]
+          properties:
+            trips: { type: integer, description: Completed trips so far this week }
+            tiers: { type: array, items: { $ref: '#/components/schemas/Tier' }, description: Ascending by trips }
+            reachedTier: { oneOf: [{ $ref: '#/components/schemas/Tier' }, { type: 'null' }], description: The highest tier reached so far — what would pay }
+            nextTier: { oneOf: [{ $ref: '#/components/schemas/Tier' }, { type: 'null' }] }
+        peak:
+          type: [object, 'null']
+          required: [bonusPerTrip, windows, activeNow, trips, earned]
+          properties:
+            bonusPerTrip: { $ref: '#/components/schemas/Money' }
+            windows: { type: array, items: { $ref: '#/components/schemas/PeakWindow' } }
+            activeNow: { type: boolean, description: Now (region zone) is inside a window }
+            activeUntil: { type: [string, 'null'], format: time, description: End of the window in force now }
+            trips: { type: integer, description: This week's completed trips requested inside a window }
+            earned: { $ref: '#/components/schemas/Money', description: trips × bonusPerTrip so far (paid Monday) }
+        rating:
+          type: [object, 'null']
+          required: [amount, minAvgRating, minWeeklyTrips, ratingCount, trips, qualifies]
+          properties:
+            amount: { $ref: '#/components/schemas/Money' }
+            minAvgRating: { type: number }
+            minWeeklyTrips: { type: integer }
+            average: { type: [number, 'null'], description: Average of the ratings on this week's completed rides, 2 decimals; null without ratings }
+            ratingCount: { type: integer }
+            trips: { type: integer }
+            qualifies: { type: boolean, description: Would pay if the week ended now }
+        recentAwards:
+          type: array
+          description: The driver's last 8 awards in this region, newest week first
+          items: { $ref: '#/components/schemas/IncentiveAward' }
+
+    IncentiveAward:
+      type: object
+      required: [weekStart, kind, amount, currency, trips, awardedAt]
+      properties:
+        weekStart: { type: string, format: date }
+        kind: { type: string, enum: [weekly_trips, peak_hours, rating] }
+        amount: { $ref: '#/components/schemas/Money' }
+        currency: { type: string }
+        trips: { type: integer, description: Week trips (weekly_trips / rating) or peak trips (peak_hours) }
+        threshold: { type: [integer, 'null'], description: The tier's trip count (weekly_trips) }
+        avgRating: { type: [number, 'null'], description: The week average (rating) }
+        awardedAt: { type: string, format: date-time }
