@@ -39,7 +39,8 @@ type Load =
  * actions: the reopened ride chat (writable while the case is open, M10
  * offline rule applies) and click-to-dial. The rider's phone comes from the
  * ride's chat thread (CALL-01 — non-null only while the window is writable);
- * the case payload itself carries no number.
+ * the case payload itself carries no number. On a shared ride both go to the
+ * reporter's member thread (`memberId`, support-v1 T6 amendment h).
  */
 export function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
   const { t } = useTranslation();
@@ -60,7 +61,11 @@ export function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
       const lostCase = await getLostItemCase(ticketId);
       let riderPhone: string | null = null;
       try {
-        const thread = await getChatThread(lostCase.ride.rideId);
+        // A shared-ride case addresses the reporter's own member thread.
+        const thread = await getChatThread(
+          lostCase.ride.rideId,
+          lostCase.memberId ?? undefined,
+        );
         riderPhone = thread.counterpart.phone;
       } catch {
         // No thread / not readable — the call button simply hides (CALL-01).
@@ -98,7 +103,10 @@ export function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
                 onPress={() =>
                   router.push({
                     pathname: "/chat",
-                    params: { rideId: lostCase.ride.rideId },
+                    params: {
+                      rideId: lostCase.ride.rideId,
+                      ...(lostCase.memberId ? { memberId: lostCase.memberId } : {}),
+                    },
                   })
                 }
                 testID="lost-case-open-chat"

@@ -184,6 +184,13 @@ export interface LostItemCase {
   driver: Party;
   /** comms-v1 window state of the REPORTER's thread with the driver. */
   chatWindow: "open" | "read_only" | "reopened";
+  /**
+   * T6 amendment (h): the reporter's shared-ride member — the driver must
+   * address that member's chat (`?memberId=`); null on one-rider rides.
+   */
+  memberId: string | null;
+  /** T6 amendment (i): the last of found / not_found / returned reached, kept after closure. */
+  outcome: "found" | "not_found" | "returned" | null;
   createdAt: string;
   updatedAt: string;
 }

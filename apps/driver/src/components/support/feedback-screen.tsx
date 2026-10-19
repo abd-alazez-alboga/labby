@@ -132,6 +132,7 @@ export function FeedbackScreen() {
                   setError(null);
                 }}
                 style={[styles.chip, selected && styles.chipSelected]}
+                hitSlop={CHIP_HIT_SLOP}
                 testID={`feedback-category-${option}`}
               >
                 <AppText
@@ -171,6 +172,9 @@ export function FeedbackScreen() {
     </Screen>
   );
 }
+
+/** The 40 px chip (board size) reaches the 48 px touch target. */
+const CHIP_HIT_SLOP = { top: 4, bottom: 4, left: 4, right: 4 };
 
 const styles = StyleSheet.create({
   group: { gap: spacing.sm },

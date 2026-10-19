@@ -151,6 +151,34 @@ describe("support tickets (UC-S-19/20)", () => {
     expect(screen.getByTestId("ticket-add-attachment")).toBeTruthy();
   });
 
+  it.each([
+    [400, "file_rejected", "couldn't be used"],
+    [413, "file_too_large", "too large"],
+    [429, "daily_upload_limit", "today's upload limit"],
+  ])("maps an upload %s to friendly copy and keeps the form", async (status, code, copy) => {
+    await renderSupportApp(
+      {
+        ...createRoutes(),
+        [TICKET_FILES]: [coded(status, code), uploadedFile(1)],
+      },
+      { initialUrl: "/ticket-create" },
+    );
+    await screen.findByTestId("ticket-create-screen");
+
+    mockDocumentPick("receipt.pdf");
+    fireEvent.press(screen.getByTestId("ticket-add-attachment"));
+    expect(await screen.findByTestId("ticket-attachment-error")).toHaveTextContent(copy, {
+      exact: false,
+    });
+    expect(screen.queryByTestId("ticket-attachment-0")).toBeNull();
+
+    // A retry that succeeds clears the error.
+    mockDocumentPick("receipt.pdf");
+    fireEvent.press(screen.getByTestId("ticket-add-attachment"));
+    expect(await screen.findByTestId("ticket-attachment-0")).toBeTruthy();
+    expect(screen.queryByTestId("ticket-attachment-error")).toBeNull();
+  });
+
   it("maps a 409 category refusal and a 404 to friendly copy", async () => {
     await renderSupportApp(
       {
@@ -252,6 +280,138 @@ describe("support tickets (UC-S-19/20)", () => {
     expect(await screen.findByTestId(`ticket-row-${olderId}`)).toBeTruthy();
     expect(contract.requestsTo(page1)).toHaveLength(1);
     expect(screen.queryByTestId("tickets-load-more")).toBeNull();
+  });
+
+  it("keeps the merged order across pages: older tickets slot between cases by updatedAt", async () => {
+    const page1 = "GET /api/v1/tickets?page=1&size=20";
+    const id = (n: number) => `7c000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`;
+    const caseNew = "7c000000-0000-4000-8000-0000000002a1";
+    const caseOld = "7c000000-0000-4000-8000-0000000002a2";
+    await renderSupportApp(
+      {
+        // Page 0: 20 tickets, all updated on 2026-10-10.
+        [TICKETS]: ok({
+          items: Array.from({ length: 20 }, (_, i) =>
+            ticketFixture({
+              ticketId: id(i),
+              unreadSupportMessages: 0,
+              updatedAt: `2026-10-10T${String(20 - i).padStart(2, "0")}:00:00Z`,
+            }),
+          ),
+          page: 0,
+          size: 20,
+          totalItems: 22,
+        }),
+        [LOST_ITEMS]: ok({
+          items: [
+            lostCaseFixture({ ticketId: caseNew, updatedAt: "2026-10-12T10:00:00Z" }),
+            lostCaseFixture({ ticketId: caseOld, updatedAt: "2026-09-01T10:00:00Z" }),
+          ],
+          page: 0,
+          size: 50,
+          totalItems: 2,
+        }),
+        // Page 1: one ticket newer than the old case, one older.
+        [page1]: ok({
+          items: [
+            ticketFixture({ ticketId: id(20), updatedAt: "2026-09-15T10:00:00Z" }),
+            ticketFixture({ ticketId: id(21), updatedAt: "2026-08-15T10:00:00Z" }),
+          ],
+          page: 1,
+          size: 20,
+          totalItems: 22,
+        }),
+      },
+      { initialUrl: "/tickets" },
+    );
+
+    fireEvent.press(await screen.findByTestId("tickets-load-more"));
+    await screen.findByTestId(`ticket-row-${id(21)}`);
+    const order = screen
+      .getAllByTestId(/^ticket-row-/)
+      .map((row) => String(row.props.testID).replace("ticket-row-", ""));
+    expect(order).toEqual([
+      caseNew,
+      ...Array.from({ length: 20 }, (_, i) => id(i)),
+      id(20),
+      caseOld,
+      id(21),
+    ]);
+    expect(screen.queryByTestId("tickets-load-more")).toBeNull();
+  });
+
+  it("\"show older\" is busy while a page loads — a double tap fires one request", async () => {
+    const page1 = "GET /api/v1/tickets?page=1&size=20";
+    const contract = await renderSupportApp(
+      {
+        [TICKETS]: ok({
+          items: Array.from({ length: 20 }, (_, i) =>
+            ticketFixture({ ticketId: `7c000000-0000-4000-8000-0000000000${String(10 + i)}` }),
+          ),
+          page: 0,
+          size: 20,
+          totalItems: 21,
+        }),
+        [LOST_ITEMS]: ok({ items: [], page: 0, size: 50, totalItems: 0 }),
+        [page1]: ok({
+          items: [ticketFixture({ ticketId: "7c000000-0000-4000-8000-0000000000ff" })],
+          page: 1,
+          size: 20,
+          totalItems: 21,
+        }),
+      },
+      { initialUrl: "/tickets" },
+    );
+
+    const more = await screen.findByTestId("tickets-load-more");
+    fireEvent.press(more);
+    fireEvent.press(screen.getByTestId("tickets-load-more"));
+    expect(await screen.findByTestId("ticket-row-7c000000-0000-4000-8000-0000000000ff")).toBeTruthy();
+    expect(contract.requestsTo(page1)).toHaveLength(1);
+  });
+
+  it("a failed older page keeps the list and retries inline", async () => {
+    const page1 = "GET /api/v1/tickets?page=1&size=20";
+    const olderId = "7c000000-0000-4000-8000-0000000000ff";
+    const contract = await renderSupportApp(
+      {
+        [TICKETS]: ok({
+          items: Array.from({ length: 20 }, (_, i) =>
+            ticketFixture({ ticketId: `7c000000-0000-4000-8000-0000000000${String(10 + i)}` }),
+          ),
+          page: 0,
+          size: 20,
+          totalItems: 21,
+        }),
+        [LOST_ITEMS]: ok({ items: [], page: 0, size: 50, totalItems: 0 }),
+        [page1]: [
+          { status: 500 },
+          ok({
+            items: [ticketFixture({ ticketId: olderId })],
+            page: 1,
+            size: 20,
+            totalItems: 21,
+          }),
+        ],
+      },
+      { initialUrl: "/tickets" },
+    );
+
+    fireEvent.press(await screen.findByTestId("tickets-load-more"));
+    expect(await screen.findByTestId("tickets-more-error")).toHaveTextContent(
+      "Couldn't load older tickets.",
+      { exact: false },
+    );
+    // The loaded list stays; only the footer turns into the retry.
+    expect(screen.getByTestId("tickets-list")).toBeTruthy();
+    expect(screen.getByTestId("ticket-row-7c000000-0000-4000-8000-000000000010")).toBeTruthy();
+    expect(screen.queryByTestId("tickets-error")).toBeNull();
+    expect(screen.queryByTestId("tickets-load-more")).toBeNull();
+
+    fireEvent.press(screen.getByTestId("tickets-more-retry"));
+    expect(await screen.findByTestId(`ticket-row-${olderId}`)).toBeTruthy();
+    expect(screen.queryByTestId("tickets-more-error")).toBeNull();
+    expect(contract.requestsTo(page1)).toHaveLength(2);
   });
 
   it("renders the thread oldest first with events, the waiting banner and composer", async () => {

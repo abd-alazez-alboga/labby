@@ -88,6 +88,7 @@ export function HelpArticleScreen({
                 accessibilityLabel={t(`support.help.languageToggle.${other}`)}
                 onPress={() => setShownLanguage(other)}
                 style={styles.toggle}
+                hitSlop={TOGGLE_HIT_SLOP}
                 testID="help-article-language-toggle"
               >
                 <AppText variant="caption" weight="800">
@@ -164,6 +165,9 @@ export function HelpArticleScreen({
     </Screen>
   );
 }
+
+/** The 38 px toggle (board size) reaches the 48 px touch target. */
+const TOGGLE_HIT_SLOP = { top: 5, bottom: 5, left: 5, right: 5 };
 
 const styles = StyleSheet.create({
   headerRow: {

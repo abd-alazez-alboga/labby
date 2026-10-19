@@ -1321,6 +1321,8 @@
       "title": "Your tickets",
       "empty": "No tickets yet. When you create one, you'll track it here.",
       "loadMore": "Show older tickets",
+      "loadMoreFailed": "Couldn't load older tickets.",
+      "retry": "Try again",
       "meta": "{{category}} · {{date}}",
       "lostItem": "Lost item",
       "lastSupport": "Support: {{body}}"

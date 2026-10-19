@@ -1,6 +1,6 @@
 import { renderRouter } from "expo-router/testing-library";
 import React from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 
 import type { UserProfile } from "../api/auth-types";
 import type {
@@ -202,6 +202,8 @@ export function lostCaseFixture(
       role: "driver",
     },
     chatWindow: "reopened",
+    memberId: null,
+    outcome: null,
     createdAt: "2026-10-18T21:10:00Z",
     updatedAt: "2026-10-19T09:00:00Z",
     ...overrides,
@@ -217,6 +219,17 @@ export const emptyTicketPage = () =>
   ok({ items: [], page: 0, size: 50, totalItems: 0 });
 export const emptyCasePage = () =>
   ok({ items: [], page: 0, size: 50, totalItems: 0 });
+
+/** The chat route stub; its params are readable as `chat-route` text. */
+function ChatRouteProbe() {
+  const { useLocalSearchParams } = jest.requireActual("expo-router");
+  const params = useLocalSearchParams() as Record<string, string>;
+  return (
+    <View testID="chat-route">
+      <Text testID="chat-route-params">{JSON.stringify(params)}</Text>
+    </View>
+  );
+}
 
 /**
  * The support screens only need auth + locale; the API is mocked at the
@@ -256,7 +269,7 @@ export async function renderSupportApp(
       ticket: () => <TicketRoute />,
       "lost-item-case": () => <LostItemCaseRoute />,
       feedback: () => <FeedbackRoute />,
-      chat: () => <View testID="chat-route" />,
+      chat: () => <ChatRouteProbe />,
       notifications: () => <View testID="notifications-route" />,
     },
     { initialUrl: options.initialUrl ?? "/support" },

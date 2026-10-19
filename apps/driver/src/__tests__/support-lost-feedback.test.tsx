@@ -26,6 +26,10 @@ import {
 
 const LOST_CASE = `GET /api/v1/lost-items/${LOST_TICKET_ID}`;
 const CHAT_THREAD = `GET /api/v1/rides/${LOST_RIDE_ID}/chat`;
+const MEMBER_ID = "12000000-0000-4000-8000-000000000001";
+
+const chatParams = (): unknown =>
+  JSON.parse(String(screen.getByTestId("chat-route-params").props.children));
 
 const threadFixture = (phone: string | null) =>
   ok({
@@ -83,6 +87,48 @@ describe("lost-item case view (UC-D-21) + feedback (UC-S-22)", () => {
 
     fireEvent.press(await screen.findByTestId("lost-case-open-chat"));
     expect(await screen.findByTestId("chat-route")).toBeTruthy();
+  });
+
+  it("a one-rider case (memberId null) reads and opens the ride's chat with no member", async () => {
+    const contract = await renderSupportApp(
+      {
+        [LOST_CASE]: ok(lostCaseFixture()),
+        [CHAT_THREAD]: threadFixture("+963955555555"),
+      },
+      { initialUrl: `/lost-item-case?ticketId=${LOST_TICKET_ID}` },
+    );
+
+    expect(await screen.findByTestId("lost-case-call")).toBeTruthy();
+    expect(contract.requestsTo(CHAT_THREAD)).toHaveLength(1);
+    fireEvent.press(screen.getByTestId("lost-case-open-chat"));
+    expect(await screen.findByTestId("chat-route")).toBeTruthy();
+    expect(chatParams()).toEqual({ rideId: LOST_RIDE_ID });
+  });
+
+  it("a shared-ride case addresses the reporter's member thread (support-v1 T6 h)", async () => {
+    const openURL = jest
+      .spyOn(Linking, "openURL")
+      .mockResolvedValue(undefined as never);
+    const memberThread = `${CHAT_THREAD}?memberId=${MEMBER_ID}`;
+    const contract = await renderSupportApp(
+      {
+        [LOST_CASE]: ok(lostCaseFixture({ memberId: MEMBER_ID })),
+        // The member-less thread would be 400 member_required on a shared ride.
+        [CHAT_THREAD]: coded(400, "member_required"),
+        [memberThread]: threadFixture("+963944444444"),
+      },
+      { initialUrl: `/lost-item-case?ticketId=${LOST_TICKET_ID}` },
+    );
+
+    // The Call number comes from the member's thread.
+    fireEvent.press(await screen.findByTestId("lost-case-call"));
+    expect(openURL).toHaveBeenCalledWith("tel:+963944444444");
+    expect(contract.requestsTo(memberThread)).toHaveLength(1);
+    expect(contract.requestsTo(CHAT_THREAD)).toHaveLength(0);
+
+    fireEvent.press(screen.getByTestId("lost-case-open-chat"));
+    expect(await screen.findByTestId("chat-route")).toBeTruthy();
+    expect(chatParams()).toEqual({ rideId: LOST_RIDE_ID, memberId: MEMBER_ID });
   });
 
   it("'Call Rana' dials the rider's number from the chat thread (CALL-01)", async () => {

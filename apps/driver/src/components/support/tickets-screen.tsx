@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 
@@ -81,11 +81,16 @@ type Load =
   | { status: "loading" }
   | {
       status: "loaded";
-      rows: Row[];
-      /** /tickets paging; cases are small and come in one page. */
+      /** Every /tickets page loaded so far, deduped by ticketId. */
+      tickets: Ticket[];
+      /** Cases are small and come in one page (with page 0). */
+      cases: LostItemCase[];
       page: number;
       totalTickets: number;
-      loadedTickets: number;
+      /** An older /tickets page is in flight ("show older" is busy). */
+      loadingMore: boolean;
+      /** The last older page failed — inline retry under the list. */
+      moreError: boolean;
     }
   | { status: "error"; kind: FailureKind };
 
@@ -171,46 +176,78 @@ export function TicketsScreen() {
     };
   }, []);
 
-  const fetchPage = useCallback(async (page: number, previousRows: Row[]) => {
-    if (page === 0) setLoad({ status: "loading" });
+  const fetchFirst = useCallback(async () => {
+    setLoad({ status: "loading" });
     try {
       const [ticketPage, casePage] = await Promise.all([
-        getTickets(page, PAGE_SIZE),
-        page === 0
-          ? getLostItemCases({ page: 0, size: 50 })
-          : Promise.resolve(null),
+        getTickets(0, PAGE_SIZE),
+        getLostItemCases({ page: 0, size: 50 }),
       ]);
       if (!mounted.current) return;
-      const fresh =
-        page === 0
-          ? mergeRows(ticketPage.items, casePage?.items ?? [])
-          : [
-              ...previousRows,
-              ...mergeRows(
-                ticketPage.items.filter(
-                  (ticket) =>
-                    !previousRows.some((row) => rowKey(row) === ticket.ticketId),
-                ),
-                [],
-              ),
-            ];
-      setLoad((previous) => ({
+      setLoad({
         status: "loaded",
-        rows: fresh,
+        tickets: ticketPage.items,
+        cases: casePage.items,
         page: ticketPage.page,
         totalTickets: ticketPage.totalItems,
-        loadedTickets:
-          ticketPage.items.length +
-          (page > 0 && previous.status === "loaded" ? previous.loadedTickets : 0),
-      }));
+        loadingMore: false,
+        moreError: false,
+      });
     } catch (caught) {
       if (mounted.current) setLoad({ status: "error", kind: failureKindOf(caught) });
     }
   }, []);
 
+  // One older page at a time: the ref closes the gap before the busy
+  // state renders, so a double tap never fires two requests.
+  const loadingMore = useRef(false);
+  const fetchMore = useCallback(async (page: number) => {
+    if (loadingMore.current) return;
+    loadingMore.current = true;
+    setLoad((previous) =>
+      previous.status === "loaded"
+        ? { ...previous, loadingMore: true, moreError: false }
+        : previous,
+    );
+    try {
+      const ticketPage = await getTickets(page, PAGE_SIZE);
+      if (!mounted.current) return;
+      setLoad((previous) => {
+        if (previous.status !== "loaded") return previous;
+        const known = new Set(previous.tickets.map((ticket) => ticket.ticketId));
+        return {
+          ...previous,
+          tickets: [
+            ...previous.tickets,
+            ...ticketPage.items.filter((ticket) => !known.has(ticket.ticketId)),
+          ],
+          page: ticketPage.page,
+          totalTickets: ticketPage.totalItems,
+          loadingMore: false,
+        };
+      });
+    } catch {
+      if (!mounted.current) return;
+      setLoad((previous) =>
+        previous.status === "loaded"
+          ? { ...previous, loadingMore: false, moreError: true }
+          : previous,
+      );
+    } finally {
+      loadingMore.current = false;
+    }
+  }, []);
+
   useEffect(() => {
-    void fetchPage(0, []);
-  }, [fetchPage]);
+    void fetchFirst();
+  }, [fetchFirst]);
+
+  // Rebuilt from everything loaded after every page, so the merged order
+  // (most recently updated first) holds across pages.
+  const rows = useMemo(
+    () => (load.status === "loaded" ? mergeRows(load.tickets, load.cases) : []),
+    [load],
+  );
 
   return (
     <Screen
@@ -228,22 +265,34 @@ export function TicketsScreen() {
       {load.status === "error" ? (
         <FailureState
           kind={load.kind}
-          onRetry={() => void fetchPage(0, [])}
+          onRetry={() => void fetchFirst()}
           testID="tickets-error"
         />
       ) : null}
       {load.status === "loaded" ? (
-        load.rows.length === 0 ? (
+        rows.length === 0 ? (
           <Muted testID="tickets-empty">{t("support.tickets.empty")}</Muted>
         ) : (
           <View testID="tickets-list">
-            {load.rows.map((row, index) => (
-              <TicketRow key={rowKey(row)} row={row} last={index === load.rows.length - 1} />
+            {rows.map((row, index) => (
+              <TicketRow key={rowKey(row)} row={row} last={index === rows.length - 1} />
             ))}
-            {load.loadedTickets < load.totalTickets ? (
+            {load.moreError ? (
+              <View style={styles.moreError} testID="tickets-more-error">
+                <AppText variant="secondary" color={colors.textMuted} align="center">
+                  {t("support.tickets.loadMoreFailed")}
+                </AppText>
+                <TextButton
+                  title={t("support.tickets.retry")}
+                  onPress={() => void fetchMore(load.page + 1)}
+                  testID="tickets-more-retry"
+                />
+              </View>
+            ) : load.tickets.length < load.totalTickets ? (
               <TextButton
                 title={t("support.tickets.loadMore")}
-                onPress={() => void fetchPage(load.page + 1, load.rows)}
+                busy={load.loadingMore}
+                onPress={() => void fetchMore(load.page + 1)}
                 testID="tickets-load-more"
               />
             ) : null}
@@ -261,6 +310,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   rowReverse: { flexDirection: "row-reverse" },
   grow: { flex: 1 },
+  moreError: { paddingTop: spacing.md, gap: spacing.sm },
   badge: {
     minWidth: 22,
     height: 22,
