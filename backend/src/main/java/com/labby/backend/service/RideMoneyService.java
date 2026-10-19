@@ -37,13 +37,13 @@ public interface RideMoneyService {
    * wallet fully paid becomes {@code paid_wallet}; the members are saved, and the ride's {@code
    * paymentConfirmedAt} is set when no member is left {@code pending} (the caller saves the ride).
    *
+   * <p>{@code appliedDiscounts} maps a member's user id to the promo discount actually applied to
+   * their share (M13 review W8: the reservation row may still carry the booking estimate when the
+   * applied discount rounded to zero).
+   *
    * @param ride the completed ride (locked, {@code split})
    * @param members its {@code completed} members, shares set, {@code pending}
-   */
-  /**
-   * Shared-ride money at completion. {@code appliedDiscounts} maps a member's user id to the promo
-   * discount actually applied to their share (M13 review W8: the reservation row may still carry
-   * the booking estimate when the applied discount rounded to zero).
+   * @param appliedDiscounts the promo discount applied per member user id
    */
   void applySharedAtCompletion(
       Ride ride, List<SharedRideMember> members, Map<UUID, BigDecimal> appliedDiscounts);

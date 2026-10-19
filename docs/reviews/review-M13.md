@@ -129,3 +129,8 @@ Owner rulings 2026-10-19 (all nine decided in one batch, lead's recommendation a
 **Deferred (recorded, non-blocking)** — growth-suite concurrency tests; rider pull-to-refresh + loyalty history paging; rider home-card hardcoded purples (pre-existing pattern); Arabic dual forms standalone; driver badge ordering vs board; `myCompletedAt` missing from `ChallengeView` (board's "Done {date}" stays dropped); `GamificationServiceImpl.lifetime` driver-branch reachability claim (not verified, left as is).
 
 Verification: targeted suites green during the round; full gates re-run after (results recorded in the tracker with the re-audit).
+
+## Re-audit (1fc5d1f..d6305bc → closure)
+_Independent read-only re-audit of the fix range, 2026-10-19._
+
+**Verdict: Pass with comments.** Every H / W / Info finding verified fixed at every call site and consistent with the recorded owner rulings; all four gates green after the fixes (backend 612 · driver 493 · rider 487 · admin 358). New items, resolved in the closure commit: N1 `value_invalid` added to the promo-create 422 contract list; N2 the duplicated javadoc on the shared-completion money method merged; N3 the now-unused promo count method removed. Recorded, not blocking: N4 the one-first-ride-reservation guard shares the already-deferred growth concurrency-test backlog (two concurrent bookings with two different flagged codes can both pass the count); N5 the reused `promo_first_ride_only` rider copy reads slightly off when the real reason is a held reservation — for the owner's next copy proofread. **M13 is review_passed; the review baseline for M14 is the closure commit recorded in the tracker.**

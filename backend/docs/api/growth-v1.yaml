@@ -273,7 +273,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Promo' }
         '409': { description: '`promo_code_taken`' }
-        '422': { description: 'Validation: `fixed_needs_region` | `window_invalid`' }
+        '422': { description: 'Validation: `fixed_needs_region` | `window_invalid` | `value_invalid` (percent above 100)' }
     get:
       tags: [AdminPromos]
       summary: List promos (promos:view)

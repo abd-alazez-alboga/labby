@@ -20,8 +20,6 @@ public interface PromoRedemptionRepository extends JpaRepository<PromoRedemption
 
   Optional<PromoRedemption> findByRideId(UUID rideId);
 
-  long countByPromoId(UUID promoId);
-
   Page<PromoRedemption> findByPromoIdOrderByCreatedAtDesc(UUID promoId, Pageable pageable);
 
   /**
