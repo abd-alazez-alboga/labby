@@ -5,8 +5,8 @@ import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Private uploads — driver document files and vehicle photos (DRV-01/03, NFR-S2), and report photos
- * (M11, REP-01).
+ * Private uploads — driver document files and vehicle photos (DRV-01/03, NFR-S2), report photos
+ * (M11, REP-01), and ticket attachments / lost-item photos (M14, SUP-01 / LOST-01).
  */
 public interface DriverFileService {
 
@@ -34,4 +34,17 @@ public interface DriverFileService {
    * @return the stored file
    */
   UploadedFileDto uploadReportPhoto(UUID userId, MultipartFile file);
+
+  /**
+   * Stores a ticket attachment (JPEG/PNG/PDF) or a lost-item photo (JPEG/PNG) — M14, support-v1
+   * {@code /ticket-files} — under the same rules.
+   *
+   * @param userId the uploader (either app)
+   * @param kind {@code ticket_attachment} or {@code lost_item_photo}
+   * @param file the multipart file
+   * @return the stored file
+   * @throws com.labby.backend.exception.InvalidRequestException for an unknown kind, a
+   *     missing/empty file, an unsupported type, or a PDF as a lost-item photo
+   */
+  UploadedFileDto uploadTicketFile(UUID userId, String kind, MultipartFile file);
 }

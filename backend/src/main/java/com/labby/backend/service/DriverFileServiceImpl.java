@@ -35,6 +35,9 @@ public class DriverFileServiceImpl implements DriverFileService {
   /** REP-01 report photos (M11, {@code /report-files}): same rules, images only. */
   private static final String REPORT_KEY_PREFIX = "report-files/";
 
+  /** M14 ticket attachments and lost-item photos ({@code /ticket-files}). */
+  private static final String TICKET_KEY_PREFIX = "ticket-files/";
+
   private final StoredFileRepository storedFileRepository;
   private final StorageProvider storageProvider;
   private final StorageProperties storageProperties;
@@ -48,6 +51,22 @@ public class DriverFileServiceImpl implements DriverFileService {
   @Override
   public UploadedFileDto uploadReportPhoto(UUID userId, MultipartFile file) {
     return store(userId, StoredFileKind.REPORT_PHOTO, file, REPORT_KEY_PREFIX);
+  }
+
+  @Override
+  public UploadedFileDto uploadTicketFile(UUID userId, String kind, MultipartFile file) {
+    StoredFileKind parsed = null;
+    if (kind != null && !kind.isBlank()) {
+      try {
+        parsed = StoredFileKind.fromValue(kind);
+      } catch (IllegalArgumentException ex) {
+        parsed = null;
+      }
+    }
+    if (parsed != StoredFileKind.TICKET_ATTACHMENT && parsed != StoredFileKind.LOST_ITEM_PHOTO) {
+      throw new InvalidRequestException("kind is required: ticket_attachment or lost_item_photo");
+    }
+    return store(userId, parsed, file, TICKET_KEY_PREFIX);
   }
 
   /**
@@ -84,6 +103,9 @@ public class DriverFileServiceImpl implements DriverFileService {
     if (fileKind == StoredFileKind.REPORT_PHOTO && FileSignatures.PDF.equals(contentType)) {
       throw new InvalidRequestException("Report photos must be JPEG or PNG");
     }
+    if (fileKind == StoredFileKind.LOST_ITEM_PHOTO && FileSignatures.PDF.equals(contentType)) {
+      throw new InvalidRequestException("Lost-item photos must be JPEG or PNG");
+    }
 
     String key =
         storageProvider.store(
@@ -111,8 +133,8 @@ public class DriverFileServiceImpl implements DriverFileService {
     } catch (IllegalArgumentException ex) {
       throw new InvalidRequestException("Unknown kind; use document or vehicle_photo");
     }
-    if (parsed == StoredFileKind.REPORT_PHOTO) {
-      // Report photos (M11) have their own endpoint, /report-files.
+    if (parsed != StoredFileKind.DOCUMENT && parsed != StoredFileKind.VEHICLE_PHOTO) {
+      // Report photos (M11) and ticket files (M14) have their own endpoints.
       throw new InvalidRequestException("Unknown kind; use document or vehicle_photo");
     }
     return parsed;

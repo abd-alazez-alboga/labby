@@ -29,6 +29,7 @@ import com.labby.backend.repository.ChatThreadRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.SharedRideMemberRepository;
+import com.labby.backend.repository.SupportTicketRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.util.PageCursor;
 import java.time.Clock;
@@ -51,13 +52,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Per-ride chat (CHAT-01..03). The window is derived per request from the thread's {@code
- * closed_at} / {@code reopened_until} — clients never compute it. WS errors ride on {@link
- * com.labby.backend.exception.BusinessException} codes; frames go through the {@link
- * RealtimePublisher} (after commit, every instance); the recipient's push on every new message
- * through the notification outbox (category {@code chat}, ride-critical while the ride is active).
- * A thread is one ride x rider (V21): on a shared ride each member has a private thread with the
- * driver, who addresses it by {@code memberId}; server frames to the driver carry that {@code
- * memberId}.
+ * closed_at} / {@code reopened_until} plus the M14 open-case index — clients never compute it. WS
+ * errors ride on {@link com.labby.backend.exception.BusinessException} codes; frames go through the
+ * {@link RealtimePublisher} (after commit, every instance); the recipient's push on every new
+ * message through the notification outbox (category {@code chat}, ride-critical while the ride is
+ * active). A thread is one ride x rider (V21): on a shared ride each member has a private thread
+ * with the driver, who addresses it by {@code memberId}; server frames to the driver carry that
+ * {@code memberId}.
  */
 @Service
 @Transactional
@@ -79,6 +80,7 @@ public class ChatServiceImpl implements ChatService {
   private final RideParties rideParties;
   private final UserRepository userRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
+  private final SupportTicketRepository supportTicketRepository;
   private final OnboardingAssembler onboardingAssembler;
   private final RealtimePublisher realtimePublisher;
   private final NotificationService notificationService;
@@ -92,7 +94,7 @@ public class ChatServiceImpl implements ChatService {
     RideParty caller = party.side();
     ChatThread thread = requireThread(party);
     Instant now = clock.instant();
-    ChatWindowState windowState = thread.windowState(now);
+    ChatWindowState windowState = windowState(thread, now);
     UUID marker = marker(thread, caller);
     long unread =
         marker == null
@@ -239,7 +241,7 @@ public class ChatServiceImpl implements ChatService {
                     new InvalidRequestException("The chat opens when a driver accepts the ride")
                         .withCode("chat_not_open"));
     Instant now = clock.instant();
-    if (!thread.windowState(now).writable()) {
+    if (!windowState(thread, now).writable()) {
       throw new InvalidRequestException("This chat is closed").withCode("chat_closed");
     }
     Optional<ChatMessage> existing =
@@ -325,11 +327,24 @@ public class ChatServiceImpl implements ChatService {
     Collections.reverse(oldestFirst);
     return new AdminChatLogDto(
         rideId,
-        thread.windowState(clock.instant()),
+        windowState(thread, clock.instant()),
         thread.getOpenedAt(),
         thread.getClosedAt(),
         toDtos(oldestFirst, null),
         nextCursor);
+  }
+
+  @Override
+  public ChatWindowState windowState(ChatThread thread, Instant now) {
+    ChatWindowState own = thread.windowState(now);
+    if (own != ChatWindowState.READ_ONLY) {
+      return own;
+    }
+    // LOST-01: an open lost-item case of this rider on this ride reopens the window; closing the
+    // case (uq_support_tickets_open_case gone) returns it to read-only — nothing is stored.
+    return supportTicketRepository.existsOpenCase(thread.getRideId(), thread.getRiderUserId())
+        ? ChatWindowState.REOPENED
+        : ChatWindowState.READ_ONLY;
   }
 
   @Override

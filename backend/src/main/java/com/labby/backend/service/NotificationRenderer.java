@@ -42,6 +42,12 @@ public class NotificationRenderer {
   /** Deep-link screen: a ride's chat thread (param {@code rideId}, M10). */
   public static final String SCREEN_CHAT = "chat";
 
+  /** Deep-link screen: one support ticket (param {@code ticketId}, M14). */
+  public static final String SCREEN_TICKET = "ticket";
+
+  /** Deep-link screen: one lost-item case (param {@code ticketId}, M14). */
+  public static final String SCREEN_LOST_ITEM_CASE = "lost_item_case";
+
   private static final Set<String> EVENTS =
       Arrays.stream(NotificationEvent.values())
           .map(NotificationEvent::getValue)
@@ -438,6 +444,60 @@ public class NotificationRenderer {
                       + " was added to your wallet.",
                   "مكافأة ترحيبية",
                   "أكملت رحلتك الأولى — أُضيف " + moneyAr(params, "amount") + " إلى محفظتك.");
+      case SUPPORT_TICKET_CREATED ->
+          support(
+              event,
+              NotificationAudience.ALL,
+              SCREEN_TICKET,
+              params,
+              "lost_item".equals(text(params.get("kind")))
+                  ? "Lost-item case opened"
+                  : "Ticket received",
+              "lost_item".equals(text(params.get("kind")))
+                  ? "We opened a case for your lost item and reopened the chat with your driver."
+                      + " Support will follow it to closure."
+                  : "Thanks for contacting Labby support. We'll get back to you in your ticket.",
+              "lost_item".equals(text(params.get("kind")))
+                  ? "تم فتح بلاغ المفقودات"
+                  : "استلمنا تذكرتك",
+              "lost_item".equals(text(params.get("kind")))
+                  ? "فتحنا بلاغاً لغرضك المفقود وأعدنا فتح المحادثة مع سائقك. سيتابع الدعم البلاغ حتى"
+                      + " إغلاقه."
+                  : "شكراً لتواصلك مع دعم لبي. سنرد عليك في تذكرتك.");
+      case SUPPORT_TICKET_STATUS_CHANGED -> ticketStatusChanged(event, params);
+      case SUPPORT_TICKET_MESSAGE ->
+          support(
+              event,
+              NotificationAudience.ALL,
+              SCREEN_TICKET,
+              params,
+              "Support replied",
+              "Labby support replied in your ticket. Open it to read the message.",
+              "رد الدعم",
+              "رد دعم لبي في تذكرتك. افتحها لقراءة الرسالة.");
+      case SUPPORT_WAITING_REMINDER ->
+          support(
+              event,
+              NotificationAudience.ALL,
+              SCREEN_TICKET,
+              params,
+              "Your ticket is waiting for you",
+              "Support is waiting for your reply. Open your ticket to continue.",
+              "تذكرتك بانتظارك",
+              "الدعم بانتظار ردك. افتح تذكرتك للمتابعة.");
+      case LOST_ITEM_CASE_OPENED ->
+          support(
+              event,
+              NotificationAudience.DRIVER,
+              SCREEN_LOST_ITEM_CASE,
+              params,
+              "A rider lost something in your car",
+              "A rider reported a lost item on a recent ride. The ride chat is open again — please"
+                  + " check your vehicle and reply.",
+              "راكب فقد غرضاً في سيارتك",
+              "أبلغ راكب عن غرض مفقود في رحلة حديثة. أُعيد فتح محادثة الرحلة — يرجى تفقد سيارتك"
+                  + " والرد.");
+      case LOST_ITEM_CASE_STATUS_CHANGED -> caseStatusChanged(event, params);
       case SCHEDULED_CONVERTED ->
           isDriver(params)
               ? scheduled(
@@ -1099,6 +1159,140 @@ public class NotificationRenderer {
    * a driver badge/challenge, else the rider app. No deep link: a tap opens the notification
    * center.
    */
+  // ---- M14 support (support-v1.yaml; category account, screens ticket / lost_item_case) -------
+
+  private static Rendered ticketStatusChanged(NotificationEvent event, Map<String, Object> params) {
+    String status = text(params.get("status"));
+    String titleEn;
+    String bodyEn;
+    String titleAr;
+    String bodyAr;
+    switch (status) {
+      case "in_progress" -> {
+        titleEn = "Ticket in progress";
+        bodyEn = "Support is working on your ticket.";
+        titleAr = "تذكرتك قيد المعالجة";
+        bodyAr = "يعمل الدعم على تذكرتك.";
+      }
+      case "waiting_on_user" -> {
+        titleEn = "Support needs your reply";
+        bodyEn = "Your ticket is waiting on you. Open it to answer support.";
+        titleAr = "الدعم بحاجة إلى ردك";
+        bodyAr = "تذكرتك بانتظار ردك. افتحها للرد على الدعم.";
+      }
+      case "resolved" -> {
+        titleEn = "Ticket resolved";
+        bodyEn = "Support marked your ticket resolved. Reply if anything is still unresolved.";
+        titleAr = "تم حل تذكرتك";
+        bodyAr = "وضع الدعم تذكرتك كمحلولة. أرسل رداً إن بقي شيء دون حل.";
+      }
+      case "closed" -> {
+        titleEn = "Ticket closed";
+        bodyEn = "Your ticket is now closed. Thank you for contacting Labby support.";
+        titleAr = "تم إغلاق تذكرتك";
+        bodyAr = "أُغلقت تذكرتك. شكراً لتواصلك مع دعم لبي.";
+      }
+      default -> {
+        titleEn = "Ticket updated";
+        bodyEn = "Your ticket's status changed. Open it for details.";
+        titleAr = "تم تحديث تذكرتك";
+        bodyAr = "تغيّرت حالة تذكرتك. افتحها لمعرفة التفاصيل.";
+      }
+    }
+    return support(
+        event, NotificationAudience.ALL, SCREEN_TICKET, params, titleEn, bodyEn, titleAr, bodyAr);
+  }
+
+  private static Rendered caseStatusChanged(NotificationEvent event, Map<String, Object> params) {
+    boolean driver = isDriver(params);
+    String status = text(params.get("caseStatus"));
+    String bodyEn;
+    String bodyAr;
+    switch (status) {
+      case "driver_contacted" -> {
+        bodyEn =
+            driver
+                ? "Support contacted you about the lost item. Please check your vehicle and reply"
+                    + " in the ride chat."
+                : "Support has contacted your driver about your lost item.";
+        bodyAr =
+            driver
+                ? "تواصل الدعم معك بخصوص الغرض المفقود. يرجى تفقد سيارتك والرد في محادثة الرحلة."
+                : "تواصل الدعم مع سائقك بخصوص غرضك المفقود.";
+      }
+      case "found" -> {
+        bodyEn =
+            driver
+                ? "The lost item is marked found. Please arrange the handover in the ride chat."
+                : "Good news — your item was found. Arrange the handover with your driver in the"
+                    + " ride chat.";
+        bodyAr =
+            driver
+                ? "تم تسجيل العثور على الغرض. يرجى ترتيب التسليم في محادثة الرحلة."
+                : "خبر سار — تم العثور على غرضك. رتّب استلامه مع سائقك في محادثة الرحلة.";
+      }
+      case "not_found" -> {
+        bodyEn =
+            driver
+                ? "The lost item was not found. Support will close the case."
+                : "Unfortunately your item was not found. Support will close the case.";
+        bodyAr =
+            driver
+                ? "لم يتم العثور على الغرض المفقود. سيغلق الدعم البلاغ."
+                : "للأسف لم يتم العثور على غرضك. سيغلق الدعم البلاغ.";
+      }
+      case "returned" -> {
+        bodyEn =
+            driver
+                ? "The lost item is marked returned. Thank you for helping the rider."
+                : "Your item is marked returned. We're glad it made it back to you.";
+        bodyAr =
+            driver
+                ? "تم تسجيل إعادة الغرض المفقود. شكراً لمساعدتك الراكب."
+                : "تم تسجيل إعادة غرضك. يسعدنا عودته إليك.";
+      }
+      case "closed" -> {
+        bodyEn = "The lost-item case is closed. The ride chat is read-only again.";
+        bodyAr = "أُغلق بلاغ المفقودات. عادت محادثة الرحلة للقراءة فقط.";
+      }
+      default -> {
+        bodyEn = "The lost-item case was updated. Open it for details.";
+        bodyAr = "تم تحديث بلاغ المفقودات. افتحه لمعرفة التفاصيل.";
+      }
+    }
+    return support(
+        event,
+        driver ? NotificationAudience.DRIVER : NotificationAudience.RIDER,
+        SCREEN_LOST_ITEM_CASE,
+        params,
+        "Lost-item case update",
+        bodyEn,
+        "تحديث بلاغ المفقودات",
+        bodyAr);
+  }
+
+  /** An account-category support notice deep-linking to the ticket / case. */
+  private static Rendered support(
+      NotificationEvent event,
+      NotificationAudience audience,
+      String screen,
+      Map<String, Object> params,
+      String titleEn,
+      String bodyEn,
+      String titleAr,
+      String bodyAr) {
+    return new Rendered(
+        NotificationCategory.ACCOUNT,
+        audience,
+        event.getValue(),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr,
+        screen,
+        Map.of("ticketId", text(params.get("ticketId"))));
+  }
+
   private static Rendered growth(
       NotificationEvent event,
       Map<String, Object> params,

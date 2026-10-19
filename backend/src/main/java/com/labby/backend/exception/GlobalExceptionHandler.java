@@ -24,6 +24,9 @@ public class GlobalExceptionHandler {
 
   private static final String DRIVER_FILES_PATH = "/api/v1/driver/files";
 
+  /** M14 ticket uploads answer 413 like the driver files (support-v1.yaml). */
+  private static final String TICKET_FILES_PATH = "/api/v1/ticket-files";
+
   /** Domain errors carry their own HTTP status. */
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
@@ -97,13 +100,14 @@ public class GlobalExceptionHandler {
 
   /**
    * Oversized multipart uploads map to 400 per the auth contract (photo upload), but to 413 on the
-   * driver file upload per the onboarding contract.
+   * driver file upload per the onboarding contract and on the ticket file upload (support-v1).
    */
   @ExceptionHandler(MaxUploadSizeExceededException.class)
   public ResponseEntity<ErrorResponse> handleMaxUploadSize(
       MaxUploadSizeExceededException ex, HttpServletRequest request) {
     HttpStatus status =
         DRIVER_FILES_PATH.equals(request.getRequestURI())
+                || TICKET_FILES_PATH.equals(request.getRequestURI())
             ? HttpStatus.PAYLOAD_TOO_LARGE
             : HttpStatus.BAD_REQUEST;
     return ResponseEntity.status(status)

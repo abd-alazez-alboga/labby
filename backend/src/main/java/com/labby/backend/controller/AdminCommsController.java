@@ -3,16 +3,20 @@ package com.labby.backend.controller;
 import com.labby.backend.dto.AdminChatLogDto;
 import com.labby.backend.dto.AdminSosEventDto;
 import com.labby.backend.dto.AdminSosEventPageDto;
+import com.labby.backend.dto.AdminTicketDto;
 import com.labby.backend.dto.SosAcknowledgeRequestDto;
+import com.labby.backend.dto.SosTicketRequestDto;
 import com.labby.backend.enums.Permission;
 import com.labby.backend.security.SecurityUtils;
 import com.labby.backend.service.ChatService;
 import com.labby.backend.service.SosService;
+import com.labby.backend.service.SupportTicketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -24,7 +28,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Admin comms & safety (comms-v1.yaml AdminComms: CHAT-03, UC-A-20). */
+/**
+ * Admin comms & safety (comms-v1.yaml AdminComms: CHAT-03, UC-A-20) plus the SOS-linked ticket
+ * (support-v1.yaml AdminSos, M14 ruling 9).
+ */
 @RestController
 @RequestMapping("/api/v1/admin")
 @Tag(name = "AdminComms", description = "Chat logs, SOS alert list and acknowledgement")
@@ -33,6 +40,7 @@ public class AdminCommsController {
 
   private final ChatService chatService;
   private final SosService sosService;
+  private final SupportTicketService supportTicketService;
 
   /**
    * The full read-only chat log of a ride (CHAT-03). Audited.
@@ -100,5 +108,24 @@ public class AdminCommsController {
     return ResponseEntity.ok(
         sosService.acknowledge(
             SecurityUtils.currentUserId(), sosEventId, request == null ? null : request.note()));
+  }
+
+  /**
+   * Opens the one linked support ticket of an SOS event on the caller's behalf (audited {@code
+   * sos.ticket}): about the SOS ride, {@code in_progress}, assigned to the acting admin.
+   *
+   * @param sosEventId the event
+   * @param request category, description, optional priority
+   * @return 201 with the ticket; 404 unknown event / category; 409 ticket_already_linked /
+   *     category_inactive / category_reserved
+   */
+  @PostMapping("/sos-events/{sosEventId}/ticket")
+  @PreAuthorize("hasAuthority('support:handle')")
+  @Operation(summary = "Open the linked support ticket of an SOS event (M14)")
+  public ResponseEntity<AdminTicketDto> ticket(
+      @PathVariable UUID sosEventId, @Valid @RequestBody SosTicketRequestDto request) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            supportTicketService.openSosTicket(SecurityUtils.currentUserId(), sosEventId, request));
   }
 }

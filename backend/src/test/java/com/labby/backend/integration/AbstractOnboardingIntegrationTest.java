@@ -77,6 +77,12 @@ abstract class AbstractOnboardingIntegrationTest extends AbstractAuthIntegration
     // M14 support tickets reference sos_events (and rides, users), so they truncate with it.
     jdbcTemplate.execute(
         "TRUNCATE ticket_attachments, ticket_messages, ticket_events, support_tickets, sos_events");
+    // M14-T2: help content, feedback and the admin-made ticket categories reference users; the
+    // seeded system category stays (its trigger forbids the delete anyway).
+    jdbcTemplate.execute("TRUNCATE feedback_tags, feedback");
+    jdbcTemplate.update("DELETE FROM help_articles");
+    jdbcTemplate.update("DELETE FROM help_categories");
+    jdbcTemplate.update("DELETE FROM ticket_categories WHERE system_code IS NULL");
     jdbcTemplate.execute("TRUNCATE chat_messages, chat_threads");
     jdbcTemplate.update("DELETE FROM trip_share_links");
     // M12 scheduled/shared rows reference rides, vehicles and users; the claim-release trail is

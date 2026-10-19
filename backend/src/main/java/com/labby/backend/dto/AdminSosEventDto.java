@@ -18,6 +18,7 @@ import java.util.UUID;
  * @param triggeredBy who triggered it; the phone is contact access — {@code support:handle} only
  * @param rideState the ride's current state
  * @param acknowledged the stand-down stamp, or null while the alert is open
+ * @param ticketId the linked support ticket (support-v1, M14); null until an admin opens one
  */
 public record AdminSosEventDto(
     UUID sosEventId,
@@ -30,7 +31,8 @@ public record AdminSosEventDto(
     UUID regionId,
     TriggeredByDto triggeredBy,
     String rideState,
-    AcknowledgedDto acknowledged) {
+    AcknowledgedDto acknowledged,
+    UUID ticketId) {
 
   /**
    * The same event with the caller's phone withheld — contact access (UC-A-20, owner rulings
@@ -50,7 +52,8 @@ public record AdminSosEventDto(
         regionId,
         new TriggeredByDto(triggeredBy.userId(), triggeredBy.name(), null),
         rideState,
-        acknowledged);
+        acknowledged,
+        ticketId);
   }
 
   /**

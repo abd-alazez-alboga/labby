@@ -13,10 +13,12 @@ import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.SosEvent;
+import com.labby.backend.model.SupportTicket;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.RbacPermissionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.SosEventRepository;
+import com.labby.backend.repository.SupportTicketRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.util.GeoPoints;
 import com.labby.backend.util.PageCursor;
@@ -49,6 +51,7 @@ public class SosServiceImpl implements SosService {
   private static final Set<String> STATUSES = Set.of("open", "acknowledged", "all");
 
   private final SosEventRepository sosEventRepository;
+  private final SupportTicketRepository supportTicketRepository;
   private final RideRepository rideRepository;
   private final UserRepository userRepository;
   private final RbacPermissionRepository rbacPermissionRepository;
@@ -188,11 +191,17 @@ public class SosServiceImpl implements SosService {
     Map<UUID, User> users =
         userRepository.findAllById(userIds).stream()
             .collect(Collectors.toMap(User::getId, Function.identity()));
-    return events.stream().map(event -> adminView(event, rides, users)).toList();
+    // M14: the linked support ticket, one per event (support-v1 ruling 9).
+    Map<UUID, UUID> tickets =
+        supportTicketRepository
+            .findBySosEventIdIn(events.stream().map(SosEvent::getId).toList())
+            .stream()
+            .collect(Collectors.toMap(SupportTicket::getSosEventId, SupportTicket::getId));
+    return events.stream().map(event -> adminView(event, rides, users, tickets)).toList();
   }
 
   private static AdminSosEventDto adminView(
-      SosEvent event, Map<UUID, Ride> rides, Map<UUID, User> users) {
+      SosEvent event, Map<UUID, Ride> rides, Map<UUID, User> users, Map<UUID, UUID> tickets) {
     Ride ride = rides.get(event.getRideId());
     User triggeredBy = users.get(event.getTriggeredByUserId());
     User acknowledgedBy =
@@ -215,6 +224,7 @@ public class SosServiceImpl implements SosService {
                 event.getAcknowledgedBy(),
                 acknowledgedBy == null ? "" : acknowledgedBy.getName(),
                 event.getAcknowledgedAt(),
-                event.getNote()));
+                event.getNote()),
+        tickets.get(event.getId()));
   }
 }

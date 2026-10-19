@@ -4,13 +4,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * What a private upload is for (NFR-S2); PDFs are accepted for documents only. Report photos (M11,
- * REP-01) come only through {@code /report-files}.
+ * What a private upload is for (NFR-S2); PDFs are accepted for documents and ticket attachments
+ * only. Report photos (M11, REP-01) come only through {@code /report-files}; ticket attachments and
+ * lost-item photos (M14, SUP-01 / LOST-01) only through {@code /ticket-files}.
  */
 public enum StoredFileKind {
   DOCUMENT("document"),
   VEHICLE_PHOTO("vehicle_photo"),
-  REPORT_PHOTO("report_photo");
+  REPORT_PHOTO("report_photo"),
+  TICKET_ATTACHMENT("ticket_attachment"),
+  LOST_ITEM_PHOTO("lost_item_photo");
 
   private final String value;
 

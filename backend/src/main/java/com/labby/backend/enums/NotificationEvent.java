@@ -134,7 +134,25 @@ public enum NotificationEvent {
    * To both sides when a referral pays out on the referee's first completed ride (GRW-03). Params:
    * as (referrer|referee), amount, currency.
    */
-  REFERRAL_REWARDED("growth.referral_rewarded");
+  REFERRAL_REWARDED("growth.referral_rewarded"),
+  // M14 support events (support-v1.yaml; category account, audience all — both apps hold support).
+  /** To the ticket's user on creation (UC-S-19). Params: ticketId, kind (ticket|lost_item). */
+  SUPPORT_TICKET_CREATED("support.ticket_created"),
+  /** To the user on every ticket status change (SUP-02). Params: ticketId, status. */
+  SUPPORT_TICKET_STATUS_CHANGED("support.ticket_status_changed"),
+  /** To the user on a support reply in the thread. Params: ticketId. */
+  SUPPORT_TICKET_MESSAGE("support.ticket_message"),
+  /** To the user once per waiting_on_user stay after 48 h (owner ruling). Params: ticketId. */
+  SUPPORT_WAITING_REMINDER("support.waiting_reminder"),
+  /**
+   * To the driver when a rider opens a lost-item case on their ride (UC-D-21). Params: ticketId.
+   */
+  LOST_ITEM_CASE_OPENED("lost_item.case_opened"),
+  /**
+   * To both parties on every case-status change (LOST-02). Params: ticketId, caseStatus, as
+   * (rider|driver — the recipient's side, which picks the audience).
+   */
+  LOST_ITEM_CASE_STATUS_CHANGED("lost_item.case_status_changed");
 
   private final String value;
 

@@ -39,7 +39,7 @@ public class StoredFile {
   @Column(name = "owner_user_id", nullable = false)
   private UUID ownerUserId;
 
-  @Column(name = "kind", nullable = false, length = 16)
+  @Column(name = "kind", nullable = false, length = 24)
   private StoredFileKind kind;
 
   @Column(name = "storage_key", nullable = false)

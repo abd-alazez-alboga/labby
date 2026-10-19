@@ -5,6 +5,8 @@ import com.labby.backend.dto.ChatMessageDto;
 import com.labby.backend.dto.ChatMessagePageDto;
 import com.labby.backend.dto.ChatThreadDto;
 import com.labby.backend.dto.QuickReplyDto;
+import com.labby.backend.enums.ChatWindowState;
+import com.labby.backend.model.ChatThread;
 import com.labby.backend.model.Ride;
 import java.time.Instant;
 import java.util.List;
@@ -94,6 +96,17 @@ public interface ChatService {
    * @return the log page plus the window facts
    */
   AdminChatLogDto adminLog(UUID adminUserId, UUID rideId, String before, int size, UUID memberId);
+
+  /**
+   * The thread's window state with the M14 lost-item hook (LOST-01): the thread's own state, or
+   * {@code reopened} when it is read-only and a non-closed lost-item case of the thread's rider
+   * exists on the ride — derived per request from the open-case index, never stored.
+   *
+   * @param thread the thread
+   * @param now the moment
+   * @return the window state
+   */
+  ChatWindowState windowState(ChatThread thread, Instant now);
 
   /**
    * Creates the ride's thread at acceptance (CHAT-01; before that there is no counterpart) — on a

@@ -48,6 +48,18 @@ info:
     rail). One ticket per SOS event.
 
 
+    **T2 amendments (owner rulings 2026-10-19, M14-T2 plan gate).** (a) `Ticket.unreadSupportMessages`
+    counts the support messages newer than the user's read marker `support_tickets.user_read_at`
+    (V27), which `GET /tickets/{ticketId}` stamps — null = never opened, every support message
+    unread. (b) `FeedbackRequest.submittedAs` (rider | driver) is REQUIRED: the JWT carries no
+    client type, so the app says which it is, and the backend checks the caller holds that role
+    (403 otherwise) — the codebase's `as` pattern. (c) The reminder job runs every 15 minutes by
+    default (`SUPPORT_REMINDER_CRON`), hours from `SUPPORT_WAITING_REMINDER_HOURS` (48). (d) A
+    case-status change notifies both parties with `lost_item.case_status_changed` only — the
+    mirrored ticket status change is in the history, not a second push. (e) Help search answers
+    400 `query_too_long` above 80 characters and 400 for a `lang` other than en | ar.
+
+
     **Ticket state machine (SUP-02).** `open -> in_progress -> waiting_on_user -> resolved ->
     closed`. Admin transitions (`POST /admin/tickets/{id}/status`): `open -> in_progress`;
     `in_progress -> waiting_on_user | resolved`; `waiting_on_user -> in_progress`;
@@ -395,6 +407,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Feedback' }
         '400': { description: '`invalid_category`, blank or too long' }
+        '403': { description: The account holds no role matching `submittedAs` }
 
   # ─────────────────────────── Admin: tickets (UC-A-21) ───────────────────────────
   /api/v1/admin/tickets:
@@ -1173,7 +1186,7 @@ components:
         attachments:
           type: array
           items: { $ref: '#/components/schemas/Attachment' }
-        unreadSupportMessages: { type: integer, description: Support messages after the user's last read of the thread }
+        unreadSupportMessages: { type: integer, description: "Support messages after the user's last read of the thread (`user_read_at`, V27 — stamped by GET /tickets/{ticketId})" }
         lastMessageAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -1265,10 +1278,11 @@ components:
     # ── feedback ──
     FeedbackRequest:
       type: object
-      required: [category, body]
+      required: [category, body, submittedAs]
       properties:
         category: { $ref: '#/components/schemas/FeedbackCategory' }
         body: { type: string, minLength: 1, maxLength: 2000 }
+        submittedAs: { type: string, enum: [rider, driver], description: 'The sending app (T2 amendment b); the caller must hold that role' }
     Feedback:
       type: object
       required: [feedbackId, category, body, submittedAs, createdAt]
