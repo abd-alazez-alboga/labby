@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -64,6 +65,24 @@ public class GlobalExceptionHandler {
                 status.value(),
                 status.getReasonPhrase(),
                 "The resource was changed concurrently; reload and retry"));
+  }
+
+  /**
+   * A statement hit its PostgreSQL {@code statement_timeout} — the M15 analytics / export time
+   * limit (analytics-v1.yaml): 503 {@code query_timeout}, the admin narrows the range or filters.
+   */
+  @ExceptionHandler(QueryTimeoutException.class)
+  public ResponseEntity<ErrorResponse> handleQueryTimeout(QueryTimeoutException ex) {
+    log.warn("Statement timed out", ex);
+    HttpStatus status = HttpStatus.SERVICE_UNAVAILABLE;
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.ofCoded(
+                status.value(),
+                status.getReasonPhrase(),
+                "The query took too long; narrow the range or the filters",
+                "query_timeout",
+                null));
   }
 
   /** Bean-validation failures become a field-to-message map with HTTP 400. */

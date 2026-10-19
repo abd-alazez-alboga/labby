@@ -9,12 +9,8 @@ import com.labby.backend.dto.TicketMessageDto;
 import com.labby.backend.dto.TicketPriorityRequestDto;
 import com.labby.backend.dto.TicketStatusRequestDto;
 import com.labby.backend.enums.Permission;
-import com.labby.backend.enums.TicketKind;
-import com.labby.backend.enums.TicketPriority;
-import com.labby.backend.enums.TicketStatus;
 import com.labby.backend.security.SecurityUtils;
 import com.labby.backend.service.SupportTicketService;
-import com.labby.backend.util.WireEnums;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -63,15 +59,8 @@ public class AdminTicketsController {
       @RequestParam(defaultValue = "20") int size) {
     return ResponseEntity.ok(
         supportTicketService.adminQueue(
-            new SupportTicketService.AdminTicketFilter(
-                WireEnums.parse(TicketKind::fromValue, kind, "kind"),
-                WireEnums.parseAll(TicketStatus::fromValue, status, "status"),
-                WireEnums.parse(TicketPriority::fromValue, priority, "priority"),
-                categoryId,
-                assigneeUserId,
-                unassigned,
-                userId,
-                rideId),
+            AdminListFilters.tickets(
+                kind, status, priority, categoryId, assigneeUserId, unassigned, userId, rideId),
             Math.max(0, page),
             Math.clamp(size, 1, 50)));
   }

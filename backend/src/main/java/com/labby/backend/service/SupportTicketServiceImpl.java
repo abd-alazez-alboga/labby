@@ -236,6 +236,17 @@ public class SupportTicketServiceImpl implements SupportTicketService {
         assembler.adminTickets(tickets.getContent()), page, size, tickets.getTotalElements());
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public List<AdminTicketDto> adminQueueAll(AdminTicketFilter filter, int maxRows) {
+    Specification<SupportTicket> spec = queueSpec(filter);
+    ExportLimits.check(supportTicketRepository.count(spec), maxRows);
+    return assembler.adminTickets(
+        supportTicketRepository
+            .findAll(spec, PageRequest.of(0, maxRows, QUEUE_ORDER))
+            .getContent());
+  }
+
   private static Specification<SupportTicket> queueSpec(AdminTicketFilter filter) {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();

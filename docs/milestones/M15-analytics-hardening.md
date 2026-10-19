@@ -14,6 +14,8 @@
 Aggregate queries + endpoints for ADM-02's four groups (rides, revenue, users, ops) with date-range + region filters; CSV export endpoints on rides/users/drivers/transactions/tickets respecting active filters, audit-logged.
 **AC:** metric formulas tested against seeded fixtures (counts verified by hand); exports match on-screen filters exactly; heavy queries bounded (indexed, time-limited).
 
+**Owner rulings (2026-10-20, T1 plan gate; contract `backend/docs/api/analytics-v1.yaml`):** (Q1) T1 adds backend list endpoints for users, drivers and transactions (none existed), and each export reuses its list's exact filter; T2 adds those three list screens (canvas boards first). (Q2) formulas as in the contract — "active" = ≥1 completed ride in the range, pickup time = actual accept→arrive. (Q3) drivers online and active surge zones are point-in-time ("now"), not range-bound. (Q4) export cap 50,000 rows, 422 `export_too_large` above it. (Q5) transactions = rider wallet transactions + driver ledger entries in one list with a `source` column. (Q6) signups are platform-wide (users carry no region), labelled so.
+
 ### M15-T2 — Admin dashboard UI
 Dashboard home: cards + charts for the four groups, date-range + region filters; export buttons on the five list screens.
 **AC:** UC-A-30/31 end-to-end; charts correct against fixtures; permission-gated; tests green.

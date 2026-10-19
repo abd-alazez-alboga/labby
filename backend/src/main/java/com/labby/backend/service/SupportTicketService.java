@@ -85,6 +85,16 @@ public interface SupportTicketService {
   AdminTicketPageDto adminQueue(AdminTicketFilter filter, int page, int size);
 
   /**
+   * Every ticket of the queue filter in queue order — the tickets CSV export (ADM-06): at most
+   * {@code maxRows}, 422 {@code export_too_large} above.
+   *
+   * @param filter the filters
+   * @param maxRows the export cap
+   * @return the rows
+   */
+  List<AdminTicketDto> adminQueueAll(AdminTicketFilter filter, int maxRows);
+
+  /**
    * One ticket with everything the handler needs — including the user's phone, which the caller
    * strips for admins without {@code support:handle}.
    *

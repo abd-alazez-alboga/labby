@@ -3,16 +3,12 @@ package com.labby.backend.controller;
 import com.labby.backend.dto.AdminRideDetailDto;
 import com.labby.backend.dto.AdminRideSummaryPageDto;
 import com.labby.backend.enums.Permission;
-import com.labby.backend.enums.RideKind;
-import com.labby.backend.enums.RideState;
-import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.security.SecurityUtils;
 import com.labby.backend.service.AdminRideService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.UUID;
-import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -60,27 +56,9 @@ public class AdminRidesController {
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
     AdminRideService.Filter filter =
-        new AdminRideService.Filter(
-            regionId,
-            parse(state, RideState::fromValue, "state"),
-            parse(kind, RideKind::fromValue, "kind"),
-            userId,
-            phone,
-            from,
-            to);
+        AdminListFilters.rides(regionId, state, kind, userId, phone, from, to);
     return ResponseEntity.ok(
         adminRideService.search(filter, Math.max(0, page), Math.clamp(size, 1, 100)));
-  }
-
-  private static <T> T parse(String value, Function<String, T> parser, String name) {
-    if (value == null) {
-      return null;
-    }
-    try {
-      return parser.apply(value);
-    } catch (IllegalArgumentException ex) {
-      throw new InvalidRequestException("Unknown " + name + ": " + value);
-    }
   }
 
   /**

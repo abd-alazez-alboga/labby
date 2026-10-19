@@ -21,9 +21,12 @@ import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.RideAssembler.Audience;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -41,6 +44,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminRideServiceImpl implements AdminRideService {
 
+  /** Newest first; the id breaks ties so pages and exports share one stable order. */
+  private static final Sort ORDER = Sort.by(Sort.Order.desc("requestedAt"), Sort.Order.desc("id"));
+
   private final RideRepository rideRepository;
   private final RideOfferRepository rideOfferRepository;
   private final RideTraceRepository rideTraceRepository;
@@ -52,16 +58,37 @@ public class AdminRideServiceImpl implements AdminRideService {
 
   @Override
   public AdminRideSummaryPageDto search(Filter filter, int page, int size) {
+    Optional<Specification<Ride>> spec = spec(filter);
+    if (spec.isEmpty()) {
+      return new AdminRideSummaryPageDto(List.of(), page, size, 0);
+    }
+    Page<Ride> rides = rideRepository.findAll(spec.get(), PageRequest.of(page, size, ORDER));
+    return new AdminRideSummaryPageDto(
+        rows(rides.getContent()), rides.getNumber(), rides.getSize(), rides.getTotalElements());
+  }
+
+  @Override
+  public List<AdminRideSummaryDto> searchAll(Filter filter, int maxRows) {
+    Optional<Specification<Ride>> spec = spec(filter);
+    if (spec.isEmpty()) {
+      return List.of();
+    }
+    ExportLimits.check(rideRepository.count(spec.get()), maxRows);
+    return rows(rideRepository.findAll(spec.get(), PageRequest.of(0, maxRows, ORDER)).getContent());
+  }
+
+  /** The search predicate; empty when the phone filter matches no account (no ride can match). */
+  private Optional<Specification<Ride>> spec(Filter filter) {
     Optional<UUID> party = Optional.ofNullable(filter.userId());
     if (filter.phone() != null && !filter.phone().isBlank()) {
       Optional<UUID> byPhone = userRepository.findByPhone(filter.phone().trim()).map(User::getId);
       if (byPhone.isEmpty() || (party.isPresent() && !party.get().equals(byPhone.get()))) {
-        return new AdminRideSummaryPageDto(List.of(), page, size, 0);
+        return Optional.empty();
       }
       party = byPhone;
     }
     UUID partyId = party.orElse(null);
-    Specification<Ride> spec =
+    return Optional.of(
         (root, query, builder) -> {
           List<Predicate> predicates = new ArrayList<>();
           if (filter.regionId() != null) {
@@ -86,20 +113,7 @@ public class AdminRideServiceImpl implements AdminRideService {
             predicates.add(builder.lessThan(root.get("requestedAt"), filter.to()));
           }
           return builder.and(predicates.toArray(Predicate[]::new));
-        };
-    Page<Ride> rides =
-        rideRepository.findAll(
-            spec, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "requestedAt")));
-    Map<UUID, Fare> fares =
-        fareRepository
-            .findByRideIdIn(rides.getContent().stream().map(Ride::getId).toList())
-            .stream()
-            .collect(Collectors.toMap(Fare::getRideId, Function.identity()));
-    return new AdminRideSummaryPageDto(
-        rides.getContent().stream().map(ride -> row(ride, fares.get(ride.getId()))).toList(),
-        rides.getNumber(),
-        rides.getSize(),
-        rides.getTotalElements());
+        });
   }
 
   @Override
@@ -155,29 +169,64 @@ public class AdminRideServiceImpl implements AdminRideService {
         trace);
   }
 
-  private AdminRideSummaryDto row(Ride ride, Fare fare) {
-    ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
-    String regionName =
-        regionRepository.findById(ride.getRegionId()).map(Region::getName).orElse("");
-    return new AdminRideSummaryDto(
-        ride.getId(),
-        ride.getState(),
-        ride.getRequestedAt(),
-        rideAssembler.place(ride.getPickup(), ride.getPickupLabel()),
-        rideAssembler.place(ride.getDestination(), ride.getDestinationLabel()),
-        serviceType.getNameEn(),
-        serviceType.getNameAr(),
-        fare == null ? null : fare.getTotal(),
-        ride.getCancellationFee(),
-        ride.getCurrency(),
-        ride.getKind(),
-        ride.getRegionId(),
-        regionName,
-        ride.getRiderUserId(),
-        userRepository.findById(ride.getRiderUserId()).map(User::getName).orElse(""),
-        ride.getDriverUserId(),
-        ride.getDriverUserId() == null
-            ? null
-            : userRepository.findById(ride.getDriverUserId()).map(User::getName).orElse(null));
+  /** Search rows with every lookup batched (an export may hold thousands of rides). */
+  private List<AdminRideSummaryDto> rows(List<Ride> rides) {
+    Map<UUID, Fare> fares =
+        fareRepository.findByRideIdIn(rides.stream().map(Ride::getId).toList()).stream()
+            .collect(Collectors.toMap(Fare::getRideId, Function.identity()));
+    Map<UUID, ServiceType> serviceTypes =
+        byId(
+            serviceTypeRepository.findAllById(
+                rides.stream().map(Ride::getServiceTypeId).collect(Collectors.toSet())),
+            ServiceType::getId);
+    Map<UUID, Region> regions =
+        byId(
+            regionRepository.findAllById(
+                rides.stream().map(Ride::getRegionId).collect(Collectors.toSet())),
+            Region::getId);
+    Set<UUID> partyIds = new HashSet<>();
+    rides.forEach(
+        ride -> {
+          partyIds.add(ride.getRiderUserId());
+          if (ride.getDriverUserId() != null) {
+            partyIds.add(ride.getDriverUserId());
+          }
+        });
+    Map<UUID, User> users = byId(userRepository.findAllById(partyIds), User::getId);
+    return rides.stream()
+        .map(
+            ride -> {
+              ServiceType serviceType = serviceTypes.get(ride.getServiceTypeId());
+              Fare fare = fares.get(ride.getId());
+              User rider = users.get(ride.getRiderUserId());
+              User driver =
+                  ride.getDriverUserId() == null ? null : users.get(ride.getDriverUserId());
+              Region region = regions.get(ride.getRegionId());
+              return new AdminRideSummaryDto(
+                  ride.getId(),
+                  ride.getState(),
+                  ride.getRequestedAt(),
+                  rideAssembler.place(ride.getPickup(), ride.getPickupLabel()),
+                  rideAssembler.place(ride.getDestination(), ride.getDestinationLabel()),
+                  serviceType.getNameEn(),
+                  serviceType.getNameAr(),
+                  fare == null ? null : fare.getTotal(),
+                  ride.getCancellationFee(),
+                  ride.getCurrency(),
+                  ride.getKind(),
+                  ride.getRegionId(),
+                  region == null ? "" : region.getName(),
+                  ride.getRiderUserId(),
+                  rider == null ? "" : rider.getName(),
+                  ride.getDriverUserId(),
+                  driver == null ? null : driver.getName());
+            })
+        .toList();
+  }
+
+  private static <T> Map<UUID, T> byId(Iterable<T> items, Function<T, UUID> id) {
+    Map<UUID, T> map = new HashMap<>();
+    items.forEach(item -> map.put(id.apply(item), item));
+    return map;
   }
 }

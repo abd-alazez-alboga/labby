@@ -189,6 +189,12 @@ labby:
     # cron (second minute hour day month weekday, operating timezone); "-" disables.
     waiting-reminder-hours: ${SUPPORT_WAITING_REMINDER_HOURS:48}
     reminder-cron: ${SUPPORT_REMINDER_CRON:0 */15 * * * *}
+  analytics:
+    # M15 analytics & CSV export (analytics-v1.yaml). Every analytics / export SQL statement runs
+    # under this PostgreSQL statement_timeout (a statement that hits it answers 503 query_timeout);
+    # an export holds at most export-max-rows rows (owner ruling 2026-10-20, 422 above it).
+    statement-timeout: ${ANALYTICS_STATEMENT_TIMEOUT:10s}
+    export-max-rows: ${ANALYTICS_EXPORT_MAX_ROWS:50000}
   routing:
     # RoutingProvider (ES-04): public OSRM demo server in V1; self-hosted OSRM is a config change.
     osrm-url: ${ROUTING_OSRM_URL:https://router.project-osrm.org}

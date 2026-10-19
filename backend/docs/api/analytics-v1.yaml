@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: Labby Analytics & Export API (M15 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M15-T1: the admin analytics dashboard (ADM-02, UC-A-30), the
+    admin user / driver / transaction lists the exports need, and CSV export on the five key lists
+    (ADM-06, UC-A-31). The admin client (M15-T2) builds against this document; on conflict after
+    T1 lands, the implementation is the truth and this file is amended. Schema: migration V30
+    (indexes only).
+
+
+    **Owner rulings (2026-10-20, M15-T1 plan gate).**
+
+    (Q1) No admin list existed for users, drivers or transactions; T1 adds the three list
+    endpoints below, and every export takes EXACTLY its list's filter parameters (same parsing,
+    same query predicate) — that is how "exports match on-screen filters" is proven. T2 adds the
+    three list screens (canvas boards first).
+
+    (Q2) Metric formulas are the ones written on each field below. "Active" rider / driver = at
+    least one completed ride requested in the range. Pickup time = the ACTUAL accept → arrive
+    time, not the offer's estimate.
+
+    (Q3) Drivers online and active surge zones exist only as current values (no history table),
+    so they are point-in-time "now" figures that ignore `from` / `to`.
+
+    (Q4) An export holds at most **50,000** rows; above that it answers 422
+    `export_too_large` (details.limit, details.rows) and the admin narrows the filters.
+
+    (Q5) "Transactions" = rider wallet transactions AND driver ledger entries, one list with a
+    `source` column.
+
+    (Q6) Users carry no region, so signups are platform-wide whatever `regionId` says
+    (`signups.scope = platform`).
+
+
+    **Common rules.** Ride metrics select rides by `requested_at` in `[from, to)` — the same
+    instant filter as the rides list. Money is reported per currency and never summed across
+    currencies. A driver's region is the region of the service types of their ACTIVE vehicle
+    (drivers carry no region column). Every analytics and export SQL statement runs under a
+    PostgreSQL `statement_timeout` (`labby.analytics.statement-timeout`, default 10 s); a statement
+    that hits it answers 503 `query_timeout`. `from` / `to` may span at most 366 days.
+    Errors use the global ErrorResponse shape (status, message, code?, details?).
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/admin/analytics:
+    get:
+      tags: [AdminAnalytics]
+      summary: Dashboard figures for the four ADM-02 groups — `analytics:view`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - { name: regionId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The dashboard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsDashboard' }
+        '400': { description: '`from` / `to` missing, `to <= from` (`invalid_range`) or more than 366 days (`range_too_long`)' }
+        '403': { description: Missing `analytics:view` }
+        '503': { description: '`query_timeout`' }
+
+  /api/v1/admin/users:
+    get:
+      tags: [AdminDirectory]
+      summary: User list (newest first) — `users:view`
+      description: >
+        `phone` is contact access (UC-A-20): filled only for admins holding `support:handle`, null
+        otherwise — in the export too.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: role, in: query, schema: { $ref: '#/components/schemas/Role' }, description: Holds this role (any role state) }
+        - { name: from, in: query, schema: { type: string, format: date-time }, description: createdAt lower bound (inclusive) }
+        - { name: to, in: query, schema: { type: string, format: date-time }, description: createdAt upper bound (exclusive) }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserPage' }
+        '403': { description: Missing `users:view` }
+
+  /api/v1/admin/drivers:
+    get:
+      tags: [AdminDirectory]
+      summary: Driver list (every user with a driver application, newest account first) — `users:view`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: regionId, in: query, schema: { type: string, format: uuid }, description: Active vehicle serves a service type of this region }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ApplicationStatus' } }
+        - { name: online, in: query, schema: { type: boolean } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDriverPage' }
+        '403': { description: Missing `users:view` }
+
+  /api/v1/admin/transactions:
+    get:
+      tags: [AdminDirectory]
+      summary: Wallet transactions + driver ledger entries (newest first) — `wallets:view` AND `settlements:view`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: source, in: query, schema: { $ref: '#/components/schemas/TransactionSource' } }
+        - { name: type, in: query, schema: { type: string }, description: A wallet transaction type or a driver ledger type (money-v1); unknown → 400 }
+        - { name: currency, in: query, schema: { type: string, minLength: 3, maxLength: 3 } }
+        - { name: userId, in: query, schema: { type: string, format: uuid }, description: The wallet owner or the ledger's driver }
+        - { name: from, in: query, schema: { type: string, format: date-time }, description: createdAt lower bound (inclusive) }
+        - { name: to, in: query, schema: { type: string, format: date-time }, description: createdAt upper bound (exclusive) }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: One page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTransactionPage' }
+        '403': { description: Missing a permission }
+
+  /api/v1/admin/exports/rides:
+    get:
+      tags: [AdminExports]
+      summary: CSV of the rides list — `analytics:export` AND `rides:view`, audited `export.rides`
+      description: Takes the rides-v1 `GET /admin/rides` filters (regionId, state, kind, userId, phone, from, to); same order (newest first).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Csv' }
+        '403': { description: Missing a permission }
+        '422': { description: '`export_too_large`' }
+  /api/v1/admin/exports/users:
+    get:
+      tags: [AdminExports]
+      summary: CSV of the users list — `analytics:export` AND `users:view`, audited `export.users`
+      description: Takes the `GET /admin/users` filters (role, from, to).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Csv' }
+        '403': { description: Missing a permission }
+        '422': { description: '`export_too_large`' }
+  /api/v1/admin/exports/drivers:
+    get:
+      tags: [AdminExports]
+      summary: CSV of the drivers list — `analytics:export` AND `users:view`, audited `export.drivers`
+      description: Takes the `GET /admin/drivers` filters (regionId, status, online).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Csv' }
+        '403': { description: Missing a permission }
+        '422': { description: '`export_too_large`' }
+  /api/v1/admin/exports/transactions:
+    get:
+      tags: [AdminExports]
+      summary: CSV of the transactions list — `analytics:export` AND `wallets:view` AND `settlements:view`, audited `export.transactions`
+      description: Takes the `GET /admin/transactions` filters (source, type, currency, userId, from, to).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Csv' }
+        '403': { description: Missing a permission }
+        '422': { description: '`export_too_large`' }
+  /api/v1/admin/exports/tickets:
+    get:
+      tags: [AdminExports]
+      summary: CSV of the ticket queue — `analytics:export` AND `support:view`, audited `export.tickets`
+      description: Takes the support-v1 `GET /admin/tickets` filters (kind, status[], priority, categoryId, assigneeUserId, unassigned, userId, rideId); same queue order.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Csv' }
+        '403': { description: Missing a permission }
+        '422': { description: '`export_too_large`' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    From: { name: from, in: query, required: true, schema: { type: string, format: date-time }, description: Inclusive }
+    To: { name: to, in: query, required: true, schema: { type: string, format: date-time }, description: Exclusive }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+  responses:
+    Csv:
+      description: >
+        `text/csv; charset=UTF-8` attachment (`Content-Disposition: attachment;
+        filename="labby-<list>-<yyyyMMdd-HHmmss>Z.csv"`). RFC 4180: comma-separated, CRLF rows, a
+        header row of snake_case column names, fields quoted when they hold a comma, quote, CR or
+        LF. Starts with a UTF-8 byte-order mark so spreadsheet apps read Arabic correctly. A cell
+        starting with `=`, `+`, `-`, `@`, tab or CR is prefixed with `'` (formula-injection guard)
+        — negative amounts are numbers and are written as-is. Instants are ISO-8601 UTC. The audit
+        entry (`export.<list>`, target type `export`) records the filters and the row count.
+        Columns — rides: ride_id, requested_at, state, kind, region, service_type, rider_id,
+        rider_name, driver_id, driver_name, fare_total, cancellation_fee, currency, pickup,
+        destination · users: user_id, name, phone, state, roles, created_at · drivers: user_id,
+        name, phone, application_status, online, region, vehicle_plate, created_at · transactions:
+        transaction_id, source, created_at, user_id, user_name, type, amount, currency, ride_id,
+        balance_after, reason · tickets: ticket_id, kind, status, priority, category, user_id,
+        user_name, user_role, assignee, ride_id, created_at, last_message_at, description.
+      content:
+        text/csv: { schema: { type: string } }
+  schemas:
+    Role: { type: string, enum: [rider, driver, admin] }
+    ApplicationStatus: { type: string, enum: [submitted, under_review, needs_changes, approved, rejected, withdrawn] }
+    TransactionSource: { type: string, enum: [wallet, driver_ledger] }
+    Money: { type: number, description: Exact decimal with two places (money-v1 money representation) }
+
+    AnalyticsDashboard:
+      type: object
+      required: [from, to, rides, revenue, users, ops]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        regionId: { type: [string, 'null'], format: uuid }
+        rides: { $ref: '#/components/schemas/RideMetrics' }
+        revenue: { $ref: '#/components/schemas/RevenueMetrics' }
+        users: { $ref: '#/components/schemas/UserMetrics' }
+        ops: { $ref: '#/components/schemas/OpsMetrics' }
+
+    RideMetrics:
+      type: object
+      required: [total, completed, cancelledByRider, cancelledByDriver, noDriverFound, byRegion, byServiceType, daily]
+      properties:
+        total: { type: integer, description: Rides requested in the range (any state) }
+        completed: { type: integer }
+        cancelledByRider: { type: integer }
+        cancelledByDriver: { type: integer }
+        noDriverFound: { type: integer }
+        completionRate:
+          type: [number, 'null']
+          description: >
+            completed ÷ (completed + cancelledByRider + cancelledByDriver + noDriverFound), 0..1,
+            4 decimals; rides still in progress are left out; null when no ride has finished.
+        byRegion:
+          type: array
+          description: Regions with at least one ride, by name
+          items:
+            type: object
+            required: [regionId, regionName, total, completed, cancelled]
+            properties:
+              regionId: { type: string, format: uuid }
+              regionName: { type: string }
+              total: { type: integer }
+              completed: { type: integer }
+              cancelled: { type: integer, description: By rider + by driver }
+        byServiceType:
+          type: array
+          description: Service types with at least one ride, by region then English name
+          items:
+            type: object
+            required: [serviceTypeId, regionId, nameEn, nameAr, total, completed]
+            properties:
+              serviceTypeId: { type: string, format: uuid }
+              regionId: { type: string, format: uuid }
+              nameEn: { type: string }
+              nameAr: { type: string }
+              total: { type: integer }
+              completed: { type: integer }
+        daily:
+          type: array
+          description: >
+            Days with at least one ride, oldest first. The day is the ride's local date in its
+            region's time zone (`regions.time_zone`); the client fills empty days.
+          items:
+            type: object
+            required: [date, total, completed, cancelled]
+            properties:
+              date: { type: string, format: date }
+              total: { type: integer }
+              completed: { type: integer }
+              cancelled: { type: integer, description: By rider + by driver }
+
+    RevenueMetrics:
+      type: object
+      required: [totals, byRegion]
+      properties:
+        totals:
+          type: array
+          description: One row per currency
+          items: { $ref: '#/components/schemas/RevenueRow' }
+        byRegion:
+          type: array
+          description: One row per region and currency, by region name
+          items:
+            allOf:
+              - $ref: '#/components/schemas/RevenueRow'
+              - type: object
+                required: [regionId, regionName]
+                properties:
+                  regionId: { type: string, format: uuid }
+                  regionName: { type: string }
+    RevenueRow:
+      type: object
+      required: [currency, grossFares, commission]
+      properties:
+        currency: { type: string }
+        grossFares:
+          $ref: '#/components/schemas/Money'
+          description: Sum of `fares.total` (the final fare the payer owed) over the completed rides
+        commission:
+          $ref: '#/components/schemas/Money'
+          description: >
+            Sum of the commission recorded on those rides' driver-ledger fare entries
+            (`ride_earning` / `commission_due`, COM-01).
+
+    UserMetrics:
+      type: object
+      required: [signups, activeRiders, activeDrivers, driversOnlineNow]
+      properties:
+        signups:
+          type: object
+          required: [scope, riders, drivers]
+          properties:
+            scope: { type: string, enum: [platform], description: 'Ruling Q6: never region-filtered' }
+            riders: { type: integer, description: Accounts created in the range holding the rider role }
+            drivers: { type: integer, description: Accounts created in the range holding the driver role }
+        activeRiders: { type: integer, description: Distinct riders with ≥ 1 completed ride in the range }
+        activeDrivers: { type: integer, description: Distinct drivers with ≥ 1 completed ride in the range }
+        driversOnlineNow: { type: integer, description: 'Point in time (ruling Q3): drivers flagged online now; with regionId, those whose active vehicle serves the region' }
+
+    OpsMetrics:
+      type: object
+      required: [offersAccepted, offersAnswered, activeSurgeZones]
+      properties:
+        avgPickupSeconds:
+          type: [integer, 'null']
+          description: Mean of (driver_arrived_at − accepted_at) over the range's rides that reached arrival, rounded; null when none
+        acceptanceRate:
+          type: [number, 'null']
+          description: offersAccepted ÷ offersAnswered, 0..1, 4 decimals; null when no offer was answered
+        offersAccepted: { type: integer, description: Offers made in the range (offered_at) on rides of the region, answered `accepted` }
+        offersAnswered: { type: integer, description: Same offers answered accepted + declined + timeout (withdrawn and still-open offers left out — the driver-performance formula) }
+        activeSurgeZones: { type: integer, description: 'Point in time (ruling Q3): zones whose current multiplier is above 1.00' }
+
+    AdminUser:
+      type: object
+      required: [userId, name, state, roles, createdAt]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: [string, 'null'], description: '`support:handle` only' }
+        state: { type: string, enum: [active, suspended, deleted] }
+        roles:
+          type: array
+          items:
+            type: object
+            required: [role, state]
+            properties:
+              role: { $ref: '#/components/schemas/Role' }
+              state: { type: string, enum: [active, suspended] }
+        createdAt: { type: string, format: date-time }
+    AdminUserPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+
+    AdminDriver:
+      type: object
+      required: [userId, name, applicationStatus, online, createdAt]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: [string, 'null'], description: '`support:handle` only' }
+        applicationStatus: { $ref: '#/components/schemas/ApplicationStatus' }
+        online: { type: boolean }
+        regionId: { type: [string, 'null'], format: uuid, description: The active vehicle's region; null without an active vehicle }
+        regionName: { type: [string, 'null'] }
+        vehiclePlate: { type: [string, 'null'], description: The active vehicle's plate }
+        createdAt: { type: string, format: date-time, description: The account's creation }
+    AdminDriverPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminDriver' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+
+    AdminTransaction:
+      type: object
+      required: [transactionId, source, userId, userName, type, amount, currency, balanceAfter, createdAt]
+      properties:
+        transactionId: { type: string, format: uuid }
+        source: { $ref: '#/components/schemas/TransactionSource' }
+        userId: { type: string, format: uuid }
+        userName: { type: string }
+        type: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        currency: { type: string }
+        rideId: { type: [string, 'null'], format: uuid }
+        balanceAfter: { $ref: '#/components/schemas/Money' }
+        reason: { type: [string, 'null'], description: Wallet grants / refunds only }
+        createdAt: { type: string, format: date-time }
+    AdminTransactionPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminTransaction' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
