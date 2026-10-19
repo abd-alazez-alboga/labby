@@ -395,7 +395,7 @@ describe('user trust profile', () => {
 
     expect(
       await screen.findByText(
-        'Find a user to review their ratings, reports and flags, or their wallet.',
+        'Every account, newest first. Open a user for trust, wallet and roles.',
       ),
     ).toBeInTheDocument();
     await user.type(screen.getByLabelText('Phone or user ID'), SAMER_ID);

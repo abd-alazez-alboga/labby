@@ -47,7 +47,9 @@ describe('route guard', () => {
 
     // Back at the intended destination.
     expect(
-      await screen.findByText('The admin dashboard arrives in a later milestone.'),
+      await screen.findByText(
+        'Your role does not include analytics. Use the menu to open the pages you can work on.',
+      ),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });
@@ -61,7 +63,9 @@ describe('route guard', () => {
     renderShell();
 
     expect(
-      await screen.findByText('The admin dashboard arrives in a later milestone.'),
+      await screen.findByText(
+        'Your role does not include analytics. Use the menu to open the pages you can work on.',
+      ),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });

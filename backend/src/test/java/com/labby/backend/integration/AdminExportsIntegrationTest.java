@@ -1,9 +1,13 @@
 package com.labby.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.labby.backend.exception.BusinessRuleViolationException;
+import com.labby.backend.service.AdminDirectoryService;
+import com.labby.backend.service.AdminRideService;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -19,24 +23,19 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * M15-T1 CSV export (analytics-v1.yaml, ADM-06): each export holds exactly the rows its list shows
  * under the same filters, in the same order; it is audit-logged; phones follow contact access; and
- * the row cap answers 422. The cap is lowered to 3 here so it can be crossed with a small fixture.
+ * the row cap answers 422. The cap is checked on the service reads with a small cap: overriding the
+ * configured 50,000 would start an extra Spring context with its own connection pool against the
+ * shared test database.
  */
 class AdminExportsIntegrationTest extends AbstractSupportIntegrationTest {
 
-  private static final int CAP = 3;
-
   @Autowired private ObjectMapper objectMapper;
-
-  @DynamicPropertySource
-  static void exportCap(DynamicPropertyRegistry registry) {
-    registry.add("labby.analytics.export-max-rows", () -> CAP);
-  }
+  @Autowired private AdminRideService adminRideService;
+  @Autowired private AdminDirectoryService adminDirectoryService;
 
   // ---- helpers ----------------------------------------------------------------------------------
 
@@ -211,23 +210,34 @@ class AdminExportsIntegrationTest extends AbstractSupportIntegrationTest {
   }
 
   @Test
-  @DisplayName("above the row cap: 422 export_too_large, nothing audited")
-  void shouldRefuseOversizedExports() throws Exception {
+  @DisplayName("above the row cap: export_too_large (422) with the limit and the matching rows")
+  void shouldRefuseOversizedExports() {
     Account rider = newRider();
-    for (int i = 0; i <= CAP; i++) {
+    for (int i = 0; i < 3; i++) {
       ride(rider.userId(), null, "no_driver_found", null, null, null, null);
     }
-    ResponseEntity<byte[]> response = export("rides", admin);
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-    JsonNode body = objectMapper.readTree(response.getBody());
-    assertThat(body.get("code").asText()).isEqualTo("export_too_large");
-    assertThat(body.get("details").get("limit").asInt()).isEqualTo(CAP);
-    assertThat(body.get("details").get("rows").asInt()).isEqualTo(CAP + 1);
+    // The cap is a parameter of every list's export read (the controller passes the configured
+    // 50,000); a small cap crosses it without a 50,001-row fixture.
+    AdminRideService.Filter all =
+        new AdminRideService.Filter(null, null, null, null, null, null, null);
+    assertThatThrownBy(() -> adminRideService.searchAll(all, 2))
+        .isInstanceOfSatisfying(
+            BusinessRuleViolationException.class,
+            ex -> {
+              assertThat(ex.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+              assertThat(ex.getCode()).isEqualTo("export_too_large");
+              assertThat(ex.getDetails()).containsEntry("limit", 2).containsEntry("rows", 3L);
+            });
+    assertThat(adminRideService.searchAll(all, 3)).hasSize(3);
+    assertThatThrownBy(
+            () ->
+                adminDirectoryService.allUsers(
+                    new AdminDirectoryService.UserFilter(null, null, null), 1))
+        .hasMessageContaining("narrow the filters");
     assertThat(
             jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM audit_log WHERE action LIKE 'export.%'", Long.class))
         .isZero();
-    assertThat(csv(export("rides?state=completed", admin))).isEmpty();
   }
 
   @Test

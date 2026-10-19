@@ -54,7 +54,9 @@ describe('session handling', () => {
     // Still signed in, profile refreshed via the rotated access token.
     expect(await screen.findByText('Rotated Admin')).toBeInTheDocument();
     expect(
-      await screen.findByText('The admin dashboard arrives in a later milestone.'),
+      await screen.findByText(
+        'Your role does not include analytics. Use the menu to open the pages you can work on.',
+      ),
     ).toBeInTheDocument();
 
     await waitFor(() => {
