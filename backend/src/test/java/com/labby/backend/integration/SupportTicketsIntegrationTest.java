@@ -90,6 +90,16 @@ class SupportTicketsIntegrationTest extends AbstractSupportIntegrationTest {
             post("/api/v1/tickets", ticketBody(UUID.randomUUID(), "x"), rider.token())
                 .getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
+    Map<String, Object> noSide = ticketBody(billing, "x");
+    noSide.remove("submittedAs");
+    assertThat(post("/api/v1/tickets", noSide, rider.token()).getStatusCode())
+        .as("T5 ruling: submittedAs is required")
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    Map<String, Object> notADriver = ticketBody(billing, "x");
+    notADriver.put("submittedAs", "driver");
+    assertThat(post("/api/v1/tickets", notADriver, rider.token()).getStatusCode())
+        .as("T5 ruling: the caller must hold the submittedAs role")
+        .isEqualTo(HttpStatus.FORBIDDEN);
     Map<String, Object> blank = ticketBody(billing, "   ");
     assertThat(post("/api/v1/tickets", blank, rider.token()).getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);

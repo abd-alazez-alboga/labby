@@ -278,12 +278,15 @@ export interface CreateTicketRequest {
   attachmentFileIds?: string[];
 }
 
-/** `POST /tickets` — born `open`; 409 `category_inactive`. */
+/**
+ * `POST /tickets` — born `open`; 409 `category_inactive`. `submittedAs: rider` is required
+ * (T5 amendment f).
+ */
 export function createTicket(request: CreateTicketRequest): Promise<Ticket> {
   return apiFetch<Ticket>("/api/v1/tickets", {
     method: "POST",
     auth: true,
-    body: JSON.stringify(request),
+    body: JSON.stringify({ ...request, submittedAs: "rider" }),
   });
 }
 

@@ -1,6 +1,7 @@
 package com.labby.backend.model;
 
 import com.labby.backend.enums.CaseStatus;
+import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.TicketKind;
 import com.labby.backend.enums.TicketPriority;
 import com.labby.backend.enums.TicketStatus;
@@ -74,6 +75,10 @@ public class SupportTicket {
 
   @Column(name = "ride_id")
   private UUID rideId;
+
+  /** V28: the app the ticket was opened from (lost-item cases: rider; SOS: the caller's side). */
+  @Column(name = "submitted_as", nullable = false, length = 6)
+  private RideParty submittedAs;
 
   @Column(name = "assignee_user_id")
   private UUID assigneeUserId;

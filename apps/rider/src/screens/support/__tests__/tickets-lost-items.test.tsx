@@ -294,6 +294,7 @@ describe("create a ticket (UC-S-19, SUP-01)", () => {
       description: "Receipt shows cash due after a wallet payment.",
       rideId: RIDE_ID,
       attachmentFileIds: ["f1f1f1f1-0000-4000-8000-000000000001"],
+      submittedAs: "rider",
     });
   });
 });

@@ -13,6 +13,7 @@ import com.labby.backend.dto.UploadedFileDto;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.Permission;
 import com.labby.backend.enums.RideParty;
+import com.labby.backend.enums.Role;
 import com.labby.backend.enums.StoredFileKind;
 import com.labby.backend.enums.TicketEventType;
 import com.labby.backend.enums.TicketKind;
@@ -36,6 +37,7 @@ import com.labby.backend.model.User;
 import com.labby.backend.repository.ChatThreadRepository;
 import com.labby.backend.repository.RbacPermissionRepository;
 import com.labby.backend.repository.RideRepository;
+import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.SosEventRepository;
 import com.labby.backend.repository.StoredFileRepository;
 import com.labby.backend.repository.SupportTicketRepository;
@@ -86,6 +88,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
   private final SosEventRepository sosEventRepository;
   private final ChatThreadRepository chatThreadRepository;
   private final UserRepository userRepository;
+  private final RoleAssignmentRepository roleAssignmentRepository;
   private final RbacPermissionRepository rbacPermissionRepository;
   private final RideParties rideParties;
   private final DriverFileService driverFileService;
@@ -104,6 +107,11 @@ public class SupportTicketServiceImpl implements SupportTicketService {
   @Override
   public TicketDto create(UUID userId, CreateTicketRequestDto request) {
     TicketCategory category = pickableCategory(request.categoryId());
+    Role role = request.submittedAs() == RideParty.DRIVER ? Role.DRIVER : Role.RIDER;
+    if (!roleAssignmentRepository.existsByUserIdAndRole(userId, role)) {
+      throw new ForbiddenException(
+          "This account has no " + request.submittedAs().getValue() + " role");
+    }
     if (request.rideId() != null) {
       Ride ride =
           rideRepository
@@ -126,6 +134,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
             .status(TicketStatus.OPEN)
             .description(request.description().trim())
             .rideId(request.rideId())
+            .submittedAs(request.submittedAs())
             .openedByUserId(userId)
             .createdAt(now)
             .updatedAt(now)
@@ -233,7 +242,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
         assembler.ticket(ticket),
         messages,
         assembler.events(
-            ticketEventRepository.findByTicketIdOrderByCreatedAtAscIdAsc(ticketId), false));
+            ticketEventRepository.findByTicketIdOrderByCreatedAtAscSeqAsc(ticketId), false));
   }
 
   @Override
@@ -336,7 +345,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
         assembler.adminTicket(ticket),
         assembler.messages(ticket, true),
         assembler.events(
-            ticketEventRepository.findByTicketIdOrderByCreatedAtAscIdAsc(ticketId), true),
+            ticketEventRepository.findByTicketIdOrderByCreatedAtAscSeqAsc(ticketId), true),
         user == null ? null : user.getPhone(),
         lostItem);
   }
@@ -483,6 +492,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
             .status(TicketStatus.IN_PROGRESS)
             .description(request.description().trim())
             .rideId(event.getRideId())
+            .submittedAs(event.getTriggeredByRole())
             .assigneeUserId(adminUserId)
             .openedByUserId(adminUserId)
             .sosEventId(sosEventId)

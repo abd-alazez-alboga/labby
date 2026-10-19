@@ -259,7 +259,8 @@ class LostItemsIntegrationTest extends AbstractSupportIntegrationTest {
     assertThat(riderCase.get(0)).contains("driver_contacted").contains("\"as\": \"rider\"");
     assertThat(driverCase.get(3)).contains("closed").contains("\"as\": \"driver\"");
     assertThat(history(ticketId))
-        .containsExactlyInAnyOrder(
+        .as("T5 ruling: one request's rows in insertion order — case first, then the mirror")
+        .containsExactly(
             "created/user",
             "case_status_changed/support:reported>driver_contacted",
             "status_changed/support:open>in_progress",
@@ -268,6 +269,22 @@ class LostItemsIntegrationTest extends AbstractSupportIntegrationTest {
             "status_changed/support:in_progress>resolved",
             "case_status_changed/support:returned>closed",
             "status_changed/support:resolved>closed");
+    // The thread the admin reads carries the same order (V28 seq tie-break).
+    JsonNode events =
+        ok(get("/api/v1/admin/tickets/" + ticketId, handler), HttpStatus.OK).get("events");
+    List<String> apiOrder = new java.util.ArrayList<>();
+    events.forEach(
+        event -> apiOrder.add(event.get("type").asText() + ">" + event.get("toValue").asText("")));
+    assertThat(apiOrder)
+        .containsExactly(
+            "created>",
+            "case_status_changed>driver_contacted",
+            "status_changed>in_progress",
+            "case_status_changed>found",
+            "case_status_changed>returned",
+            "status_changed>resolved",
+            "case_status_changed>closed",
+            "status_changed>closed");
     assertThat(auditActions(ticketId))
         .containsExactly(
             "lost_item.case_status",

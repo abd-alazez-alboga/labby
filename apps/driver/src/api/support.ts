@@ -89,10 +89,13 @@ export function uploadTicketAttachment(
 /**
  * `POST /tickets` — born `open` with the category's default priority; 400
  * description/attachments, 404 category/ride, 409 `category_inactive` |
- * `category_reserved`.
+ * `category_reserved`. `submittedAs: driver` is required (T5 amendment f).
  */
 export function createTicket(body: CreateTicketRequest): Promise<Ticket> {
-  return authFetch<Ticket>("/api/v1/tickets", { method: "POST", body });
+  return authFetch<Ticket>("/api/v1/tickets", {
+    method: "POST",
+    body: { ...body, submittedAs: "driver" },
+  });
 }
 
 /** `GET /tickets` — my tickets, both kinds, most recently updated first. */

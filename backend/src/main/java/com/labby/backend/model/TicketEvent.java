@@ -57,6 +57,10 @@ public class TicketEvent {
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
+  /** V28 identity: insertion order, the tie-break for rows of one request (same instant). */
+  @Column(name = "seq", insertable = false, updatable = false)
+  private Long seq;
+
   @PrePersist
   void onCreate() {
     if (createdAt == null) {

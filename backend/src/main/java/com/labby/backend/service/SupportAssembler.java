@@ -308,9 +308,7 @@ public class SupportAssembler {
     return new AdminTicketDto(
         ticket(ticket, context),
         new PartySummaryDto(
-            ticket.getUserId(),
-            name(context.users(), ticket.getUserId()),
-            userRole(ticket, context.rides().get(ticket.getRideId()))),
+            ticket.getUserId(), name(context.users(), ticket.getUserId()), ticket.getSubmittedAs()),
         new AdminTicketDto.OpenedByDto(
             ticket.getOpenedByUserId(),
             name(context.users(), ticket.getOpenedByUserId()),
@@ -328,12 +326,6 @@ public class SupportAssembler {
   }
 
   /** The user's role on the ticket: their side of the linked ride, else rider (every account). */
-  private static RideParty userRole(SupportTicket ticket, Ride ride) {
-    return ride != null && ticket.getUserId().equals(ride.getDriverUserId())
-        ? RideParty.DRIVER
-        : RideParty.RIDER;
-  }
-
   private static RideLinkDto rideLink(SupportTicket ticket, Ride ride, Map<UUID, User> users) {
     UUID counterpart =
         ticket.getUserId().equals(ride.getDriverUserId())

@@ -502,7 +502,8 @@ class SupportMigrationIntegrationTest extends AbstractIntegrationTest {
     UUID id = UUID.randomUUID();
     jdbcTemplate.update(
         "INSERT INTO support_tickets (support_ticket_id, user_id, ticket_category_id, priority,"
-            + " description, ride_id, opened_by_user_id) VALUES (?, ?, ?, ?, 'Charged twice', ?, ?)",
+            + " description, ride_id, opened_by_user_id, submitted_as)"
+            + " VALUES (?, ?, ?, ?, 'Charged twice', ?, ?, 'rider')",
         id,
         userId,
         categoryId,
@@ -516,8 +517,9 @@ class SupportMigrationIntegrationTest extends AbstractIntegrationTest {
     UUID id = UUID.randomUUID();
     jdbcTemplate.update(
         "INSERT INTO support_tickets (support_ticket_id, user_id, kind, ticket_category_id,"
-            + " priority, case_status, description, ride_id, opened_by_user_id) VALUES (?, ?,"
-            + " 'lost_item', ?::uuid, 'high', ?, 'Black umbrella on the back seat', ?, ?)",
+            + " priority, case_status, description, ride_id, opened_by_user_id, submitted_as)"
+            + " VALUES (?, ?, 'lost_item', ?::uuid, 'high', ?, 'Black umbrella on the back seat', ?,"
+            + " ?, 'rider')",
         id,
         userId,
         LOST_ITEM_CATEGORY,
@@ -531,8 +533,9 @@ class SupportMigrationIntegrationTest extends AbstractIntegrationTest {
     UUID id = UUID.randomUUID();
     jdbcTemplate.update(
         "INSERT INTO support_tickets (support_ticket_id, user_id, ticket_category_id, priority,"
-            + " status, description, ride_id, opened_by_user_id, sos_event_id, assignee_user_id)"
-            + " VALUES (?, ?, ?, 'urgent', 'in_progress', 'SOS follow-up', ?, ?, ?, ?)",
+            + " status, description, ride_id, opened_by_user_id, sos_event_id, assignee_user_id,"
+            + " submitted_as) VALUES (?, ?, ?, 'urgent', 'in_progress', 'SOS follow-up', ?, ?, ?, ?,"
+            + " 'rider')",
         id,
         userId,
         category,

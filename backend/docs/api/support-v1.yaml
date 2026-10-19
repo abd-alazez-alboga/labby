@@ -59,6 +59,15 @@ info:
     mirrored ticket status change is in the history, not a second push. (e) Help search answers
     400 `query_too_long` above 80 characters and 400 for a `lang` other than en | ar.
 
+    **T5 amendments (owner rulings 2026-10-19, M14-T5 walkthrough findings).** (f)
+    `CreateTicketRequest.submittedAs` (rider | driver) is REQUIRED, exactly like amendment (b): the
+    sending app, role-checked (403). It is stored (`support_tickets.submitted_as`, V28) and is the
+    `role` of the admin views' `user` Party — before, the role was inferred from the linked ride, so
+    a driver-app ticket without a ride showed as the rider's. Lost-item cases are always `rider`;
+    SOS-linked tickets take the caller's `triggered_by_role`. (g) Ticket history (`events`) is
+    ordered by `createdAt`, then insertion order (V28 `ticket_events.seq`): a case change and its
+    mirrored status change share one instant and now always read case first, then status.
+
 
     **Ticket state machine (SUP-02).** `open -> in_progress -> waiting_on_user -> resolved ->
     closed`. Admin transitions (`POST /admin/tickets/{id}/status`): `open -> in_progress`;
@@ -276,7 +285,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Ticket' }
         '400': { description: 'Description blank/too long, more than 5 attachments, or a file id not uploaded by the caller as `ticket_attachment` / already used' }
-        '403': { description: Not a party to the linked ride }
+        '403': { description: 'Not a party to the linked ride, or the caller has no `submittedAs` role' }
         '404': { description: Unknown category or ride }
         '409': { description: '`category_inactive` or `category_reserved` (the system lost-item category)' }
     get:
@@ -1140,10 +1149,11 @@ components:
         url: { type: string, description: "Signed private URL (onboarding-v1 /files/{token})" }
     CreateTicketRequest:
       type: object
-      required: [categoryId, description]
+      required: [categoryId, description, submittedAs]
       properties:
         categoryId: { type: string, format: uuid }
         description: { type: string, minLength: 1, maxLength: 4000 }
+        submittedAs: { type: string, enum: [rider, driver], description: 'The sending app (T5 amendment f); the caller must hold that role' }
         rideId: { type: [string, 'null'], format: uuid }
         attachmentFileIds:
           type: array

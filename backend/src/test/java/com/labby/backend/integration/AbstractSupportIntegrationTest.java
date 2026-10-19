@@ -101,6 +101,7 @@ abstract class AbstractSupportIntegrationTest extends AbstractTrustIntegrationTe
     Map<String, Object> body = new HashMap<>();
     body.put("categoryId", categoryId.toString());
     body.put("description", description);
+    body.put("submittedAs", "rider");
     return body;
   }
 
@@ -148,7 +149,7 @@ abstract class AbstractSupportIntegrationTest extends AbstractTrustIntegrationTe
     for (Map<String, Object> row :
         jdbcTemplate.queryForList(
             "SELECT type, actor_side, from_value, to_value FROM ticket_events"
-                + " WHERE support_ticket_id = ? ORDER BY created_at, ticket_event_id",
+                + " WHERE support_ticket_id = ? ORDER BY created_at, seq",
             UUID.fromString(ticketId))) {
       rows.add(
           row.get("type")

@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /** Ticket history rows (SUP-02, V26). */
 public interface TicketEventRepository extends JpaRepository<TicketEvent, UUID> {
 
-  List<TicketEvent> findByTicketIdOrderByCreatedAtAscIdAsc(UUID ticketId);
+  List<TicketEvent> findByTicketIdOrderByCreatedAtAscSeqAsc(UUID ticketId);
 }

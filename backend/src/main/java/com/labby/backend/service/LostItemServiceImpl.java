@@ -95,6 +95,7 @@ public class LostItemServiceImpl implements LostItemService {
             .caseStatus(CaseStatus.REPORTED)
             .description(request.description().trim())
             .rideId(rideId)
+            .submittedAs(RideParty.RIDER)
             .openedByUserId(userId)
             .createdAt(now)
             .updatedAt(now)
