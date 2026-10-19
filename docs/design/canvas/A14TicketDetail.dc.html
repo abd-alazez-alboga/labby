@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ticket detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 980px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminRides.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="A14TicketQueue.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Support</a>
+    <a href="A14LostQueue.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Lost items</a>
+    <a href="A14HelpCms.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Help center</a>
+    <a href="A14Feedback.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Feedback</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box;">
+    <a href="A14TicketQueue.dc.html" style="font-size: 13px; font-weight: 800; color: #59128A; text-decoration: none;">← Support tickets</a>
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <h1 style="margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">Charged cash after wallet payment</h1>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-size: 13px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 5px 10px; border-radius: 12px;">Waiting on user</span>
+          <span style="font-size: 13px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 5px 10px; border-radius: 12px;">High</span>
+          <span style="font-size: 13px; color: #6E6780;">Payments · opened 17 Oct, 14:02 · waiting since 17 Oct, 15:41</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;">
+      <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+        <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; display: flex; flex-direction: column;">
+          <div style="padding: 16px 22px; border-bottom: 1px solid #F0EEF3; display: flex; align-items: center; justify-content: space-between;">
+            <h2 style="margin: 0; font-size: 17px; font-weight: 800;">Thread</h2>
+            <span style="font-size: 13px; color: #6E6780;">Attachments: 2</span>
+          </div>
+          <div style="padding: 18px 22px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="align-self: center; font-size: 12px; font-weight: 700; color: #6E6780; background: #F7F6F9; padding: 4px 12px; border-radius: 12px;">Ticket opened · 17 Oct, 14:02</div>
+            <div style="align-self: flex-start; max-width: 460px; background: #F7F6F9; border-radius: 14px 14px 14px 4px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 12px; font-weight: 800;">Omar T. · rider</span>
+              <span style="font-size: 14px; line-height: 1.55; color: #463C58;">I paid for my ride on 17 Oct from my wallet, but the receipt also says I owe cash. The driver didn't ask for cash.</span>
+              <div style="display: flex; gap: 6px;">
+                <span style="font-size: 12px; font-weight: 700; color: #59128A; background: #F1EAF8; padding: 3px 10px; border-radius: 10px;">screenshot.jpg</span>
+                <span style="font-size: 12px; font-weight: 700; color: #59128A; background: #F1EAF8; padding: 3px 10px; border-radius: 10px;">receipt.pdf</span>
+              </div>
+              <span style="font-size: 11px; color: #6E6780; align-self: flex-end;">14:02</span>
+            </div>
+            <div style="align-self: center; font-size: 12px; font-weight: 700; color: #6E6780; background: #F7F6F9; padding: 4px 12px; border-radius: 12px;">Samir A. assigned himself · 15:02 — status Open → In progress</div>
+            <div style="align-self: flex-end; max-width: 460px; background: #F1EAF8; border-radius: 14px 14px 4px 14px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 12px; font-weight: 800; color: #59128A;">Samir A. · support</span>
+              <span style="font-size: 14px; line-height: 1.55; color: #3D0B57;">Thanks — we can see the wallet payment went through. Could you send a photo of the receipt screen showing the cash line?</span>
+              <span style="font-size: 11px; color: #6E6780; align-self: flex-end;">15:40</span>
+            </div>
+            <div style="align-self: center; font-size: 12px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 4px 12px; border-radius: 12px;">Status In progress → Waiting on user · 15:41 · user notified</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; padding: 14px 22px 18px; border-top: 1px solid #F0EEF3;">
+            <div style="flex-grow: 1; height: 44px; border-radius: 12px; border: 1.5px solid #D9D5DF; display: flex; align-items: center; padding: 0 14px; color: #6E6780; font-size: 14px;">Reply to Omar…</div>
+            <button style="height: 44px; padding: 0 20px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800;">Send</button>
+          </div>
+        </div>
+      </section>
+
+      <aside style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 800;">Status</h2>
+          <button style="height: 44px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800;">Back to In progress</button>
+          <span style="font-size: 12px; color: #6E6780; line-height: 1.5;">A user reply also moves the ticket back to In progress. From In progress you can set Waiting on user or Resolved; Closed is only reachable from Resolved. The user is notified on every change.</span>
+        </div>
+        <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 800;">Priority &amp; assignee</h2>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Priority
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>High (category default)</option>
+              <option>Urgent</option>
+              <option>Normal</option>
+              <option>Low</option>
+            </select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Assignee
+            <select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF;">
+              <option>Samir A. (me)</option>
+              <option>Lama H.</option>
+              <option>Unassigned</option>
+            </select>
+          </label>
+          <span style="font-size: 12px; color: #6E6780;">Overrides are recorded in the ticket history.</span>
+        </div>
+        <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 800;">Linked ride</h2>
+          <a href="AdminRideDetail.dc.html" style="display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: #141018;">
+            <span style="font-size: 14px; font-weight: 800; color: #59128A;">r-8835 · Umayyad Square → Mezzeh</span>
+            <span style="font-size: 13px; color: #6E6780;">17 Oct · SYP 42,500 · driver Sami · paid wallet + cash due</span>
+          </a>
+        </div>
+        <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 800;">Remedy</h2>
+          <a href="AdminUserWallet.dc.html" style="height: 44px; border-radius: 12px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; text-decoration: none; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center;">Grant wallet credit…</a>
+          <span style="font-size: 12px; color: #6E6780; line-height: 1.5;">Opens Omar's wallet with the usual grant flow; the credit notifies him and is audit-logged.</span>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

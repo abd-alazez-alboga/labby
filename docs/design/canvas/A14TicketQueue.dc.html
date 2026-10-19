@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Support queue</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminRides.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="#" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Support <span style="min-width: 22px; height: 22px; border-radius: 11px; background: #59128A; color: #FFFFFF; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 6px;">12</span></a>
+    <a href="A14LostQueue.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Lost items</a>
+    <a href="A14HelpCms.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Help center</a>
+    <a href="A14Feedback.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Feedback</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Support tickets</h1>
+      <a href="A14TicketCategories.dc.html" style="height: 44px; padding: 0 18px; border-radius: 12px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; text-decoration: none; font-size: 14px; font-weight: 800; display: flex; align-items: center;">Manage categories</a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Open · unassigned</span>
+        <span style="font-size: 34px; font-weight: 800;">12</span>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Waiting on user</span>
+        <span style="font-size: 34px; font-weight: 800;">5</span>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Urgent, not resolved</span>
+        <span style="font-size: 34px; font-weight: 800; color: #B42318;">2</span>
+      </div>
+    </div>
+
+    <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <div style="padding: 18px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <span style="height: 38px; padding: 0 16px; border-radius: 19px; background: #141018; color: #FFFFFF; font-size: 13px; font-weight: 700; display: flex; align-items: center;">Needs action · 14</span>
+        <span style="height: 38px; padding: 0 16px; border-radius: 19px; border: 1.5px solid #DCD8E2; color: #141018; font-size: 13px; font-weight: 700; display: flex; align-items: center;">Open</span>
+        <span style="height: 38px; padding: 0 16px; border-radius: 19px; border: 1.5px solid #DCD8E2; color: #141018; font-size: 13px; font-weight: 700; display: flex; align-items: center;">In progress</span>
+        <span style="height: 38px; padding: 0 16px; border-radius: 19px; border: 1.5px solid #DCD8E2; color: #141018; font-size: 13px; font-weight: 700; display: flex; align-items: center;">Waiting on user</span>
+        <span style="height: 38px; padding: 0 16px; border-radius: 19px; border: 1.5px solid #DCD8E2; color: #141018; font-size: 13px; font-weight: 700; display: flex; align-items: center;">Resolved</span>
+        <span style="height: 38px; padding: 0 16px; border-radius: 19px; border: 1.5px solid #DCD8E2; color: #141018; font-size: 13px; font-weight: 700; display: flex; align-items: center;">Closed</span>
+        <span style="flex-grow: 1;"></span>
+        <select style="height: 40px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF;">
+          <option>All categories</option>
+          <option>Payments</option>
+          <option>App issue</option>
+          <option>Driver behaviour</option>
+          <option>Lost item</option>
+          <option>Other</option>
+        </select>
+        <select style="height: 40px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF;">
+          <option>All priorities</option>
+          <option>Urgent</option>
+          <option>High</option>
+          <option>Normal</option>
+          <option>Low</option>
+        </select>
+        <select style="height: 40px; border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF;">
+          <option>Any assignee</option>
+          <option>Assigned to me</option>
+          <option>Unassigned</option>
+        </select>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 980px;">
+        <thead>
+          <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+            <th style="padding: 12px 24px; font-weight: 700;">Ticket</th>
+            <th style="padding: 12px; font-weight: 700;">Category</th>
+            <th style="padding: 12px; font-weight: 700;">Priority ↓</th>
+            <th style="padding: 12px; font-weight: 700;">Status</th>
+            <th style="padding: 12px; font-weight: 700;">Assignee</th>
+            <th style="padding: 12px; font-weight: 700;">Age ↓</th>
+            <th style="padding: 12px 24px; font-weight: 700;"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 800;">SOS follow-up · ride r-8842</span><span style="font-size: 13px; color: #6E6780;">Rana K. · rider · opened for the SOS caller</span></div></td>
+            <td style="padding: 14px 12px; color: #463C58;">Safety</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #B42318; background: #FEF3F2; padding: 5px 10px; border-radius: 12px;">Urgent</span></td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #59128A; background: #F1EAF8; padding: 5px 10px; border-radius: 12px;">In progress</span></td>
+            <td style="padding: 14px 12px; color: #463C58;">Samir A.</td>
+            <td style="padding: 14px 12px; color: #463C58;">4 h</td>
+            <td style="padding: 14px 24px;"><a href="A14TicketDetail.dc.html" style="height: 36px; padding: 0 16px; border-radius: 10px; background: #59128A; color: #FFFFFF; text-decoration: none; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center;">Open</a></td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 800;">Lost item · black backpack</span><span style="font-size: 13px; color: #6E6780;">Rana K. · rider · ride r-8810</span></div></td>
+            <td style="padding: 14px 12px; color: #463C58;">Lost item</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 5px 10px; border-radius: 12px;">High</span></td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #59128A; background: #F1EAF8; padding: 5px 10px; border-radius: 12px;">In progress</span></td>
+            <td style="padding: 14px 12px; color: #463C58;">Lama H.</td>
+            <td style="padding: 14px 12px; color: #463C58;">18 h</td>
+            <td style="padding: 14px 24px;"><a href="A14LostCase.dc.html" style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; text-decoration: none; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center;">Open</a></td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 800;">Charged cash after wallet payment</span><span style="font-size: 13px; color: #6E6780;">Omar T. · rider · ride r-8835</span></div></td>
+            <td style="padding: 14px 12px; color: #463C58;">Payments</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 5px 10px; border-radius: 12px;">High</span></td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 5px 10px; border-radius: 12px;">Waiting on user</span></td>
+            <td style="padding: 14px 12px; color: #463C58;">Samir A.</td>
+            <td style="padding: 14px 12px; color: #463C58;">1 d</td>
+            <td style="padding: 14px 24px;"><a href="A14TicketDetail.dc.html" style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; text-decoration: none; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center;">Open</a></td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 800;">Can't update my phone number</span><span style="font-size: 13px; color: #6E6780;">Khaled M. · driver</span></div></td>
+            <td style="padding: 14px 12px; color: #463C58;">App issue</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #463C58; background: #F2F0F5; padding: 5px 10px; border-radius: 12px;">Normal</span></td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Open</span></td>
+            <td style="padding: 14px 12px; color: #6E6780;">—</td>
+            <td style="padding: 14px 12px; color: #463C58;">2 d</td>
+            <td style="padding: 14px 24px;"><a href="A14TicketDetail.dc.html" style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; text-decoration: none; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center;">Open</a></td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 800; color: #6E6780;">Driver took a long route</span><span style="font-size: 13px; color: #6E6780;">Nour S. · rider · ride r-8714</span></div></td>
+            <td style="padding: 14px 12px; color: #6E6780;">Driver behaviour</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #6E6780; background: #F2F0F5; padding: 5px 10px; border-radius: 12px;">Low</span></td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Resolved</span></td>
+            <td style="padding: 14px 12px; color: #6E6780;">Lama H.</td>
+            <td style="padding: 14px 12px; color: #6E6780;">6 d</td>
+            <td style="padding: 14px 24px;"><a href="A14TicketDetail.dc.html" style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; text-decoration: none; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center;">Open</a></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding: 14px 24px 18px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #F0EEF3;">
+        <span style="font-size: 13px; color: #6E6780;">Sorted by priority, then oldest first · Showing 1–5 of 23</span>
+        <div style="display: flex; gap: 8px;">
+          <button style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #6E6780; font-family: Manrope, sans-serif; font-size: 13px; font-weight: 800;">Previous</button>
+          <button style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 13px; font-weight: 800;">Next</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

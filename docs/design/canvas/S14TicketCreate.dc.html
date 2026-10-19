@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create a ticket</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #141018; background: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; box-sizing: border-box; gap: 14px;">
+  <a href="S14Support.dc.html" aria-label="Back" style="width: 48px; height: 48px; margin-left: -12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </a>
+  <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.6px;">Create a ticket</div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 14px; font-weight: 700;">What is it about?</span>
+    <div style="height: 56px; border-radius: 14px; background: #F2F0F5; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+      <span style="font-size: 15px; font-weight: 700;">Payments</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 14px; font-weight: 700;">Describe the problem</span>
+    <div style="min-height: 128px; border-radius: 14px; background: #F2F0F5; padding: 14px 16px; font-size: 15px; line-height: 1.5; color: #141018;">I paid for my ride on 17 Oct from my wallet, but the receipt also says I owe cash. The driver didn't ask for cash, and the amount still shows as due.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 14px; font-weight: 700;">Attachments <span style="font-weight: 600; color: #6E6780;">· up to 5 (photos or PDF)</span></span>
+    <div style="display: flex; gap: 10px;">
+      <div style="width: 72px; height: 72px; border-radius: 12px; background: #ECE9F0; position: relative; display: flex; align-items: center; justify-content: center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="9" cy="9" r="2"></circle><path d="M21 15l-5-5-9 9"></path></svg>
+        <span aria-label="Remove" style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: #141018; color: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+        </span>
+      </div>
+      <div style="width: 72px; height: 72px; border-radius: 12px; background: #ECE9F0; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6E6780" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><polyline points="14 3 14 8 19 8"></polyline></svg>
+        <span style="font-size: 10px; font-weight: 700; color: #6E6780;">receipt.pdf</span>
+        <span aria-label="Remove" style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: #141018; color: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+        </span>
+      </div>
+      <button aria-label="Add attachment" style="width: 72px; height: 72px; border-radius: 12px; border: 1.5px dashed #DCD8E2; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#59128A" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 14px; font-weight: 700;">About a ride? <span style="font-weight: 600; color: #6E6780;">· optional</span></span>
+    <div style="border-radius: 14px; border: 2px solid #59128A; background: #FFFFFF; display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+      <span style="width: 36px; height: 36px; border-radius: 50%; background: #F1EAF8; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#59128A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14l-1.5-5h-11z"></path><circle cx="7.5" cy="17" r="2"></circle><circle cx="16.5" cy="17" r="2"></circle></svg>
+      </span>
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 700;">Umayyad Square → Mezzeh</span>
+        <span style="font-size: 13px; color: #6E6780;">17 Oct · SYP 42,500 · Sami</span>
+      </span>
+      <span style="font-size: 13px; font-weight: 800; color: #59128A;">Change</span>
+    </div>
+  </div>
+
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+    <a href="S14TicketThread.dc.html" style="height: 56px; border-radius: 14px; background: #59128A; color: #FFFFFF; text-decoration: none; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center;">Send to support</a>
+    <span style="font-size: 12.5px; color: #6E6780; text-align: center;">We'll reply in this ticket and notify you of every update.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
