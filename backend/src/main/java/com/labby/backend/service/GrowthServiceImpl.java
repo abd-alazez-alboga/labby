@@ -19,7 +19,6 @@ import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.User;
-import com.labby.backend.model.UserBadge;
 import com.labby.backend.repository.ChallengeProgressRepository;
 import com.labby.backend.repository.ChallengeRepository;
 import com.labby.backend.repository.PointsAccountRepository;
@@ -38,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -114,7 +112,8 @@ public class GrowthServiceImpl implements GrowthService {
       GrowthRules.Settings settings,
       boolean shared,
       Instant now) {
-    rewardReferral(ride, riderUserId, settings, now);
+    long completed = rideRepository.riderCompletedCount(riderUserId);
+    rewardReferral(ride, riderUserId, settings, now, completed);
     if (suspended(riderUserId)) {
       return; // Ruling 6: accrual, badges and challenges are frozen while suspended.
     }
@@ -128,9 +127,9 @@ public class GrowthServiceImpl implements GrowthService {
           riderUserId,
           PointsTransactionType.ACCRUAL,
           points,
+          true,
           transaction -> transaction.setRideId(ride.getId()));
     }
-    long completed = rideRepository.riderCompletedCount(riderUserId);
     rideBadges(riderUserId, completed, RideParty.RIDER);
     if (shared) {
       award(riderUserId, BadgeCode.FIRST_SHARED_RIDE, RideParty.RIDER);
@@ -159,12 +158,18 @@ public class GrowthServiceImpl implements GrowthService {
    * blocks the reward for good.
    */
   private void rewardReferral(
-      Ride ride, UUID riderUserId, GrowthRules.Settings settings, Instant now) {
-    if (rideRepository.riderCompletedCount(riderUserId) != 1) {
+      Ride ride, UUID riderUserId, GrowthRules.Settings settings, Instant now, long completed) {
+    if (completed != 1) {
       return;
     }
     Referral referral = referralRepository.lockByRefereeUserId(riderUserId).orElse(null);
     if (referral == null || referral.getStatus() != ReferralStatus.PENDING) {
+      return;
+    }
+    if (settings.referralReferrerAmount().signum() <= 0
+        && settings.referralRefereeAmount().signum() <= 0) {
+      // M13 review W5 (owner ruling 2026-10-19): a region configured to pay nothing leaves the
+      // referral PENDING — it is never shown as rewarded while nothing was paid.
       return;
     }
     if (suspended(riderUserId) || suspended(referral.getReferrerUserId())) {
@@ -211,15 +216,12 @@ public class GrowthServiceImpl implements GrowthService {
         });
   }
 
-  /** GAME-01: exactly-once by the primary key; a race loser silently stands down. */
+  /**
+   * GAME-01: exactly-once by the primary key. {@code ON CONFLICT DO NOTHING} lets a race loser
+   * stand down without aborting the enclosing completion/rating transaction (M13 review W2).
+   */
   private void award(UUID userId, BadgeCode badge, RideParty as) {
-    if (userBadgeRepository.existsByUserIdAndBadgeCode(userId, badge.getValue())) {
-      return;
-    }
-    try {
-      userBadgeRepository.saveAndFlush(
-          UserBadge.builder().userId(userId).badgeCode(badge.getValue()).build());
-    } catch (DataIntegrityViolationException ex) {
+    if (userBadgeRepository.insertIfAbsent(userId, badge.getValue()) == 0) {
       return;
     }
     notificationService.queue(
@@ -253,11 +255,14 @@ public class GrowthServiceImpl implements GrowthService {
     progress.setProgress(progress.getProgress() + 1);
     if (progress.getProgress() >= challenge.getGoalTarget()) {
       progress.setCompletedAt(now);
+      // M13 review W4 (owner ruling 2026-10-19): a DRIVER challenge feeds the level only
+      // (GAME-03); redeemable wallet-convertible points are the rider loyalty program's (GRW-04).
       PointsTransaction reward =
           addPoints(
               userId,
               PointsTransactionType.CHALLENGE,
               challenge.getRewardPoints(),
+              role != RideParty.DRIVER,
               transaction -> transaction.setChallengeId(challenge.getId()));
       progress.setPointsTransactionId(reward.getId());
       notificationService.queue(
@@ -271,14 +276,20 @@ public class GrowthServiceImpl implements GrowthService {
     challengeProgressRepository.saveAndFlush(progress);
   }
 
-  /** Positive points land on both balances (GAME-03: lifetime only ever grows). */
+  /**
+   * Positive points grow the lifetime always (GAME-03: it only ever grows) and the redeemable
+   * balance only when {@code redeemable} — driver challenge rewards are level-only (ruling W4).
+   */
   private PointsTransaction addPoints(
       UUID userId,
       PointsTransactionType type,
       long points,
+      boolean redeemable,
       java.util.function.Consumer<PointsTransaction> links) {
     PointsAccount account = pointsAccountRepository.lockOrCreate(userId);
-    account.setRedeemable(account.getRedeemable() + points);
+    if (redeemable) {
+      account.setRedeemable(account.getRedeemable() + points);
+    }
     account.setLifetime(account.getLifetime() + points);
     pointsAccountRepository.saveAndFlush(account);
     PointsTransaction transaction =

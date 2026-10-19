@@ -53,7 +53,11 @@ info:
     total — stored in the fare breakdown's `discount` component, NEVER recomputed, floor at zero,
     applied AFTER extras/surge/surcharge and the minimum-fare floor (stacking order: promo is
     last). One promo per ride, promos never stack (joining with a code when the ride already has
-    one → 409 `promo_already_applied`).
+    one → 409 `promo_already_applied`). A shared-ride member who leaves, is dropped at dispatch or
+    is marked absent releases their own reservation — caps freed, another member may then apply
+    (M13 review H1). One ALIVE first-ride reservation per rider: while a scheduled or live ride
+    holds a `first_ride_only` promo, a second flagged code is refused `promo_first_ride_only`
+    (M13 review W1, owner ruling 2026-10-19).
 
 
     **Referrals (GRW-03).** Each user shares one code (`referral_codes`, created lazily). A new
@@ -62,15 +66,22 @@ info:
     `/referrals/enter` endpoint below is the same capture as a standalone primitive, accepted
     until the first completed ride) (capture, status `pending`); on the referee's
     FIRST completed ride both sides receive their region-configured `referral` wallet credit in
-    the ride currency, and the row becomes `rewarded` (exactly once). Abuse blocks: self-referral,
+    the ride currency, and the row becomes `rewarded` (exactly once). A region configured to pay 0/0 leaves the row
+    `pending` — never shown rewarded with nothing paid (M13 review W5, owner ruling 2026-10-19).
+    Abuse blocks: self-referral,
     phone-ever uniqueness, suspended accounts don't trigger rewards (status `blocked`).
 
 
-    **Loyalty (GRW-04).** Accrual on ride completion: `pointsPerCurrencyUnit` (default 1) × the
+    **Loyalty (GRW-04).** The redeem request names the region whose rule and currency apply; V1
+    deployments are single-currency, so cross-region rate shopping is accepted as moot and no
+    server-side region binding is enforced (M13 review W3, owner ruling 2026-10-19). Accrual on
+    ride completion: `pointsPerCurrencyUnit` (default 1) × the
     rider's own paid fare — on a shared ride the member's own share. Redemption: at or above the
     region threshold, points convert at the region rate into a `loyalty_redemption` wallet credit
     (traceable via `points_transactions.wallet_transaction_id`). `lifetime` only grows; levels
-    derive from it (riders: loyalty earned; drivers: trips + challenge points).
+    derive from it (riders: loyalty earned; drivers: trips + challenge points). Driver-role
+    challenge rewards feed the LEVEL only — recorded as points transactions but never entering
+    `redeemable` (M13 review W4, owner ruling 2026-10-19).
 
 
     **Challenges (GAME-02).** Admin-created per region and role (window, goal, reward points);
@@ -269,7 +280,8 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: regionId, in: query, schema: { type: string, format: uuid } }
-        - { name: active, in: query, schema: { type: boolean } }
+        - { name: active, in: query, schema: { type: boolean }, description: Active-flag filter }
+        - { name: running, in: query, schema: { type: boolean }, description: 'true = active AND the window contains now (M13 review W17: the dashboard KPI)' }
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
@@ -426,7 +438,7 @@ components:
         firstRideOnly: { type: boolean }
         active: { type: boolean }
         redemptionCount: { type: integer }
-        redeemedAmount: { type: [string, 'null'], description: Sum of applied discounts (single-currency promos only) }
+        redeemedAmount: { type: [string, 'null'], description: 'Sum of discounts applied on COMPLETED rides — reservations on live rides are excluded, and redemptionCount likewise counts live + completed rides only (M13 review W6; single-currency promos)' }
     SavePromoRequest:
       type: object
       required: [code, type, value, startsAt, endsAt]

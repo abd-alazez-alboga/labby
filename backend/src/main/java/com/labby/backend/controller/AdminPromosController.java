@@ -51,7 +51,8 @@ public class AdminPromosController {
    * Lists promos, newest first.
    *
    * @param regionId optional region filter
-   * @param active optional active filter
+   * @param active optional active-flag filter
+   * @param running optional: true = active AND the window contains now (M13 review W17)
    * @param page zero-based page
    * @param size page size
    * @return 200 with one page
@@ -62,11 +63,12 @@ public class AdminPromosController {
   public ResponseEntity<PromoPageDto> list(
       @RequestParam(required = false) UUID regionId,
       @RequestParam(required = false) Boolean active,
+      @RequestParam(required = false) Boolean running,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
     return ResponseEntity.ok(
         adminGrowthService.listPromos(
-            regionId, active, Math.max(0, page), Math.clamp(size, 1, 50)));
+            regionId, active, running, Math.max(0, page), Math.clamp(size, 1, 50)));
   }
 
   /**

@@ -15,14 +15,12 @@ import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.DriverLedgerEntry;
 import com.labby.backend.model.Fare;
-import com.labby.backend.model.PromoRedemption;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RiderDue;
 import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.WalletTransaction;
 import com.labby.backend.repository.DriverLedgerRepository;
-import com.labby.backend.repository.PromoRedemptionRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderDueRepository;
@@ -35,6 +33,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -76,7 +75,6 @@ public class RideMoneyServiceImpl implements RideMoneyService {
   private final RideRepository rideRepository;
   private final RiderDueRepository riderDueRepository;
   private final WalletTransactionRepository walletTransactionRepository;
-  private final PromoRedemptionRepository promoRedemptionRepository;
   private final DriverLedgerRepository driverLedgerRepository;
   private final SharedRideMemberRepository sharedRideMemberRepository;
   private final Clock clock;
@@ -104,7 +102,8 @@ public class RideMoneyServiceImpl implements RideMoneyService {
   }
 
   @Override
-  public void applySharedAtCompletion(Ride ride, List<SharedRideMember> members) {
+  public void applySharedAtCompletion(
+      Ride ride, List<SharedRideMember> members, Map<UUID, BigDecimal> appliedDiscounts) {
     Instant now = clock.instant();
     // Every member's wallet steps first, then every driver balance lock, then the postings.
     List<WalletStep> steps = new ArrayList<>();
@@ -117,15 +116,13 @@ public class RideMoneyServiceImpl implements RideMoneyService {
     drivers.add(ride.getDriverUserId());
     driverLedgerService.lockBalances(drivers, ride.getCurrency());
     // Ruling 2: the redeeming member's share arrives discounted; their commission is computed on
-    // the pre-discount share and the driver gets the promo_compensation credit (ruling 1).
-    PromoRedemption redemption = promoRedemptionRepository.findByRideId(ride.getId()).orElse(null);
+    // the pre-discount share and the driver gets the promo_compensation credit (ruling 1). The
+    // amounts are the ones ACTUALLY applied at completion (M13 review W8), never the reservation.
     for (int i = 0; i < members.size(); i++) {
       SharedRideMember member = members.get(i);
       WalletStep step = steps.get(i);
       BigDecimal memberDiscount =
-          redemption != null && redemption.getUserId().equals(member.getRiderUserId())
-              ? redemption.getAmount()
-              : BigDecimal.ZERO;
+          appliedDiscounts.getOrDefault(member.getRiderUserId(), BigDecimal.ZERO);
       postFareEntry(
           ride,
           Payer.of(member),

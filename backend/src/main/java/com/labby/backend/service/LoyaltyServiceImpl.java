@@ -9,6 +9,7 @@ import com.labby.backend.enums.PointsTransactionType;
 import com.labby.backend.enums.WalletTransactionType;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ForbiddenException;
+import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.PointsAccount;
 import com.labby.backend.model.PointsTransaction;
 import com.labby.backend.model.Region;
@@ -51,7 +52,7 @@ public class LoyaltyServiceImpl implements LoyaltyService {
   public LoyaltyBalanceDto balance(UUID userId, UUID regionId) {
     rideAccess.requireRider(userId);
     PointsAccount account = pointsAccountRepository.findById(userId).orElse(null);
-    return balanceDto(account, regionRepository.findById(regionId).orElseThrow());
+    return balanceDto(account, region(regionId));
   }
 
   @Override
@@ -88,7 +89,7 @@ public class LoyaltyServiceImpl implements LoyaltyService {
       throw (ForbiddenException)
           new ForbiddenException("Your account is suspended").withCode("account_suspended");
     }
-    Region region = regionRepository.findById(regionId).orElseThrow();
+    Region region = region(regionId);
     GrowthRules.Settings settings = GrowthRules.settings(region.getGrowthSettings());
     if (points < settings.redemptionThresholdPoints()) {
       throw (ConflictException)
@@ -135,6 +136,16 @@ public class LoyaltyServiceImpl implements LoyaltyService {
             .walletTransactionId(walletTransaction.getId())
             .build());
     return balanceDto(account, region);
+  }
+
+  private Region region(UUID regionId) {
+    return regionRepository
+        .findById(regionId)
+        .orElseThrow(
+            () ->
+                (ResourceNotFoundException)
+                    new ResourceNotFoundException("This region does not exist")
+                        .withCode("region_not_found"));
   }
 
   private static LoyaltyBalanceDto balanceDto(PointsAccount account, Region region) {

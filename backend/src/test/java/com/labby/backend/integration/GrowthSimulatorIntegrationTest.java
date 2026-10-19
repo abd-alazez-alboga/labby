@@ -249,12 +249,18 @@ class GrowthSimulatorIntegrationTest extends AbstractMoneyIntegrationTest {
     // Ruling 1 in the driver ledger: commission on the pre-discount fare + the compensation.
     List<Map<String, Object>> entries = driverLedger(driver.userId());
     assertThat(entries).hasSize(2);
-    Map<String, Object> commission = entries.get(0);
-    assertThat(commission.get("type")).isEqualTo("commission_due");
+    Map<String, Object> commission =
+        entries.stream()
+            .filter(entry -> entry.get("type").equals("commission_due"))
+            .findFirst()
+            .orElseThrow();
     assertThat((BigDecimal) commission.get("fare_amount")).isEqualByComparingTo("1.50");
     assertThat((BigDecimal) commission.get("amount")).isEqualByComparingTo(COMMISSION.negate());
-    Map<String, Object> compensation = entries.get(1);
-    assertThat(compensation.get("type")).isEqualTo("promo_compensation");
+    Map<String, Object> compensation =
+        entries.stream()
+            .filter(entry -> entry.get("type").equals("promo_compensation"))
+            .findFirst()
+            .orElseThrow();
     assertThat((BigDecimal) compensation.get("amount")).isEqualByComparingTo("0.15");
     assertThat(compensation.get("ride_id")).isEqualTo(rideId);
     // The driver's position equals the same ride without the promo: −0.38 + 0.15.

@@ -62,6 +62,13 @@ public class PromoServiceImpl implements PromoService {
     // Re-found and locked: the caps below are counted while no other booking can reserve.
     Promo promo = promoRepository.lockById(found(promoCode).getId()).orElseThrow();
     check(promo, userId, ride.getRegionId(), ride.getServiceTypeId(), clock.instant());
+    if (promo.isFirstRideOnly()
+        && promoRedemptionRepository.countAliveFirstRideReservations(userId) > 0) {
+      // M13 review W1 (owner ruling 2026-10-19): one alive first-ride reservation per rider — a
+      // scheduled booking must not hold a second welcome discount alongside a live one.
+      throw conflict(
+          "You already have a ride booked with a first-ride promo", "promo_first_ride_only");
+    }
     try {
       promoRedemptionRepository.saveAndFlush(
           PromoRedemption.builder()
@@ -91,6 +98,14 @@ public class PromoServiceImpl implements PromoService {
                         .amount(reservation.getAmount())
                         .currency(reservation.getCurrency())
                         .build()));
+  }
+
+  @Override
+  public void releaseMember(Ride ride, UUID memberUserId) {
+    promoRedemptionRepository
+        .findByRideId(ride.getId())
+        .filter(reservation -> reservation.getUserId().equals(memberUserId))
+        .ifPresent(promoRedemptionRepository::delete);
   }
 
   @Override

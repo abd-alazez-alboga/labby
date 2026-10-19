@@ -340,6 +340,9 @@ public class SharedRideServiceImpl implements SharedRideService {
       member.setStatus(SharedMemberStatus.LEFT);
       member.setLeftAt(now);
       sharedRideMemberRepository.saveAndFlush(member);
+      // M13 review H1: the leaver's own promo reservation goes with them (caps freed,
+      // another member may apply a promo on this ride).
+      promoService.releaseMember(ride, userId);
       shared = freeSeats(shared, member);
       rideEvents.sharedOccupancy(ride, shared.getSeatsTaken(), shared.getTotalSeats());
       return rideAssembler.sharedRide(ride, shared, userId);
@@ -360,6 +363,7 @@ public class SharedRideServiceImpl implements SharedRideService {
     member.setCancellationNote(RiderRideServiceImpl.blankToNull(request.note()));
     member.setCancellationFee(rideLifecycle.riderCancellationFee(ride, now));
     sharedRideMemberRepository.saveAndFlush(member);
+    promoService.releaseMember(ride, userId);
     if (member.getCancellationFee() != null) {
       // RIDE-07 per member: collected by THEIR payment method (money-v1).
       rideMoneyService.collectMemberFee(ride, member);
@@ -436,6 +440,7 @@ public class SharedRideServiceImpl implements SharedRideService {
     member.setNoShowAt(now);
     member.setCancellationFee(rideLifecycle.regionFee(ride.getRegionId()));
     sharedRideMemberRepository.saveAndFlush(member);
+    promoService.releaseMember(ride, member.getRiderUserId());
     if (member.getCancellationFee() != null) {
       rideMoneyService.collectMemberFee(ride, member);
     }
@@ -621,6 +626,7 @@ public class SharedRideServiceImpl implements SharedRideService {
       member.setStatus(SharedMemberStatus.LEFT);
       member.setLeftAt(now);
       sharedRideMemberRepository.saveAndFlush(member);
+      promoService.releaseMember(ride, userId);
       SharedRide shared = freeSeats(sharedRideRepository.findById(rideId).orElseThrow(), member);
       if (joined(rideId).isEmpty()) {
         endWithoutRiders(ride, CancellationReason.ACCOUNT_SUSPENDED, now);
@@ -654,6 +660,8 @@ public class SharedRideServiceImpl implements SharedRideService {
       member.setStatus(SharedMemberStatus.LEFT);
       member.setLeftAt(now);
       sharedRideMemberRepository.saveAndFlush(member);
+      // M13 review H1: a dropped member's promo reservation goes with them.
+      promoService.releaseMember(ride, member.getRiderUserId());
       shared = freeSeats(shared, member);
       rideEvents.push(
           member.getRiderUserId(),

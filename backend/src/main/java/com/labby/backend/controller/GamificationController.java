@@ -3,6 +3,7 @@ package com.labby.backend.controller;
 import com.labby.backend.dto.ChallengeViewDto;
 import com.labby.backend.dto.GamificationViewDto;
 import com.labby.backend.enums.RideParty;
+import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.security.SecurityUtils;
 import com.labby.backend.service.GamificationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,8 +35,7 @@ public class GamificationController {
   @GetMapping("/gamification/me")
   @Operation(summary = "My badges and level (UC-S-23/24)")
   public ResponseEntity<GamificationViewDto> me(@RequestParam String as) {
-    return ResponseEntity.ok(
-        gamificationService.me(SecurityUtils.currentUserId(), RideParty.fromValue(as)));
+    return ResponseEntity.ok(gamificationService.me(SecurityUtils.currentUserId(), party(as)));
   }
 
   /**
@@ -50,7 +50,15 @@ public class GamificationController {
   public ResponseEntity<List<ChallengeViewDto>> challenges(
       @RequestParam UUID regionId, @RequestParam String as) {
     return ResponseEntity.ok(
-        gamificationService.challenges(
-            SecurityUtils.currentUserId(), regionId, RideParty.fromValue(as)));
+        gamificationService.challenges(SecurityUtils.currentUserId(), regionId, party(as)));
+  }
+
+  /** {@code as} must be rider or driver — anything else is the caller's mistake (400). */
+  private static RideParty party(String as) {
+    try {
+      return RideParty.fromValue(as);
+    } catch (IllegalArgumentException ex) {
+      throw new InvalidRequestException("as must be rider or driver");
+    }
   }
 }

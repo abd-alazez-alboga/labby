@@ -298,14 +298,16 @@ public class DriverRideServiceImpl implements DriverRideService {
       ride.setPaymentStatus(PaymentStatus.SPLIT);
       List<SharedRideMember> members = sharedRideService.settleSplit(ride, fare);
       // Ruling 2: only the redeeming member's own share is discounted, after the split.
+      Map<UUID, BigDecimal> appliedDiscounts = new HashMap<>();
       for (SharedRideMember member : members) {
         BigDecimal memberDiscount =
             promoService.applyAtCompletion(ride, member.getRiderUserId(), member.getShareAmount());
         if (memberDiscount.signum() > 0) {
           member.setShareAmount(member.getShareAmount().subtract(memberDiscount));
+          appliedDiscounts.put(member.getRiderUserId(), memberDiscount);
         }
       }
-      rideMoneyService.applySharedAtCompletion(ride, members);
+      rideMoneyService.applySharedAtCompletion(ride, members, appliedDiscounts);
       growthService.onRideCompleted(ride, fare, members);
       ride = rideRepository.saveAndFlush(ride);
       rideEvents.stateChanged(ride);

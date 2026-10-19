@@ -16,7 +16,7 @@ public interface AdminGrowthService {
 
   PromoDto createPromo(UUID actorUserId, SavePromoRequestDto request);
 
-  PromoPageDto listPromos(UUID regionId, Boolean active, int page, int size);
+  PromoPageDto listPromos(UUID regionId, Boolean active, Boolean running, int page, int size);
 
   PromoDetailDto promoDetail(UUID promoId, int page, int size);
 

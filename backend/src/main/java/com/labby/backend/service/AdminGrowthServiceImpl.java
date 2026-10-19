@@ -23,12 +23,13 @@ import com.labby.backend.repository.PromoRedemptionRepository;
 import com.labby.backend.repository.PromoRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.UserRepository;
+import java.math.BigDecimal;
 import java.time.Clock;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -58,6 +59,12 @@ public class AdminGrowthServiceImpl implements AdminGrowthService {
           new ConflictException("This code is already taken").withCode("promo_code_taken");
     }
     requireValidWindow(request.startsAt(), request.endsAt());
+    if (request.type() == PromoType.PERCENT && request.value().compareTo(new BigDecimal(100)) > 0) {
+      // M13 review W7: validated here so the V24 CHECK never surfaces as a 500.
+      throw (BusinessRuleViolationException)
+          new BusinessRuleViolationException("A percent discount cannot exceed 100")
+              .withCode("value_invalid");
+    }
     if (request.type() == PromoType.FIXED && request.regionId() == null) {
       throw (BusinessRuleViolationException)
           new BusinessRuleViolationException(
@@ -90,8 +97,11 @@ public class AdminGrowthServiceImpl implements AdminGrowthService {
 
   @Override
   @Transactional(readOnly = true)
-  public PromoPageDto listPromos(UUID regionId, Boolean active, int page, int size) {
-    Page<Promo> result = promoRepository.adminList(regionId, active, PageRequest.of(page, size));
+  public PromoPageDto listPromos(
+      UUID regionId, Boolean active, Boolean running, int page, int size) {
+    Page<Promo> result =
+        promoRepository.adminList(
+            regionId, active, running, clock.instant(), PageRequest.of(page, size));
     return new PromoPageDto(
         result.getContent().stream().map(this::promoDto).toList(),
         page,
@@ -143,6 +153,9 @@ public class AdminGrowthServiceImpl implements AdminGrowthService {
             .orElseThrow(() -> new ResourceNotFoundException("Promo", promoId));
     Map<String, Object> before = snapshot(promo);
     if (request.regionId() != null) {
+      if (!regionRepository.existsById(request.regionId())) {
+        throw new ResourceNotFoundException("Region", request.regionId());
+      }
       promo.setRegionId(request.regionId());
     }
     if (request.serviceTypeId() != null) {
@@ -290,8 +303,8 @@ public class AdminGrowthServiceImpl implements AdminGrowthService {
         promo.getTotalCap(),
         promo.isFirstRideOnly(),
         promo.isActive(),
-        promoRedemptionRepository.countByPromoId(promo.getId()),
-        promoRedemptionRepository.redeemedAmount(promo.getId()));
+        promoRedemptionRepository.countingAgainstCap(promo.getId()),
+        promoRedemptionRepository.appliedAmount(promo.getId()));
   }
 
   private ChallengeDto challengeDto(Challenge challenge) {
@@ -319,30 +332,36 @@ public class AdminGrowthServiceImpl implements AdminGrowthService {
     }
   }
 
+  /** M13 review H2: EVERY editable field, so a cap/discount/restriction change is auditable. */
   private static Map<String, Object> snapshot(Promo promo) {
-    return Stream.of(
-            Map.entry("code", (Object) promo.getCode()),
-            Map.entry("type", promo.getType().getValue()),
-            Map.entry("value", promo.getValue()),
-            Map.entry("startsAt", promo.getStartsAt()),
-            Map.entry("endsAt", promo.getEndsAt()),
-            Map.entry("perUserLimit", promo.getPerUserLimit()),
-            Map.entry("firstRideOnly", promo.isFirstRideOnly()),
-            Map.entry("active", promo.isActive()))
-        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    Map<String, Object> state = new LinkedHashMap<>();
+    state.put("code", promo.getCode());
+    state.put("type", promo.getType().getValue());
+    state.put("value", promo.getValue());
+    state.put("regionId", promo.getRegionId());
+    state.put("serviceTypeId", promo.getServiceTypeId());
+    state.put("maxDiscount", promo.getMaxDiscount());
+    state.put("startsAt", promo.getStartsAt());
+    state.put("endsAt", promo.getEndsAt());
+    state.put("perUserLimit", promo.getPerUserLimit());
+    state.put("totalCap", promo.getTotalCap());
+    state.put("firstRideOnly", promo.isFirstRideOnly());
+    state.put("active", promo.isActive());
+    return state;
   }
 
   private static Map<String, Object> snapshot(Challenge challenge) {
-    return Stream.of(
-            Map.entry("regionId", (Object) challenge.getRegionId()),
-            Map.entry("role", challenge.getRole().getValue()),
-            Map.entry("titleEn", challenge.getTitleEn()),
-            Map.entry("goalType", challenge.getGoalType().getValue()),
-            Map.entry("goalTarget", challenge.getGoalTarget()),
-            Map.entry("rewardPoints", challenge.getRewardPoints()),
-            Map.entry("startsAt", challenge.getStartsAt()),
-            Map.entry("endsAt", challenge.getEndsAt()),
-            Map.entry("endedAt", String.valueOf(challenge.getEndedAt())))
-        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    Map<String, Object> state = new LinkedHashMap<>();
+    state.put("regionId", challenge.getRegionId());
+    state.put("role", challenge.getRole().getValue());
+    state.put("titleEn", challenge.getTitleEn());
+    state.put("titleAr", challenge.getTitleAr());
+    state.put("goalType", challenge.getGoalType().getValue());
+    state.put("goalTarget", challenge.getGoalTarget());
+    state.put("rewardPoints", challenge.getRewardPoints());
+    state.put("startsAt", challenge.getStartsAt());
+    state.put("endsAt", challenge.getEndsAt());
+    state.put("endedAt", challenge.getEndedAt());
+    return state;
   }
 }

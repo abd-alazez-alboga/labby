@@ -632,8 +632,9 @@ components:
           description: >
             M13 growth knobs (growth-v1.yaml, ruling 4 2026-10-18): referralReferrerAmount,
             referralRefereeAmount (region currency; 0 = nothing paid), pointsPerCurrencyUnit,
-            redemptionThresholdPoints, redemptionRate. Null = the code defaults (0 / 0 / 1 /
-            10000 / 0.02). Keep-on-omit in the upsert, like scheduledSettings; audited.
+            redemptionThresholdPoints, redemptionRate. Null = the SRS defaults (5 / 5 / 1 /
+            100 / 0.05 — GRW-03/04; M13 review W5, owner ruling 2026-10-19). Keep-on-omit in
+            the upsert, like scheduledSettings; audited.
           type: [object, 'null']
         serviceTypeCount: { type: integer }
         surgeZoneCount: { type: integer }

@@ -8,6 +8,7 @@ import com.labby.backend.model.Ride;
 import com.labby.backend.model.SharedRideMember;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -39,7 +40,13 @@ public interface RideMoneyService {
    * @param ride the completed ride (locked, {@code split})
    * @param members its {@code completed} members, shares set, {@code pending}
    */
-  void applySharedAtCompletion(Ride ride, List<SharedRideMember> members);
+  /**
+   * Shared-ride money at completion. {@code appliedDiscounts} maps a member's user id to the promo
+   * discount actually applied to their share (M13 review W8: the reservation row may still carry
+   * the booking estimate when the applied discount rounded to zero).
+   */
+  void applySharedAtCompletion(
+      Ride ride, List<SharedRideMember> members, Map<UUID, BigDecimal> appliedDiscounts);
 
   /**
    * Resolves the cash confirmation of a {@code pending} ride (PAY-02): collects the dues it carries

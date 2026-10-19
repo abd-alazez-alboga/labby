@@ -42,6 +42,16 @@ public interface PromoService {
   void carry(Ride from, Ride to);
 
   /**
+   * Releases one member's reservation on a shared ride they are leaving or dropped from (M13 review
+   * H1): the caps free up and another member may apply a promo. A reservation held by someone else
+   * stays.
+   *
+   * @param ride the shared ride
+   * @param memberUserId the leaving member
+   */
+  void releaseMember(Ride ride, UUID memberUserId);
+
+  /**
    * Applies the ride's reservation at completion: the discount against the payer's pre-discount
    * amount (percent or fixed, capped, floor at zero), recorded on the redemption row. Zero when the
    * ride has no reservation or it belongs to another payer (ruling 2: on a shared ride only the

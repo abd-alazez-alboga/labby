@@ -321,6 +321,150 @@ class GrowthIntegrationTest extends AbstractRideIntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "M13 fix H1: a leaving promo holder releases the reservation — cap freed, another"
+          + " member may apply")
+  void shouldReleasePromoWhenMemberLeaves() {
+    growthSettings(
+        "{\"referralReferrerAmount\": 0, \"referralRefereeAmount\": 0,"
+            + " \"pointsPerCurrencyUnit\": 1, \"redemptionThresholdPoints\": 100,"
+            + " \"redemptionRate\": 0.5}");
+    driverAt(PICKUP_LAT, PICKUP_LNG); // a 3-seat vehicle must exist for a 3-seat shared ride
+    Account creator = rider();
+    Account joiner = rider();
+    Account third = rider();
+    Map<String, Object> capped = promoBody("LEAVER", "percent", "50");
+    capped.put("totalCap", 1);
+    adminPromo(capped);
+
+    Map<String, Object> create = new LinkedHashMap<>();
+    create.put("pickup", place(PICKUP_LAT, PICKUP_LNG));
+    create.put("destination", place(DEST_LAT, DEST_LNG));
+    create.put("serviceTypeId", economy.toString());
+    create.put("paymentMethod", "cash");
+    create.put("totalSeats", 3);
+    create.put("partySize", 1);
+    create.put(
+        "departure",
+        Map.of(
+            "mode", "at_time", "departAt", CLOCK.instant().plus(Duration.ofHours(1)).toString()));
+    UUID rideId =
+        UUID.fromString(
+            ok(post("/api/v1/shared-rides", create, creator.token()), HttpStatus.CREATED)
+                .get("rideId")
+                .asText());
+    ok(
+        post(
+            "/api/v1/shared-rides/" + rideId + "/join",
+            Map.of("partySize", 1, "paymentMethod", "cash", "promoCode", "LEAVER"),
+            joiner.token()),
+        HttpStatus.OK);
+    // The cap (1) is taken and the ride's one-promo slot is held.
+    assertThat(code(validate(third, "LEAVER"))).isEqualTo("promo_exhausted");
+
+    // The holder leaves during gathering: cap freed, the ride's slot freed.
+    ok(post("/api/v1/shared-rides/" + rideId + "/leave", Map.of(), joiner.token()), HttpStatus.OK);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM promo_redemptions WHERE ride_id = ?", Integer.class, rideId))
+        .isZero();
+    assertThat(validate(third, "LEAVER").getStatusCode()).isEqualTo(HttpStatus.OK);
+    ok(
+        post(
+            "/api/v1/shared-rides/" + rideId + "/join",
+            Map.of("partySize", 1, "paymentMethod", "cash", "promoCode", "LEAVER"),
+            third.token()),
+        HttpStatus.OK);
+  }
+
+  @Test
+  @DisplayName("M13 fix W1: one alive first-ride reservation per rider")
+  void shouldRefuseSecondFirstRideReservation() {
+    Account rider = rider();
+    Map<String, Object> first = promoBody("WELCOMEA", "percent", "10");
+    adminPromo(first);
+    jdbcTemplate.update("UPDATE promos SET first_ride_only = true WHERE code = 'WELCOMEA'");
+    Map<String, Object> second = promoBody("WELCOMEB", "percent", "10");
+    adminPromo(second);
+    jdbcTemplate.update("UPDATE promos SET first_ride_only = true WHERE code = 'WELCOMEB'");
+
+    Map<String, Object> request = booking(List.of());
+    request.put("scheduledAt", CLOCK.instant().plus(Duration.ofHours(2)).toString());
+    request.put("promoCode", "WELCOMEA");
+    ok(post("/api/v1/scheduled-rides", request, rider.token()), HttpStatus.CREATED);
+
+    // A second first-ride code is refused while the scheduled reservation is alive.
+    ResponseEntity<JsonNode> refused = tryBookWith(rider, "WELCOMEB");
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(code(refused)).isEqualTo("promo_first_ride_only");
+    // A plain promo still works.
+    adminPromo(promoBody("PLAIN", "percent", "10"));
+    assertThat(tryBookWith(rider, "PLAIN").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+  }
+
+  @Test
+  @DisplayName(
+      "M13 fix W5: a region paying 0/0 leaves the referral pending — never rewarded"
+          + " with nothing paid")
+  void shouldKeepReferralPendingWhenRegionPaysNothing() {
+    growthSettings(
+        "{\"referralReferrerAmount\": 0, \"referralRefereeAmount\": 0,"
+            + " \"pointsPerCurrencyUnit\": 1, \"redemptionThresholdPoints\": 100,"
+            + " \"redemptionRate\": 0.5}");
+    Account referrer = rider();
+    Account referee = rider();
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    String code =
+        ok(get("/api/v1/referrals/me", referrer.token()), HttpStatus.OK).get("code").asText();
+    ok(enter(referee, code), HttpStatus.OK);
+    finish(driver, book(referee));
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT status FROM referrals WHERE referee_user_id = ?",
+                String.class,
+                referee.userId()))
+        .isEqualTo("pending");
+    assertThat(walletCredit(referrer.userId(), "referral")).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("M13 fix W7 + H2: percent above 100 → 422; a cap patch is audited before/after")
+  void shouldValidatePercentAndAuditCapPatch() {
+    ResponseEntity<JsonNode> refused =
+        post("/api/v1/admin/promos", promoBody("OVER", "percent", "150"), admin);
+    assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(code(refused)).isEqualTo("value_invalid");
+
+    Map<String, Object> capped = promoBody("AUDITME", "percent", "10");
+    capped.put("totalCap", 5);
+    UUID promoId = adminPromo(capped);
+    ok(patch("/api/v1/admin/promos/" + promoId, Map.of("totalCap", 50), admin), HttpStatus.OK);
+    Map<String, Object> audit =
+        jdbcTemplate.queryForMap(
+            "SELECT before_state ->> 'totalCap' AS before, after_state ->> 'totalCap' AS after"
+                + " FROM audit_log WHERE action = 'promo.update' AND target_id = ? ORDER BY"
+                + " created_at DESC LIMIT 1",
+            promoId.toString());
+    assertThat(audit.get("before")).isEqualTo("5");
+    assertThat(audit.get("after")).isEqualTo("50");
+
+    // W17: the running filter excludes a future-window promo the active flag would count.
+    Map<String, Object> future = promoBody("LATERON", "percent", "10");
+    future.put("startsAt", CLOCK.instant().plus(Duration.ofDays(1)).toString());
+    future.put("endsAt", CLOCK.instant().plus(Duration.ofDays(2)).toString());
+    adminPromo(future);
+    long active =
+        ok(get("/api/v1/admin/promos?active=true&size=1", admin), HttpStatus.OK)
+            .get("totalItems")
+            .asLong();
+    long running =
+        ok(get("/api/v1/admin/promos?running=true&size=1", admin), HttpStatus.OK)
+            .get("totalItems")
+            .asLong();
+    assertThat(active).isEqualTo(running + 1);
+  }
+
+  @Test
   @DisplayName("GRW-03: referral end-to-end — first completed ride pays both sides, exactly once")
   void shouldRunReferralEndToEnd() {
     growthSettings(

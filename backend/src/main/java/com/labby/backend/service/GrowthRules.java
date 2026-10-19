@@ -10,10 +10,18 @@ import java.util.Map;
  */
 public final class GrowthRules {
 
-  /** Defaults: no referral payout, 1 pt / currency unit, redeem 10,000+ pts at 0.02 / pt. */
+  /**
+   * The SRS defaults (GRW-03 "5 + 5", GRW-04 "100 pts → 5 credit", owner ruling 2026-10-18 on the
+   * M13 review W5): referral 5 + 5 in the region currency, 1 pt / currency unit, redeem 100+ pts at
+   * 0.05 / pt. A region's own growthSettings override them.
+   */
   public static final Settings DEFAULTS =
       new Settings(
-          BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ONE, 10_000L, new BigDecimal("0.02"));
+          new BigDecimal("5.00"),
+          new BigDecimal("5.00"),
+          BigDecimal.ONE,
+          100L,
+          new BigDecimal("0.05"));
 
   private GrowthRules() {}
 

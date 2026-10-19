@@ -16,6 +16,7 @@ import java.security.SecureRandom;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -145,19 +146,20 @@ public class ReferralServiceImpl implements ReferralService {
         .map(ReferralCode::getCode)
         .orElseGet(
             () -> {
-              String code = randomCode();
-              while (referralCodeRepository.existsByCode(code)) {
-                code = randomCode();
-              }
-              try {
-                return referralCodeRepository
-                    .saveAndFlush(ReferralCode.builder().userId(userId).code(code).build())
-                    .getCode();
-              } catch (DataIntegrityViolationException ex) {
-                return referralCodeRepository
-                    .findById(userId)
-                    .map(ReferralCode::getCode)
-                    .orElseThrow(() -> ex);
+              // M13 review W2: ON CONFLICT DO NOTHING — a conflict (concurrent create, or a
+              // random-code collision) must not abort the caller's transaction. 0 rows with no
+              // row of our own = the random code hit someone else's; roll a new one.
+              while (true) {
+                String code = randomCode();
+                if (referralCodeRepository.existsByCode(code)) {
+                  continue;
+                }
+                referralCodeRepository.insertIfAbsent(userId, code);
+                Optional<String> stored =
+                    referralCodeRepository.findById(userId).map(ReferralCode::getCode);
+                if (stored.isPresent()) {
+                  return stored.get();
+                }
               }
             });
   }

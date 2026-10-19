@@ -164,6 +164,13 @@ class GrowthGamificationIntegrationTest extends AbstractRideIntegrationTest {
     JsonNode riderView = ok(get("/api/v1/gamification/me?as=rider", rider.token()), HttpStatus.OK);
     assertThat(riderView.get("driverTrips").isNull()).isTrue();
     assertThat(riderView.get("challengePoints").isNull()).isTrue();
+    // M13 fix W4: a DRIVER challenge reward is level-only — nothing becomes redeemable.
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT COALESCE(redeemable, 0) FROM points_accounts WHERE user_id = ?",
+                Long.class,
+                driver.userId()))
+        .isZero();
   }
 
   // ---- helpers ------------------------------------------------------------------------------
