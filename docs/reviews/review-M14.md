@@ -168,3 +168,34 @@ Owner rulings: H4 add article reorder arrows (no new board); W5 delete only unus
 | I5 | Admin thread sorts by `Date.parse` | 7fa3f65 |
 
 Scoped results: backend support + chat suites 40/40, ArchUnit 7/7, Checkstyle clean; rider 60/60; driver 40/40; admin 65/65; tsc + eslint clean in all three apps. Not verified on a device: rider keyboard offset / safe-area padding.
+
+## Re-audit (`3cb3bac..58903a6`, 2026-10-19)
+Independent re-audit of the five labby-fix commits. Every finding was checked against the live code: H1–H3, W1–W13, I1–I3 and I5 are **resolved**, with no regressions found. The regression checks covered:
+- the version / `@DynamicUpdate` interplay with the native read-marker and reminder stamps;
+- the 409 mapping;
+- that the batched case list gives the same windows, `memberId` and `outcome` as the single-case view;
+- the `TicketFiles` transaction boundaries;
+- I2 applying only to `reply`;
+- contract ↔ DTO ↔ app types for the new fields;
+- EN/AR parity.
+
+I4 is mostly resolved: one member lookup per case remains on shared rides only.
+
+**Re-audit verdict: Fail.** One new High finding kept H4 only partially resolved:
+
+### N1: Article reorder sent only the published ids
+- **Category:** integration
+- **Severity:** High
+- **Certainty:** High
+- **Location:** `apps/admin/src/pages/HelpCmsPage.tsx` (`moveArticle`); backend `HelpCenterServiceImpl.reorderArticles` / `requireCompleteOrder`; support-v1 `order_incomplete`.
+- **Rationale:** The backend requires every article of the category exactly once. In any category holding a draft, every arrow click answered 422. The admin test mock accepted a partial list, so the test hid the failure.
+- **Resolution:** Fixed in 605d74d. The request now sends the swapped published ids followed by the drafts in their current order. The test mock now answers 422 `order_incomplete` exactly as the backend does, and the test asserts the full list `['a3', ARTICLE_1, 'a2']`. The same commit fixes **N3**: the order cell shows the published position (`orderIndex + 1`), so numbers no longer skip around drafts. Verified with `npx vitest run src/test/help-cms.test.tsx` (8/8), plus `tsc -b`, eslint and prettier, all clean.
+
+### After N1: **Pass with comments**
+These items are non-blocking and go to the backlog:
+- **N2 (Info):** in the rider ticket form, a prefilled `initialRideId` is still sent when the ride list fails to load, even though the picker is hidden. No caller passes it today.
+- **I4 leftover:** on shared rides, the lost-item lists still do one member lookup per case.
+- **W9:** the rider composer's keyboard offset and safe-area padding have not been checked on a device.
+- The new admin controls (tag ×, tag filter chip, delete with confirm, article arrows) were added to existing screens under the owner's H4 and W5 rulings, without new boards.
+
+CI: green on the labby-fix commits — run 39289352913 on 0e16b62 and run 39291079583 on 58903a6 (all four jobs each); 605d74d rides with the closure push.
