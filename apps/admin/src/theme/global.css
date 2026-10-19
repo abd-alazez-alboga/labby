@@ -2999,3 +2999,16 @@ input[type='radio'] {
   line-height: 1.5;
   color: var(--labby-text-secondary);
 }
+
+/* M13 promotions (review Info 5): the code cell and the page footnote. */
+.promos__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.promos__footnote {
+  margin-block-start: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}

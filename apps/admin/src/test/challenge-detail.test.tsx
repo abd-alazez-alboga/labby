@@ -36,8 +36,18 @@ describe('challenge detail', () => {
 
   function stubDetail(user = CHALLENGES_ADMIN, endStatus?: { status: number; body: unknown }) {
     seedStoredSession(sessionFor(user));
+    let reads = 0;
     return stubGrowthRoutes(user, (method, path) => {
       if (method === 'GET' && path === `/api/v1/admin/challenges/${CHALLENGE_WEEKLY}`) {
+        reads += 1;
+        // After a refused end (W19) the page refetches; by then the backend
+        // view carries endedAt, so the End-early panel closes.
+        if (endStatus && reads > 1) {
+          return jsonResponse(200, {
+            ...challengeDetail(),
+            challenge: challengeFixture({ endedAt: '2026-10-18T10:00:00Z' }),
+          });
+        }
         return jsonResponse(200, challengeDetail());
       }
       if (method === 'POST' && path === `/api/v1/admin/challenges/${CHALLENGE_WEEKLY}/end`) {
@@ -101,6 +111,9 @@ describe('challenge detail', () => {
     await user.click(within(confirm).getByRole('button', { name: 'End early' }));
 
     expect(await screen.findByText('The challenge is already ended.')).toBeInTheDocument();
+    // W19: the page refetches — the view now carries endedAt, so the
+    // End-early action is gone instead of lingering until a manual reload.
+    await vi.waitFor(() => expect(screen.queryByRole('button', { name: 'End early' })).toBeNull());
   });
 
   it('hides the end panel without challenges:manage', async () => {

@@ -3,9 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { listPromos, patchPromo, type Promo, type PromoPage } from '../api/growth';
-import { listRegions, type RegionSummary } from '../api/regions';
+import {
+  listRegions,
+  listServiceTypes,
+  type RegionSummary,
+  type ServiceType,
+} from '../api/regions';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { useCurrencyLabel } from './money/use-currency-label';
 import { useToast } from '../toast/ToastProvider';
 import { DataTable, KpiRow, KpiTile, PageHeader, StatusChip, TablePager } from '../ui';
 import { formatMoney, formatNumber } from './money/money-format';
@@ -34,6 +40,7 @@ export default function PromosPage() {
   const language = i18n.language;
   const { apiClient } = useAuth();
   const { can } = usePermissions();
+  const currencyLabel = useCurrencyLabel();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
 
@@ -43,6 +50,9 @@ export default function PromosPage() {
   const [result, setResult] = useState<PromoPage | null>(null);
   const [activeCount, setActiveCount] = useState<number | null>(null);
   const [regions, setRegions] = useState<RegionSummary[]>([]);
+  // W18: ride-type names for the Limits column, per region (pricing:view;
+  // degrades to the generic label without it or while loading).
+  const [serviceTypes, setServiceTypes] = useState<Record<string, ServiceType[]>>({});
   const [loadError, setLoadError] = useState<FailureKind | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -71,7 +81,8 @@ export default function PromosPage() {
   // The Active KPI is a totalItems-only query; it never blocks the table.
   useEffect(() => {
     let cancelled = false;
-    listPromos(apiClient, { active: true, page: 0, size: 1 })
+    // W17: `running` = active AND window contains now — matches the KPI hint.
+    listPromos(apiClient, { running: true, page: 0, size: 1 })
       .then((loaded) => {
         if (!cancelled) {
           setActiveCount(loaded.totalItems);
@@ -86,6 +97,47 @@ export default function PromosPage() {
       cancelled = true;
     };
   }, [apiClient, attempt]);
+
+  // W18: one service-type fetch per region present among the page's
+  // restricted promos (board A13Promos shows the type's name).
+  const canSeeTypes = can('pricing:view');
+  useEffect(() => {
+    if (!result || !canSeeTypes) {
+      return;
+    }
+    const wanted = [
+      ...new Set(
+        result.items
+          .filter((promo) => promo.serviceTypeId && promo.regionId)
+          .map((promo) => promo.regionId!),
+      ),
+    ].filter((id) => !(id in serviceTypes));
+    if (wanted.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      wanted.map(async (id) => {
+        try {
+          return [id, await listServiceTypes(apiClient, id)] as const;
+        } catch {
+          return [id, []] as const;
+        }
+      }),
+    ).then((loaded) => {
+      if (!cancelled) {
+        setServiceTypes((current) => ({
+          ...current,
+          ...Object.fromEntries(loaded),
+        }));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // serviceTypes is appended, never a trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, canSeeTypes, apiClient]);
 
   // Region names for the filter and the limits column; missing regions:view
   // degrades to ids staying hidden (same convention as RidesPage).
@@ -136,12 +188,12 @@ export default function PromosPage() {
         return percent;
       }
       const max = currency
-        ? formatMoney(Number(promo.maxDiscount), currency, language)
+        ? formatMoney(Number(promo.maxDiscount), currencyLabel(currency), language)
         : formatDecimal(promo.maxDiscount, language);
       return `${percent} · ${t('promos.maxDiscountShort', { amount: max })}`;
     }
     const amount = currency
-      ? formatMoney(Number(promo.value), currency, language)
+      ? formatMoney(Number(promo.value), currencyLabel(currency), language)
       : formatDecimal(promo.value, language);
     return t('promos.fixedOff', { amount });
   }
@@ -156,7 +208,12 @@ export default function PromosPage() {
       parts.push(region);
     }
     if (promo.serviceTypeId) {
-      parts.push(t('promos.rideTypeLimited'));
+      const named = promo.regionId
+        ? serviceTypes[promo.regionId]?.find((type) => type.id === promo.serviceTypeId)
+        : undefined;
+      parts.push(
+        named ? (language === 'ar' ? named.nameAr : named.nameEn) : t('promos.rideTypeLimited'),
+      );
     }
     return parts.join(' · ');
   }
@@ -299,7 +356,7 @@ export default function PromosPage() {
                           {currencyOf(promo)
                             ? formatMoney(
                                 Number(promo.redeemedAmount),
-                                currencyOf(promo)!,
+                                currencyLabel(currencyOf(promo)!),
                                 language,
                               )
                             : formatDecimal(promo.redeemedAmount, language)}

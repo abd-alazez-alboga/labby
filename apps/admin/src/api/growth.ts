@@ -127,6 +127,8 @@ export interface ChallengeDetail {
 export interface PromoQuery {
   regionId?: string;
   active?: boolean;
+  /** true = active AND the window contains now (M13 review W17). */
+  running?: boolean;
   page?: number;
   size?: number;
 }
@@ -146,6 +148,10 @@ export function listPromos(client: ApiClient, query: PromoQuery = {}): Promise<P
   }
   if (query.active !== undefined) {
     params.set('active', String(query.active));
+  }
+  if (query.running !== undefined) {
+    // W17: active AND the window contains now (growth-v1).
+    params.set('running', String(query.running));
   }
   return client.get<PromoPage>(`/api/v1/admin/promos?${params.toString()}`);
 }

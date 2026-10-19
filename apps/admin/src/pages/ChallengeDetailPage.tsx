@@ -104,12 +104,16 @@ export default function ChallengeDetailPage() {
       setResult((current) => (current ? { ...current, challenge: updated } : current));
       toast.show({ tone: 'success', message: t('challenges.endedToast') });
     } catch (error) {
+      const alreadyEnded = error instanceof ApiError && error.code === 'already_ended';
+      if (alreadyEnded) {
+        // W19: someone else ended it — refetch so the End-early panel closes.
+        setAttempt((n) => n + 1);
+      }
       toast.show({
         tone: 'error',
-        message:
-          error instanceof ApiError && error.code === 'already_ended'
-            ? t('challenges.errors.alreadyEnded')
-            : t('challenges.errors.endFailed'),
+        message: alreadyEnded
+          ? t('challenges.errors.alreadyEnded')
+          : t('challenges.errors.endFailed'),
       });
     } finally {
       setEnding(false);

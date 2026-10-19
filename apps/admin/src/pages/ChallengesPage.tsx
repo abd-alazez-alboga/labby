@@ -20,14 +20,14 @@ import { DataTable, DecisionPanel, PageHeader, ReviewLayout, StatusChip, TablePa
 import { formatNumber } from './money/money-format';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
-import { CHALLENGE_STATUS_TONES, challengeStatus, windowLabel } from './growth/growth-format';
+import {
+  CHALLENGE_STATUS_TONES,
+  challengeStatus,
+  windowLabel,
+  toIso,
+} from './growth/growth-format';
 
 const PAGE_SIZE = 20;
-
-/** A datetime-local input value as the contract's ISO date-time, or undefined. */
-function toIso(local: string): string | undefined {
-  return local ? new Date(local).toISOString() : undefined;
-}
 
 /**
  * UC-A-28 (GAME-02) — the challenges queue and the New challenge form

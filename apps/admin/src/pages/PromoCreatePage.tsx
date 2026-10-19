@@ -13,12 +13,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../toast/ToastProvider';
 import { BackLink, DecisionPanel, PageHeader, ReviewLayout, Section } from '../ui';
-import { formatDecimal, windowLabel } from './growth/growth-format';
-
-/** A datetime-local input value as the contract's ISO date-time, or undefined. */
-function toIso(local: string): string | undefined {
-  return local ? new Date(local).toISOString() : undefined;
-}
+import { formatDecimal, windowLabel, toIso } from './growth/growth-format';
 
 function mapCreateError(error: unknown): string {
   if (error instanceof ApiError) {
@@ -28,7 +23,8 @@ function mapCreateError(error: unknown): string {
     if (error.code === 'fixed_needs_region') {
       return 'promos.errors.fixedNeedsRegion';
     }
-    if (error.code === 'window_invalid' || error.status === 422 || error.status === 400) {
+    if (error.code === 'window_invalid') {
+      // Info 3: ONLY the named code — another 400/422 is not about the window.
       return 'promos.errors.window';
     }
   }
@@ -141,7 +137,13 @@ export default function PromoCreatePage() {
     );
     parts.push(region ? region.name : t('promos.allRegions'));
     const serviceType = serviceTypes.find((item) => item.id === serviceTypeId);
-    parts.push(serviceType ? serviceType.nameEn : t('promos.allRideTypes'));
+    parts.push(
+      serviceType
+        ? language === 'ar'
+          ? serviceType.nameAr
+          : serviceType.nameEn
+        : t('promos.allRideTypes'),
+    );
     if (firstRideOnly) {
       parts.push(t('promos.firstRideOnlyShort'));
     }

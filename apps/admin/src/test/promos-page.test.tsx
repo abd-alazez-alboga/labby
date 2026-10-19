@@ -1,9 +1,11 @@
-import { screen, within } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n/i18n';
 import {
+  DAMASCUS_ID,
+  ECONOMY_ID,
   PROMO_FLASH,
   PROMO_WELCOME,
   PROMOS_ADMIN,
@@ -45,7 +47,8 @@ describe('promotions queue', () => {
     seedStoredSession(sessionFor(user));
     return stubGrowthRoutes(user, (method, path, _init, url) => {
       if (method === 'GET' && path === '/api/v1/admin/promos') {
-        if (url?.searchParams.get('active') === 'true' && url.searchParams.get('size') === '1') {
+        // W17: the KPI asks for RUNNING promos (active AND window live).
+        if (url?.searchParams.get('running') === 'true' && url.searchParams.get('size') === '1') {
           return jsonResponse(200, { ...promoPage([], 3), size: 1 });
         }
         return jsonResponse(
@@ -94,6 +97,43 @@ describe('promotions queue', () => {
     // The Active KPI comes from the totalItems-only query.
     expect(screen.getByText('Active promos')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('names a restricted ride type in Limits, and degrades without pricing:view (W18)', async () => {
+    const bound = promoFixture({
+      promoId: PROMO_FLASH,
+      code: 'ECONOMY10',
+      serviceTypeId: ECONOMY_ID,
+      firstRideOnly: false,
+    });
+    seedStoredSession(sessionFor(PROMOS_ADMIN));
+    stubGrowthRoutes(PROMOS_ADMIN, (method, path) => {
+      if (method === 'GET' && path === '/api/v1/admin/promos') {
+        return jsonResponse(200, promoPage([bound]));
+      }
+      return null;
+    });
+    renderShell();
+    const row = (await screen.findByText('ECONOMY10')).closest('tr')!;
+    // The board (A13Promos) names the type; resolved via the region's types.
+    expect(await within(row).findByText(/Damascus · Economy/)).toBeInTheDocument();
+
+    cleanup();
+    vi.unstubAllGlobals();
+    const viewer = adminUser(['promos:view', 'regions:view']);
+    seedStoredSession(sessionFor(viewer));
+    stubGrowthRoutes(viewer, (method, path) => {
+      if (method === 'GET' && path === '/api/v1/admin/promos') {
+        return jsonResponse(200, promoPage([bound]));
+      }
+      if (path === `/api/v1/admin/regions/${DAMASCUS_ID}/service-types`) {
+        throw new Error('must not fetch service types without pricing:view');
+      }
+      return null;
+    });
+    renderShell();
+    const fallback = (await screen.findByText('ECONOMY10')).closest('tr')!;
+    expect(await within(fallback).findByText(/1 ride type/)).toBeInTheDocument();
   });
 
   it('deactivates after an inline confirm; reserved rides keep their discount', async () => {

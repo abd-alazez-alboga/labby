@@ -1596,9 +1596,24 @@
       "rider": "الركاب"
     },
     "goal": {
-      "completed_rides": "{{count}} رحلة",
-      "shared_rides": "{{count}} رحلة مشتركة",
-      "five_star_ratings": "{{count}} تقييم 5 نجوم"
+      "completed_rides_zero": "{{count}} رحلات",
+      "completed_rides_one": "رحلة واحدة",
+      "completed_rides_two": "رحلتان",
+      "completed_rides_few": "{{count}} رحلات",
+      "completed_rides_many": "{{count}} رحلة",
+      "completed_rides_other": "{{count}} رحلة",
+      "shared_rides_zero": "{{count}} رحلات مشتركة",
+      "shared_rides_one": "رحلة مشتركة واحدة",
+      "shared_rides_two": "رحلتان مشتركتان",
+      "shared_rides_few": "{{count}} رحلات مشتركة",
+      "shared_rides_many": "{{count}} رحلة مشتركة",
+      "shared_rides_other": "{{count}} رحلة مشتركة",
+      "five_star_ratings_zero": "{{count}} تقييمات 5 نجوم",
+      "five_star_ratings_one": "تقييم واحد 5 نجوم",
+      "five_star_ratings_two": "تقييمان 5 نجوم",
+      "five_star_ratings_few": "{{count}} تقييمات 5 نجوم",
+      "five_star_ratings_many": "{{count}} تقييم 5 نجوم",
+      "five_star_ratings_other": "{{count}} تقييم 5 نجوم"
     },
     "goalType": {
       "completed_rides": "رحلات مكتملة",

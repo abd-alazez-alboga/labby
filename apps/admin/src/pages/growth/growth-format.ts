@@ -75,3 +75,8 @@ export const CHALLENGE_STATUS_TONES: Record<ChallengeStatus, ChipTone> = {
 export function pointsGranted(challenge: Challenge, language: string): string {
   return formatNumber(challenge.completedCount * challenge.rewardPoints, language);
 }
+
+/** A datetime-local input value as an ISO instant; undefined when empty/invalid. */
+export function toIso(local: string): string | undefined {
+  return local ? new Date(local).toISOString() : undefined;
+}

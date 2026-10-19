@@ -1530,7 +1530,7 @@
     "deactivated": "{{code}} deactivated — reserved rides keep their discount.",
     "deactivateFailed": "Couldn't deactivate the promo. Try again.",
     "empty": "No promos yet.",
-    "footnote": "Deactivating stops new redemptions immediately; rides that already reserved the promo keep their discount. Changes need the Edit promotions permission and are audit-logged. Commission is charged on the fare before the discount; the driver is made whole with a platform-funded wallet credit.",
+    "footnote": "Deactivating stops new redemptions immediately; rides that already reserved the promo keep their discount. Changes need the Manage promotions permission and are audit-logged. Commission is charged on the fare before the discount; the driver is made whole with a platform-funded wallet credit.",
     "createTitle": "New promo",
     "created": "{{code}} created.",
     "form": {
@@ -1556,7 +1556,7 @@
       "firstRideOnly": "First ride only",
       "firstRideOnlyHint": "riders with no completed ride yet",
       "submit": "Create promo",
-      "footnote": "A code can't be reused while another promo with the same code is active. Creating is audit-logged and needs the Edit promotions permission."
+      "footnote": "A code can't be reused while another promo with the same code is active. Creating is audit-logged and needs the Manage promotions permission."
     },
     "summary": {
       "title": "Summary",
@@ -1596,9 +1596,24 @@
       "rider": "Riders"
     },
     "goal": {
-      "completed_rides": "{{count}} rides",
-      "shared_rides": "{{count}} shared rides",
-      "five_star_ratings": "{{count}} five-star ratings"
+      "completed_rides_zero": "{{count}} rides",
+      "completed_rides_one": "{{count}} ride",
+      "completed_rides_two": "{{count}} rides",
+      "completed_rides_few": "{{count}} rides",
+      "completed_rides_many": "{{count}} rides",
+      "completed_rides_other": "{{count}} rides",
+      "shared_rides_zero": "{{count}} shared rides",
+      "shared_rides_one": "{{count}} shared ride",
+      "shared_rides_two": "{{count}} shared rides",
+      "shared_rides_few": "{{count}} shared rides",
+      "shared_rides_many": "{{count}} shared rides",
+      "shared_rides_other": "{{count}} shared rides",
+      "five_star_ratings_zero": "{{count}} five-star ratings",
+      "five_star_ratings_one": "{{count}} five-star rating",
+      "five_star_ratings_two": "{{count}} five-star ratings",
+      "five_star_ratings_few": "{{count}} five-star ratings",
+      "five_star_ratings_many": "{{count}} five-star ratings",
+      "five_star_ratings_other": "{{count}} five-star ratings"
     },
     "goalType": {
       "completed_rides": "Completed rides",
@@ -1614,7 +1629,7 @@
       "endedEarly": "Ended early"
     },
     "empty": "No challenges yet.",
-    "footnote": "Points reward the level only — they never change payouts. Create and end need the Edit challenges permission; both are audit-logged.",
+    "footnote": "Points reward the level only — they never change payouts. Create and end need the Manage challenges permission; both are audit-logged.",
     "form": {
       "title": "New challenge",
       "nameEn": "Name (English)",
@@ -1652,7 +1667,7 @@
       "body": "New progress stops right away. The {{done}} already finished keep their {{points}} points. Nobody loses points. Participants see the challenge as ended.",
       "confirmText": "End the challenge now?",
       "action": "End early",
-      "footnote": "Ending early is audit-logged and needs the Edit challenges permission."
+      "footnote": "Ending early is audit-logged and needs the Manage challenges permission."
     },
     "endedToast": "Challenge ended — completions keep their points.",
     "errors": {
