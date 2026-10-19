@@ -304,6 +304,19 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
             testID="receipt-report"
           />
         ) : null}
+        {/* M14 (UC-R-20): a lost item is reported from the completed ride. */}
+        {receipt.driver && !accountSuspended ? (
+          <TextButton
+            label={t("lostItem.reportEntry")}
+            onPress={() =>
+              router.push(
+                `/lost-item-report/${encodeURIComponent(receipt.rideId)}` as never,
+              )
+            }
+            style={styles.report}
+            testID="receipt-lost-item"
+          />
+        ) : null}
       </View>
       {canTip && receipt.driver ? (
         <TipSheet

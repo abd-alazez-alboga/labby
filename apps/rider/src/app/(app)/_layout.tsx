@@ -145,6 +145,47 @@ export default function AppLayout() {
             name="challenges"
             options={{ title: t("growth.challenges.title") }}
           />
+          {/* M14 support: help center first, tickets, lost items, feedback. */}
+          <Stack.Screen
+            name="support"
+            options={{ title: t("support.title") }}
+          />
+          <Stack.Screen
+            name="help/[helpCategoryId]"
+            options={{ title: "" }}
+          />
+          <Stack.Screen
+            name="help-article/[helpArticleId]"
+            options={{ title: "" }}
+          />
+          <Stack.Screen
+            name="help-search"
+            options={{ title: t("support.searchPlaceholder") }}
+          />
+          <Stack.Screen
+            name="new-ticket"
+            options={{ title: t("ticketCreate.title") }}
+          />
+          <Stack.Screen
+            name="tickets"
+            options={{ title: t("tickets.title") }}
+          />
+          <Stack.Screen
+            name="ticket/[ticketId]"
+            options={{ title: t("tickets.title") }}
+          />
+          <Stack.Screen
+            name="feedback"
+            options={{ title: t("feedback.title") }}
+          />
+          <Stack.Screen
+            name="lost-item-report/[rideId]"
+            options={{ title: t("lostItem.reportTitle") }}
+          />
+          <Stack.Screen
+            name="lost-item/[ticketId]"
+            options={{ title: "" }}
+          />
         </Stack>
       </NotificationsProvider>
       </ChatProvider>

@@ -30,6 +30,15 @@ const CATALOG: Record<string, RouteBuilder> = {
     params.rideId
       ? (`/chat/${encodeURIComponent(params.rideId)}` as Href)
       : NOTIFICATION_CENTER_HREF,
+  // M14 (support-v1.yaml "Notifications"): the ticket thread / the case.
+  ticket: (params) =>
+    params.ticketId
+      ? (`/ticket/${encodeURIComponent(params.ticketId)}` as Href)
+      : NOTIFICATION_CENTER_HREF,
+  lost_item_case: (params) =>
+    params.ticketId
+      ? (`/lost-item/${encodeURIComponent(params.ticketId)}` as Href)
+      : NOTIFICATION_CENTER_HREF,
 };
 
 export function resolveDeepLink(link: DeepLink | null | undefined): Href {

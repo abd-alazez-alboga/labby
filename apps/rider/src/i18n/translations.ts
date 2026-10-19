@@ -9,6 +9,7 @@
  */
 import { commsAr, commsEn } from "./comms-translations";
 import { growthAr, growthEn } from "./growth-translations";
+import { supportAr, supportEn } from "./support-translations";
 import { m12Ar, m12En } from "./m12-translations";
 import { moneyAr, moneyEn } from "./money-translations";
 import { rideAr, rideEn } from "./ride-translations";
@@ -22,6 +23,7 @@ export const translations = {
     ...trustEn,
     ...m12En,
     ...growthEn,
+    ...supportEn,
     common: {
       appName: "Labby",
       back: "Back",
@@ -298,6 +300,7 @@ export const translations = {
     ...trustAr,
     ...m12Ar,
     ...growthAr,
+    ...supportAr,
     common: {
       appName: "لبي",
       back: "رجوع",

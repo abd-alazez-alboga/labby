@@ -173,6 +173,27 @@ export default function SettingsScreen() {
     },
   ];
 
+  // M14: support home (help center first) + feedback (approved S14 boards).
+  const supportRows: {
+    key: string;
+    label: string;
+    icon: IconName;
+    href: "/support" | "/feedback";
+  }[] = [
+    {
+      key: "support",
+      label: t("support.settingsRow"),
+      icon: "help-buoy-outline",
+      href: "/support",
+    },
+    {
+      key: "feedback",
+      label: t("support.shareFeedback"),
+      icon: "chatbox-ellipses-outline",
+      href: "/feedback",
+    },
+  ];
+
   const accountRows: {
     key: string;
     label: string;
@@ -344,6 +365,23 @@ export default function SettingsScreen() {
               chevron
               last={index === notificationRows.length - 1}
               onPress={() => router.push(item.href)}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <AppText variant="heading">{t("support.settingsSection")}</AppText>
+        <View>
+          {supportRows.map((item, index) => (
+            <ListRow
+              key={item.key}
+              testID={`settings-${item.key}`}
+              title={item.label}
+              icon={item.icon}
+              chevron
+              last={index === supportRows.length - 1}
+              onPress={() => router.push(item.href as never)}
             />
           ))}
         </View>
