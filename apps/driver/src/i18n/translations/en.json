@@ -1229,5 +1229,156 @@
       "noRegion": "Challenges follow your region. Turn on location to see them.",
       "note": "Challenges count trips inside their dates in your region. If one is ended early, what you already finished still pays out."
     }
+  },
+  "support": {
+    "title": "Support",
+    "searchEntry": "Search help",
+    "topics": "Help topics",
+    "articleCount": {
+      "zero": "{{value}} articles",
+      "one": "{{value}} article",
+      "two": "{{value}} articles",
+      "few": "{{value}} articles",
+      "many": "{{value}} articles",
+      "other": "{{value}} articles"
+    },
+    "yourTickets": "Your tickets",
+    "openTickets": {
+      "zero": "{{value}} open",
+      "one": "{{value}} open",
+      "two": "{{value}} open",
+      "few": "{{value}} open",
+      "many": "{{value}} open",
+      "other": "{{value}} open"
+    },
+    "noTickets": "No tickets yet",
+    "unreadBadge": "{{count}} unread from support",
+    "cantFind": "Couldn't find an answer in the help topics?",
+    "createTicket": "Create a ticket",
+    "shareFeedback": "Share feedback",
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "waiting_on_user": "Waiting on you",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "caseStatus": {
+      "reported": "Reported",
+      "driver_contacted": "Driver contacted",
+      "found": "Found",
+      "not_found": "Not found",
+      "returned": "Returned",
+      "closed": "Closed"
+    },
+    "help": {
+      "cantFindHere": "Couldn't find an answer here?",
+      "articleFallback": "Didn't answer your question?",
+      "notFound": "This article isn't available any more.",
+      "categoryNotFound": "This topic has no articles any more.",
+      "languageToggle": {
+        "en": "English",
+        "ar": "عربي"
+      },
+      "searchMin": "Type at least 2 characters to search.",
+      "results": {
+        "zero": "{{value}} results for “{{q}}”",
+        "one": "{{value}} result for “{{q}}”",
+        "two": "{{value}} results for “{{q}}”",
+        "few": "{{value}} results for “{{q}}”",
+        "many": "{{value}} results for “{{q}}”",
+        "other": "{{value}} results for “{{q}}”"
+      },
+      "noResults": "No results for “{{q}}”. Try different words, or create a ticket."
+    },
+    "create": {
+      "title": "Create a ticket",
+      "categoryLabel": "What is it about?",
+      "categoryPlaceholder": "Choose a topic",
+      "descriptionLabel": "Describe the problem",
+      "attachmentsLabel": "Attachments · up to {{max}} (photos or PDF)",
+      "addAttachment": "Add attachment",
+      "attachment": "Attachment {{n}}",
+      "removeAttachment": "Remove attachment {{n}}",
+      "rideLabel": "About a ride? · optional",
+      "linkRide": "Link a ride",
+      "changeRide": "Change",
+      "removeRide": "Remove",
+      "noRides": "No recent trips to link.",
+      "ridesFailed": "Couldn't load your recent trips.",
+      "tripOn": "Trip {{date}}",
+      "send": "Send to support",
+      "footnote": "We'll reply in this ticket and notify you of every update.",
+      "errors": {
+        "invalid": "Something in this ticket wasn't accepted. Check it and try again.",
+        "notFound": "That topic or ride isn't available any more. Check the ticket and try again.",
+        "categoryUnavailable": "That topic isn't available any more. Pick another one.",
+        "network": "We couldn't reach Labby. Check your connection and try again.",
+        "server": "Something went wrong on our side. Please try again in a moment."
+      }
+    },
+    "tickets": {
+      "title": "Your tickets",
+      "empty": "No tickets yet. When you create one, you'll track it here.",
+      "loadMore": "Show older tickets",
+      "meta": "{{category}} · {{date}}",
+      "lostItem": "Lost item",
+      "lastSupport": "Support: {{body}}"
+    },
+    "thread": {
+      "opened": "Ticket opened · {{date}}",
+      "meta": "{{category}} · opened {{date}}",
+      "supportName": "Labby support",
+      "you": "You",
+      "waitingBanner": "Support is waiting for your reply",
+      "resolvedHint": "Reply if anything is still unresolved — that reopens the discussion.",
+      "closedNotice": "This ticket is closed. Create a new ticket if you need more help.",
+      "placeholder": "Reply to support…",
+      "send": "Send",
+      "sendFailed": "Your reply wasn't sent. Check your connection and try again.",
+      "closedRefused": "This ticket was closed, so it's read-only now.",
+      "eventStatus": "Status changed to {{status}} · {{date}}",
+      "eventCase": "Case update: {{status}} · {{date}}",
+      "eventReminder": "Reminder sent · {{date}}",
+      "attachment": "Attachment {{n}}",
+      "notFound": "This ticket isn't available."
+    },
+    "lost": {
+      "title": "A rider lost something",
+      "reportedAt": "reported {{date}}",
+      "rideLine": "{{date}} · rider {{name}}",
+      "whatLost": "What the rider lost",
+      "photo": "Photo {{n}}",
+      "note": "Please check your vehicle and reply in the ride chat — it's open again while the case is open. Support updates the case as the handover progresses.",
+      "closedNote": "This case is closed. The ride chat is view-only again.",
+      "openChat": "Open ride chat",
+      "call": "Call {{name}}",
+      "offline": "Offline? Go online to send chat messages — calls work anytime.",
+      "notFound": "This case isn't available."
+    },
+    "feedback": {
+      "title": "Share feedback",
+      "intro": "Tell us what to improve. We read everything, but we can't reply to each message — for a problem that needs an answer, create a ticket instead.",
+      "categoryLabel": "What is it about?",
+      "bodyLabel": "Your feedback",
+      "send": "Send feedback",
+      "footnote": "Thank you for helping make Labby better.",
+      "sentTitle": "Feedback sent",
+      "sentBody": "Thank you for helping make Labby better. We read everything, though we can't reply to each message.",
+      "done": "Done",
+      "categories": {
+        "app_experience": "App experience",
+        "pricing": "Pricing",
+        "drivers": "Drivers",
+        "safety": "Safety",
+        "feature_request": "Feature request",
+        "other": "Other"
+      },
+      "errors": {
+        "invalid": "Something in this feedback wasn't accepted. Check it and try again.",
+        "network": "We couldn't reach Labby. Check your connection and try again.",
+        "server": "Something went wrong on our side. Please try again in a moment."
+      }
+    }
   }
 }

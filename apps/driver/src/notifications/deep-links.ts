@@ -12,8 +12,9 @@ import type { DeepLink } from "../api/realtime-types";
  * `ride` (params `rideId`) and `ride_offer` (params `offerId`) — both open
  * the home route, which IS the ride flow, after the ride facade resynced
  * (`DriverRideContextValue.openLink`); M10 adds `chat` (params `rideId`),
- * which opens the ride's chat thread. Unknown screens open the
- * notification center.
+ * which opens the ride's chat thread; M14 adds `ticket` and
+ * `lost_item_case` (params `ticketId`) for the support screens. Unknown
+ * screens open the notification center.
  *
  * The target respects the driver gate (the stacks are guarded): an
  * applicant/suspended account has no home or vehicles screen, an active
@@ -57,6 +58,21 @@ export function hrefForLink(
             pathname: "/chat",
             params: memberId ? { rideId, memberId } : { rideId },
           }
+        : NOTIFICATIONS_HREF;
+    }
+    case "ticket": {
+      // M14 (support-v1): `support.ticket_*` pushes open the ticket's thread.
+      const ticketId = link.params?.ticketId;
+      // The support routes live in the active-driver stack (the gate).
+      return context.isDriver && ticketId
+        ? { pathname: "/ticket", params: { ticketId } }
+        : NOTIFICATIONS_HREF;
+    }
+    case "lost_item_case": {
+      // M14 (UC-D-21): `lost_item.case_*` pushes open the case view.
+      const ticketId = link.params?.ticketId;
+      return context.isDriver && ticketId
+        ? { pathname: "/lost-item-case", params: { ticketId } }
         : NOTIFICATIONS_HREF;
     }
     case "notifications":

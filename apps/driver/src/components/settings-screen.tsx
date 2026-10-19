@@ -70,6 +70,13 @@ const DRIVING_LINKS: {
     icon: "document-text-outline",
     testID: "documents-link",
   },
+  // M14 (UC-S-19/21): the support home — help center first.
+  {
+    href: "/support",
+    labelKey: "support.title",
+    icon: "help-circle-outline",
+    testID: "settings-link-support",
+  },
 ];
 
 const ACCOUNT_LINKS: {

@@ -94,6 +94,40 @@ function AppStack() {
         />
         {/* Per-ride chat (M10, UC-S-13/14). */}
         <Stack.Screen name="chat" options={{ title: t("chat.title") }} />
+        {/* Support & content (M14, UC-S-19..22, UC-D-21). */}
+        <Stack.Screen name="support" options={{ title: t("support.title") }} />
+        <Stack.Screen
+          name="help-category"
+          options={{ title: t("support.topics") }}
+        />
+        <Stack.Screen
+          name="help-article"
+          options={{ title: t("support.topics") }}
+        />
+        <Stack.Screen
+          name="help-search"
+          options={{ title: t("support.searchEntry") }}
+        />
+        <Stack.Screen
+          name="ticket-create"
+          options={{ title: t("support.create.title") }}
+        />
+        <Stack.Screen
+          name="tickets"
+          options={{ title: t("support.tickets.title") }}
+        />
+        <Stack.Screen
+          name="ticket"
+          options={{ title: t("support.tickets.title") }}
+        />
+        <Stack.Screen
+          name="lost-item-case"
+          options={{ title: t("support.lost.title") }}
+        />
+        <Stack.Screen
+          name="feedback"
+          options={{ title: t("support.feedback.title") }}
+        />
         {/* Shared ride: one private thread per member (M12, ruling 2026-10-16). */}
         <Stack.Screen
           name="shared-chats"
