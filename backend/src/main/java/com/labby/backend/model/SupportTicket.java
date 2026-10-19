@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -22,6 +23,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * A support ticket (SUP-01..03) or a lost-item case (LOST-01/02 — a ticket of kind {@code
@@ -30,9 +32,13 @@ import lombok.Setter;
  * admin opens on the caller's behalf. The V26 checks keep the timestamps and the status coupled:
  * {@code waitingSince} exactly while {@code waiting_on_user}, {@code closedAt} exactly when {@code
  * closed}, {@code resolvedAt} from {@code resolved} on. {@code priority_rank} is a generated column
- * the queue sorts on; it is not mapped. {@code userReadAt} (V27) backs the unread count.
+ * the queue sorts on; it is not mapped. {@code userReadAt} (V27) backs the unread count. V29:
+ * {@code version} serializes concurrent writers (a stale save answers 409 instead of writing an old
+ * status back) and updates write only the changed columns; {@code caseOutcome} keeps the last of
+ * found / not_found / returned a case reached.
  */
 @Entity
+@DynamicUpdate
 @Table(name = "support_tickets")
 @Getter
 @Setter
@@ -69,6 +75,13 @@ public class SupportTicket {
 
   @Column(name = "case_status", length = 16)
   private CaseStatus caseStatus;
+
+  @Column(name = "case_outcome", length = 16)
+  private CaseStatus caseOutcome;
+
+  @Version
+  @Column(name = "version", nullable = false)
+  private Long version;
 
   @Column(name = "description", nullable = false, length = 4000)
   private String description;

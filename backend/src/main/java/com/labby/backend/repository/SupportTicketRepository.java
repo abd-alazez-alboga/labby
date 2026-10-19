@@ -42,6 +42,19 @@ public interface SupportTicketRepository
   boolean existsOpenCase(@Param("rideId") UUID rideId, @Param("riderUserId") UUID riderUserId);
 
   /**
+   * The non-closed lost-item cases on the given rides — {@link #existsOpenCase} for a whole page of
+   * cases at once (review-M14 I4).
+   */
+  @Query(
+      """
+      SELECT t FROM SupportTicket t
+      WHERE t.rideId IN :rideIds
+        AND t.kind = com.labby.backend.enums.TicketKind.LOST_ITEM
+        AND t.status <> com.labby.backend.enums.TicketStatus.CLOSED
+      """)
+  List<SupportTicket> findOpenCasesOnRides(@Param("rideIds") Collection<UUID> rideIds);
+
+  /**
    * The lost-item cases a user is a party to — as the reporting rider or as the driver of the ride
    * (UC-D-21) — most recently updated first; {@code openOnly} keeps the non-closed ones.
    */
@@ -89,7 +102,9 @@ public interface SupportTicketRepository
   List<SupportTicket> findReminderDue(@Param("cutoff") Instant cutoff, Pageable pageable);
 
   /**
-   * Stamps the reminder — conditional, so of two concurrent job passes only one sends it.
+   * Stamps the reminder — conditional, so of two concurrent job passes only one sends it, and only
+   * while the current waiting stay began by the cutoff (re-checked here: the ticket may have left
+   * and re-entered waiting_on_user since the scan). Bumps the V29 version like any write.
    *
    * @return 1 when stamped now, 0 when the ticket left waiting_on_user or was reminded meanwhile
    */
@@ -97,10 +112,26 @@ public interface SupportTicketRepository
   @Query(
       value =
           """
-          UPDATE support_tickets SET reminder_sent_at = :now, updated_at = :now
+          UPDATE support_tickets
+          SET reminder_sent_at = :now, updated_at = :now, version = version + 1
           WHERE support_ticket_id = :ticketId AND status = 'waiting_on_user'
-            AND reminder_sent_at IS NULL
+            AND reminder_sent_at IS NULL AND waiting_since <= :cutoff
           """,
       nativeQuery = true)
-  int stampReminderIfDue(@Param("ticketId") UUID ticketId, @Param("now") Instant now);
+  int stampReminderIfDue(
+      @Param("ticketId") UUID ticketId, @Param("now") Instant now, @Param("cutoff") Instant cutoff);
+
+  /**
+   * Stamps the user's read marker (V27) — one column, no version bump: the read marker never
+   * competes with the workflow columns, so a thread view cannot write a stale status back.
+   *
+   * @param ticketId the ticket
+   * @param now the moment
+   * @return rows updated
+   */
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value = "UPDATE support_tickets SET user_read_at = :now WHERE support_ticket_id = :ticketId",
+      nativeQuery = true)
+  int stampUserRead(@Param("ticketId") UUID ticketId, @Param("now") Instant now);
 }

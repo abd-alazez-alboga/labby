@@ -23,14 +23,12 @@ import com.labby.backend.enums.TicketStatus;
 import com.labby.backend.exception.BusinessRuleViolationException;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ForbiddenException;
-import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.ChatThread;
 import com.labby.backend.model.Ride;
+import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.SosEvent;
-import com.labby.backend.model.StoredFile;
 import com.labby.backend.model.SupportTicket;
-import com.labby.backend.model.TicketAttachment;
 import com.labby.backend.model.TicketCategory;
 import com.labby.backend.model.TicketMessage;
 import com.labby.backend.model.User;
@@ -39,9 +37,7 @@ import com.labby.backend.repository.RbacPermissionRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.SosEventRepository;
-import com.labby.backend.repository.StoredFileRepository;
 import com.labby.backend.repository.SupportTicketRepository;
-import com.labby.backend.repository.TicketAttachmentRepository;
 import com.labby.backend.repository.TicketCategoryRepository;
 import com.labby.backend.repository.TicketEventRepository;
 import com.labby.backend.repository.TicketMessageRepository;
@@ -50,7 +46,6 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -80,10 +75,8 @@ public class SupportTicketServiceImpl implements SupportTicketService {
 
   private final SupportTicketRepository supportTicketRepository;
   private final TicketCategoryRepository ticketCategoryRepository;
-  private final TicketAttachmentRepository ticketAttachmentRepository;
   private final TicketMessageRepository ticketMessageRepository;
   private final TicketEventRepository ticketEventRepository;
-  private final StoredFileRepository storedFileRepository;
   private final RideRepository rideRepository;
   private final SosEventRepository sosEventRepository;
   private final ChatThreadRepository chatThreadRepository;
@@ -95,6 +88,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
   private final ChatService chatService;
   private final SupportAssembler assembler;
   private final TicketHistory history;
+  private final TicketFiles ticketFiles;
   private final NotificationService notificationService;
   private final AuditService auditService;
   private final Clock clock;
@@ -123,7 +117,8 @@ public class SupportTicketServiceImpl implements SupportTicketService {
     }
     List<UUID> fileIds =
         request.attachmentFileIds() == null ? List.of() : request.attachmentFileIds();
-    requireUsableFiles(userId, fileIds, StoredFileKind.TICKET_ATTACHMENT, MAX_ATTACHMENTS);
+    ticketFiles.requireUsableFiles(
+        userId, fileIds, StoredFileKind.TICKET_ATTACHMENT, MAX_ATTACHMENTS);
     Instant now = clock.instant();
     SupportTicket ticket =
         SupportTicket.builder()
@@ -139,63 +134,13 @@ public class SupportTicketServiceImpl implements SupportTicketService {
             .createdAt(now)
             .updatedAt(now)
             .build();
-    ticket = persistWithAttachments(ticket, fileIds);
+    ticket = ticketFiles.persistWithAttachments(ticket, fileIds);
     history.record(ticket, TicketEventType.CREATED, TicketSide.USER, userId, null, null, now);
     notificationService.queue(
         userId,
         NotificationEvent.SUPPORT_TICKET_CREATED,
         Map.of("ticketId", ticket.getId().toString(), "kind", TicketKind.TICKET.getValue()));
     return assembler.ticket(ticket);
-  }
-
-  /**
-   * Saves a ticket with its attachments; the unique constraints decide the races (a file attached
-   * meanwhile → 400).
-   */
-  public SupportTicket persistWithAttachments(SupportTicket ticket, List<UUID> fileIds) {
-    try {
-      SupportTicket saved = supportTicketRepository.saveAndFlush(ticket);
-      for (int index = 0; index < fileIds.size(); index++) {
-        ticketAttachmentRepository.saveAndFlush(
-            TicketAttachment.builder()
-                .ticketId(saved.getId())
-                .position(index + 1)
-                .storedFileId(fileIds.get(index))
-                .build());
-      }
-      return saved;
-    } catch (DataIntegrityViolationException ex) {
-      String cause = String.valueOf(ex.getMostSpecificCause().getMessage());
-      if (cause.contains("uq_ticket_attachments_file")) {
-        throw new InvalidRequestException("A file is already attached to another ticket");
-      }
-      throw ex;
-    }
-  }
-
-  /** The files must be the caller's own unused uploads of the kind, without repeats. */
-  public void requireUsableFiles(UUID userId, List<UUID> fileIds, StoredFileKind kind, int max) {
-    if (fileIds.size() > max) {
-      throw new InvalidRequestException("At most " + max + " files");
-    }
-    if (new HashSet<>(fileIds).size() != fileIds.size()) {
-      throw new InvalidRequestException("A file is listed twice");
-    }
-    for (UUID fileId : fileIds) {
-      boolean own =
-          storedFileRepository
-              .findByIdAndOwnerUserId(fileId, userId)
-              .map(StoredFile::getKind)
-              .filter(stored -> stored == kind)
-              .isPresent();
-      if (!own) {
-        throw new InvalidRequestException(
-            "Unknown file: upload it with /ticket-files?kind=" + kind.getValue() + " first");
-      }
-      if (ticketAttachmentRepository.existsByStoredFileId(fileId)) {
-        throw new InvalidRequestException("A file is already attached to another ticket");
-      }
-    }
   }
 
   /** An active, non-system category a user (or an SOS ticket) may pick. */
@@ -235,9 +180,9 @@ public class SupportTicketServiceImpl implements SupportTicketService {
   public TicketDetailDto detail(UUID userId, UUID ticketId) {
     SupportTicket ticket = requireMine(userId, ticketId);
     List<TicketMessageDto> messages = assembler.messages(ticket, false);
-    // V27: the thread view is the read; unread counts from here on.
-    ticket.setUserReadAt(clock.instant());
-    supportTicketRepository.save(ticket);
+    // V27: the thread view is the read; unread counts from here on. A one-column stamp, never a
+    // full save: a stale thread view must not write workflow columns back (review-M14 H1).
+    supportTicketRepository.stampUserRead(ticketId, clock.instant());
     return new TicketDetailDto(
         assembler.ticket(ticket),
         messages,
@@ -339,7 +284,11 @@ public class SupportTicketServiceImpl implements SupportTicketService {
       lostItem =
           new AdminTicketDetailDto.LostItemInfoDto(
               assembler.party(ride.getDriverUserId(), RideParty.DRIVER),
-              thread == null ? null : chatService.windowState(thread, clock.instant()));
+              thread == null ? null : chatService.windowState(thread, clock.instant()),
+              rideParties
+                  .member(ride, ticket.getUserId(), RideParties.COMPLETED)
+                  .map(SharedRideMember::getId)
+                  .orElse(null));
     }
     return new AdminTicketDetailDto(
         assembler.adminTicket(ticket),

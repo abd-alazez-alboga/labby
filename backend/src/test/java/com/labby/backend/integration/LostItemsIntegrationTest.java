@@ -1,8 +1,11 @@
 package com.labby.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.labby.backend.model.SupportTicket;
+import com.labby.backend.repository.SupportTicketRepository;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -10,6 +13,8 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -21,6 +26,8 @@ import org.springframework.http.ResponseEntity;
  * while a case is open (even on a ride older than the 24 h tail), read-only again at closure.
  */
 class LostItemsIntegrationTest extends AbstractSupportIntegrationTest {
+
+  @Autowired private SupportTicketRepository supportTicketRepository;
 
   private static String reportUrl(UUID rideId) {
     return "/api/v1/rides/" + rideId + "/lost-item";
@@ -224,6 +231,10 @@ class LostItemsIntegrationTest extends AbstractSupportIntegrationTest {
     ok(setCaseStatus(handler, ticketId, "found"), HttpStatus.OK);
     assertThat(ticketRow(ticketId).get("status")).isEqualTo("in_progress");
     assertThat(chatWindow(driver, ride)).isEqualTo("reopened");
+    assertThat(caseView(rider, ticketId).get("outcome").asText()).isEqualTo("found");
+    assertThat(caseView(rider, ticketId).get("memberId").isNull())
+        .as("T6 amendment h: one-rider rides carry no member")
+        .isTrue();
     JsonNode returned = ok(setCaseStatus(handler, ticketId, "returned"), HttpStatus.OK);
     assertThat(returned.get("status").asText()).isEqualTo("resolved");
     assertThat(returned.get("resolvedAt").isNull()).isFalse();
@@ -231,6 +242,9 @@ class LostItemsIntegrationTest extends AbstractSupportIntegrationTest {
     assertThat(code(setCaseStatus(handler, ticketId, "not_found"))).isEqualTo("invalid_transition");
 
     JsonNode closed = ok(setCaseStatus(handler, ticketId, "closed"), HttpStatus.OK);
+    assertThat(caseView(driver, ticketId).get("outcome").asText())
+        .as("T6 amendment i: the outcome survives closure")
+        .isEqualTo("returned");
     assertThat(closed.get("status").asText()).isEqualTo("closed");
     assertThat(closed.get("closedAt").isNull()).isFalse();
     assertThat(chatWindow(rider, ride)).isEqualTo("read_only");
@@ -303,6 +317,148 @@ class LostItemsIntegrationTest extends AbstractSupportIntegrationTest {
     ok(setCaseStatus(handler, second.get("ticketId").asText(), "not_found"), HttpStatus.OK);
     assertThat(ticketRow(second.get("ticketId").asText()).get("status")).isEqualTo("resolved");
     ok(setCaseStatus(handler, second.get("ticketId").asText(), "closed"), HttpStatus.OK);
+    assertThat(caseView(rider, second.get("ticketId").asText()).get("outcome").asText())
+        .as("review-M14 H3: a not_found case closes as not_found, never as returned")
+        .isEqualTo("not_found");
     assertThat(chatWindow(rider, ride)).isEqualTo("read_only");
+  }
+
+  @Test
+  @DisplayName(
+      "Review-M14 H2/W11: on a shared ride only the reporting member's thread reopens; the case"
+          + " carries that member, so the driver and admin reach the reopened chat; two"
+          + " simultaneous reports open exactly one case")
+  void shouldReopenOnlyTheReportingMembersThreadOnASharedRide() throws Exception {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    Account reporter = rider();
+    Account other = rider();
+    String handler = handler();
+    Map<String, Object> shared = new HashMap<>();
+    shared.put("pickup", place(PICKUP_LAT, PICKUP_LNG));
+    shared.put("destination", place(DEST_LAT, DEST_LNG));
+    shared.put("serviceTypeId", economy.toString());
+    shared.put("paymentMethod", "cash");
+    shared.put("totalSeats", 2);
+    shared.put("partySize", 1);
+    shared.put("departure", Map.of("mode", "when_full"));
+    UUID ride =
+        UUID.fromString(
+            ok(post("/api/v1/shared-rides", shared, reporter.token()), HttpStatus.CREATED)
+                .get("rideId")
+                .asText());
+    ok(
+        post(
+            "/api/v1/shared-rides/" + ride + "/join",
+            Map.of("partySize", 1, "paymentMethod", "cash"),
+            other.token()),
+        HttpStatus.OK);
+    dispatchAndAccept(ride, driver);
+    arriveAndStart(ride, driver);
+    ok(driverAction(driver, ride, "complete"), HttpStatus.OK);
+    UUID reporterMember = memberOf(ride, reporter);
+    UUID otherMember = memberOf(ride, other);
+    advance(Duration.ofHours(25));
+
+    // Two simultaneous reports by the same member: exactly one case opens.
+    List<HttpStatus> statuses =
+        simultaneously(
+            () -> post(reportUrl(ride), report("Blue scarf", List.of()), reporter.token()),
+            () -> post(reportUrl(ride), report("Blue scarf", List.of()), reporter.token()));
+    assertThat(statuses).containsExactlyInAnyOrder(HttpStatus.CREATED, HttpStatus.CONFLICT);
+    String ticketId =
+        ok(get("/api/v1/lost-items?open=true", reporter.token()), HttpStatus.OK)
+            .get("items")
+            .get(0)
+            .get("ticketId")
+            .asText();
+
+    assertThat(chatWindow(reporter, ride)).isEqualTo("reopened");
+    assertThat(chatWindow(other, ride))
+        .as("the other member's thread stays read-only")
+        .isEqualTo("read_only");
+    JsonNode driverCase = caseView(driver, ticketId);
+    assertThat(driverCase.get("memberId").asText()).isEqualTo(reporterMember.toString());
+    assertThat(driverCase.get("chatWindow").asText()).isEqualTo("reopened");
+    assertThat(
+            ok(get("/api/v1/lost-items?open=true", driver.token()), HttpStatus.OK)
+                .get("items")
+                .get(0)
+                .get("memberId")
+                .asText())
+        .as("the batched list carries the member too")
+        .isEqualTo(reporterMember.toString());
+    assertThat(driverChatWindow(driver, ride, reporterMember)).isEqualTo("reopened");
+    assertThat(driverChatWindow(driver, ride, otherMember)).isEqualTo("read_only");
+    JsonNode adminDetail = ok(get("/api/v1/admin/tickets/" + ticketId, handler), HttpStatus.OK);
+    assertThat(adminDetail.get("lostItem").get("memberId").asText())
+        .isEqualTo(reporterMember.toString());
+    assertThat(
+            ok(
+                    get(
+                        "/api/v1/admin/rides/" + ride + "/chat?memberId=" + reporterMember,
+                        handler),
+                    HttpStatus.OK)
+                .get("windowState")
+                .asText())
+        .isEqualTo("reopened");
+
+    // Closing the case closes only that member's thread again.
+    ok(setCaseStatus(handler, ticketId, "driver_contacted"), HttpStatus.OK);
+    ok(setCaseStatus(handler, ticketId, "not_found"), HttpStatus.OK);
+    ok(setCaseStatus(handler, ticketId, "closed"), HttpStatus.OK);
+    assertThat(driverChatWindow(driver, ride, reporterMember)).isEqualTo("read_only");
+    assertThat(chatWindow(reporter, ride)).isEqualTo("read_only");
+  }
+
+  @Test
+  @DisplayName(
+      "Review-M14 H1: a stale save of a closed case is rejected (409 version), and reading the"
+          + " thread after closure leaves the case and its chat closed")
+  void shouldNeverResurrectAClosedCase() {
+    Account rider = rider();
+    Account driver = driverAt(33.501, 36.30);
+    UUID ride = completedApiRide(rider, driver);
+    String handler = handler();
+    advance(Duration.ofHours(25)); // past the chat tail: only the case keeps the chat open
+    String ticketId =
+        ok(post(reportUrl(ride), report("Keys", List.of()), rider.token()), HttpStatus.CREATED)
+            .get("ticketId")
+            .asText();
+    SupportTicket stale = supportTicketRepository.findById(UUID.fromString(ticketId)).orElseThrow();
+    ok(setCaseStatus(handler, ticketId, "driver_contacted"), HttpStatus.OK);
+    ok(setCaseStatus(handler, ticketId, "found"), HttpStatus.OK);
+    ok(setCaseStatus(handler, ticketId, "returned"), HttpStatus.OK);
+    ok(setCaseStatus(handler, ticketId, "closed"), HttpStatus.OK);
+
+    // A writer that loaded the row before the close loses the race instead of writing it back.
+    stale.setUpdatedAt(CLOCK.instant());
+    assertThatThrownBy(() -> supportTicketRepository.save(stale))
+        .isInstanceOf(OptimisticLockingFailureException.class);
+    // The thread view stamps the read marker only.
+    ok(get("/api/v1/tickets/" + ticketId, rider.token()), HttpStatus.OK);
+    assertThat(ticketRow(ticketId).get("status")).isEqualTo("closed");
+    assertThat(ticketRow(ticketId).get("user_read_at")).isNotNull();
+    assertThat(chatWindow(rider, ride)).isEqualTo("read_only");
+  }
+
+  private JsonNode caseView(Account account, String ticketId) {
+    return ok(get("/api/v1/lost-items/" + ticketId, account.token()), HttpStatus.OK);
+  }
+
+  private String driverChatWindow(Account driver, UUID rideId, UUID memberId) {
+    return ok(
+            get("/api/v1/rides/" + rideId + "/chat?memberId=" + memberId, driver.token()),
+            HttpStatus.OK)
+        .get("windowState")
+        .asText();
+  }
+
+  private UUID memberOf(UUID rideId, Account rider) {
+    return jdbcTemplate.queryForObject(
+        "SELECT shared_ride_member_id FROM shared_ride_members WHERE ride_id = ? AND"
+            + " rider_user_id = ?",
+        UUID.class,
+        rideId,
+        rider.userId());
   }
 }

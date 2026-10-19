@@ -30,11 +30,12 @@ public class TicketReminderWriter {
    *
    * @param ticketId the ticket
    * @param now the moment
+   * @param cutoff re-checked at the stamp: the current stay must have started by then
    * @return true when a reminder was queued
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public boolean remindIfDue(UUID ticketId, Instant now) {
-    if (supportTicketRepository.stampReminderIfDue(ticketId, now) == 0) {
+  public boolean remindIfDue(UUID ticketId, Instant now, Instant cutoff) {
+    if (supportTicketRepository.stampReminderIfDue(ticketId, now, cutoff) == 0) {
       return false;
     }
     SupportTicket ticket = supportTicketRepository.findById(ticketId).orElseThrow();

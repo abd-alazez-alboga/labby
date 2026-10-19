@@ -340,11 +340,21 @@ public class ChatServiceImpl implements ChatService {
     if (own != ChatWindowState.READ_ONLY) {
       return own;
     }
+    return windowState(
+        thread,
+        now,
+        supportTicketRepository.existsOpenCase(thread.getRideId(), thread.getRiderUserId()));
+  }
+
+  @Override
+  public ChatWindowState windowState(ChatThread thread, Instant now, boolean openLostItemCase) {
+    ChatWindowState own = thread.windowState(now);
+    if (own != ChatWindowState.READ_ONLY) {
+      return own;
+    }
     // LOST-01: an open lost-item case of this rider on this ride reopens the window; closing the
     // case (uq_support_tickets_open_case gone) returns it to read-only — nothing is stored.
-    return supportTicketRepository.existsOpenCase(thread.getRideId(), thread.getRiderUserId())
-        ? ChatWindowState.REOPENED
-        : ChatWindowState.READ_ONLY;
+    return openLostItemCase ? ChatWindowState.REOPENED : ChatWindowState.READ_ONLY;
   }
 
   @Override

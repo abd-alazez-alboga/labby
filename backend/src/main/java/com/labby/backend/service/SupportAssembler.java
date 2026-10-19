@@ -208,6 +208,65 @@ public class SupportAssembler {
     return ride == null ? null : rideLink(ticket, ride, users(counterparts(List.of(ride))));
   }
 
+  /**
+   * The batched lookups behind a page of lost-item cases (review-M14 I4): rides, attachments and
+   * names come from one context instead of per-case queries.
+   *
+   * @param tickets the page's cases
+   * @return the batch
+   */
+  public CaseBatch caseBatch(List<SupportTicket> tickets) {
+    return new CaseBatch(context(tickets));
+  }
+
+  /** One page's lookups, read through the same views the single-case path builds. */
+  public final class CaseBatch {
+
+    private final Context context;
+
+    private CaseBatch(Context context) {
+      this.context = context;
+    }
+
+    /**
+     * @param rideId a ride of the page
+     * @return the ride, or null
+     */
+    public Ride ride(UUID rideId) {
+      return context.rides().get(rideId);
+    }
+
+    /**
+     * @param ticket a case of the page
+     * @return its signed photo views
+     */
+    public List<AttachmentDto> attachments(SupportTicket ticket) {
+      return context.attachments().getOrDefault(ticket.getId(), List.of()).stream()
+          .map(attachment -> context.files().get(attachment.getStoredFileId()))
+          .filter(Objects::nonNull)
+          .map(SupportAssembler.this::attachment)
+          .toList();
+    }
+
+    /**
+     * @param ticket a case of the page
+     * @return its ride link
+     */
+    public RideLinkDto rideLink(SupportTicket ticket) {
+      Ride ride = ride(ticket.getRideId());
+      return ride == null ? null : SupportAssembler.rideLink(ticket, ride, context.users());
+    }
+
+    /**
+     * @param userId an account of the page (a case's reporter or driver)
+     * @param role the role in this context
+     * @return the party
+     */
+    public PartySummaryDto party(UUID userId, RideParty role) {
+      return new PartySummaryDto(userId, name(context.users(), userId), role);
+    }
+  }
+
   // ---- internals -------------------------------------------------------------------------------
 
   /** The batched lookups of one page. */

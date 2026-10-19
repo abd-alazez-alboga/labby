@@ -240,7 +240,9 @@ class SupportTicketsIntegrationTest extends AbstractSupportIntegrationTest {
     assertThat(row.get("waiting_since")).isNull();
     assertThat(row.get("reminder_sent_at")).isNull();
     assertThat(history(ticketId)).contains("status_changed/user:waiting_on_user>in_progress");
-    assertThat(statusNotifications(rider.userId())).endsWith("in_progress");
+    assertThat(statusNotifications(rider.userId()))
+        .as("T6 amendment j: the user's own move is recorded, not pushed back to them")
+        .endsWith("waiting_on_user");
 
     // A second stay gets a fresh reminder.
     ok(setStatus(handler, ticketId, "waiting_on_user"), HttpStatus.OK);
@@ -298,14 +300,13 @@ class SupportTicketsIntegrationTest extends AbstractSupportIntegrationTest {
                     handler)))
         .isEqualTo("ticket_closed");
     assertThat(statusNotifications(rider.userId()))
+        .as("support-side moves only (T6 amendment j)")
         .containsExactly(
             "in_progress",
             "waiting_on_user",
-            "in_progress",
             "waiting_on_user",
             "in_progress",
             "resolved",
-            "in_progress",
             "resolved",
             "closed");
     assertThat(auditActions(ticketId)).contains("ticket.status", "ticket.reply");

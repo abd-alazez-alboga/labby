@@ -58,8 +58,9 @@ public class TicketHistory {
   }
 
   /**
-   * Moves a ticket's status with its history row and the user's notification (SUP-02: every status
-   * change notifies). No-op when the status is unchanged.
+   * Moves a ticket's status with its history row and the user's notification (SUP-02: every
+   * support-side change notifies; a move the user caused with their own reply is recorded but not
+   * pushed back to them — support-v1 T6 amendment j). No-op when the status is unchanged.
    *
    * @param ticket the ticket
    * @param target the new status
@@ -84,10 +85,12 @@ public class TicketHistory {
         from.getValue(),
         target.getValue(),
         now);
-    notificationService.queue(
-        ticket.getUserId(),
-        NotificationEvent.SUPPORT_TICKET_STATUS_CHANGED,
-        Map.of("ticketId", ticket.getId().toString(), "status", target.getValue()));
+    if (side != TicketSide.USER) {
+      notificationService.queue(
+          ticket.getUserId(),
+          NotificationEvent.SUPPORT_TICKET_STATUS_CHANGED,
+          Map.of("ticketId", ticket.getId().toString(), "status", target.getValue()));
+    }
     return true;
   }
 

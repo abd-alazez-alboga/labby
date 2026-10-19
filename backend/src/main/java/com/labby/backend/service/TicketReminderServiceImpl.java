@@ -38,7 +38,7 @@ public class TicketReminderServiceImpl implements TicketReminderService {
       int sentInBatch = 0;
       for (SupportTicket ticket : due) {
         try {
-          if (ticketReminderWriter.remindIfDue(ticket.getId(), now)) {
+          if (ticketReminderWriter.remindIfDue(ticket.getId(), now, cutoff)) {
             sentInBatch++;
           }
         } catch (DataAccessException ex) {

@@ -68,6 +68,16 @@ info:
     ordered by `createdAt`, then insertion order (V28 `ticket_events.seq`): a case change and its
     mirrored status change share one instant and now always read case first, then status.
 
+    **T6 amendments (owner rulings 2026-10-19, review-M14 fixes).** (h) `LostItemCase.memberId`
+    and the admin `lostItem.memberId`: the reporter's shared-ride member id (null on one-rider
+    rides) — the driver addresses that member's chat (`?memberId=`) and the admin chat log reads
+    it, so a shared-ride case's reopened chat is reachable. (i) `LostItemCase.outcome` (found |
+    not_found | returned | null): the last of those the case reached, kept after closure (V29
+    `support_tickets.case_outcome`), so a closed case shows its real result. (j) A status move the
+    user caused with their own reply (`waiting_on_user | resolved → in_progress`) is recorded in the
+    history but NOT notified back to them; every support-side or system move still notifies. Also
+    (V29) tickets carry an optimistic-lock version: a write that lost a race answers 409.
+
 
     **Ticket state machine (SUP-02).** `open -> in_progress -> waiting_on_user -> resolved ->
     closed`. Admin transitions (`POST /admin/tickets/{id}/status`): `open -> in_progress`;
@@ -1254,7 +1264,7 @@ components:
           items: { type: string, format: uuid }
     LostItemCase:
       type: object
-      required: [ticketId, caseStatus, status, description, photos, ride, reporter, driver, chatWindow, createdAt, updatedAt]
+      required: [ticketId, caseStatus, status, description, photos, ride, reporter, driver, chatWindow, memberId, outcome, createdAt, updatedAt]
       properties:
         ticketId: { type: string, format: uuid }
         caseStatus: { $ref: '#/components/schemas/CaseStatus' }
@@ -1267,6 +1277,8 @@ components:
         reporter: { $ref: '#/components/schemas/Party' }
         driver: { $ref: '#/components/schemas/Party' }
         chatWindow: { type: string, enum: [open, read_only, reopened], description: comms-v1 window state of the reporter's thread }
+        memberId: { type: [string, 'null'], format: uuid, description: "The reporter's shared-ride member (T6 amendment h); null on one-rider rides" }
+        outcome: { type: [string, 'null'], enum: [found, not_found, returned, null], description: 'The last of found / not_found / returned reached, kept after closure (T6 amendment i)' }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     LostItemCasePage:
@@ -1398,8 +1410,9 @@ components:
               oneOf:
                 - type: object
                   description: Lost-item tickets — the driver and the reopened chat the handler can read (comms-v1 admin chat)
-                  required: [driver, chatWindow]
+                  required: [driver, chatWindow, memberId]
                   properties:
                     driver: { $ref: '#/components/schemas/Party' }
                     chatWindow: { type: string, enum: [open, read_only, reopened] }
+                    memberId: { type: [string, 'null'], format: uuid, description: "The reporter's shared-ride member for the admin chat log (T6 amendment h)" }
                 - type: 'null'

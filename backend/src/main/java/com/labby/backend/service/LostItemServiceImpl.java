@@ -20,6 +20,7 @@ import com.labby.backend.exception.ForbiddenException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.ChatThread;
 import com.labby.backend.model.Ride;
+import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.SupportTicket;
 import com.labby.backend.model.TicketCategory;
 import com.labby.backend.repository.ChatThreadRepository;
@@ -30,9 +31,13 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -55,7 +60,7 @@ public class LostItemServiceImpl implements LostItemService {
   private final ChatThreadRepository chatThreadRepository;
   private final RideParties rideParties;
   private final ChatService chatService;
-  private final SupportTicketServiceImpl tickets;
+  private final TicketFiles ticketFiles;
   private final SupportAssembler assembler;
   private final TicketHistory history;
   private final NotificationService notificationService;
@@ -74,14 +79,13 @@ public class LostItemServiceImpl implements LostItemService {
     }
     if (ride.getState() != RideState.COMPLETED
         || rideParties.sideOf(ride, userId, RideParties.COMPLETED) != RideParty.RIDER) {
-      throw SupportTicketServiceImpl.conflict(
-          "Lost items are reported on completed rides", "ride_not_completed");
+      throw conflict("Lost items are reported on completed rides", "ride_not_completed");
     }
     if (supportTicketRepository.existsOpenCase(rideId, userId)) {
       throw caseOpen();
     }
     List<UUID> photoIds = request.photoFileIds() == null ? List.of() : request.photoFileIds();
-    tickets.requireUsableFiles(userId, photoIds, StoredFileKind.LOST_ITEM_PHOTO, MAX_PHOTOS);
+    ticketFiles.requireUsableFiles(userId, photoIds, StoredFileKind.LOST_ITEM_PHOTO, MAX_PHOTOS);
     TicketCategory category =
         ticketCategoryRepository.findById(TicketCategory.LOST_ITEM_CATEGORY_ID).orElseThrow();
     Instant now = clock.instant();
@@ -101,7 +105,7 @@ public class LostItemServiceImpl implements LostItemService {
             .updatedAt(now)
             .build();
     try {
-      ticket = tickets.persistWithAttachments(ticket, photoIds);
+      ticket = ticketFiles.persistWithAttachments(ticket, photoIds);
     } catch (DataIntegrityViolationException ex) {
       // A concurrent report won uq_support_tickets_open_case.
       throw caseOpen();
@@ -138,11 +142,44 @@ public class LostItemServiceImpl implements LostItemService {
   public LostItemCasePageDto mine(UUID userId, boolean openOnly, int page, int size) {
     Page<SupportTicket> cases =
         supportTicketRepository.findCasesOf(userId, openOnly, PageRequest.of(page, size));
-    return new LostItemCasePageDto(
-        cases.getContent().stream().map(this::caseView).toList(),
-        page,
-        size,
-        cases.getTotalElements());
+    List<SupportTicket> content = cases.getContent();
+    SupportAssembler.CaseBatch batch = assembler.caseBatch(content);
+    Set<UUID> rideIds = content.stream().map(SupportTicket::getRideId).collect(Collectors.toSet());
+    Map<String, ChatThread> threads = new HashMap<>();
+    Set<String> openCases = new HashSet<>();
+    if (!rideIds.isEmpty()) {
+      chatThreadRepository
+          .findByRideIdIn(rideIds)
+          .forEach(thread -> threads.put(key(thread.getRideId(), thread.getRiderUserId()), thread));
+      supportTicketRepository
+          .findOpenCasesOnRides(rideIds)
+          .forEach(open -> openCases.add(key(open.getRideId(), open.getUserId())));
+    }
+    Instant now = clock.instant();
+    List<LostItemCaseDto> items = new ArrayList<>();
+    for (SupportTicket ticket : content) {
+      Ride ride = batch.ride(ticket.getRideId());
+      String key = key(ticket.getRideId(), ticket.getUserId());
+      ChatThread thread = threads.get(key);
+      items.add(
+          new LostItemCaseDto(
+              ticket.getId(),
+              ticket.getCaseStatus(),
+              ticket.getStatus(),
+              ticket.getDescription(),
+              batch.attachments(ticket),
+              batch.rideLink(ticket),
+              batch.party(ticket.getUserId(), RideParty.RIDER),
+              batch.party(ride.getDriverUserId(), RideParty.DRIVER),
+              thread == null
+                  ? ChatWindowState.READ_ONLY
+                  : chatService.windowState(thread, now, openCases.contains(key)),
+              reporterMemberId(ticket, ride),
+              ticket.getCaseOutcome(),
+              ticket.getCreatedAt(),
+              ticket.getUpdatedAt()));
+    }
+    return new LostItemCasePageDto(items, page, size, cases.getTotalElements());
   }
 
   @Override
@@ -184,12 +221,17 @@ public class LostItemServiceImpl implements LostItemService {
             .orElseThrow(() -> new ResourceNotFoundException("Lost-item case not found"));
     CaseStatus from = ticket.getCaseStatus();
     if (!from.canMoveTo(caseStatus)) {
-      throw SupportTicketServiceImpl.conflict(
+      throw conflict(
           "Cannot move a case from " + from.getValue() + " to " + caseStatus.getValue(),
           "invalid_transition");
     }
     Instant now = clock.instant();
     ticket.setCaseStatus(caseStatus);
+    if (caseStatus == CaseStatus.FOUND
+        || caseStatus == CaseStatus.NOT_FOUND
+        || caseStatus == CaseStatus.RETURNED) {
+      ticket.setCaseOutcome(caseStatus);
+    }
     TicketStatus mirrored = caseStatus.ticketStatus();
     TicketStatus before = ticket.getStatus();
     if (before != mirrored) {
@@ -262,12 +304,29 @@ public class LostItemServiceImpl implements LostItemService {
         assembler.party(ticket.getUserId(), RideParty.RIDER),
         assembler.party(ride.getDriverUserId(), RideParty.DRIVER),
         window,
+        reporterMemberId(ticket, ride),
+        ticket.getCaseOutcome(),
         ticket.getCreatedAt(),
         ticket.getUpdatedAt());
   }
 
+  private static String key(UUID rideId, UUID riderUserId) {
+    return rideId + "/" + riderUserId;
+  }
+
+  /** The reporter's shared-ride member (T6 amendment h); null on a one-rider ride. */
+  private UUID reporterMemberId(SupportTicket ticket, Ride ride) {
+    return rideParties
+        .member(ride, ticket.getUserId(), RideParties.COMPLETED)
+        .map(SharedRideMember::getId)
+        .orElse(null);
+  }
+
+  private static ConflictException conflict(String message, String code) {
+    return (ConflictException) new ConflictException(message).withCode(code);
+  }
+
   private static ConflictException caseOpen() {
-    return SupportTicketServiceImpl.conflict(
-        "You already have an open lost-item case on this ride", "lost_item_case_open");
+    return conflict("You already have an open lost-item case on this ride", "lost_item_case_open");
   }
 }

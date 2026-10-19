@@ -193,8 +193,10 @@ class SupportSimulatorIntegrationTest extends AbstractSupportIntegrationTest {
     // The rider answers: back to in_progress implicitly; support remedies with a wallet credit.
     ok(userReply(rider, ticketId, "SUMMER10"), HttpStatus.CREATED);
     assertThat(ticketRow(ticketId).get("status")).isEqualTo("in_progress");
-    assertDelivered(
-        rider, "rider", riderDevice, "support.ticket_status_changed", ticketId, "ticket");
+    notificationDispatchService.dispatchPending();
+    assertThat(pushes.get(riderDevice).getLast().data())
+        .as("T6 amendment j: no push for the rider's own move back to in_progress")
+        .containsEntry("event", "support.waiting_reminder");
     String reason = "Support ticket T-" + ticketId.substring(0, 8).toUpperCase();
     ok(
         post(
@@ -214,7 +216,7 @@ class SupportSimulatorIntegrationTest extends AbstractSupportIntegrationTest {
     notificationDispatchService.dispatchPending();
 
     assertThat(statusNotifications(rider.userId()))
-        .containsExactly("in_progress", "waiting_on_user", "in_progress", "resolved", "closed");
+        .containsExactly("in_progress", "waiting_on_user", "resolved", "closed");
     assertThat(pushEvents(riderDevice))
         .containsSubsequence(
             "support.ticket_created",
@@ -222,7 +224,6 @@ class SupportSimulatorIntegrationTest extends AbstractSupportIntegrationTest {
             "support.ticket_message",
             "support.ticket_status_changed",
             "support.waiting_reminder",
-            "support.ticket_status_changed",
             "support.ticket_status_changed",
             "support.ticket_status_changed");
     assertThat(pushes.get(riderDevice).getLast().title()).isEqualTo("Ticket closed");

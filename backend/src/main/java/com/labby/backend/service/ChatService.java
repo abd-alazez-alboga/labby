@@ -109,6 +109,17 @@ public interface ChatService {
   ChatWindowState windowState(ChatThread thread, Instant now);
 
   /**
+   * {@link #windowState(ChatThread, Instant)} with the open-case fact already known — for a page of
+   * lost-item cases whose open cases were loaded in one query (review-M14 I4).
+   *
+   * @param thread the thread
+   * @param now the moment
+   * @param openLostItemCase whether this rider has a non-closed lost-item case on the ride
+   * @return the window state
+   */
+  ChatWindowState windowState(ChatThread thread, Instant now, boolean openLostItemCase);
+
+  /**
    * Creates the ride's thread at acceptance (CHAT-01; before that there is no counterpart) — on a
    * shared ride one per joined member.
    *
