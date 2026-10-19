@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -227,6 +228,19 @@ class AdminExportsIntegrationTest extends AbstractSupportIntegrationTest {
                 "SELECT COUNT(*) FROM audit_log WHERE action LIKE 'export.%'", Long.class))
         .isZero();
     assertThat(csv(export("rides?state=completed", admin))).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a cross-origin export exposes Content-Disposition to the admin dashboard")
+  void shouldExposeTheFileNameToTheDashboard() {
+    HttpHeaders headers = bearer(admin);
+    headers.setOrigin("http://localhost:5173");
+    ResponseEntity<byte[]> response =
+        restTemplate.exchange(
+            "/api/v1/admin/exports/users", HttpMethod.GET, new HttpEntity<>(headers), byte[].class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getHeaders().getAccessControlExposeHeaders())
+        .contains(HttpHeaders.CONTENT_DISPOSITION);
   }
 
   @Test

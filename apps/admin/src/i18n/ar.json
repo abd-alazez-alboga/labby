@@ -24,7 +24,9 @@
     "support": "الدعم",
     "lostItems": "المفقودات",
     "helpCenter": "مركز المساعدة",
-    "feedback": "الملاحظات"
+    "feedback": "الملاحظات",
+    "drivers": "السائقون",
+    "transactions": "المعاملات"
   },
   "api": {
     "checking": "جارٍ فحص الخادم…",
@@ -61,7 +63,78 @@
   },
   "dashboard": {
     "title": "لوحة التحكم",
-    "placeholder": "تصل لوحة تحكم المشرف في مرحلة لاحقة."
+    "noAnalytics": "لا يشمل دورك التحليلات. استخدم القائمة لفتح الصفحات المتاحة لك.",
+    "subtitle": "{{range}} · تُحتسب الرحلات حسب وقت الطلب · الأيام بالتوقيت المحلي لكل منطقة",
+    "customHint": "اختر أول يوم وآخر يوم في الفترة.",
+    "rangeLabel": "الفترة",
+    "regionLabel": "المنطقة",
+    "presets": {
+      "today": "اليوم",
+      "7d": "آخر 7 أيام",
+      "30d": "آخر 30 يوماً",
+      "custom": "مخصص…"
+    },
+    "customFrom": "أول يوم",
+    "customTo": "آخر يوم",
+    "customInvalid": "اختر أول يوم ثم آخر يوم، بفارق 366 يوماً على الأكثر.",
+    "loadFailed": "تعذّر تحميل لوحة التحكم.",
+    "empty": "لا توجد رحلات في هذه الفترة.",
+    "chart": {
+      "label": "الرحلات يومياً",
+      "completed": "مكتملة",
+      "cancelled": "ملغاة",
+      "other": "بلا سائق / قيد التنفيذ",
+      "dayTitle": "{{day}}: {{total}} رحلة · {{completed}} مكتملة · {{cancelled}} ملغاة"
+    },
+    "rides": {
+      "title": "الرحلات",
+      "requested": "الرحلات المطلوبة",
+      "completed": "المكتملة",
+      "completionRate": "نسبة الإكمال {{rate}}",
+      "cancelled": "الملغاة",
+      "cancelledSplit": "الراكب {{rider}} · السائق {{driver}}",
+      "noDriver": "لم يُعثر على سائق",
+      "perDay": "الرحلات يومياً",
+      "byService": "حسب الخدمة",
+      "byServiceCaption": "الرحلات · المكتملة"
+    },
+    "columns": {
+      "region": "المنطقة",
+      "rides": "الرحلات",
+      "completed": "المكتملة",
+      "cancelled": "الملغاة",
+      "completion": "نسبة المكتملة"
+    },
+    "revenue": {
+      "title": "الإيرادات",
+      "note": "سطر لكل عملة — لا تُجمع المبالغ بين العملات",
+      "gross": "إجمالي الأجور",
+      "grossHint": "الرحلات المكتملة، الأجرة النهائية",
+      "commission": "العمولة",
+      "commissionHint": "من دفاتر السائقين"
+    },
+    "users": {
+      "title": "المستخدمون",
+      "signups": "التسجيلات الجديدة",
+      "signupsSplit": "ركاب {{riders}} · سائقون {{drivers}}",
+      "activeRiders": "الركاب النشطون",
+      "activeDrivers": "السائقون النشطون",
+      "activeHint": "رحلة مكتملة واحدة على الأقل",
+      "online": "السائقون المتصلون"
+    },
+    "ops": {
+      "title": "العمليات",
+      "pickup": "متوسط زمن الوصول",
+      "pickupValue": "{{minutes}} د {{seconds}} ث",
+      "pickupHint": "من القبول حتى الوصول",
+      "acceptance": "قبول العروض",
+      "acceptanceHint": "{{accepted}} من {{answered}} عرضاً تمت الإجابة عليه",
+      "surge": "مناطق التسعير المرتفع",
+      "surgeHint": "المضاعف أعلى من 1.0×"
+    },
+    "allRegionsBadge": "كل المناطق",
+    "nowBadge": "الآن",
+    "rightNow": "الآن"
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1992,5 +2065,108 @@
     "clearTagFilter": "إزالة ترشيح الوسم",
     "filterByTag": "عرض الملاحظات الموسومة {{tag}}",
     "removeTag": "إزالة الوسم {{tag}}"
+  },
+  "exports": {
+    "button": "تصدير CSV",
+    "preparing": "جارٍ التحضير…",
+    "dismiss": "إغلاق",
+    "tooLargeTitle": "عدد الصفوف أكبر من أن يُصدَّر",
+    "tooLargeBody": "تطابق هذه المرشحات {{rows}} صفاً، ويتسع التصدير الواحد لـ {{limit}} صف كحد أقصى. ضيّق الفترة أو أضف مرشحاً ثم صدّر مجدداً.",
+    "tooLargeBodyPlain": "تطابق هذه المرشحات صفوفاً أكثر مما يتسع له التصدير الواحد. ضيّق الفترة أو أضف مرشحاً ثم صدّر مجدداً.",
+    "timeoutTitle": "استغرق التصدير وقتاً طويلاً",
+    "timeoutBody": "ضيّق الفترة أو أضف مرشحاً ثم صدّر مجدداً.",
+    "failedTitle": "تعذّر التصدير",
+    "failedBody": "حاول مجدداً بعد قليل.",
+    "ridesGroupedHint": "اختر الكل أو حالة واحدة للتصدير — النشطة والملغاة والاستغاثة تجمع عدة حالات.",
+    "note": {
+      "rides": "يُنزّل تصدير CSV كل الرحلات المطابقة ({{total}})",
+      "users": "يُنزّل تصدير CSV كل المستخدمين المطابقين ({{total}})",
+      "drivers": "يُنزّل تصدير CSV كل السائقين المطابقين ({{total}})",
+      "rows": "يُنزّل تصدير CSV كل الصفوف المطابقة ({{total}})",
+      "tickets": "يُنزّل تصدير CSV كل التذاكر المطابقة ({{total}})"
+    }
+  },
+  "directory": {
+    "all": "الكل",
+    "open": "فتح",
+    "loadFailed": "تعذّر تحميل القائمة.",
+    "showing": "{{total}} إجمالاً · صفحة {{page}} من {{pages}} · الأحدث أولاً",
+    "users": {
+      "subtitle": "كل الحسابات، الأحدث أولاً. افتح المستخدم لعرض الثقة والمحفظة والأدوار.",
+      "roleLabel": "الدور",
+      "roleFilter": {
+        "rider": "الركاب",
+        "driver": "السائقون",
+        "admin": "المشرفون"
+      },
+      "signedUp": "تاريخ التسجيل",
+      "signedUpFrom": "مسجّل من",
+      "signedUpTo": "مسجّل حتى",
+      "empty": "لا يوجد مستخدمون مطابقون لهذه المرشحات.",
+      "columns": {
+        "user": "المستخدم",
+        "roles": "الأدوار",
+        "account": "الحساب",
+        "signedUp": "تاريخ التسجيل"
+      },
+      "role": {
+        "rider": "راكب",
+        "driver": "سائق",
+        "admin": "مشرف"
+      },
+      "account": {
+        "active": "نشط",
+        "suspended": "موقوف",
+        "deleted": "محذوف"
+      }
+    },
+    "drivers": {
+      "title": "السائقون",
+      "subtitle": "كل من تقدّم للقيادة، الأحدث حساباً أولاً. المنطقة واللوحة من المركبة النشطة.",
+      "regionLabel": "المنطقة",
+      "statusLabel": "حالة الطلب",
+      "anyStatus": "أي حالة",
+      "onlineLabel": "حالة الاتصال",
+      "anyOnline": "الكل",
+      "online": "متصل",
+      "offline": "غير متصل",
+      "empty": "لا يوجد سائقون مطابقون لهذه المرشحات.",
+      "columns": {
+        "driver": "السائق",
+        "application": "الطلب",
+        "status": "الحالة",
+        "region": "المنطقة",
+        "vehicle": "المركبة",
+        "joined": "تاريخ الانضمام"
+      }
+    },
+    "transactions": {
+      "title": "المعاملات",
+      "subtitle": "حركات محافظ الركاب وقيود دفاتر السائقين في قائمة واحدة، الأحدث أولاً.",
+      "sourceLabel": "المصدر",
+      "sources": {
+        "wallet": "محافظ الركاب",
+        "driver_ledger": "دفاتر السائقين"
+      },
+      "sourceRow": {
+        "wallet": "محفظة راكب",
+        "driver_ledger": "دفتر سائق"
+      },
+      "typeLabel": "النوع",
+      "allTypes": "كل الأنواع",
+      "currencyLabel": "العملة",
+      "allCurrencies": "كل العملات",
+      "from": "من",
+      "to": "إلى",
+      "empty": "لا توجد معاملات مطابقة لهذه المرشحات.",
+      "columns": {
+        "when": "الوقت",
+        "user": "المستخدم",
+        "type": "النوع",
+        "ride": "الرحلة",
+        "amount": "المبلغ",
+        "balanceAfter": "الرصيد بعدها"
+      }
+    }
   }
 }

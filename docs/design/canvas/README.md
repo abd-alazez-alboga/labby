@@ -223,3 +223,14 @@ Tokens and rules live in [../design-system.md](../design-system.md); this folder
 - [Admin · Article editor · EN/AR, publish gate (NFR-I1)](A14HelpEditor.dc.html)
 - [Admin · Ticket categories (UC-A-24)](A14TicketCategories.dc.html)
 - [Admin · Feedback · tags & trends (UC-A-25)](A14Feedback.dc.html)
+
+## M15 · Analytics
+
+- [Admin · Dashboard](A15Dashboard.dc.html)
+- [Admin · Dashboard (AR, RTL)](A15DashboardAr.dc.html)
+- [Admin · Users list + Export CSV](A15Users.dc.html)
+- [Admin · Drivers list + Export CSV](A15Drivers.dc.html)
+- [Admin · Transactions list + Export CSV](A15Transactions.dc.html)
+- [Admin · Rides · Export CSV (addition)](A15RidesExport.dc.html)
+- [Admin · Support queue · Export CSV (addition)](A15TicketsExport.dc.html)
+- [Admin · Export too large](A15ExportTooLarge.dc.html)

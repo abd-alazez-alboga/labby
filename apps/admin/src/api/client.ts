@@ -57,17 +57,42 @@ export interface ApiClient {
   put<T>(path: string, body?: unknown, init?: RequestInit): Promise<T>;
   patch<T>(path: string, body?: unknown, init?: RequestInit): Promise<T>;
   delete<T>(path: string, init?: RequestInit): Promise<T>;
+  /** GET a file (e.g. a CSV export): the body as a Blob plus the attachment's filename. */
+  download(path: string, init?: RequestInit): Promise<DownloadedFile>;
+}
+
+/** A downloaded attachment: its bytes and the Content-Disposition filename, when sent. */
+export interface DownloadedFile {
+  blob: Blob;
+  filename: string | null;
+}
+
+/** The filename of a `Content-Disposition: attachment; filename="…"` header. */
+export function attachmentFilename(header: string | null): string | null {
+  if (!header) {
+    return null;
+  }
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim());
+    } catch {
+      // Fall through to the plain parameter.
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+  return plain ? plain[1].trim() : null;
 }
 
 export function createApiClient(config: RuntimeConfig): ApiClient {
   const baseUrl = config.apiBaseUrl.replace(/\/+$/, '');
 
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  async function send(path: string, init: RequestInit, accept: string): Promise<Response> {
     const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
     const response = await fetch(url, {
       ...init,
       headers: {
-        Accept: 'application/json',
+        Accept: accept,
         ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...init.headers,
       },
@@ -77,6 +102,11 @@ export function createApiClient(config: RuntimeConfig): ApiClient {
       const body = await readErrorBody(response);
       throw new ApiError(response.status, url, undefined, body.message, body.code, body.details);
     }
+    return response;
+  }
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await send(path, init, 'application/json');
     if (response.status === 204) {
       return undefined as T;
     }
@@ -99,5 +129,12 @@ export function createApiClient(config: RuntimeConfig): ApiClient {
     patch: withBody('PATCH'),
     delete: <T>(path: string, init: RequestInit = {}) =>
       request<T>(path, { ...init, method: 'DELETE' }),
+    download: async (path: string, init: RequestInit = {}) => {
+      const response = await send(path, { ...init, method: 'GET' }, '*/*');
+      return {
+        blob: await response.blob(),
+        filename: attachmentFilename(response.headers.get('Content-Disposition')),
+      };
+    },
   };
 }

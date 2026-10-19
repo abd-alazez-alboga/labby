@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rides · export too large</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="A15Dashboard.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminLiveOps.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live map</a>
+    <a href="#" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Rides</a>
+    <a href="AdminUserWallet.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a>
+    <a href="AdminApplications.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Driver applications</a>
+    <a href="AdminSurgeZones.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box;">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div><h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Rides</h1></div>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;"><button style="height: 44px; padding: 0 18px; border-radius: 12px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: inherit; font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M2.5 13.5h11" stroke="#141018" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Export CSV</button></div>
+    </div>
+    <div role="alert" style="background: #FEF3F2; border: 1px solid #FECDCA; border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #B42318; color: #FFFFFF; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: 0 0 auto;">!</span>
+      <div style="flex: 1 1 360px; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-weight: 800; color: #7A271A;">Too many rows to export</span>
+        <span style="font-size: 14px; color: #7A271A;">These filters match 63,140 rides; one export holds up to 50,000. Narrow the date range or add a filter, then export again.</span>
+      </div>
+      <button style="height: 40px; padding: 0 16px; border-radius: 10px; border: 1.5px solid #FECDCA; background: #FFFFFF; color: #7A271A; font-family: inherit; font-size: 14px; font-weight: 800;">Dismiss</button>
+    </div>
+
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <label style="flex: 1 1 320px; display: flex; min-width: 0;">
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Search</span>
+        <input placeholder="Search by ride id, rider or driver name / phone…" style="flex-grow: 1; height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 16px; font-family: Manrope, sans-serif; font-size: 14px; color: #141018; background: #FFFFFF;">
+      </label>
+      <select aria-label="Region" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF;">
+        <option>All regions</option>
+        <option>Damascus</option>
+      </select>
+      <input type="date" aria-label="From date" value="2026-10-13" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 10px; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF;">
+    </div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <button style="height: 40px; padding: 0 16px; border-radius: 20px; border: none; background: #141018; color: #FFFFFF; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800;">All</button>
+      <button style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700;">Active</button>
+      <button style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700;">Completed</button>
+      <button style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700;">Cancelled</button>
+      <button style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700;">No driver</button>
+      <button style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1.5px solid #D92D20; background: #FFFFFF; color: #B42318; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 800;">SOS</button>
+    </div>
+
+    <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 760px;">
+        <thead>
+          <tr style="text-align: left; color: #6E6780; font-size: 13px;">
+            <th style="padding: 14px 24px; font-weight: 700;">Ride</th>
+            <th style="padding: 14px 12px; font-weight: 700;">When</th>
+            <th style="padding: 14px 12px; font-weight: 700;">Rider</th>
+            <th style="padding: 14px 12px; font-weight: 700;">Driver</th>
+            <th style="padding: 14px 12px; font-weight: 700;">Route</th>
+            <th style="padding: 14px 12px; font-weight: 700;">State</th>
+            <th style="padding: 14px 24px; font-weight: 700;">Fare</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3; background: #FEF9F9;">
+            <td style="padding: 14px 24px;"><a href="AdminRideDetail.dc.html" style="font-weight: 800; text-decoration: none; display: flex; align-items: center; gap: 8px;">R-2481 <span style="width: 10px; height: 10px; border-radius: 50%; background: #D92D20;" title="Open SOS"></span></a></td>
+            <td style="padding: 14px 12px; color: #463C58;">Today 12:28</td>
+            <td style="padding: 14px 12px; font-weight: 700;">Lina K.</td>
+            <td style="padding: 14px 12px; font-weight: 700;">Samer A.</td>
+            <td style="padding: 14px 12px; color: #463C58;">Abu Rummaneh → Umayyad Sq</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 800; color: #3D0B57; background: #F1EAF8; padding: 4px 10px; border-radius: 12px;">In progress</span></td>
+            <td style="padding: 14px 24px; font-weight: 700;" dir="ltr">SYP 24,500 est.</td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><a href="AdminRideDetail.dc.html" style="font-weight: 800; text-decoration: none;">R-2480</a></td>
+            <td style="padding: 14px 12px; color: #463C58;">Today 12:02</td>
+            <td style="padding: 14px 12px; font-weight: 700;">Omar H.</td>
+            <td style="padding: 14px 12px; font-weight: 700;">Yara M.</td>
+            <td style="padding: 14px 12px; color: #463C58;">Mazzeh → Old City</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px;">Completed</span></td>
+            <td style="padding: 14px 24px; font-weight: 700;" dir="ltr">SYP 61,000</td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><a href="AdminRideDetail.dc.html" style="font-weight: 800; text-decoration: none;">R-2479</a></td>
+            <td style="padding: 14px 12px; color: #463C58;">Today 11:47</td>
+            <td style="padding: 14px 12px; font-weight: 700;">Nour S.</td>
+            <td style="padding: 14px 12px; color: #6E6780;">—</td>
+            <td style="padding: 14px 12px; color: #463C58;">Kafr Sousa → Baramkeh</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #6A2C0A; background: #FFF6E5; padding: 4px 10px; border-radius: 12px;">No driver found</span></td>
+            <td style="padding: 14px 24px; color: #6E6780;">—</td>
+          </tr>
+          <tr style="border-top: 1px solid #F0EEF3;">
+            <td style="padding: 14px 24px;"><a href="AdminRideDetail.dc.html" style="font-weight: 800; text-decoration: none;">R-2478</a></td>
+            <td style="padding: 14px 12px; color: #463C58;">Today 11:30</td>
+            <td style="padding: 14px 12px; font-weight: 700;">Hadi R.</td>
+            <td style="padding: 14px 12px; font-weight: 700;">Samer A.</td>
+            <td style="padding: 14px 12px; color: #463C58;">Old City → Mazzeh</td>
+            <td style="padding: 14px 12px;"><span style="font-size: 13px; font-weight: 700; color: #B42318; background: #FEF3F2; padding: 4px 10px; border-radius: 12px;">Cancelled by rider</span></td>
+            <td style="padding: 14px 24px; font-weight: 700;" dir="ltr">SYP 10,000 fee</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-top: 1px solid #F0EEF3; font-size: 13px; color: #6E6780;">
+        <span>4 of 1,284 rides</span>
+        <span style="display: flex; gap: 8px;">
+          <button style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; font-family: Manrope, sans-serif; font-size: 13px; font-weight: 700; color: #141018;">Previous</button>
+          <button style="height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #D9D5DF; background: #FFFFFF; font-family: Manrope, sans-serif; font-size: 13px; font-weight: 700; color: #141018;">Next</button>
+        </span>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

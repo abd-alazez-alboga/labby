@@ -22,7 +22,9 @@ describe('app shell', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
     // Lazy-loaded dashboard page content
     expect(
-      await screen.findByText('The admin dashboard arrives in a later milestone.'),
+      await screen.findByText(
+        'Your role does not include analytics. Use the menu to open the pages you can work on.',
+      ),
     ).toBeInTheDocument();
   });
 

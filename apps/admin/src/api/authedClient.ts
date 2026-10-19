@@ -84,5 +84,7 @@ export function createAuthedApiClient(config: RuntimeConfig, hooks: AuthedClient
       execute<T>(path, (i) => raw.patch<T>(path, body, i), init),
     delete: <T>(path: string, init: RequestInit = {}) =>
       execute<T>(path, (i) => raw.delete<T>(path, i), init),
+    download: (path: string, init: RequestInit = {}) =>
+      execute(path, (i) => raw.download(path, i), init),
   };
 }

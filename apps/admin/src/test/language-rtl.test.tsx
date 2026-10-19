@@ -19,7 +19,9 @@ describe('language switching', () => {
 
     // Wait for the lazy-loaded dashboard chunk before interacting — clicking
     // earlier races the Suspense resolution and makes the test flaky (H1).
-    await screen.findByText('The admin dashboard arrives in a later milestone.');
+    await screen.findByText(
+      'Your role does not include analytics. Use the menu to open the pages you can work on.',
+    );
     expect(document.documentElement.getAttribute('dir')).toBe('ltr');
 
     await user.click(screen.getByRole('button', { name: 'Switch language' }));
@@ -28,14 +30,18 @@ describe('language switching', () => {
     expect(document.documentElement.getAttribute('lang')).toBe('ar');
     // Shell strings re-render in Arabic
     expect(screen.getByRole('heading', { name: 'لوحة تحكم لبي' })).toBeInTheDocument();
-    expect(await screen.findByText('تصل لوحة تحكم المشرف في مرحلة لاحقة.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('لا يشمل دورك التحليلات. استخدم القائمة لفتح الصفحات المتاحة لك.'),
+    ).toBeInTheDocument();
   });
 
   it('flips back to LTR when switching to English again', async () => {
     const user = userEvent.setup();
     renderShell();
 
-    await screen.findByText('The admin dashboard arrives in a later milestone.');
+    await screen.findByText(
+      'Your role does not include analytics. Use the menu to open the pages you can work on.',
+    );
     await user.click(screen.getByRole('button', { name: 'Switch language' }));
     expect(document.documentElement.getAttribute('dir')).toBe('rtl');
 

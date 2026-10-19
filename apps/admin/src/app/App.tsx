@@ -26,6 +26,8 @@ const DocumentRenewalDetailPage = lazy(() => import('../pages/DocumentRenewalDet
 const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
 const NotificationPreferencesPage = lazy(() => import('../pages/NotificationPreferencesPage'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
+const DriversPage = lazy(() => import('../pages/DriversPage'));
+const TransactionsPage = lazy(() => import('../pages/TransactionsPage'));
 const UserWalletPage = lazy(() => import('../pages/UserWalletPage'));
 const DriverLedgersPage = lazy(() => import('../pages/DriverLedgersPage'));
 const DriverLedgerPage = lazy(() => import('../pages/DriverLedgerPage'));
@@ -328,6 +330,29 @@ export function App() {
                     <Suspense fallback={<div className="loading" />}>
                       <RequirePermission permission={['users:view', 'wallets:view']}>
                         <UsersPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* M15 lists: drivers (users:view) and transactions (wallets:view AND settlements:view). */}
+                <Route
+                  path="drivers"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="users:view">
+                        <DriversPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="transactions"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="wallets:view">
+                        <RequirePermission permission="settlements:view">
+                          <TransactionsPage />
+                        </RequirePermission>
                       </RequirePermission>
                     </Suspense>
                   }

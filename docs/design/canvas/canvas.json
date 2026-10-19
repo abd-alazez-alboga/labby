@@ -1327,6 +1327,78 @@
    "title": "Admin · Feedback · tags & trends (UC-A-25)",
    "page": "m14",
    "expand": "fill"
+  },
+  "A15Dashboard.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1600,
+   "title": "Admin · Dashboard (UC-A-30, ADM-02)",
+   "page": "m15",
+   "expand": "fill"
+  },
+  "A15DashboardAr.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 1600,
+   "title": "Admin · Dashboard (AR, RTL)",
+   "page": "m15",
+   "expand": "fill"
+  },
+  "A15Users.dc.html": {
+   "x": 0,
+   "y": 1760,
+   "w": 1440,
+   "h": 960,
+   "title": "Admin · Users list + Export CSV (UC-A-31)",
+   "page": "m15",
+   "expand": "fill"
+  },
+  "A15Drivers.dc.html": {
+   "x": 1520,
+   "y": 1760,
+   "w": 1440,
+   "h": 960,
+   "title": "Admin · Drivers list + Export CSV (UC-A-31)",
+   "page": "m15",
+   "expand": "fill"
+  },
+  "A15Transactions.dc.html": {
+   "x": 3040,
+   "y": 1760,
+   "w": 1440,
+   "h": 900,
+   "title": "Admin · Transactions list + Export CSV (UC-A-31)",
+   "page": "m15",
+   "expand": "fill"
+  },
+  "A15RidesExport.dc.html": {
+   "x": 0,
+   "y": 2880,
+   "w": 1440,
+   "h": 900,
+   "title": "Admin · Rides · Export CSV (addition)",
+   "page": "m15",
+   "expand": "fill"
+  },
+  "A15TicketsExport.dc.html": {
+   "x": 1520,
+   "y": 2880,
+   "w": 1440,
+   "h": 900,
+   "title": "Admin · Support queue · Export CSV (addition)",
+   "page": "m15",
+   "expand": "fill"
+  },
+  "A15ExportTooLarge.dc.html": {
+   "x": 3040,
+   "y": 2880,
+   "w": 1440,
+   "h": 900,
+   "title": "Admin · Export too large (422 export_too_large)",
+   "page": "m15",
+   "expand": "fill"
   }
  },
  "createdOnFiles": {
@@ -1584,6 +1656,30 @@
    "x": 0,
    "y": 3020,
    "page": "m14"
+  },
+  "m15DashTitle": {
+   "kind": "title1",
+   "maxW": 3000,
+   "text": "Admin · analytics dashboard (M15-T2)",
+   "x": 0,
+   "y": -50,
+   "page": "m15"
+  },
+  "m15ListsTitle": {
+   "kind": "title1",
+   "maxW": 4500,
+   "text": "Admin · users, drivers, transactions lists (M15-T2)",
+   "x": 0,
+   "y": 1710,
+   "page": "m15"
+  },
+  "m15ExportTitle": {
+   "kind": "title1",
+   "maxW": 4500,
+   "text": "Admin · CSV export on the existing lists (M15-T2)",
+   "x": 0,
+   "y": 2830,
+   "page": "m15"
   }
  },
  "order": [
@@ -1747,7 +1843,15 @@
   "A14HelpCms.dc.html",
   "A14HelpEditor.dc.html",
   "A14TicketCategories.dc.html",
-  "A14Feedback.dc.html"
+  "A14Feedback.dc.html",
+  "A15Dashboard.dc.html",
+  "A15DashboardAr.dc.html",
+  "A15Users.dc.html",
+  "A15Drivers.dc.html",
+  "A15Transactions.dc.html",
+  "A15RidesExport.dc.html",
+  "A15TicketsExport.dc.html",
+  "A15ExportTooLarge.dc.html"
  ],
  "pages": [
   {
@@ -1793,6 +1897,10 @@
   {
    "id": "m14",
    "name": "M14 · Support & content"
+  },
+  {
+   "id": "m15",
+   "name": "M15 · Analytics"
   }
  ],
  "title": "Labby UI Redesign"

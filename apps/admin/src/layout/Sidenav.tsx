@@ -55,6 +55,16 @@ export function Sidenav() {
             {t('nav.users')}
           </NavLink>
         ) : null}
+        {can('users:view') ? (
+          <NavLink to="/drivers" className={linkClass}>
+            {t('nav.drivers')}
+          </NavLink>
+        ) : null}
+        {can('wallets:view') && can('settlements:view') ? (
+          <NavLink to="/transactions" className={linkClass}>
+            {t('nav.transactions')}
+          </NavLink>
+        ) : null}
         {can('reports:view') ? (
           <NavLink to="/reports" className={linkClass}>
             {t('nav.reports')}

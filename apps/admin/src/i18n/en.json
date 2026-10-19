@@ -24,7 +24,9 @@
     "support": "Support",
     "lostItems": "Lost items",
     "helpCenter": "Help center",
-    "feedback": "Feedback"
+    "feedback": "Feedback",
+    "drivers": "Drivers",
+    "transactions": "Transactions"
   },
   "api": {
     "checking": "Checking API…",
@@ -61,7 +63,78 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "placeholder": "The admin dashboard arrives in a later milestone."
+    "noAnalytics": "Your role does not include analytics. Use the menu to open the pages you can work on.",
+    "subtitle": "{{range}} · rides counted by request time · days in each region's local time",
+    "customHint": "Pick the first and last day of the range.",
+    "rangeLabel": "Date range",
+    "regionLabel": "Region",
+    "presets": {
+      "today": "Today",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "custom": "Custom…"
+    },
+    "customFrom": "First day",
+    "customTo": "Last day",
+    "customInvalid": "Choose a first and last day in order, at most 366 days apart.",
+    "loadFailed": "The dashboard could not be loaded.",
+    "empty": "No rides in this range.",
+    "chart": {
+      "label": "Rides per day",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "other": "No driver / in progress",
+      "dayTitle": "{{day}}: {{total}} rides · {{completed}} completed · {{cancelled}} cancelled"
+    },
+    "rides": {
+      "title": "Rides",
+      "requested": "Rides requested",
+      "completed": "Completed",
+      "completionRate": "{{rate}} completion rate",
+      "cancelled": "Cancelled",
+      "cancelledSplit": "Rider {{rider}} · Driver {{driver}}",
+      "noDriver": "No driver found",
+      "perDay": "Rides per day",
+      "byService": "By service",
+      "byServiceCaption": "Rides · completed"
+    },
+    "columns": {
+      "region": "Region",
+      "rides": "Rides",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "completion": "Completed share"
+    },
+    "revenue": {
+      "title": "Revenue",
+      "note": "One row per currency — amounts are never added across currencies",
+      "gross": "Gross fares",
+      "grossHint": "Completed rides, final fares",
+      "commission": "Commission",
+      "commissionHint": "From driver ledgers"
+    },
+    "users": {
+      "title": "Users",
+      "signups": "New sign-ups",
+      "signupsSplit": "Riders {{riders}} · Drivers {{drivers}}",
+      "activeRiders": "Active riders",
+      "activeDrivers": "Active drivers",
+      "activeHint": "≥ 1 completed ride",
+      "online": "Drivers online"
+    },
+    "ops": {
+      "title": "Operations",
+      "pickup": "Average pickup time",
+      "pickupValue": "{{minutes}} min {{seconds}} s",
+      "pickupHint": "Accepted → arrived at pickup",
+      "acceptance": "Offer acceptance",
+      "acceptanceHint": "{{accepted}} of {{answered}} answered offers",
+      "surge": "Active surge zones",
+      "surgeHint": "Multiplier above 1.0×"
+    },
+    "allRegionsBadge": "All regions",
+    "nowBadge": "Now",
+    "rightNow": "Right now"
   },
   "notFound": {
     "title": "Page not found",
@@ -1992,5 +2065,108 @@
     "clearTagFilter": "Clear tag filter",
     "filterByTag": "Show feedback tagged {{tag}}",
     "removeTag": "Remove tag {{tag}}"
+  },
+  "exports": {
+    "button": "Export CSV",
+    "preparing": "Preparing…",
+    "dismiss": "Dismiss",
+    "tooLargeTitle": "Too many rows to export",
+    "tooLargeBody": "These filters match {{rows}} rows; one export holds up to {{limit}}. Narrow the date range or add a filter, then export again.",
+    "tooLargeBodyPlain": "These filters match more rows than one export holds. Narrow the date range or add a filter, then export again.",
+    "timeoutTitle": "The export took too long",
+    "timeoutBody": "Narrow the date range or add a filter, then export again.",
+    "failedTitle": "The export failed",
+    "failedBody": "Try again in a moment.",
+    "ridesGroupedHint": "Pick All or a single state to export — Active, Cancelled and SOS group several states.",
+    "note": {
+      "rides": "Export CSV downloads all {{total}} matching rides",
+      "users": "Export CSV downloads all {{total}} matching users",
+      "drivers": "Export CSV downloads all {{total}} matching drivers",
+      "rows": "Export CSV downloads all {{total}} matching rows",
+      "tickets": "Export CSV downloads all {{total}} matching tickets"
+    }
+  },
+  "directory": {
+    "all": "All",
+    "open": "Open",
+    "loadFailed": "The list could not be loaded.",
+    "showing": "{{total}} in total · page {{page}} of {{pages}} · newest first",
+    "users": {
+      "subtitle": "Every account, newest first. Open a user for trust, wallet and roles.",
+      "roleLabel": "Role",
+      "roleFilter": {
+        "rider": "Riders",
+        "driver": "Drivers",
+        "admin": "Admins"
+      },
+      "signedUp": "Signed up",
+      "signedUpFrom": "Signed up from",
+      "signedUpTo": "Signed up to",
+      "empty": "No users match these filters.",
+      "columns": {
+        "user": "User",
+        "roles": "Roles",
+        "account": "Account",
+        "signedUp": "Signed up"
+      },
+      "role": {
+        "rider": "Rider",
+        "driver": "Driver",
+        "admin": "Admin"
+      },
+      "account": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "deleted": "Deleted"
+      }
+    },
+    "drivers": {
+      "title": "Drivers",
+      "subtitle": "Everyone who applied to drive, newest account first. Region and plate come from the active vehicle.",
+      "regionLabel": "Region",
+      "statusLabel": "Application status",
+      "anyStatus": "Any status",
+      "onlineLabel": "Online status",
+      "anyOnline": "Any",
+      "online": "Online",
+      "offline": "Offline",
+      "empty": "No drivers match these filters.",
+      "columns": {
+        "driver": "Driver",
+        "application": "Application",
+        "status": "Status",
+        "region": "Region",
+        "vehicle": "Vehicle",
+        "joined": "Joined"
+      }
+    },
+    "transactions": {
+      "title": "Transactions",
+      "subtitle": "Rider wallet movements and driver ledger entries in one list, newest first.",
+      "sourceLabel": "Source",
+      "sources": {
+        "wallet": "Rider wallets",
+        "driver_ledger": "Driver ledgers"
+      },
+      "sourceRow": {
+        "wallet": "Rider wallet",
+        "driver_ledger": "Driver ledger"
+      },
+      "typeLabel": "Type",
+      "allTypes": "All types",
+      "currencyLabel": "Currency",
+      "allCurrencies": "All currencies",
+      "from": "From",
+      "to": "To",
+      "empty": "No transactions match these filters.",
+      "columns": {
+        "when": "When",
+        "user": "User",
+        "type": "Type",
+        "ride": "Ride",
+        "amount": "Amount",
+        "balanceAfter": "Balance after"
+      }
+    }
   }
 }

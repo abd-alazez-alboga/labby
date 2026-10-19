@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,7 +18,20 @@ import { isUuid } from './money-format';
  * contract-level search until a users API exists), listing the distinct
  * users on the matched rides. UC-A-13/15/27 entry point.
  */
-export function UserLookup({ mode }: { mode: 'wallet' | 'ledger' }) {
+export function UserLookup({
+  mode,
+  description,
+  actions,
+  children,
+}: {
+  mode: 'wallet' | 'ledger';
+  /** Replaces the default subtitle (the Users page with its list, M15). */
+  description?: string;
+  /** Header actions at the inline end (e.g. Export CSV). */
+  actions?: ReactNode;
+  /** Rendered after the lookup (the Users page's list). */
+  children?: ReactNode;
+}) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
   const { can } = usePermissions();
@@ -72,13 +85,17 @@ export function UserLookup({ mode }: { mode: 'wallet' | 'ledger' }) {
     <section className="page">
       <PageHeader
         title={t(mode === 'wallet' ? 'money.lookup.usersTitle' : 'money.lookup.ledgersTitle')}
-        description={t(
-          mode === 'ledger'
-            ? 'money.lookup.ledgersSubtitle'
-            : openTrust
-              ? 'money.lookup.usersSubtitleProfile'
-              : 'money.lookup.usersSubtitle',
-        )}
+        description={
+          description ??
+          t(
+            mode === 'ledger'
+              ? 'money.lookup.ledgersSubtitle'
+              : openTrust
+                ? 'money.lookup.usersSubtitleProfile'
+                : 'money.lookup.usersSubtitle',
+          )
+        }
+        actions={actions}
       />
 
       <form className="panel" onSubmit={(event) => void search(event)}>
@@ -152,6 +169,7 @@ export function UserLookup({ mode }: { mode: 'wallet' | 'ledger' }) {
           </tbody>
         </DataTable>
       ) : null}
+      {children}
     </section>
   );
 }

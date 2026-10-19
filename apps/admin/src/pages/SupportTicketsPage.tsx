@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -15,6 +15,8 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { DataTable, FilterChips, KpiRow, KpiTile, PageHeader, StatusChip, TablePager } from '../ui';
+import { ExportCsvButton, ExportFailureBanner } from './exports/CsvExport';
+import { exportNote, useCsvExport } from './exports/use-csv-export';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
 import { rideRef } from './rides/ride-format';
@@ -79,11 +81,9 @@ export default function SupportTicketsPage() {
   });
   const [attempt, setAttempt] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    setResult(null);
-    setLoadError(null);
-    const query: AdminTicketQuery = { page, size: PAGE_SIZE };
+  // The queue filter, shared by the page and its CSV export (ADM-06).
+  const filter = useMemo<AdminTicketQuery>(() => {
+    const query: AdminTicketQuery = {};
     if (tab !== 'needs_action') {
       query.status = [tab];
     }
@@ -98,7 +98,15 @@ export default function SupportTicketsPage() {
     } else if (assignee === 'unassigned') {
       query.unassigned = true;
     }
-    listAdminTickets(apiClient, query)
+    return query;
+  }, [tab, categoryId, priority, assignee, user]);
+  const exporter = useCsvExport('tickets', filter);
+
+  useEffect(() => {
+    let cancelled = false;
+    setResult(null);
+    setLoadError(null);
+    listAdminTickets(apiClient, { ...filter, page, size: PAGE_SIZE })
       .then((loaded) => {
         if (!cancelled) {
           setResult(loaded);
@@ -112,7 +120,7 @@ export default function SupportTicketsPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiClient, user, tab, categoryId, priority, assignee, page, attempt]);
+  }, [apiClient, filter, page, attempt]);
 
   // KPI tiles — one 1-item page each (`totalItems`), like the menu badges.
   useEffect(() => {
@@ -180,13 +188,17 @@ export default function SupportTicketsPage() {
       <PageHeader
         title={t('support.title')}
         actions={
-          can('content:view') ? (
-            <Link className="btn" to="/support/categories">
-              {t('support.manageCategories')}
-            </Link>
-          ) : null
+          <>
+            <ExportCsvButton state={exporter} />
+            {can('content:view') ? (
+              <Link className="btn" to="/support/categories">
+                {t('support.manageCategories')}
+              </Link>
+            ) : null}
+          </>
         }
       />
+      <ExportFailureBanner state={exporter} />
 
       <KpiRow>
         <KpiTile label={t('support.kpi.openUnassigned')} value={kpis.openUnassigned ?? '—'} />
@@ -269,10 +281,12 @@ export default function SupportTicketsPage() {
           empty={t('support.empty')}
           footer={
             <TablePager
-              status={t('support.sortNote', {
-                page: page + 1,
-                total: lastPage + 1,
-              })}
+              status={[
+                t('support.sortNote', { page: page + 1, total: lastPage + 1 }),
+                exportNote(exporter, t, 'tickets', result.totalItems, language),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
               previousLabel={t('audit.previous')}
               nextLabel={t('audit.next')}
               canPrevious={page > 0}

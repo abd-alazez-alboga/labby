@@ -16,6 +16,8 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { DataTable, FilterChips, PageHeader, StatusChip, TablePager } from '../ui';
+import { ExportCsvButton, ExportFailureBanner } from './exports/CsvExport';
+import { exportNote, useCsvExport } from './exports/use-csv-export';
 import { formatMoment, formatMoney } from './money/money-format';
 import { rideRef, rideStateTone, routeLabel } from './rides/ride-format';
 import {
@@ -31,6 +33,7 @@ import {
 } from './rides/rides-search';
 
 const PAGE_SIZE = 25;
+const NO_FILTER = {};
 
 interface SearchResult {
   rows: RideRow[];
@@ -64,6 +67,28 @@ export default function RidesPage() {
       ? chipParam
       : 'all';
   const page = Math.max(0, Number(params.get('page')) || 0);
+
+  // The export takes the list's exact filter. The contract's state filter is
+  // ONE state, so a grouped chip (Active, Cancelled) or the SOS view cannot be
+  // exported as one file — the button is disabled with a hint there.
+  const exportFilter = useMemo<AdminRideQuery | null>(() => {
+    const states = chip === 'sos' ? null : chipStates(chip);
+    if (states === null || states.length > 1) {
+      return null;
+    }
+    const classified = classifyQuery(query);
+    const bounds = day ? dayBounds(day) : null;
+    return {
+      regionId: regionId || undefined,
+      state: states[0],
+      userId: classified.kind === 'id' ? classified.value : undefined,
+      phone: classified.kind === 'phone' ? classified.value : undefined,
+      from: bounds?.from,
+      to: bounds?.to,
+    };
+  }, [chip, query, regionId, day]);
+  const exportable = exportFilter !== null;
+  const exporter = useCsvExport('rides', exportFilter ?? NO_FILTER);
 
   const [input, setInput] = useState(query);
   const [regions, setRegions] = useState<RegionSummary[]>([]);
@@ -260,7 +285,17 @@ export default function RidesPage() {
 
   return (
     <section className="page">
-      <PageHeader title={t('rides.title')} description={t('rides.subtitle')} />
+      <PageHeader
+        title={t('rides.title')}
+        description={t('rides.subtitle')}
+        actions={
+          <ExportCsvButton
+            state={exporter}
+            disabledHint={exportable ? undefined : t('exports.ridesGroupedHint')}
+          />
+        }
+      />
+      <ExportFailureBanner state={exporter} />
 
       <form className="rides-filters" onSubmit={submitSearch}>
         <label className="rides-filters__search">
@@ -314,7 +349,12 @@ export default function RidesPage() {
       ) : (
         <>
           <p className="queue-count" role="status">
-            {t('rides.count', { total: result.totalItems })}
+            {[
+              t('rides.count', { total: result.totalItems }),
+              exportable ? exportNote(exporter, t, 'rides', result.totalItems, language) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <DataTable
             isEmpty={result.rows.length === 0}
