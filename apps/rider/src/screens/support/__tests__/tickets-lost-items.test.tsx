@@ -174,6 +174,8 @@ function lostCase(overrides = {}) {
       role: "driver",
     },
     chatWindow: "reopened",
+    memberId: null,
+    outcome: null,
     createdAt: "2026-10-18T21:10:00Z",
     updatedAt: "2026-10-19T09:30:00Z",
     ...overrides,
@@ -296,6 +298,156 @@ describe("create a ticket (UC-S-19, SUP-01)", () => {
       attachmentFileIds: ["f1f1f1f1-0000-4000-8000-000000000001"],
       submittedAs: "rider",
     });
+  });
+});
+
+describe("create a ticket — failure paths and caps (review-M14 W7/W13)", () => {
+  const picked = (name: string) => ({
+    canceled: false,
+    assets: [{ uri: `file:///${name}`, fileName: name, mimeType: "image/jpeg" }],
+  });
+  const uploaded = {
+    status: 201,
+    body: {
+      fileId: "f1f1f1f1-0000-4000-8000-000000000001",
+      kind: "ticket_attachment",
+      contentType: "image/jpeg",
+      sizeBytes: 1000,
+    },
+  };
+
+  it("a failed ride history hides the ride picker and still sends without a ride", async () => {
+    const api = mockApi({
+      [CATEGORIES]: { status: 200, body: [ticketCategory()] },
+      [RIDES]: { status: 500, body: { code: "internal", message: "boom" } },
+      [CREATE]: { status: 201, body: ticket() },
+    });
+    await render(
+      <LocaleProvider>
+        <TicketCreateScreen />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText("Payments")).toBeOnTheScreen();
+    expect(screen.queryByTestId("ticket-ride-section")).toBeNull();
+    expect(screen.queryByTestId("ticket-ride-open")).toBeNull();
+
+    await fireEvent.press(screen.getByTestId(`ticket-category-${CAT_ID}`));
+    await fireEvent.changeText(
+      screen.getByTestId("ticket-description"),
+      "Charged twice.",
+    );
+    await fireEvent.press(screen.getByTestId("ticket-send"));
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(`/ticket/${TICKET_ID}`),
+    );
+    expect(api.callsTo("POST", "/api/v1/tickets")[0]?.body).toEqual({
+      categoryId: CAT_ID,
+      description: "Charged twice.",
+      rideId: null,
+      attachmentFileIds: [],
+      submittedAs: "rider",
+    });
+  });
+
+  it("a failed category list still shows the error view", async () => {
+    mockApi({
+      [CATEGORIES]: { status: 500, body: { code: "internal", message: "boom" } },
+      [RIDES]: { status: 200, body: ridePage() },
+    });
+    await render(
+      <LocaleProvider>
+        <TicketCreateScreen />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByTestId("error-server")).toBeOnTheScreen();
+  });
+
+  it("a 409 category_inactive shows its copy and reloads the categories", async () => {
+    const api = mockApi({
+      [CATEGORIES]: { status: 200, body: [ticketCategory()] },
+      [RIDES]: { status: 200, body: ridePage() },
+      [CREATE]: {
+        status: 409,
+        body: { code: "category_inactive", message: "inactive" },
+      },
+    });
+    await render(
+      <LocaleProvider>
+        <TicketCreateScreen />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText("Payments")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId(`ticket-category-${CAT_ID}`));
+    await fireEvent.changeText(
+      screen.getByTestId("ticket-description"),
+      "Charged twice.",
+    );
+    await fireEvent.press(screen.getByTestId("ticket-send"));
+    expect(
+      await screen.findByText(
+        "That topic is no longer available. Pick another one.",
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      api.callsTo("GET", "/api/v1/support/ticket-categories"),
+    ).toHaveLength(2);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [413, "That file is too large."],
+    [429, "You've reached today's upload limit."],
+  ])("maps an attachment upload %s to its copy", async (code, copy) => {
+    mockLaunchImageLibraryAsync.mockResolvedValueOnce(picked("big.jpg"));
+    mockApi({
+      [CATEGORIES]: { status: 200, body: [ticketCategory()] },
+      [RIDES]: { status: 200, body: ridePage() },
+      [FILES]: { status: code, body: { code: "upload", message: "no" } },
+    });
+    await render(
+      <LocaleProvider>
+        <TicketCreateScreen />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText("Payments")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("ticket-add-attachment"));
+    expect(await screen.findByTestId("ticket-file-error")).toHaveTextContent(
+      copy,
+    );
+    expect(screen.queryByTestId("ticket-attachment")).toBeNull();
+  });
+
+  it("caps attachments at 5: the add tile disappears", async () => {
+    for (let i = 0; i < 5; i += 1) {
+      mockLaunchImageLibraryAsync.mockResolvedValueOnce(picked(`s${i}.jpg`));
+    }
+    mockApi({
+      [CATEGORIES]: { status: 200, body: [ticketCategory()] },
+      [RIDES]: { status: 200, body: ridePage() },
+      [FILES]: uploaded,
+    });
+    await render(
+      <LocaleProvider>
+        <TicketCreateScreen />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText("Payments")).toBeOnTheScreen();
+    for (let i = 1; i <= 5; i += 1) {
+      await fireEvent.press(screen.getByTestId("ticket-add-attachment"));
+      await waitFor(() =>
+        expect(screen.getAllByTestId("ticket-attachment")).toHaveLength(i),
+      );
+    }
+    await waitFor(() =>
+      expect(screen.queryByTestId("ticket-attachment-uploading")).toBeNull(),
+    );
+    expect(screen.queryByTestId("ticket-add-attachment")).toBeNull();
+    expect(mockLaunchImageLibraryAsync).toHaveBeenCalledTimes(5);
   });
 });
 
@@ -527,5 +679,138 @@ describe("lost items (UC-R-20, LOST-01/02)", () => {
     expect(
       screen.getByText("The case is closed, so the chat is read-only again"),
     ).toBeOnTheScreen();
+  });
+  it("caps lost-item photos at 3 and maps a 413 upload to its copy", async () => {
+    const picked = (name: string) => ({
+      canceled: false,
+      assets: [
+        { uri: `file:///${name}`, fileName: name, mimeType: "image/jpeg" },
+      ],
+    });
+    for (let i = 0; i < 4; i += 1) {
+      mockLaunchImageLibraryAsync.mockResolvedValueOnce(picked(`p${i}.jpg`));
+    }
+    const ok = {
+      status: 201,
+      body: {
+        fileId: "f2f2f2f2-0000-4000-8000-000000000001",
+        kind: "lost_item_photo",
+        contentType: "image/jpeg",
+        sizeBytes: 1000,
+      },
+    };
+    mockApi({
+      [RIDE]: { status: 200, body: completedRide() },
+      [FILES]: [
+        { status: 413, body: { code: "too_large", message: "big" } },
+        ok,
+        ok,
+        ok,
+      ],
+    });
+    await render(
+      <LocaleProvider>
+        <LostItemReportScreen rideId={RIDE_ID} />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByTestId("lost-report")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("lost-report-add-photo"));
+    expect(
+      await screen.findByTestId("lost-report-photo-error"),
+    ).toHaveTextContent("That file is too large.");
+    expect(screen.queryByTestId("lost-report-photo")).toBeNull();
+
+    for (let i = 1; i <= 3; i += 1) {
+      await fireEvent.press(screen.getByTestId("lost-report-add-photo"));
+      await waitFor(() =>
+        expect(screen.getAllByTestId("lost-report-photo")).toHaveLength(i),
+      );
+    }
+    await waitFor(() =>
+      expect(screen.queryByTestId("lost-report-photo-uploading")).toBeNull(),
+    );
+    expect(screen.queryByTestId("lost-report-add-photo")).toBeNull();
+  });
+
+  it("a not-found case shows Not found and never Returned (H3)", async () => {
+    mockApi({
+      [CASE]: {
+        status: 200,
+        body: lostCase({ caseStatus: "not_found", outcome: "not_found" }),
+      },
+    });
+    await render(
+      <LocaleProvider>
+        <LostItemCaseScreen ticketId={LOST_ID} />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByTestId("lost-case")).toBeOnTheScreen();
+    expect(
+      screen.getByTestId("lost-case-step-not_found-done"),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Not found")).toBeOnTheScreen();
+    expect(screen.queryByText("Returned")).toBeNull();
+  });
+
+  it("a not-found case that closed keeps Not found and adds Closed (H3)", async () => {
+    mockApi({
+      [CASE]: {
+        status: 200,
+        body: lostCase({
+          caseStatus: "closed",
+          outcome: "not_found",
+          chatWindow: "read_only",
+        }),
+      },
+    });
+    await render(
+      <LocaleProvider>
+        <LostItemCaseScreen ticketId={LOST_ID} />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByTestId("lost-case")).toBeOnTheScreen();
+    expect(
+      screen.getByTestId("lost-case-step-not_found-done"),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Not found")).toBeOnTheScreen();
+    expect(screen.queryByTestId("lost-case-step-returned-done")).toBeNull();
+    expect(screen.queryByTestId("lost-case-step-found-done")).toBeNull();
+    expect(screen.queryByText("Returned")).toBeNull();
+    expect(screen.getByTestId("lost-case-step-closed-done")).toBeOnTheScreen();
+  });
+
+  it("a returned case that closed shows Found and Returned done (H3)", async () => {
+    mockApi({
+      [CASE]: {
+        status: 200,
+        body: lostCase({
+          caseStatus: "closed",
+          outcome: "returned",
+          chatWindow: "read_only",
+        }),
+      },
+    });
+    await render(
+      <LocaleProvider>
+        <LostItemCaseScreen ticketId={LOST_ID} />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByTestId("lost-case")).toBeOnTheScreen();
+    for (const step of [
+      "reported",
+      "driver_contacted",
+      "found",
+      "returned",
+      "closed",
+    ]) {
+      expect(
+        screen.getByTestId(`lost-case-step-${step}-done`),
+      ).toBeOnTheScreen();
+    }
+    expect(screen.queryByText("Not found")).toBeNull();
   });
 });

@@ -38,6 +38,7 @@ import {
   LoadingView,
   StatusChip,
   TextButton,
+  useBottomBarPadding,
   useDirection,
   useFontFamily,
   type ChipTone,
@@ -82,9 +83,14 @@ function threadItems(detail: TicketDetail): ThreadItem[] {
 
 export default function TicketThreadScreen({ ticketId }: { ticketId: string }) {
   const { t, locale } = useLocale();
-  const { row } = useDirection();
+  const { row, flipRows } = useDirection();
   const router = useRouter();
   const fontFamily = useFontFamily(400);
+  const composerPadding = useBottomBarPadding(spacing.xl);
+  // The stack header sits above this screen: the keyboard offset is the
+  // page's distance from the window top (the header's measured height).
+  const pageRef = useRef<View>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [detail, setDetail] = useState<TicketDetail | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
@@ -166,150 +172,174 @@ export default function TicketThreadScreen({ ticketId }: { ticketId: string }) {
     return t("ticket.statusEvent", { status: label, date });
   };
 
+  // Bubbles hug their screen edge like the M10 chat: the user's on the
+  // reading end; `flipRows` mirrors the sides pre-restart in AR.
+  const userOnRight = !flipRows;
+
   return (
-    <KeyboardAvoidingView
+    <View
+      ref={pageRef}
       style={styles.page}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      testID="ticket-thread"
+      onLayout={() =>
+        pageRef.current?.measureInWindow((_x, y) => setKeyboardOffset(y))
+      }
     >
-      <View style={styles.header}>
-        <AppText variant="heading" numberOfLines={2}>
-          {detail.kind === "lost_item"
-            ? `${t("tickets.lostItemTitle")} · ${detail.description}`
-            : detail.description}
-        </AppText>
-        <View style={[styles.headerMeta, { flexDirection: row }]}>
-          <StatusChip
-            tone={STATUS_TONE[detail.status]}
-            label={t(`tickets.status.${detail.status}`)}
-            testID="ticket-thread-status"
-          />
-          <AppText variant="caption" tone="muted" weight={400}>
-            {t("ticket.openedLine", {
-              category: localized(detail.category.name, locale),
-              date: formatDate(detail.createdAt, locale),
-            })}
-          </AppText>
-        </View>
-        {detail.kind === "lost_item" ? (
-          <TextButton
-            label={t("ticket.viewCase")}
-            onPress={() =>
-              router.push(
-                `/lost-item/${encodeURIComponent(detail.ticketId)}` as never,
-              )
-            }
-            testID="ticket-thread-case"
-          />
-        ) : null}
-      </View>
-
-      <ScrollView
-        ref={scrollRef}
-        style={styles.thread}
-        contentContainerStyle={styles.threadContent}
-        onContentSizeChange={() =>
-          scrollRef.current?.scrollToEnd({ animated: false })
-        }
-        testID="ticket-thread-scroll"
+      <KeyboardAvoidingView
+        style={styles.page}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={keyboardOffset}
+        testID="ticket-thread"
       >
-        {items.map((item) =>
-          item.kind === "event" ? (
-            <View
-              key={item.event.eventId}
-              style={styles.event}
-              testID={`ticket-event-${item.event.eventId}`}
-            >
-              <AppText variant="caption" tone="muted" align="center">
-                {eventLine(item.event)}
-              </AppText>
-            </View>
-          ) : (
-            <View
-              key={item.message.messageId}
-              style={[
-                styles.bubble,
-                item.message.senderSide === "user"
-                  ? styles.bubbleUser
-                  : styles.bubbleSupport,
-              ]}
-              testID={`ticket-message-${item.message.messageId}`}
-            >
-              {item.message.senderSide === "support" ? (
-                <AppText variant="caption" weight={800} tone="accent">
-                  {t("ticket.supportName")}
-                </AppText>
-              ) : null}
-              <AppText
-                variant="secondary"
-                weight={400}
-                tone={
-                  item.message.senderSide === "user" ? "onAccent" : "default"
-                }
-                style={styles.bubbleText}
-              >
-                {item.message.body}
-              </AppText>
-            </View>
-          ),
-        )}
-        {detail.status === "waiting_on_user" ? (
-          <Banner
-            tone="warning"
-            message={t("ticket.waitingBanner", {
-              date: formatDateTime(detail.updatedAt, locale),
-            })}
-            testID="ticket-waiting-banner"
-          />
-        ) : null}
-        {detail.status === "resolved" ? (
-          <Banner
-            tone="success"
-            message={t("ticket.resolvedBanner")}
-            testID="ticket-resolved-banner"
-          />
-        ) : null}
-        {closed ? (
-          <Banner
-            tone="neutral"
-            message={t("ticket.closedBanner")}
-            testID="ticket-closed-banner"
-          />
-        ) : null}
-        {sendError ? (
-          <Banner tone="danger" message={sendError} testID="ticket-send-error" />
-        ) : null}
-      </ScrollView>
-
-      {!closed ? (
-        <View style={[styles.composer, { flexDirection: row }]}>
-          <TextInput
-            style={[styles.input, { fontFamily }]}
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t("ticket.composerPlaceholder")}
-            placeholderTextColor={colors.textMuted}
-            maxLength={TICKET_MESSAGE_MAX}
-            multiline
-            accessibilityLabel={t("ticket.composerPlaceholder")}
-            testID="ticket-composer"
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("ticket.send")}
-            onPress={() => void send()}
-            disabled={sending || !draft.trim()}
-            style={[
-              styles.send,
-              (sending || !draft.trim()) && styles.sendDisabled,
-            ]}
-            testID="ticket-send-button"
-          >
-            <Ionicons name="send" size={18} color={colors.onAccent} />
-          </Pressable>
+        <View style={styles.header}>
+          <AppText variant="heading" numberOfLines={2}>
+            {detail.kind === "lost_item"
+              ? `${t("tickets.lostItemTitle")} · ${detail.description}`
+              : detail.description}
+          </AppText>
+          <View style={[styles.headerMeta, { flexDirection: row }]}>
+            <StatusChip
+              tone={STATUS_TONE[detail.status]}
+              label={t(`tickets.status.${detail.status}`)}
+              testID="ticket-thread-status"
+            />
+            <AppText variant="caption" tone="muted" weight={400}>
+              {t("ticket.openedLine", {
+                category: localized(detail.category.name, locale),
+                date: formatDate(detail.createdAt, locale),
+              })}
+            </AppText>
+          </View>
+          {detail.kind === "lost_item" ? (
+            <TextButton
+              label={t("ticket.viewCase")}
+              onPress={() =>
+                router.push(
+                  `/lost-item/${encodeURIComponent(detail.ticketId)}` as never,
+                )
+              }
+              testID="ticket-thread-case"
+            />
+          ) : null}
         </View>
-      ) : null}
-    </KeyboardAvoidingView>
+
+        <ScrollView
+          ref={scrollRef}
+          style={styles.thread}
+          contentContainerStyle={styles.threadContent}
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: false })
+          }
+          testID="ticket-thread-scroll"
+        >
+          {items.map((item) =>
+            item.kind === "event" ? (
+              <View
+                key={item.event.eventId}
+                style={styles.event}
+                testID={`ticket-event-${item.event.eventId}`}
+              >
+                <AppText variant="caption" tone="muted" align="center">
+                  {eventLine(item.event)}
+                </AppText>
+              </View>
+            ) : (
+              <View
+                key={item.message.messageId}
+                style={[
+                  styles.bubble,
+                  item.message.senderSide === "user"
+                    ? styles.bubbleUser
+                    : styles.bubbleSupport,
+                  {
+                    alignSelf:
+                      (item.message.senderSide === "user") === userOnRight
+                        ? "flex-end"
+                        : "flex-start",
+                  },
+                ]}
+                testID={`ticket-message-${item.message.messageId}`}
+              >
+                {item.message.senderSide === "support" ? (
+                  <AppText variant="caption" weight={800} tone="accent">
+                    {t("ticket.supportName")}
+                  </AppText>
+                ) : null}
+                <AppText
+                  variant="secondary"
+                  weight={400}
+                  tone={
+                    item.message.senderSide === "user" ? "onAccent" : "default"
+                  }
+                  style={styles.bubbleText}
+                >
+                  {item.message.body}
+                </AppText>
+              </View>
+            ),
+          )}
+          {detail.status === "waiting_on_user" ? (
+            <Banner
+              tone="warning"
+              message={t("ticket.waitingBanner", {
+                date: formatDateTime(detail.updatedAt, locale),
+              })}
+              testID="ticket-waiting-banner"
+            />
+          ) : null}
+          {detail.status === "resolved" ? (
+            <Banner
+              tone="success"
+              message={t("ticket.resolvedBanner")}
+              testID="ticket-resolved-banner"
+            />
+          ) : null}
+          {closed ? (
+            <Banner
+              tone="neutral"
+              message={t("ticket.closedBanner")}
+              testID="ticket-closed-banner"
+            />
+          ) : null}
+          {sendError ? (
+            <Banner tone="danger" message={sendError} testID="ticket-send-error" />
+          ) : null}
+        </ScrollView>
+
+        {!closed ? (
+          <View
+            style={[
+              styles.composer,
+              { flexDirection: row, paddingBottom: composerPadding },
+            ]}
+          >
+            <TextInput
+              style={[styles.input, { fontFamily }]}
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t("ticket.composerPlaceholder")}
+              placeholderTextColor={colors.textMuted}
+              maxLength={TICKET_MESSAGE_MAX}
+              multiline
+              accessibilityLabel={t("ticket.composerPlaceholder")}
+              testID="ticket-composer"
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("ticket.send")}
+              onPress={() => void send()}
+              disabled={sending || !draft.trim()}
+              style={[
+                styles.send,
+                (sending || !draft.trim()) && styles.sendDisabled,
+              ]}
+              testID="ticket-send-button"
+            >
+              <Ionicons name="send" size={18} color={colors.onAccent} />
+            </Pressable>
+          </View>
+        ) : null}
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -355,11 +385,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   bubbleUser: {
-    alignSelf: "flex-end",
     backgroundColor: colors.accent,
   },
   bubbleSupport: {
-    alignSelf: "flex-start",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
@@ -372,7 +400,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     backgroundColor: colors.surface,

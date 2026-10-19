@@ -224,6 +224,7 @@ export default function LostItemReportScreen({ rideId }: { rideId: string }) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("lostItem.removePhoto")}
+                hitSlop={13}
                 onPress={() =>
                   setPhotos((list) => list.filter((p) => p.key !== photo.key))
                 }

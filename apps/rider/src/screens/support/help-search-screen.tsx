@@ -3,11 +3,13 @@
  * S14HelpSearch: debounced substring search in the active language
  * (`GET /help/search?q=&lang=`), results grouped as the API orders them
  * (title matches first), empty state and the "create ticket" fallback.
+ * A failed search shows the shared error view with retry, not "No results".
  */
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 
+import { failureKind, type FailureKind } from "../../api/http-client";
 import {
   HELP_SEARCH_MAX,
   HELP_SEARCH_MIN,
@@ -17,6 +19,7 @@ import {
 } from "../../api/support";
 import {
   AppText,
+  ErrorView,
   ListRow,
   LoadingView,
   ScreenScrollView,
@@ -39,6 +42,9 @@ export default function HelpSearchScreen() {
   const [results, setResults] = useState<HelpArticleSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [failure, setFailure] = useState<FailureKind | null>(null);
+  // Bumped by the error view's retry to re-run the same search.
+  const [attempt, setAttempt] = useState(0);
   const requestSeq = useRef(0);
 
   const trimmed = query.trim();
@@ -51,6 +57,7 @@ export default function HelpSearchScreen() {
         setResults([]);
         setSearched(false);
         setSearching(false);
+        setFailure(null);
       }, 0);
       return () => clearTimeout(reset);
     }
@@ -60,10 +67,12 @@ export default function HelpSearchScreen() {
         const found = await searchHelp(trimmed.slice(0, HELP_SEARCH_MAX), locale);
         if (requestSeq.current !== seq) return;
         setResults(found);
+        setFailure(null);
         setSearched(true);
-      } catch {
+      } catch (error) {
         if (requestSeq.current !== seq) return;
         setResults([]);
+        setFailure(failureKind(error));
         setSearched(true);
       } finally {
         if (requestSeq.current === seq) setSearching(false);
@@ -73,7 +82,7 @@ export default function HelpSearchScreen() {
       clearTimeout(arm);
       clearTimeout(timer);
     };
-  }, [trimmed, locale]);
+  }, [trimmed, locale, attempt]);
 
   const countLine =
     results.length === 1
@@ -110,7 +119,15 @@ export default function HelpSearchScreen() {
 
       {searching ? <LoadingView testID="help-search-loading" /> : null}
 
-      {!searching && searched ? (
+      {!searching && searched && failure ? (
+        <ErrorView
+          kind={failure}
+          onRetry={() => setAttempt((n) => n + 1)}
+          testID="help-search-error"
+        />
+      ) : null}
+
+      {!searching && searched && !failure ? (
         <>
           <AppText
             variant="caption"

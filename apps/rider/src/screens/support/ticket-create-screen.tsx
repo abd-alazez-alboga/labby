@@ -67,6 +67,8 @@ export default function TicketCreateScreen({
   const router = useRouter();
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [rides, setRides] = useState<RideSummary[]>([]);
+  // The ride link is optional: a failed ride history only hides the picker.
+  const [ridesFailed, setRidesFailed] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -83,13 +85,16 @@ export default function TicketCreateScreen({
 
   const load = useCallback(async () => {
     setStatus("loading");
+    const history = listRides(0).then(
+      (page) => {
+        setRides(page.items);
+        setRidesFailed(false);
+      },
+      () => setRidesFailed(true),
+    );
     try {
-      const [cats, history] = await Promise.all([
-        listTicketCategories(),
-        listRides(0),
-      ]);
-      setCategories(cats);
-      setRides(history.items);
+      setCategories(await listTicketCategories());
+      await history;
       setStatus("ready");
     } catch (error) {
       setFailure(failureKind(error));
@@ -263,6 +268,7 @@ export default function TicketCreateScreen({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("ticketCreate.removeAttachment")}
+                hitSlop={13}
                 onPress={() =>
                   setFiles((list) => list.filter((f) => f.key !== file.key))
                 }
@@ -290,73 +296,76 @@ export default function TicketCreateScreen({
         ) : null}
       </View>
 
-      <View style={styles.group}>
-        <AppText variant="label" weight={700} tone="secondary">
-          {t("ticketCreate.rideLabel")}{" "}
-          <AppText variant="label" tone="muted">
-            · {t("ticketCreate.rideOptional")}
-          </AppText>
-        </AppText>
-        {linkedRide ? (
-          <View
-            style={[styles.rideCard, { flexDirection: row }]}
-            testID="ticket-ride-linked"
-          >
-            <View style={styles.rideIcon}>
-              <Ionicons name="car-outline" size={18} color={colors.accent} />
-            </View>
-            <AppText variant="secondary" weight={700} style={styles.flex}>
-              {rideLine(linkedRide)}
+      {ridesFailed ? null : (
+        <View style={styles.group} testID="ticket-ride-section">
+          <AppText variant="label" weight={700} tone="secondary">
+            {t("ticketCreate.rideLabel")}{" "}
+            <AppText variant="label" tone="muted">
+              · {t("ticketCreate.rideOptional")}
             </AppText>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setRideId(null)}
-              testID="ticket-ride-remove"
+          </AppText>
+          {linkedRide ? (
+            <View
+              style={[styles.rideCard, { flexDirection: row }]}
+              testID="ticket-ride-linked"
             >
-              <AppText variant="caption" weight={800} tone="accent">
-                {t("ticketCreate.rideRemove")}
+              <View style={styles.rideIcon}>
+                <Ionicons name="car-outline" size={18} color={colors.accent} />
+              </View>
+              <AppText variant="secondary" weight={700} style={styles.flex}>
+                {rideLine(linkedRide)}
               </AppText>
-            </Pressable>
-          </View>
-        ) : null}
-        {ridePickerOpen ? (
-          <View testID="ticket-ride-picker">
-            {rides.map((ride, index) => (
               <Pressable
-                key={ride.id}
                 accessibilityRole="button"
-                onPress={() => {
-                  setRideId(ride.id);
-                  setRidePickerOpen(false);
-                }}
-                style={[
-                  styles.rideRow,
-                  { flexDirection: row },
-                  index < rides.length - 1 && styles.rideRowLine,
-                ]}
-                testID={`ticket-ride-${ride.id}`}
+                onPress={() => setRideId(null)}
+                style={styles.rideRemove}
+                testID="ticket-ride-remove"
               >
-                <AppText variant="secondary" weight={600} style={styles.flex}>
-                  {rideLine(ride)}
+                <AppText variant="caption" weight={800} tone="accent">
+                  {t("ticketCreate.rideRemove")}
                 </AppText>
               </Pressable>
-            ))}
-          </View>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setRidePickerOpen(true)}
-            style={[styles.rideSelect, { flexDirection: row }]}
-            testID="ticket-ride-open"
-          >
-            <AppText variant="secondary" weight={700} tone="accent">
-              {linkedRide
-                ? t("ticketCreate.rideChange")
-                : t("ticketCreate.rideNone")}
-            </AppText>
-          </Pressable>
-        )}
-      </View>
+            </View>
+          ) : null}
+          {ridePickerOpen ? (
+            <View testID="ticket-ride-picker">
+              {rides.map((ride, index) => (
+                <Pressable
+                  key={ride.id}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setRideId(ride.id);
+                    setRidePickerOpen(false);
+                  }}
+                  style={[
+                    styles.rideRow,
+                    { flexDirection: row },
+                    index < rides.length - 1 && styles.rideRowLine,
+                  ]}
+                  testID={`ticket-ride-${ride.id}`}
+                >
+                  <AppText variant="secondary" weight={600} style={styles.flex}>
+                    {rideLine(ride)}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setRidePickerOpen(true)}
+              style={[styles.rideSelect, { flexDirection: row }]}
+              testID="ticket-ride-open"
+            >
+              <AppText variant="secondary" weight={700} tone="accent">
+                {linkedRide
+                  ? t("ticketCreate.rideChange")
+                  : t("ticketCreate.rideNone")}
+              </AppText>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       <View style={styles.footer}>
         {sendError ? (
@@ -460,6 +469,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: colors.accentTint,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  rideRemove: {
+    minHeight: 48,
     justifyContent: "center",
   },
   rideSelect: {

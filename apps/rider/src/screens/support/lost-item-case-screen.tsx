@@ -10,7 +10,12 @@ import React, { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { failureKind, type FailureKind } from "../../api/http-client";
-import { getLostItemCase, type CaseStatus, type LostItemCase } from "../../api/support";
+import {
+  getLostItemCase,
+  type CaseStatus,
+  type LostItemCase,
+  type LostItemOutcome,
+} from "../../api/support";
 import {
   AppText,
   ErrorView,
@@ -24,23 +29,44 @@ import { useLocale } from "../../i18n/locale-context";
 import { formatDate } from "../../ride/ride-format";
 import { colors, spacing } from "../../theme/tokens";
 
-/** The timeline rows of the happy path; a not_found case swaps the label. */
-const STEPS: CaseStatus[] = ["reported", "driver_contacted", "found", "returned"];
+type StepKey = CaseStatus;
 
-/** How far along the timeline a case status is. */
-function stepIndex(status: CaseStatus): number {
-  switch (status) {
-    case "reported":
-      return 0;
-    case "driver_contacted":
-      return 1;
+/** The outcome a case reached: the contract's `outcome`, else its live status. */
+function outcomeOf(item: LostItemCase): LostItemOutcome | null {
+  if (item.outcome) return item.outcome;
+  switch (item.caseStatus) {
     case "found":
     case "not_found":
-      return 2;
     case "returned":
-    case "closed":
-      return 3;
+      return item.caseStatus;
+    default:
+      return null;
   }
+}
+
+/**
+ * The timeline rows and which are done. The outcome row reads "Not found"
+ * when the item was not found (also after closure), and then no "Returned"
+ * row follows; a closed case ends with a done "Closed" row.
+ */
+function timelineOf(item: LostItemCase): { key: StepKey; done: boolean }[] {
+  const outcome = outcomeOf(item);
+  const closed = item.caseStatus === "closed";
+  const contacted =
+    item.caseStatus !== "reported" && (!closed || outcome !== null);
+  const steps: { key: StepKey; done: boolean }[] = [
+    { key: "reported", done: true },
+    { key: "driver_contacted", done: contacted },
+    {
+      key: outcome === "not_found" ? "not_found" : "found",
+      done: outcome !== null,
+    },
+  ];
+  if (outcome !== "not_found") {
+    steps.push({ key: "returned", done: outcome === "returned" });
+  }
+  if (closed) steps.push({ key: "closed", done: true });
+  return steps;
 }
 
 export default function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
@@ -85,15 +111,9 @@ export default function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
     return <LoadingView testID="lost-case-loading" />;
   }
 
-  const reached = stepIndex(item.caseStatus);
-  const notFound = item.caseStatus === "not_found";
+  const steps = timelineOf(item);
   const chatOpen = item.chatWindow !== "read_only";
   const driverName = item.driver.name;
-
-  const stepLabel = (step: CaseStatus, index: number): string => {
-    if (index === 2 && notFound) return t("lostItem.steps.not_found");
-    return t(`lostItem.steps.${step}`);
-  };
 
   return (
     <ScreenScrollView
@@ -117,9 +137,9 @@ export default function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
       </View>
 
       <View style={styles.timeline} testID="lost-case-timeline">
-        {STEPS.map((step, index) => {
-          const done = index <= reached;
-          const last = index === STEPS.length - 1;
+        {steps.map(({ key: step, done }, index) => {
+          const last = index === steps.length - 1;
+          const nextDone = !last && steps[index + 1].done;
           return (
             <View key={step} style={[styles.step, { flexDirection: row }]}>
               <View style={styles.stepRail}>
@@ -139,7 +159,7 @@ export default function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
                   <View
                     style={[
                       styles.rail,
-                      index < reached ? styles.railDone : styles.railIdle,
+                      nextDone ? styles.railDone : styles.railIdle,
                     ]}
                   />
                 ) : null}
@@ -150,7 +170,7 @@ export default function LostItemCaseScreen({ ticketId }: { ticketId: string }) {
                 tone={done ? "default" : "muted"}
                 style={styles.stepLabel}
               >
-                {stepLabel(step, index)}
+                {t(`lostItem.steps.${step}`)}
               </AppText>
             </View>
           );

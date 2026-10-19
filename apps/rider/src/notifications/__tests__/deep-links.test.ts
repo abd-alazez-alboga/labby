@@ -46,6 +46,37 @@ describe("resolveDeepLink", () => {
     ).toEqual({ screen: "chat", params: { rideId: "r-9" } });
   });
 
+  it("maps ticket {ticketId} to the ticket thread (support-v1.yaml push)", () => {
+    expect(
+      resolveDeepLink({ screen: "ticket", params: { ticketId: "t-1" } }),
+    ).toBe("/ticket/t-1");
+    expect(resolveDeepLink({ screen: "ticket" })).toBe(
+      NOTIFICATION_CENTER_HREF,
+    );
+    expect(
+      opensNotificationCenter({ screen: "ticket", params: { ticketId: "t-1" } }),
+    ).toBe(false);
+  });
+
+  it("maps lost_item_case {ticketId} to the case screen (support-v1.yaml push)", () => {
+    expect(
+      resolveDeepLink({
+        screen: "lost_item_case",
+        params: { ticketId: "l-1" },
+      }),
+    ).toBe("/lost-item/l-1");
+    expect(resolveDeepLink({ screen: "lost_item_case" })).toBe(
+      NOTIFICATION_CENTER_HREF,
+    );
+    expect(
+      parsePushPayload({
+        notificationId: "n-7",
+        screen: "lost_item_case",
+        params: '{"ticketId":"l-7"}',
+      }).link,
+    ).toEqual({ screen: "lost_item_case", params: { ticketId: "l-7" } });
+  });
+
   it("maps a missing link to the center", () => {
     expect(resolveDeepLink(null)).toBe("/notifications");
     expect(resolveDeepLink(undefined)).toBe("/notifications");

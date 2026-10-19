@@ -268,6 +268,33 @@ describe("help search (ruling 7)", () => {
     await fireEvent.press(screen.getByTestId("help-search-create-ticket"));
     expect(mockPush).toHaveBeenCalledWith("/new-ticket");
   });
+
+  it("a failed search shows the error view with retry, not the empty state", async () => {
+    mockApi({
+      [SEARCH]: [
+        { status: 500, body: { code: "internal", message: "boom" } },
+        { status: 200, body: [articleSummary()] },
+      ],
+    });
+    await render(
+      <LocaleProvider>
+        <HelpSearchScreen />
+      </LocaleProvider>,
+    );
+
+    await fireEvent.changeText(screen.getByTestId("help-search-input"), "refund");
+    expect(await screen.findByTestId("help-search-error")).toBeOnTheScreen();
+    expect(
+      screen.getByText("Something went wrong on our side"),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId("help-search-count")).toBeNull();
+
+    await fireEvent.press(screen.getByTestId("error-retry"));
+    expect(
+      await screen.findByText("When do I get a refund to my wallet?"),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId("help-search-error")).toBeNull();
+  });
 });
 
 describe("feedback (UC-S-22, FDBK-01)", () => {

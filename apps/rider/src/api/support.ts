@@ -156,6 +156,9 @@ export interface Party {
 
 export type ChatWindow = "open" | "read_only" | "reopened";
 
+/** The result a lost-item case reached (T6 amendment i). */
+export type LostItemOutcome = "found" | "not_found" | "returned";
+
 export interface LostItemCase {
   ticketId: string;
   caseStatus: CaseStatus;
@@ -167,6 +170,10 @@ export interface LostItemCase {
   driver: Party;
   /** comms-v1 window state of the reporter's thread. */
   chatWindow: ChatWindow;
+  /** The reporter's shared-ride member (T6 amendment h); null on one-rider rides. */
+  memberId: string | null;
+  /** The last of found / not_found / returned reached, kept after closure (T6 amendment i). */
+  outcome: LostItemOutcome | null;
   createdAt: string;
   updatedAt: string;
 }
