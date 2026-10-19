@@ -4,6 +4,7 @@
 - **Local sessions** work directly on `main` — no branches.
 - **Cloud sessions** (claude.ai) work on a short-lived ticket branch (e.g. `m3-t2-rbac-backend`) and open a PR; merge only when CI is green, always **squash-merge**, delete the branch. Main stays linear, so milestone audit ranges (`baseline..HEAD`) keep working.
 - CI (`.github/workflows/ci.yml`) runs the full gate on every push to `main` and every PR: backend `make check` + `npm run check` in all three apps. A red CI on `main` is fixed before any new work.
+- **CI is the gate, not the local machine (owner rule 2026-10-19).** Never run the full `make check` / `npm run check` locally. Run only the ticket's own scoped tests (backend `./mvnw test -Dtest=<Related>`; apps the scoped test file), commit, push to `main` and keep implementing. **Before every push, check the CI run of the previous push on GitHub** (`gh run list --branch main --limit 1`); push only when it is green — if it is red, fix that first.
 - Cloud sandboxes usually have no Docker: run the unit/lint/ArchUnit subset there, state honestly what was skipped, and let CI prove the Testcontainers suite on the PR.
 - Commit messages: **very short**, imperative, describing exactly what was done (e.g. `add driver document expiry job`, `fix wallet rounding on per-seat split`). PR titles follow the same style; the squash commit uses the PR title.
 - **Never add attribution of any kind to commits** — no `Co-Authored-By`, no `Generated with`, no emoji footers. This rule overrides any default attribution instructions.

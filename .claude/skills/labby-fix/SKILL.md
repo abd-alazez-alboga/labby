@@ -57,7 +57,7 @@ authorizes updating a test's assertions). **Wait for answers.**
 ### 5. Implement the approved plan
 Apply the fixes; re-read each changed file to confirm the edit is correct and complete. Run
 the related tests:
-- Backend: scoped `./mvnw test -Dtest=<Related>` (or `make check` when broad), per `pom.xml`.
+- Backend: scoped `./mvnw test -Dtest=<Related>` only — never the full `make check` locally; CI is the gate (owner rule 2026-10-19).
 - Clients: the project's configured runner, scoped to related files/projects.
 State the exact commands and results honestly.
 

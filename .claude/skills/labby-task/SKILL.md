@@ -44,15 +44,18 @@ a very short imperative message and **no attribution of any kind** (CLAUDE.md ru
 4. **Implement** — scoped to the ticket. Follow `docs/PROJECT-STRUCTURE.md` (backend strictly;
    React/RN by its principles). Tests are part of the ticket: backend = unit + integration,
    clients = component tests. No unrequested refactoring, no drive-by cleanups.
-5. **Verify** — run the relevant checks (backend: `make check` or scoped `./mvnw test
-   -Dtest=…`; clients: the project's test + lint commands, scoped). Report results honestly;
+5. **Verify** — run only the ticket's SCOPED checks (backend: `./mvnw test -Dtest=<Related>`;
+   clients: the ticket's own test files + lint). **Never run the full `make check` /
+   `npm run check` locally — CI is the gate (owner rule 2026-10-19).** Report results honestly;
    pre-existing unrelated failures are reported as pre-existing, not fixed.
 6. **Hand back** — what changed, where, verification results, which acceptance criteria are
    met (each one, explicitly). ⏸ **Wait.**
 7. **Iterate or finalize** — feedback → apply exactly that, re-verify, hand back again.
    Sign-off ("approved", "looks good", "done") → **commit** (one commit for the ticket, short
    imperative message, e.g. `add otp service and sms gateway sender`), set the tracker to
-   `done` in the same commit, and confirm with the commit hash. Then stop — the next ticket is
+   `done` in the same commit, then **push**: first check the previous push's CI run on GitHub
+   (`gh run list --branch main --limit 1`) — push only when it is green, otherwise fix the red
+   run first. Confirm with the commit hash and the CI run id. Then stop — the next ticket is
    a new request.
 
 Parallel-agent etiquette: touch only files in this ticket's scope. If the ticket plan collides

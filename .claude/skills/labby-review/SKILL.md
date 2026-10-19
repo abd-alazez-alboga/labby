@@ -52,7 +52,7 @@ Collect deterministically: `git log --oneline <range>`, `git diff --stat <range>
    - **Structure conformance** — `docs/PROJECT-STRUCTURE.md`: backend layering/conventions,
      client principles, ArchUnit/lint gates not weakened, migrations sane, no secrets.
    - **Tests** — present, meaningful (assert behavior, not padding), green. Run the relevant
-     suites (`make check` / scoped equivalents) and include results in the report.
+     suites — the SCOPED equivalents only, never the full `make check` locally (owner rule 2026-10-19; cite the CI run on GitHub for the full gate) — and include results in the report.
    - **Mess check** — dead code, leftovers, debug output, commented-out blocks, tracker
      drift (tracker says done but AC unmet, or vice versa).
 5. **Verification gate before writing ANY finding:** can I point at the exact line, and have
