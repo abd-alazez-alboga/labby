@@ -65,8 +65,11 @@ export default function UserWalletPage() {
   const canRides = can('rides:view');
   const currencyLabel = useCurrencyLabel();
 
-  // The lookup page passes the display name along; a cold URL has none.
-  const passedName = (location.state as { name?: string } | null)?.name;
+  // The lookup page passes the display name along; a cold URL has none. The
+  // M14 ticket remedy deep link also pre-fills the grant reason (UC-A-21 A2).
+  const passedState = location.state as { name?: string; grantReason?: string } | null;
+  const passedName = passedState?.name;
+  const grantReason = passedState?.grantReason ?? '';
 
   const [wallet, setWallet] = useState<WalletView | null>(null);
   const [walletError, setWalletError] = useState<FailureKind | null>(null);
@@ -197,6 +200,7 @@ export default function UserWalletPage() {
               currencies={currencies}
               rides={canRides ? riddenRides : null}
               onCredited={onCredited}
+              initialReason={grantReason}
             />
           ) : null
         }

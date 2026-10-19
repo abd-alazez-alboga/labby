@@ -81,6 +81,32 @@ export function Sidenav() {
             ) : null}
           </NavLink>
         ) : null}
+        {can('support:view') ? (
+          <>
+            <NavLink to="/support" className={linkClass}>
+              {t('nav.support')}
+              {queueCounts.support ? (
+                <span
+                  className="sidenav__count"
+                  aria-label={t('nav.openCount', { count: queueCounts.support })}
+                >
+                  {queueCounts.support}
+                </span>
+              ) : null}
+            </NavLink>
+            <NavLink to="/lost-items" className={linkClass}>
+              {t('nav.lostItems')}
+            </NavLink>
+            <NavLink to="/feedback" className={linkClass}>
+              {t('nav.feedback')}
+            </NavLink>
+          </>
+        ) : null}
+        {can('content:view') ? (
+          <NavLink to="/help-center" className={linkClass}>
+            {t('nav.helpCenter')}
+          </NavLink>
+        ) : null}
         {can('driver-review:view') ? (
           <>
             <NavLink to="/driver-applications" className={linkClass}>

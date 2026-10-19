@@ -40,6 +40,14 @@ const PromosPage = lazy(() => import('../pages/PromosPage'));
 const PromoCreatePage = lazy(() => import('../pages/PromoCreatePage'));
 const ChallengesPage = lazy(() => import('../pages/ChallengesPage'));
 const ChallengeDetailPage = lazy(() => import('../pages/ChallengeDetailPage'));
+const SupportTicketsPage = lazy(() => import('../pages/SupportTicketsPage'));
+const SupportTicketDetailPage = lazy(() => import('../pages/SupportTicketDetailPage'));
+const TicketCategoriesPage = lazy(() => import('../pages/TicketCategoriesPage'));
+const LostItemsPage = lazy(() => import('../pages/LostItemsPage'));
+const LostItemCasePage = lazy(() => import('../pages/LostItemCasePage'));
+const HelpCmsPage = lazy(() => import('../pages/HelpCmsPage'));
+const HelpArticleEditorPage = lazy(() => import('../pages/HelpArticleEditorPage'));
+const FeedbackPage = lazy(() => import('../pages/FeedbackPage'));
 
 export function App() {
   return (
@@ -207,6 +215,98 @@ export function App() {
                     <Suspense fallback={<div className="loading" />}>
                       <RequirePermission permission="challenges:view">
                         <ChallengeDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* M14 support & content (UC-A-21…25). */}
+                <Route
+                  path="support"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="support:view">
+                        <SupportTicketsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* Before /support/:ticketId so "categories" never matches as an id. */}
+                <Route
+                  path="support/categories"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="content:view">
+                        <TicketCategoriesPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="support/:ticketId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="support:view">
+                        <SupportTicketDetailPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="lost-items"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="support:view">
+                        <LostItemsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="lost-items/:ticketId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="support:view">
+                        <LostItemCasePage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="help-center"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="content:view">
+                        <HelpCmsPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="help-center/articles/new"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="content:manage">
+                        <HelpArticleEditorPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="help-center/articles/:helpArticleId"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="content:view">
+                        <HelpArticleEditorPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="feedback"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="support:view">
+                        <FeedbackPage />
                       </RequirePermission>
                     </Suspense>
                   }

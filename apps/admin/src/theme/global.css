@@ -3012,3 +3012,242 @@ input[type='radio'] {
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* M14 support (A14 boards): the ticket thread, its event chips and composer. */
+.thread {
+  padding-block: var(--labby-space-2);
+}
+
+.thread__event {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--labby-text-muted);
+  background: var(--labby-surface-page);
+  padding: 4px 12px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.thread__attachments {
+  display: flex;
+  gap: var(--labby-space-2);
+  flex-wrap: wrap;
+}
+
+.thread__composer {
+  display: flex;
+  gap: var(--labby-space-2);
+  align-items: center;
+  margin-block-start: var(--labby-space-3);
+}
+
+.thread__composer input {
+  flex-grow: 1;
+  block-size: 44px;
+  padding: 0 var(--labby-space-3);
+  border: 1.5px solid var(--labby-grab-handle);
+  border-radius: var(--labby-radius-button-lg);
+  background: var(--labby-surface);
+  font: inherit;
+  color: var(--labby-text);
+}
+
+/* The lost-item case progress rail (A14LostCase): done / current / upcoming. */
+.case-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-2);
+}
+
+.case-steps__step {
+  display: flex;
+  align-items: center;
+  gap: var(--labby-space-2);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.case-steps__step--upcoming {
+  color: var(--labby-text-muted);
+}
+
+.case-steps__dot {
+  inline-size: 22px;
+  block-size: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--labby-grab-handle);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.case-steps__step--done .case-steps__dot {
+  border: none;
+  background: var(--labby-accent);
+}
+
+.case-steps__when {
+  margin-inline-start: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--labby-text-muted);
+}
+
+/* M14 help CMS (A14HelpCms): the category list with order arrows. */
+.help-cats {
+  display: flex;
+  flex-direction: column;
+  padding: var(--labby-space-2);
+}
+
+.help-cats__row {
+  display: flex;
+  align-items: center;
+  gap: var(--labby-space-2);
+  padding: var(--labby-space-2) var(--labby-space-3);
+  border-radius: 10px;
+}
+
+.help-cats__row--active {
+  background: var(--labby-accent-tint);
+}
+
+.help-cats__name {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: start;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+}
+
+.help-cats__row--active .help-cats__name {
+  color: var(--labby-accent);
+  font-weight: 800;
+}
+
+.help-cats__counts {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--labby-text-muted);
+}
+
+.help-cats__arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.help-cats__arrows .btn {
+  block-size: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* M14 help editor (A14HelpEditor): EN/AR side by side. */
+.help-editor {
+  display: flex;
+  gap: var(--labby-space-4);
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.help-editor__lang {
+  flex: 1 1 420px;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-3);
+}
+
+.help-editor__lang textarea {
+  min-block-size: 280px;
+  padding: var(--labby-space-3);
+  border: 1.5px solid var(--labby-grab-handle);
+  border-radius: 10px;
+  background: var(--labby-surface);
+  font: inherit;
+  line-height: 1.6;
+  color: var(--labby-text);
+  resize: vertical;
+}
+
+/* M14 feedback (A14Feedback): tags and the trend grid. */
+.tag-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tag-row form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag-row input {
+  block-size: 28px;
+  inline-size: 110px;
+  padding: 0 var(--labby-space-2);
+  border: 1.5px solid var(--labby-grab-handle);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.trend {
+  display: grid;
+  gap: 8px 14px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.trend__head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--labby-text-muted);
+  text-align: center;
+}
+
+.trend__head--end,
+.trend__total {
+  text-align: end;
+}
+
+.trend__label,
+.trend__total {
+  font-weight: 700;
+}
+
+.trend__cell {
+  block-size: 22px;
+  border-radius: 6px;
+  background: var(--labby-surface-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--labby-text-secondary);
+}
+
+.trend__cell--warm {
+  background: var(--labby-accent-tint);
+  color: var(--labby-accent);
+}
+
+.trend__cell--hot {
+  background: #e3d3f0;
+  color: #3d0b57;
+}

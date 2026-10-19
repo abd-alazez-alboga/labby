@@ -20,7 +20,11 @@
     "flags": "Flagged accounts",
     "openCount": "{{count}} open",
     "promos": "Promotions",
-    "challenges": "Challenges"
+    "challenges": "Challenges",
+    "support": "Support",
+    "lostItems": "Lost items",
+    "helpCenter": "Help center",
+    "feedback": "Feedback"
   },
   "api": {
     "checking": "Checking API…",
@@ -677,7 +681,8 @@
     "admins": "Admin accounts",
     "roles": "Roles",
     "reports": "Reports",
-    "challenges": "Challenges"
+    "challenges": "Challenges",
+    "content": "Content"
   },
   "permissionCodes": {
     "users": {
@@ -737,6 +742,10 @@
     "challenges": {
       "view": "View challenges",
       "manage": "Manage challenges"
+    },
+    "content": {
+      "view": "View help content & ticket categories",
+      "manage": "Manage help content & ticket categories"
     }
   },
   "toast": {
@@ -1677,5 +1686,295 @@
       "endFailed": "Couldn't end the challenge. Try again.",
       "notFound": "Challenge not found."
     }
+  },
+  "support": {
+    "title": "Support tickets",
+    "manageCategories": "Manage categories",
+    "kpi": {
+      "openUnassigned": "Open · unassigned",
+      "waitingOnUser": "Waiting on user",
+      "urgentNotResolved": "Urgent, not resolved"
+    },
+    "statusLabel": "Ticket status",
+    "tabs": {
+      "needsAction": "Needs action"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "waiting_on_user": "Waiting on user",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    },
+    "filters": {
+      "category": "Category",
+      "allCategories": "All categories",
+      "currentCategory": "Current category",
+      "priority": "Priority",
+      "allPriorities": "All priorities",
+      "assignee": "Assignee",
+      "anyAssignee": "Any assignee",
+      "assignedToMe": "Assigned to me",
+      "unassigned": "Unassigned"
+    },
+    "columns": {
+      "ticket": "Ticket",
+      "category": "Category",
+      "priority": "Priority",
+      "status": "Status",
+      "assignee": "Assignee",
+      "age": "Age",
+      "action": "Action"
+    },
+    "age": {
+      "minutes": "{{count}} min",
+      "hours": "{{count}} h",
+      "days": "{{count}} d"
+    },
+    "open": "Open",
+    "openFor": "Open ticket: {{excerpt}}",
+    "empty": "No tickets here.",
+    "sortNote": "Sorted by priority, then oldest first · page {{page}} of {{total}}"
+  },
+  "ticketDetail": {
+    "back": "Support tickets",
+    "notFound": "Ticket not found.",
+    "opened": "opened {{when}}",
+    "waitingSince": "waiting since {{when}}",
+    "openedBy": "opened by {{name}} for the user",
+    "lostItemNotice": "This is a lost-item case — its status follows the case, not the ticket.",
+    "openCase": "Open the case",
+    "statusTitle": "Status",
+    "moveTo": {
+      "in_progress": "Move to In progress",
+      "waiting_on_user": "Set Waiting on user",
+      "resolved": "Mark resolved",
+      "closed": "Close ticket"
+    },
+    "statusHint": "A user reply also moves the ticket back to In progress. Closed is only reachable from Resolved. The user is notified on every change.",
+    "triageTitle": "Priority & assignee",
+    "priorityLabel": "Priority",
+    "priorityDefault": "{{priority}} (category default)",
+    "assigneeLabel": "Assignee",
+    "assigneeMe": "{{name}} (me)",
+    "triageHint": "Overrides are recorded in the ticket history.",
+    "rideTitle": "Linked ride",
+    "remedyTitle": "Remedy",
+    "grantCredit": "Grant wallet credit…",
+    "remedyHint": "Opens the user's wallet with the usual grant flow; the credit notifies them and is audit-logged.",
+    "remedyReason": "Support ticket {{ref}}",
+    "threadTitle": "Thread",
+    "attachmentCount": "Attachments: {{count}}",
+    "attachment": "Attachment {{n}}",
+    "replyPlaceholder": "Reply to {{name}}…",
+    "replyLabel": "Reply",
+    "send": "Send",
+    "closedReadOnly": "This ticket is closed — the thread is read-only.",
+    "errors": {
+      "assigneeNotHandler": "That admin can't handle support tickets.",
+      "conflict": "The ticket changed in the meantime — showing the latest state.",
+      "actionFailed": "Couldn't apply the change. Try again."
+    },
+    "event": {
+      "opened": "Ticket opened · {{when}}",
+      "status": "Status {{from}} → {{to}} · {{when}} · user notified",
+      "priority": "Priority {{from}} → {{to}} · {{when}}",
+      "assigned": "Assigned by {{name}} · {{when}}",
+      "unassigned": "Unassigned by {{name}} · {{when}}",
+      "caseStatus": "Case {{from}} → {{to}} · {{when}} · both parties notified",
+      "reminder": "Waiting reminder sent · {{when}}"
+    }
+  },
+  "lostItems": {
+    "title": "Lost-item cases",
+    "subtitle": "While a case is open, the ride chat between its rider and driver stays open. Closing the case makes the chat read-only again.",
+    "statusLabel": "Case status",
+    "tabs": {
+      "open": "Open cases"
+    },
+    "caseStatus": {
+      "reported": "Reported",
+      "driver_contacted": "Driver contacted",
+      "found": "Found",
+      "not_found": "Not found",
+      "returned": "Returned",
+      "closed": "Closed"
+    },
+    "columns": {
+      "item": "Item",
+      "rider": "Rider",
+      "driver": "Driver",
+      "ride": "Ride",
+      "caseStatus": "Case status",
+      "reported": "Reported"
+    },
+    "empty": "No lost-item cases here."
+  },
+  "lostCase": {
+    "back": "Lost-item cases",
+    "notFound": "Case not found.",
+    "notACase": "This ticket isn't a lost-item case.",
+    "openTicket": "Open the ticket",
+    "reportedAt": "reported {{when}}",
+    "progressTitle": "Case progress",
+    "stage": {
+      "reported": "Reported",
+      "driverContacted": "Driver contacted",
+      "outcome": "Found / Not found",
+      "closure": "Returned → Closed"
+    },
+    "moveTo": {
+      "driver_contacted": "Mark driver contacted",
+      "found": "Mark found",
+      "not_found": "Not found",
+      "returned": "Mark returned",
+      "closed": "Close case"
+    },
+    "progressHint": "Each change notifies both rider and driver. The ticket status mirrors the case. Closing the case makes the ride chat read-only again.",
+    "reportTitle": "Report",
+    "photo": "Photo {{n}}",
+    "chatReopened": "The ride chat is reopened while this case is open. Chat is read-only for admins — support messages the rider in the ticket thread.",
+    "chatReadOnly": "The ride chat is read-only. Chat is read-only for admins — support messages the rider in the ticket thread.",
+    "threadTitle": "Ticket thread with {{name}}"
+  },
+  "helpCms": {
+    "title": "Help center",
+    "subtitle": "Published articles appear in both apps immediately. Publishing needs the full EN + AR text.",
+    "newArticle": "New article",
+    "actionFailed": "Couldn't apply the change. Try again.",
+    "categoriesTitle": "Categories",
+    "addCategory": "Add",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "published": "{{count}} published",
+    "drafts": "{{count}} draft(s)",
+    "hiddenWhileEmpty": "hidden in apps while empty",
+    "rename": "Rename",
+    "noCategories": "No help categories yet.",
+    "nameEn": "Name · EN",
+    "nameAr": "Name · AR",
+    "cancel": "Cancel",
+    "orderHint": "Use the arrows to set the order the apps show. A category appears in the apps only while it has at least one published article.",
+    "articlesTitle": "{{name}} · articles",
+    "articlesOrdered": "ordered as shown in the apps",
+    "noArticles": "No articles in this category yet.",
+    "columns": {
+      "order": "Order",
+      "title": "Title (EN · AR)",
+      "status": "Status",
+      "updated": "Updated"
+    },
+    "untitled": "Untitled draft",
+    "missingNote": "Missing before publish: {{fields}}",
+    "status": {
+      "draft": "Draft",
+      "published": "Published"
+    },
+    "edit": "Edit"
+  },
+  "helpEditor": {
+    "back": "Help center",
+    "notFound": "Article not found.",
+    "newTitle": "New article",
+    "editTitle": "Edit article",
+    "saveDraft": "Save draft",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "categoryLabel": "Category",
+    "blocked": "Publishing is blocked — still missing: {{fields}}. Both languages are required before an article can go live.",
+    "notice": {
+      "saved": "Draft saved.",
+      "published": "Published — the apps show it immediately.",
+      "unpublished": "Back to draft — it disappears from the apps on the next read."
+    },
+    "errors": {
+      "translationMissing": "Publishing refused: a text is still missing in one language.",
+      "bodyTooLong": "The body is over 20,000 characters.",
+      "saveFailed": "Couldn't save. Try again."
+    },
+    "enTitle": "English",
+    "arTitle": "Arabic · العربية",
+    "titleLabel": "Title",
+    "titleArLabel": "Title · AR",
+    "bodyLabel": "Body — plain text · paragraphs · up to 20,000 characters",
+    "bodyArLabel": "Body · AR",
+    "charCount": "{{count}} characters",
+    "fields": {
+      "titleEn": "title EN",
+      "titleAr": "title AR",
+      "bodyEn": "body EN",
+      "bodyAr": "body AR"
+    }
+  },
+  "ticketCategories": {
+    "title": "Ticket categories",
+    "subtitle": "New tickets pick from this list and are born with the category's default priority. Existing tickets keep their category.",
+    "newCategory": "New category",
+    "editTitle": "Edit category",
+    "create": "Create",
+    "save": "Save",
+    "empty": "No ticket categories yet.",
+    "columns": {
+      "nameEn": "Name · EN",
+      "nameAr": "Name · AR",
+      "defaultPriority": "Default priority",
+      "openTickets": "Tickets",
+      "status": "Status"
+    },
+    "system": "System",
+    "systemNote": "Used by lost-item reports only — can't be edited, deactivated or picked on a plain ticket",
+    "active": "Active",
+    "deactivated": "Deactivated",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "footnote": "Deactivating hides a category from the apps' create-ticket picker; existing tickets keep it. Changes need the Manage content permission and are audit-logged."
+  },
+  "feedback": {
+    "title": "Feedback",
+    "subtitle": "Suggestions from both apps. No reply is promised to users — tag entries to group themes.",
+    "trendTitle": "Entries by category · last 4 weeks",
+    "trendRange": "weekly buckets, both apps unless filtered",
+    "trendTotal": "Total",
+    "appLabel": "App",
+    "apps": {
+      "all": "All apps",
+      "rider": "Rider",
+      "driver": "Driver"
+    },
+    "categoryLabel": "Category",
+    "allCategories": "All categories",
+    "category": {
+      "app_experience": "App experience",
+      "pricing": "Pricing",
+      "drivers": "Drivers",
+      "safety": "Safety",
+      "feature_request": "Feature request",
+      "other": "Other"
+    },
+    "periodLabel": "Period",
+    "period": {
+      "30d": "Last 30 days",
+      "7d": "Last 7 days",
+      "all": "All time"
+    },
+    "tagFailed": "Couldn't save the tag. Try again.",
+    "empty": "No feedback here.",
+    "columns": {
+      "date": "Date",
+      "app": "App",
+      "category": "Category",
+      "feedback": "Feedback",
+      "tags": "Tags"
+    },
+    "tagLabel": "New tag",
+    "tagSave": "Add",
+    "addTag": "+ tag"
   }
 }

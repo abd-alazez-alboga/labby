@@ -25,6 +25,7 @@ export function GrantRefundPanel({
   currencies,
   rides,
   onCredited,
+  initialReason = '',
 }: {
   userId: string;
   /** Currencies offered in the form; the wallet's, defaulting to SYP. */
@@ -36,6 +37,8 @@ export function GrantRefundPanel({
   rides: readonly AdminRideSummary[] | null;
   /** Called with the created transaction so the page refreshes instantly. */
   onCredited: (transaction: WalletTransaction) => void;
+  /** Pre-filled reason — the M14 ticket remedy deep link (UC-A-21 A2). */
+  initialReason?: string;
 }) {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
@@ -48,7 +51,7 @@ export function GrantRefundPanel({
   const [rideChoice, setRideChoice] = useState('');
   // The typed ride ID — the only input without rides:view.
   const [typedRideId, setTypedRideId] = useState('');
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState(initialReason);
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
