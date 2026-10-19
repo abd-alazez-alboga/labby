@@ -50,7 +50,8 @@ function weekStart(weeksBack: number, nowMs: number = Date.now()): Date {
  * (the stats endpoint, last 4 ISO weeks), app / category / period filters,
  * and the entries with their free-text tags (trimmed, lower-cased, ≤ 30
  * chars server-side). No reply is promised to users (FDBK-01) — tags group
- * themes. `support:view` (route); tagging needs `support:handle`.
+ * themes; clicking a tag filters the list by it. `support:view` (route);
+ * adding / removing tags needs `support:handle`.
  */
 export default function FeedbackPage() {
   const { t, i18n } = useTranslation();
@@ -63,10 +64,13 @@ export default function FeedbackPage() {
   const app = (params.get('app') ?? '') as AppFilter;
   const category = parseCategory(params.get('category'));
   const period = parsePeriod(params.get('period'));
+  const tagFilter = params.get('tag') ?? '';
   const page = Math.max(0, Number(params.get('page')) || 0);
 
   const [result, setResult] = useState<AdminFeedbackPage | null>(null);
   const [stats, setStats] = useState<FeedbackStats | null>(null);
+  const [statsError, setStatsError] = useState<FailureKind | null>(null);
+  const [statsAttempt, setStatsAttempt] = useState(0);
   const [loadError, setLoadError] = useState<FailureKind | null>(null);
   const [attempt, setAttempt] = useState(0);
   // The entry whose "+ tag" input is open, and its draft text.
@@ -86,6 +90,9 @@ export default function FeedbackPage() {
     if (category) {
       query.category = category;
     }
+    if (tagFilter) {
+      query.tag = tagFilter;
+    }
     if (period !== 'all') {
       const days = period === '7d' ? 7 : 30;
       query.from = new Date(Date.now() - days * DAY_MS).toISOString();
@@ -104,13 +111,14 @@ export default function FeedbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiClient, app, category, period, page, attempt]);
+  }, [apiClient, app, category, period, tagFilter, page, attempt]);
 
   // The trend is fixed to the last 4 whole-plus-current ISO weeks; only the
   // app filter applies to it (the board's "Entries by category" section).
   useEffect(() => {
     let cancelled = false;
     setStats(null);
+    setStatsError(null);
     getFeedbackStats(apiClient, {
       from: weekStart(TREND_WEEKS - 1).toISOString(),
       to: weekStart(-1).toISOString(),
@@ -122,15 +130,15 @@ export default function FeedbackPage() {
           setStats(loaded);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setStats(null);
+          setStatsError(classifyError(error));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [apiClient, app, attempt]);
+  }, [apiClient, app, statsAttempt]);
 
   function navigate(changes: Record<string, string>) {
     const next = new URLSearchParams(params);
@@ -155,15 +163,11 @@ export default function FeedbackPage() {
     setParams(next);
   }
 
-  function submitTag(event: FormEvent, entry: AdminFeedback) {
-    event.preventDefault();
-    const tag = tagDraft.trim().toLowerCase();
-    if (!tag || tag.length > 30 || busy) {
-      return;
-    }
+  /** PUT the entry's complete new tag set (the endpoint replaces it). */
+  function saveTags(entry: AdminFeedback, tags: readonly string[], onSaved?: () => void) {
     setBusy(true);
     setTagError(false);
-    setFeedbackTags(apiClient, entry.feedbackId, [...new Set([...entry.tags, tag])])
+    setFeedbackTags(apiClient, entry.feedbackId, tags)
       .then((updated) => {
         setResult((current) =>
           current
@@ -175,11 +179,32 @@ export default function FeedbackPage() {
               }
             : current,
         );
-        setTagging(null);
-        setTagDraft('');
+        onSaved?.();
       })
       .catch(() => setTagError(true))
       .finally(() => setBusy(false));
+  }
+
+  function submitTag(event: FormEvent, entry: AdminFeedback) {
+    event.preventDefault();
+    const tag = tagDraft.trim().toLowerCase();
+    if (!tag || tag.length > 30 || busy) {
+      return;
+    }
+    saveTags(entry, [...new Set([...entry.tags, tag])], () => {
+      setTagging(null);
+      setTagDraft('');
+    });
+  }
+
+  function removeTag(entry: AdminFeedback, tag: string) {
+    if (busy) {
+      return;
+    }
+    saveTags(
+      entry,
+      entry.tags.filter((existing) => existing !== tag),
+    );
   }
 
   const maxCell = stats
@@ -204,7 +229,13 @@ export default function FeedbackPage() {
         title={t('feedback.trendTitle')}
         actions={<span className="panel__hint">{t('feedback.trendRange')}</span>}
       >
-        {stats === null ? (
+        {statsError ? (
+          <LoadFailure
+            kind={statsError}
+            notFoundKey="review.errors.server"
+            onRetry={() => setStatsAttempt((n) => n + 1)}
+          />
+        ) : stats === null ? (
           <div className="loading">{t('common.loading')}</div>
         ) : (
           <div
@@ -267,6 +298,21 @@ export default function FeedbackPage() {
           <option value="7d">{t('feedback.period.7d')}</option>
           <option value="all">{t('feedback.period.all')}</option>
         </select>
+        {tagFilter ? (
+          <span className="chip chip--accent tag-chip">
+            <span>
+              {t('feedback.tagFilter')} <span dir="ltr">{tagFilter}</span>
+            </span>
+            <button
+              className="tag-chip__remove"
+              type="button"
+              aria-label={t('feedback.clearTagFilter')}
+              onClick={() => navigate({ tag: '' })}
+            >
+              ×
+            </button>
+          </span>
+        ) : null}
       </div>
 
       {tagError ? (
@@ -320,8 +366,27 @@ export default function FeedbackPage() {
                 <td>
                   <div className="tag-row">
                     {entry.tags.map((tag) => (
-                      <span key={tag} className="chip chip--accent" dir="ltr">
-                        {tag}
+                      <span key={tag} className="chip chip--accent tag-chip" dir="ltr">
+                        <button
+                          className="tag-chip__filter"
+                          type="button"
+                          aria-label={t('feedback.filterByTag', { tag })}
+                          aria-pressed={tag === tagFilter}
+                          onClick={() => navigate({ tag })}
+                        >
+                          {tag}
+                        </button>
+                        {canHandle ? (
+                          <button
+                            className="tag-chip__remove"
+                            type="button"
+                            aria-label={t('feedback.removeTag', { tag })}
+                            disabled={busy}
+                            onClick={() => removeTag(entry, tag)}
+                          >
+                            ×
+                          </button>
+                        ) : null}
                       </span>
                     ))}
                     {canHandle ? (

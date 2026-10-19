@@ -312,6 +312,7 @@ export default function LostItemCasePage() {
               rideId={ticket.ride.rideId}
               riderName={ticket.user.name}
               driverName={driver?.name ?? null}
+              memberId={ticket.lostItem?.memberId ?? null}
             />
           </>
         ) : null}

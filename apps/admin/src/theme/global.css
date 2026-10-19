@@ -3190,6 +3190,35 @@ input[type='radio'] {
   flex-wrap: wrap;
 }
 
+.tag-chip {
+  gap: 4px;
+}
+
+.tag-chip__filter,
+.tag-chip__remove {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tag-chip__filter:hover {
+  text-decoration: underline;
+}
+
+.tag-chip__remove {
+  padding-inline: 2px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.tag-chip__remove:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .tag-row form {
   display: flex;
   gap: 6px;

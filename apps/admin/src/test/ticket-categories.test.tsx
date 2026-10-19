@@ -11,7 +11,14 @@ import {
   SYSTEM_CATEGORY,
   ticketCategory,
 } from './support-fixtures';
-import { callsTo, jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
+import {
+  callsTo,
+  emptyResponse,
+  jsonResponse,
+  renderShell,
+  seedStoredSession,
+  sessionFor,
+} from './test-utils';
 
 /**
  * UC-A-24 against contract mocks: the category table (inactive + the locked
@@ -33,7 +40,7 @@ describe('ticket categories', () => {
     vi.unstubAllGlobals();
   });
 
-  function stubCategories(user = CONTENT_ADMIN) {
+  function stubCategories(user = CONTENT_ADMIN, extra: AdminTicketCategory[] = []) {
     seedStoredSession(sessionFor(user));
     let categories: AdminTicketCategory[] = [
       ticketCategory(),
@@ -46,6 +53,7 @@ describe('ticket categories', () => {
         active: false,
         ticketCount: 0,
       }),
+      ...extra,
     ];
     return {
       fetchMock: stubSupportRoutes(user, (method, path, init) => {
@@ -65,6 +73,13 @@ describe('ticket categories', () => {
           return jsonResponse(201, categories[categories.length - 1]);
         }
         const patched = /^\/api\/v1\/admin\/ticket-categories\/(.+)$/.exec(path);
+        if (method === 'DELETE' && patched) {
+          if (patched[1] === 'cat-raced') {
+            return jsonResponse(409, { status: 409, message: 'in use', code: 'category_in_use' });
+          }
+          categories = categories.filter((category) => category.ticketCategoryId !== patched[1]);
+          return emptyResponse();
+        }
         if (method === 'PATCH' && patched) {
           if (patched[1] === SYSTEM_CATEGORY.ticketCategoryId) {
             return jsonResponse(409, { status: 409, message: 'system', code: 'system_category' });
@@ -145,6 +160,55 @@ describe('ticket categories', () => {
     expect(latest().find((c) => c.nameEn === 'Safety')?.defaultPriority).toBe('urgent');
   });
 
+  it('deletes only unused, non-system categories after a confirm', async () => {
+    const { fetchMock, latest } = stubCategories();
+    const user = userEvent.setup();
+    renderShell();
+
+    await screen.findByText('Payments');
+    const rows = screen.getAllByRole('row').slice(1);
+    // Used (7 tickets) and system rows never offer Delete.
+    expect(within(rows[0]).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    expect(within(rows[1]).queryByRole('button')).not.toBeInTheDocument();
+
+    await user.click(within(rows[2]).getByRole('button', { name: 'Delete' }));
+    expect(within(rows[2]).getByText('Delete this category?')).toBeInTheDocument();
+    await user.click(within(rows[2]).getByRole('button', { name: 'Confirm' }));
+
+    await vi.waitFor(() => expect(screen.queryByText('Promotions')).not.toBeInTheDocument());
+    expect(latest().map((c) => c.nameEn)).toEqual(['Payments', 'Lost item']);
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          String(input).endsWith('/admin/ticket-categories/cat-promos') &&
+          (init as RequestInit | undefined)?.method === 'DELETE',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('explains a 409 category_in_use on delete', async () => {
+    stubCategories(CONTENT_ADMIN, [
+      ticketCategory({
+        ticketCategoryId: 'cat-raced',
+        nameEn: 'Accounts',
+        nameAr: 'الحسابات',
+        ticketCount: 0,
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderShell();
+
+    await screen.findByText('Accounts');
+    const row = screen.getAllByRole('row').find((r) => r.textContent?.includes('Accounts'))!;
+    await user.click(within(row).getByRole('button', { name: 'Delete' }));
+    await user.click(within(row).getByRole('button', { name: 'Confirm' }));
+    expect(
+      await screen.findByText(
+        "Tickets now use this category, so it can't be deleted — deactivate it instead.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('offers no writes with content:view alone', async () => {
     stubCategories(CONTENT_VIEWER);
     renderShell();
@@ -154,5 +218,6 @@ describe('ticket categories', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Deactivate' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reactivate' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 });

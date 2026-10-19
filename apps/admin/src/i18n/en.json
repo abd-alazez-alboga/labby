@@ -1876,7 +1876,13 @@
       "draft": "Draft",
       "published": "Published"
     },
-    "edit": "Edit"
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteNamed": "Delete {{name}}",
+    "deleteConfirm": "Delete this category?",
+    "errors": {
+      "categoryNotEmpty": "This category now has articles, so it can't be deleted."
+    }
   },
   "helpEditor": {
     "back": "Help center",
@@ -1934,7 +1940,13 @@
     "edit": "Edit",
     "deactivate": "Deactivate",
     "reactivate": "Reactivate",
-    "footnote": "Deactivating hides a category from the apps' create-ticket picker; existing tickets keep it. Changes need the Manage content permission and are audit-logged."
+    "footnote": "Deactivating hides a category from the apps' create-ticket picker; existing tickets keep it. Changes need the Manage content permission and are audit-logged.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this category?",
+    "errors": {
+      "inUse": "Tickets now use this category, so it can't be deleted — deactivate it instead.",
+      "system": "The system category can't be deleted."
+    }
   },
   "feedback": {
     "title": "Feedback",
@@ -1975,6 +1987,10 @@
     },
     "tagLabel": "New tag",
     "tagSave": "Add",
-    "addTag": "+ tag"
+    "addTag": "+ tag",
+    "tagFilter": "Tag:",
+    "clearTagFilter": "Clear tag filter",
+    "filterByTag": "Show feedback tagged {{tag}}",
+    "removeTag": "Remove tag {{tag}}"
   }
 }

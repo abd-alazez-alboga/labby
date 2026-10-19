@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -58,6 +58,11 @@ export default function HelpArticleEditorPage() {
 
   const [article, setArticle] = useState<AdminHelpArticle | null>(null);
   const [categories, setCategories] = useState<AdminHelpCategory[]>([]);
+  const [categoriesError, setCategoriesError] = useState<FailureKind | null>(null);
+  const [categoriesAttempt, setCategoriesAttempt] = useState(0);
+  // The id this editor just created: its URL needs no reload (the state on
+  // screen IS that article), so a publish that follows never races a GET.
+  const createdId = useRef<string | null>(null);
   const [loadError, setLoadError] = useState<FailureKind | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [categoryId, setCategoryId] = useState(params.get('categoryId') ?? '');
@@ -71,6 +76,7 @@ export default function HelpArticleEditorPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setCategoriesError(null);
     listAdminHelpCategories(apiClient)
       .then((loaded) => {
         if (!cancelled) {
@@ -78,14 +84,18 @@ export default function HelpArticleEditorPage() {
           setCategoryId((current) => current || (loaded[0]?.helpCategoryId ?? ''));
         }
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setCategoriesError(classifyError(error));
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, [apiClient]);
+  }, [apiClient, categoriesAttempt]);
 
   useEffect(() => {
-    if (isNew) {
+    if (isNew || createdId.current === helpArticleId) {
       return;
     }
     let cancelled = false;
@@ -151,6 +161,8 @@ export default function HelpArticleEditorPage() {
         setNotice('saved');
       } else {
         const created = await createHelpArticle(apiClient, payload());
+        createdId.current = created.helpArticleId;
+        setArticle(created);
         setNotice('saved');
         navigate(`/help-center/articles/${created.helpArticleId}`, { replace: true });
       }
@@ -160,14 +172,20 @@ export default function HelpArticleEditorPage() {
   function publish() {
     void act(async () => {
       // Save the texts first so the publish checks what is on screen.
-      const saved = article
-        ? await patchHelpArticle(apiClient, article.helpArticleId, payload())
-        : await createHelpArticle(apiClient, payload());
-      setArticle(await publishHelpArticle(apiClient, saved.helpArticleId));
-      setNotice('published');
-      if (!article) {
+      let saved: AdminHelpArticle;
+      if (article) {
+        saved = await patchHelpArticle(apiClient, article.helpArticleId, payload());
+      } else {
+        // Keep the new draft BEFORE publishing: a failed publish leaves this
+        // editor on the draft's own URL, so a retry patches the same article
+        // instead of creating a second one (review-M14 W1).
+        saved = await createHelpArticle(apiClient, payload());
+        createdId.current = saved.helpArticleId;
         navigate(`/help-center/articles/${saved.helpArticleId}`, { replace: true });
       }
+      setArticle(saved);
+      setArticle(await publishHelpArticle(apiClient, saved.helpArticleId));
+      setNotice('published');
     });
   }
 
@@ -240,6 +258,13 @@ export default function HelpArticleEditorPage() {
         }
       />
 
+      {categoriesError ? (
+        <LoadFailure
+          kind={categoriesError}
+          notFoundKey="review.errors.server"
+          onRetry={() => setCategoriesAttempt((n) => n + 1)}
+        />
+      ) : null}
       <div className="form-field">
         <label htmlFor="article-category">{t('helpEditor.categoryLabel')}</label>
         <select

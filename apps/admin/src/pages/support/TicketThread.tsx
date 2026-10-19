@@ -43,7 +43,9 @@ export function TicketThread({
       .map((event): ThreadItem => {
         return { kind: 'event', at: event.createdAt, event };
       }),
-  ].sort((a, b) => a.at.localeCompare(b.at));
+    // By instant, not string: the server's precision varies (`…:00Z` vs
+    // `…:00.123Z`); the stable sort keeps server order for equal instants.
+  ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   function eventText(event: TicketEvent): string {
     const when = formatMoment(event.createdAt, language);

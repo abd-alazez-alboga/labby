@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n/i18n';
+import { rideRef } from '../pages/rides/ride-format';
 import {
   adminTicketDetail,
   OMAR_ID,
@@ -11,7 +12,15 @@ import {
   SUPPORT_VIEWER,
   TICKET_1,
 } from './support-fixtures';
-import { callsTo, jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
+import { ridePage, transactionPage, walletView } from './money-fixtures';
+import {
+  callsTo,
+  jsonResponse,
+  renderShell,
+  seedStoredSession,
+  sessionFor,
+  TEST_USER,
+} from './test-utils';
 
 /**
  * UC-A-21 steps 2–4 against contract mocks: the thread with the event
@@ -34,11 +43,36 @@ describe('ticket detail', () => {
     vi.unstubAllGlobals();
   });
 
-  function stubDetail(user = SUPPORT_ADMIN, detail = adminTicketDetail()) {
+  function stubDetail(
+    user = SUPPORT_ADMIN,
+    detail = adminTicketDetail(),
+    assigneeRefusal: Response | null = null,
+  ) {
     seedStoredSession(sessionFor(user));
     let current = detail;
     return {
       fetchMock: stubSupportRoutes(user, (method, path, init) => {
+        if (method === 'POST' && path === `/api/v1/admin/tickets/${TICKET_1}/assignee`) {
+          if (assigneeRefusal) {
+            return assigneeRefusal;
+          }
+          const body = JSON.parse(String(init?.body)) as { assigneeUserId: string | null };
+          current = {
+            ...current,
+            assignee: body.assigneeUserId ? { userId: body.assigneeUserId, name: user.name } : null,
+          };
+          return jsonResponse(200, current);
+        }
+        // The remedy deep link's destination (money-v1 wallet page).
+        if (method === 'GET' && path === `/api/v1/admin/users/${OMAR_ID}/wallet`) {
+          return jsonResponse(200, walletView());
+        }
+        if (method === 'GET' && path === `/api/v1/admin/users/${OMAR_ID}/wallet/transactions`) {
+          return jsonResponse(200, transactionPage());
+        }
+        if (method === 'GET' && path === '/api/v1/admin/rides') {
+          return jsonResponse(200, ridePage([]));
+        }
         if (method === 'GET' && path === `/api/v1/admin/tickets/${TICKET_1}`) {
           return jsonResponse(200, current);
         }
@@ -147,6 +181,90 @@ describe('ticket detail', () => {
 
     expect(callsTo(fetchMock, `/admin/tickets/${TICKET_1}/priority`)).toHaveLength(1);
     expect(latest().priority).toBe('urgent');
+  });
+
+  it('assigns the ticket and unassigns it through the select', async () => {
+    const { fetchMock, latest } = stubDetail();
+    const user = userEvent.setup();
+    renderShell();
+
+    const select = await screen.findByRole('combobox', { name: 'Assignee' });
+    expect(select).toHaveValue(latest().assignee?.userId);
+    await user.selectOptions(select, 'Signed-in Admin (me)');
+
+    await vi.waitFor(() => expect(latest().assignee?.userId).toBe(TEST_USER.id));
+    const calls = callsTo(fetchMock, `/admin/tickets/${TICKET_1}/assignee`);
+    expect(JSON.parse(String((calls[0][1] as RequestInit).body))).toEqual({
+      assigneeUserId: TEST_USER.id,
+    });
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Assignee' }), 'Unassigned');
+    await vi.waitFor(() => expect(latest().assignee).toBeNull());
+    expect(
+      JSON.parse(
+        String(
+          (callsTo(fetchMock, `/admin/tickets/${TICKET_1}/assignee`)[1][1] as RequestInit).body,
+        ),
+      ),
+    ).toEqual({ assigneeUserId: null });
+  });
+
+  it('explains an assignee who cannot handle support (assignee_not_handler)', async () => {
+    stubDetail(
+      SUPPORT_ADMIN,
+      adminTicketDetail(),
+      jsonResponse(422, { status: 422, message: 'not a handler', code: 'assignee_not_handler' }),
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Assignee' }),
+      'Signed-in Admin (me)',
+    );
+    expect(await screen.findByText("That admin can't handle support tickets.")).toBeInTheDocument();
+  });
+
+  it('reloads and says so when an assignee change lost a race (409)', async () => {
+    const { fetchMock } = stubDetail(
+      SUPPORT_ADMIN,
+      adminTicketDetail(),
+      jsonResponse(409, { status: 409, message: 'stale', code: 'conflict' }),
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Assignee' }),
+      'Unassigned',
+    );
+    expect(
+      await screen.findByText('The ticket changed in the meantime — showing the latest state.'),
+    ).toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(
+          ([input, init]) =>
+            String(input).endsWith(`/admin/tickets/${TICKET_1}`) &&
+            ((init as RequestInit | undefined)?.method ?? 'GET') === 'GET',
+        ).length,
+      ).toBeGreaterThanOrEqual(2),
+    );
+  });
+
+  it("pre-fills the grant reason from the remedy link on the user's wallet", async () => {
+    stubDetail();
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(await screen.findByRole('link', { name: 'Grant wallet credit…' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Grant credit / refund' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Reason/)).toHaveValue(
+      `Support ticket ${rideRef(TICKET_1).replace('R-', 'T-')}`,
+    );
   });
 
   it('shows no controls, composer or phone to a support viewer', async () => {

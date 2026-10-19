@@ -7,6 +7,7 @@ import i18n from '../i18n/i18n';
 import {
   ARTICLE_1,
   CONTENT_ADMIN,
+  HELP_CAT_1,
   helpArticle,
   helpCategory,
   stubSupportRoutes,
@@ -155,6 +156,110 @@ describe('help article editor', () => {
     expect(
       await screen.findByText('Publishing refused: a text is still missing in one language.'),
     ).toBeInTheDocument();
+  });
+
+  it('keeps the created draft when its first publish fails, so a retry reuses it', async () => {
+    seedStoredSession(sessionFor(CONTENT_ADMIN));
+    const NEW_ID = 'ffff0000-0000-4000-8000-0000000000aa';
+    let current: AdminHelpArticle | null = null;
+    let publishAttempts = 0;
+    const fetchMock = stubSupportRoutes(CONTENT_ADMIN, (method, path, init) => {
+      if (method === 'GET' && path === '/api/v1/admin/help/categories') {
+        return jsonResponse(200, [helpCategory()]);
+      }
+      if (method === 'POST' && path === '/api/v1/admin/help/articles') {
+        const body = JSON.parse(String(init?.body)) as Partial<AdminHelpArticle>;
+        current = helpArticle({
+          ...body,
+          helpArticleId: NEW_ID,
+          status: 'draft',
+          publishedAt: null,
+        });
+        return jsonResponse(201, current);
+      }
+      if (method === 'GET' && path === `/api/v1/admin/help/articles/${NEW_ID}`) {
+        return jsonResponse(200, current);
+      }
+      if (method === 'PATCH' && path === `/api/v1/admin/help/articles/${NEW_ID}`) {
+        const body = JSON.parse(String(init?.body)) as Partial<AdminHelpArticle>;
+        current = { ...current!, ...body };
+        return jsonResponse(200, current);
+      }
+      if (method === 'POST' && path === `/api/v1/admin/help/articles/${NEW_ID}/publish`) {
+        publishAttempts += 1;
+        if (publishAttempts === 1) {
+          return jsonResponse(422, {
+            status: 422,
+            message: 'translation missing',
+            code: 'translation_missing',
+          });
+        }
+        current = { ...current!, status: 'published', publishedAt: '2026-10-19T12:00:00Z' };
+        return jsonResponse(200, current);
+      }
+      return null;
+    });
+    window.history.pushState({}, '', `/help-center/articles/new?categoryId=${HELP_CAT_1}`);
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.type(await screen.findByRole('textbox', { name: 'Title' }), 'Tipping');
+    await user.type(
+      screen.getByRole('textbox', { name: /^Body — plain text/ }),
+      'You can tip in the app.',
+    );
+    await user.type(screen.getByRole('textbox', { name: 'Title · AR' }), 'الإكرامية');
+    await user.type(screen.getByRole('textbox', { name: 'Body · AR' }), 'يمكنك إعطاء إكرامية.');
+    await user.click(screen.getByRole('button', { name: 'Publish' }));
+
+    expect(
+      await screen.findByText('Publishing refused: a text is still missing in one language.'),
+    ).toBeInTheDocument();
+    // The editor moved to the saved draft's own URL.
+    expect(window.location.pathname).toBe(`/help-center/articles/${NEW_ID}`);
+
+    await user.click(screen.getByRole('button', { name: 'Publish' }));
+    expect(await screen.findByText(/Published — the apps show it immediately/)).toBeInTheDocument();
+
+    // One create only; the retry patched and published the same id.
+    const creates = fetchMock.mock.calls.filter(
+      ([input, init]) =>
+        String(input).endsWith('/api/v1/admin/help/articles') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(creates).toHaveLength(1);
+    expect(callsTo(fetchMock, `/admin/help/articles/${NEW_ID}/publish`)).toHaveLength(2);
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          String(input).endsWith(`/admin/help/articles/${NEW_ID}`) &&
+          (init as RequestInit | undefined)?.method === 'PATCH',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('shows a retry when the categories fail to load', async () => {
+    seedStoredSession(sessionFor(CONTENT_ADMIN));
+    let fail = true;
+    stubSupportRoutes(CONTENT_ADMIN, (method, path) => {
+      if (method === 'GET' && path === '/api/v1/admin/help/categories') {
+        return fail
+          ? jsonResponse(500, { status: 500, message: 'boom' })
+          : jsonResponse(200, [helpCategory()]);
+      }
+      if (method === 'GET' && path === `/api/v1/admin/help/articles/${ARTICLE_1}`) {
+        return jsonResponse(200, helpArticle());
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    renderShell();
+
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByRole('option', { name: 'Payments & wallet' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 
   it('unpublishes a published article back to draft', async () => {

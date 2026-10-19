@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { ApiError } from '../api/client';
 import {
   createTicketCategory,
+  deleteTicketCategory,
   listAdminTicketCategories,
   patchTicketCategory,
   TICKET_PRIORITIES,
@@ -21,6 +23,8 @@ import { PRIORITY_TONES } from './support/support-format';
  * seeded system "Lost item" row included), add / edit (names EN+AR, default
  * priority), deactivate / reactivate. The system category is locked: never
  * editable or deactivatable here (the server answers 409 `system_category`).
+ * An unused category (no ticket references it) may be deleted after a
+ * confirm; a used one is deactivated instead (409 `category_in_use`).
  * Existing tickets keep their category and priority. `content:view` (route);
  * writes need `content:manage` and are audit-logged.
  */
@@ -34,7 +38,9 @@ export default function TicketCategoriesPage() {
   const [loadError, setLoadError] = useState<FailureKind | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [actionError, setActionError] = useState(false);
+  /** The i18n key of the last failed action's message, else null. */
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   // The add / edit inline form: null = closed, '' = adding, id = editing.
   const [editing, setEditing] = useState<string | null>(null);
   const [nameEn, setNameEn] = useState('');
@@ -60,17 +66,38 @@ export default function TicketCategoriesPage() {
     };
   }, [apiClient, attempt]);
 
-  async function act(action: () => Promise<unknown>) {
+  async function act(
+    action: () => Promise<unknown>,
+    errorKey: (error: unknown) => string = () => 'helpCms.actionFailed',
+  ) {
     setBusy(true);
-    setActionError(false);
+    setActionError(null);
     try {
       await action();
       setAttempt((n) => n + 1);
-    } catch {
-      setActionError(true);
+    } catch (error: unknown) {
+      setActionError(errorKey(error));
     } finally {
       setBusy(false);
     }
+  }
+
+  function remove(category: AdminTicketCategory) {
+    setConfirmingDeleteId(null);
+    void act(
+      () => deleteTicketCategory(apiClient, category.ticketCategoryId),
+      (error) => {
+        if (error instanceof ApiError && error.code === 'category_in_use') {
+          // A ticket arrived meanwhile: the reload shows its count.
+          setAttempt((n) => n + 1);
+          return 'ticketCategories.errors.inUse';
+        }
+        if (error instanceof ApiError && error.code === 'system_category') {
+          return 'ticketCategories.errors.system';
+        }
+        return 'helpCms.actionFailed';
+      },
+    );
   }
 
   function openEditor(category: AdminTicketCategory | null) {
@@ -114,7 +141,7 @@ export default function TicketCategoriesPage() {
 
       {actionError ? (
         <p className="banner banner--error" role="alert">
-          {t('helpCms.actionFailed')}
+          {t(actionError)}
         </p>
       ) : null}
 
@@ -268,6 +295,40 @@ export default function TicketCategoriesPage() {
                         >
                           {t('ticketCategories.reactivate')}
                         </button>
+                      )
+                    ) : null}
+                    {canManage && !system && category.ticketCount === 0 ? (
+                      confirmingDeleteId === category.ticketCategoryId ? (
+                        <span className="table__confirm">
+                          {t('ticketCategories.deleteConfirm')}
+                          <button
+                            className="btn btn--small btn--danger"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => remove(category)}
+                          >
+                            {t('common.confirm')}
+                          </button>
+                          <button
+                            className="btn btn--small"
+                            type="button"
+                            onClick={() => setConfirmingDeleteId(null)}
+                          >
+                            {t('common.cancel')}
+                          </button>
+                        </span>
+                      ) : (
+                        <>
+                          {' '}
+                          <button
+                            className="btn btn--small btn--danger-text"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setConfirmingDeleteId(category.ticketCategoryId)}
+                          >
+                            {t('ticketCategories.delete')}
+                          </button>
+                        </>
                       )
                     ) : null}
                   </td>

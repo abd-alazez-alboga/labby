@@ -32,6 +32,7 @@ describe('feedback browser', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   function stubFeedback(user = SUPPORT_ADMIN) {
@@ -43,6 +44,18 @@ describe('feedback browser', () => {
           return jsonResponse(200, feedbackStats());
         }
         if (method === 'GET' && path === '/api/v1/admin/feedback') {
+          if (url?.searchParams.get('tag') === 'saved-places') {
+            return jsonResponse(
+              200,
+              feedbackPage([
+                feedbackEntry({
+                  feedbackId: 'fb-3',
+                  body: 'Please keep my home and work addresses.',
+                  tags: ['saved-places'],
+                }),
+              ]),
+            );
+          }
           if (url?.searchParams.get('category') === 'pricing') {
             return jsonResponse(
               200,
@@ -127,6 +140,80 @@ describe('feedback browser', () => {
     expect(callsTo(fetchMock, `/admin/feedback/${FEEDBACK_1}/tags`)).toHaveLength(1);
   });
 
+  it('removes a tag by putting the set without it', async () => {
+    const { fetchMock, latest } = stubFeedback();
+    const user = userEvent.setup();
+    renderShell();
+
+    await screen.findByText(/last destinations/);
+    await user.click(screen.getByRole('button', { name: 'Remove tag saved-places' }));
+
+    await vi.waitFor(() => expect(latest().tags).toEqual([]));
+    const calls = callsTo(fetchMock, `/admin/feedback/${FEEDBACK_1}/tags`);
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(String((calls[0][1] as RequestInit).body))).toEqual({ tags: [] });
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Show feedback tagged saved-places' }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('filters the list by a clicked tag and clears it', async () => {
+    const { fetchMock } = stubFeedback();
+    const user = userEvent.setup();
+    renderShell();
+
+    await screen.findByText(/last destinations/);
+    await user.click(screen.getByRole('button', { name: 'Show feedback tagged saved-places' }));
+
+    expect(await screen.findByText('Please keep my home and work addresses.')).toBeInTheDocument();
+    expect(callsTo(fetchMock, 'tag=saved-places').length).toBeGreaterThan(0);
+    expect(window.location.search).toContain('tag=saved-places');
+    expect(screen.getByText('Tag:')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear tag filter' }));
+    expect(await screen.findByText(/last destinations/)).toBeInTheDocument();
+    expect(window.location.search).not.toContain('tag=');
+    expect(screen.queryByText('Tag:')).not.toBeInTheDocument();
+  });
+
+  it('shows a retry when the trend stats fail to load', async () => {
+    seedStoredSession(sessionFor(SUPPORT_ADMIN));
+    let fail = true;
+    stubSupportRoutes(SUPPORT_ADMIN, (method, path) => {
+      if (method === 'GET' && path === '/api/v1/admin/feedback/stats') {
+        return fail
+          ? jsonResponse(500, { status: 500, message: 'boom' })
+          : jsonResponse(200, feedbackStats());
+      }
+      if (method === 'GET' && path === '/api/v1/admin/feedback') {
+        return jsonResponse(200, feedbackPage([feedbackEntry()]));
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    renderShell();
+
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByRole('table', { name: /Entries by category/ })).toBeInTheDocument();
+  });
+
+  it('anchors the trend weeks on Monday when today is a Sunday', async () => {
+    // Sunday 2026-10-25: its ISO week started Monday 2026-10-19, not the 26th.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T21:30:00Z'));
+    const { fetchMock } = stubFeedback();
+    renderShell();
+
+    await screen.findByText(/last destinations/);
+    const statsUrl = new URL(String(callsTo(fetchMock, '/admin/feedback/stats')[0][0]), 'http://x');
+    expect(statsUrl.searchParams.get('from')).toBe('2026-09-28T00:00:00.000Z');
+    expect(statsUrl.searchParams.get('to')).toBe('2026-10-26T00:00:00.000Z');
+  });
+
   it('shows tags read-only without support:handle', async () => {
     stubFeedback(SUPPORT_VIEWER);
     renderShell();
@@ -134,5 +221,6 @@ describe('feedback browser', () => {
     await screen.findByText(/last destinations/);
     expect(screen.getByText('saved-places')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ tag' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Remove tag/ })).not.toBeInTheDocument();
   });
 });

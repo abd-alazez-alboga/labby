@@ -168,6 +168,7 @@ export function lostItemDetail(overrides: Partial<AdminTicketDetail> = {}): Admi
     lostItem: {
       driver: { userId: SAMIR_ID, name: 'Sami B.', role: 'driver' },
       chatWindow: 'reopened',
+      memberId: null,
     },
     ...overrides,
   });

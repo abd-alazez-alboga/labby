@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { AdminHelpCategory } from '../api/support';
 import i18n from '../i18n/i18n';
 import {
   ARTICLE_1,
@@ -44,7 +45,7 @@ describe('help CMS', () => {
     vi.unstubAllGlobals();
   });
 
-  function stubCms(user = CONTENT_ADMIN) {
+  function stubCms(user = CONTENT_ADMIN, extraCategories: AdminHelpCategory[] = []) {
     seedStoredSession(sessionFor(user));
     let categories = [
       helpCategory(),
@@ -56,9 +57,54 @@ describe('help CMS', () => {
         articleCount: 1,
         publishedCount: 0,
       }),
+      ...extraCategories,
+    ];
+    let articles = [
+      helpArticle(),
+      helpArticle({
+        helpArticleId: 'a2',
+        titleEn: 'What is a waiting charge?',
+        titleAr: null,
+        bodyAr: null,
+        status: 'draft',
+        publishedAt: null,
+        missing: ['titleAr', 'bodyAr'],
+        sortOrder: 1,
+      }),
+      helpArticle({
+        helpArticleId: 'a3',
+        titleEn: 'Can I tip my driver?',
+        titleAr: 'هل يمكنني إعطاء السائق إكرامية؟',
+        sortOrder: 1,
+      }),
     ];
     return {
       fetchMock: stubSupportRoutes(user, (method, path, init, url) => {
+        if (
+          method === 'PUT' &&
+          path === `/api/v1/admin/help/categories/${HELP_CAT_1}/articles/order`
+        ) {
+          const body = JSON.parse(String(init?.body)) as { ids: string[] };
+          articles = articles.map((article) =>
+            body.ids.includes(article.helpArticleId)
+              ? { ...article, sortOrder: body.ids.indexOf(article.helpArticleId) }
+              : article,
+          );
+          return emptyResponse();
+        }
+        const deleted = /^\/api\/v1\/admin\/help\/categories\/([^/]+)$/.exec(path);
+        if (method === 'DELETE' && deleted) {
+          const target = categories.find((c) => c.helpCategoryId === deleted[1]);
+          if (target && target.nameEn === 'Refunds') {
+            return jsonResponse(409, {
+              status: 409,
+              message: 'not empty',
+              code: 'category_not_empty',
+            });
+          }
+          categories = categories.filter((c) => c.helpCategoryId !== deleted[1]);
+          return emptyResponse();
+        }
         if (method === 'GET' && path === '/api/v1/admin/help/categories') {
           return jsonResponse(200, categories);
         }
@@ -89,23 +135,12 @@ describe('help CMS', () => {
           if (url?.searchParams.get('categoryId') !== HELP_CAT_1) {
             return jsonResponse(200, []);
           }
-          return jsonResponse(200, [
-            helpArticle(),
-            helpArticle({
-              helpArticleId: 'a2',
-              titleEn: 'What is a waiting charge?',
-              titleAr: null,
-              bodyAr: null,
-              status: 'draft',
-              publishedAt: null,
-              missing: ['titleAr', 'bodyAr'],
-              sortOrder: 1,
-            }),
-          ]);
+          return jsonResponse(200, articles);
         }
         return null;
       }),
       latest: () => categories,
+      latestArticles: () => articles,
     };
   }
 
@@ -171,6 +206,95 @@ describe('help CMS', () => {
     expect(callsTo(fetchMock, '/admin/help/categories')).not.toHaveLength(0);
   });
 
+  it('reorders published articles with the arrows; drafts carry no order', async () => {
+    const { fetchMock, latestArticles } = stubCms();
+    const user = userEvent.setup();
+    renderShell();
+
+    await screen.findByText('Can I tip my driver?');
+    const rows = screen.getAllByRole('row').slice(1);
+    // The draft row shows `—` and no arrows.
+    expect(rows[1]).toHaveTextContent('—');
+    expect(within(rows[1]).queryByRole('button')).not.toBeInTheDocument();
+    // The ends are disabled.
+    expect(screen.getByRole('button', { name: 'Move How do I pay for a ride? up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Can I tip my driver? down' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Move How do I pay for a ride? down' }));
+
+    const calls = callsTo(fetchMock, `/admin/help/categories/${HELP_CAT_1}/articles/order`);
+    expect(calls).toHaveLength(1);
+    // The full ordered id list of the category's published articles.
+    expect(JSON.parse(String((calls[0][1] as RequestInit).body))).toEqual({
+      ids: ['a3', ARTICLE_1],
+    });
+    expect(latestArticles().find((a) => a.helpArticleId === 'a3')?.sortOrder).toBe(0);
+  });
+
+  it('shows a retry when the articles fail to load', async () => {
+    seedStoredSession(sessionFor(CONTENT_ADMIN));
+    let fail = true;
+    stubSupportRoutes(CONTENT_ADMIN, (method, path) => {
+      if (method === 'GET' && path === '/api/v1/admin/help/categories') {
+        return jsonResponse(200, [helpCategory()]);
+      }
+      if (method === 'GET' && path === '/api/v1/admin/help/articles') {
+        return fail
+          ? jsonResponse(500, { status: 500, message: 'boom' })
+          : jsonResponse(200, [helpArticle()]);
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    renderShell();
+
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByText('How do I pay for a ride?')).toBeInTheDocument();
+  });
+
+  it('deletes an empty category after a confirm, and explains a 409', async () => {
+    const empty = helpCategory({
+      helpCategoryId: 'cat-empty',
+      nameEn: 'Account',
+      nameAr: 'الحساب',
+      sortOrder: 2,
+      articleCount: 0,
+      publishedCount: 0,
+    });
+    const raced = helpCategory({
+      helpCategoryId: 'cat-raced',
+      nameEn: 'Refunds',
+      nameAr: 'المبالغ المستردة',
+      sortOrder: 3,
+      articleCount: 0,
+      publishedCount: 0,
+    });
+    const { fetchMock, latest } = stubCms(CONTENT_ADMIN, [empty, raced]);
+    const user = userEvent.setup();
+    renderShell();
+
+    await screen.findByText(/Account · الحساب/);
+    // Only categories without articles offer Delete.
+    expect(screen.queryByRole('button', { name: 'Delete Payments & wallet' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete Safety' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Delete Account' }));
+    expect(screen.getByText('Delete this category?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    await vi.waitFor(() => expect(screen.queryByText(/Account · الحساب/)).toBeNull());
+    expect(latest().map((c) => c.nameEn)).not.toContain('Account');
+
+    await user.click(screen.getByRole('button', { name: 'Delete Refunds' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(
+      await screen.findByText("This category now has articles, so it can't be deleted."),
+    ).toBeInTheDocument();
+    expect(callsTo(fetchMock, '/admin/help/categories/cat-').length).toBe(2);
+  });
+
   it('is read-only for content:view alone', async () => {
     stubCms(CONTENT_VIEWER);
     renderShell();
@@ -178,6 +302,7 @@ describe('help CMS', () => {
     await screen.findByText(/2 published/);
     expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Move .* down/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New article' })).not.toBeInTheDocument();
   });
 

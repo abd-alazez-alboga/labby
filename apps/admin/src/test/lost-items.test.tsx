@@ -8,6 +8,7 @@ import {
   adminTicket,
   LOST_TICKET,
   lostItemDetail,
+  RIDE_1,
   stubSupportRoutes,
   SUPPORT_ADMIN,
   SUPPORT_VIEWER,
@@ -197,6 +198,49 @@ describe('lost-item case', () => {
     // Closed: no further moves, the thread is read-only.
     expect(await screen.findByText(/closed — the thread is read-only/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Mark found' })).not.toBeInTheDocument();
+  });
+
+  it('follows the not_found branch straight to closure', async () => {
+    const { fetchMock, latest } = stubCase();
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(await screen.findByRole('button', { name: 'Not found' }));
+    // not_found allows exactly closed — never returned.
+    expect(await screen.findByRole('button', { name: 'Close case' })).toBeInTheDocument();
+    expect(latest().caseStatus).toBe('not_found');
+    expect(screen.queryByRole('button', { name: 'Mark returned' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Close case' }));
+    expect(await screen.findByText(/closed — the thread is read-only/)).toBeInTheDocument();
+    expect(latest().caseStatus).toBe('closed');
+    expect(latest().status).toBe('closed');
+    const bodies = callsTo(fetchMock, `/admin/lost-items/${LOST_TICKET}/case-status`).map(
+      ([, init]) => JSON.parse(String((init as RequestInit).body)) as { caseStatus: string },
+    );
+    expect(bodies.map((body) => body.caseStatus)).toEqual(['not_found', 'closed']);
+  });
+
+  it("reads the reporter's member thread of a shared ride's chat", async () => {
+    const memberId = '99990000-0000-4000-8000-000000000001';
+    const base = lostItemDetail();
+    const { fetchMock } = stubCase(
+      SUPPORT_ADMIN,
+      lostItemDetail({
+        ride: { ...base.ride!, kind: 'shared' },
+        lostItem: { ...base.lostItem!, memberId },
+      }),
+    );
+    renderShell();
+
+    expect(
+      await screen.findByText('I think I left my backpack on your back seat.'),
+    ).toBeInTheDocument();
+    const chatCalls = callsTo(fetchMock, `/admin/rides/${RIDE_1}/chat`);
+    expect(chatCalls.length).toBeGreaterThan(0);
+    for (const [input] of chatCalls) {
+      expect(new URL(String(input), 'http://x').searchParams.get('memberId')).toBe(memberId);
+    }
   });
 
   it('hides progression and the composer from a support viewer', async () => {

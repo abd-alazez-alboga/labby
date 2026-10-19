@@ -16,18 +16,25 @@ import { formatClock } from '../surge';
  * member"): a shared ride has one private thread per member — given its
  * `members`, the card switches between them (one audited read per opened
  * thread, never a fan-out); without them (the report page) it explains.
+ * A lost-item case passes its reporter's single `memberId` instead.
  */
 export function ChatLogCard({
   rideId,
   riderName,
   driverName,
   members = null,
+  memberId: fixedMemberId = null,
 }: {
   rideId: string;
   riderName: string;
   driverName: string | null;
   /** A shared ride's parties after dispatch (no `left`), else null. */
   members?: AdminSharedMember[] | null;
+  /**
+   * One known member's thread without the switcher (a shared-ride lost-item
+   * case reads its reporter's chat, M14 T6 amendment h); ignored with `members`.
+   */
+  memberId?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
@@ -37,7 +44,9 @@ export function ChatLogCard({
   >('loading');
   const [loadingOlder, setLoadingOlder] = useState(false);
   const shared = members !== null && members.length > 0;
-  const [memberId, setMemberId] = useState<string | null>(shared ? members[0].memberId : null);
+  const [memberId, setMemberId] = useState<string | null>(
+    shared ? members[0].memberId : fixedMemberId,
+  );
   const selectedIndex = shared ? members.findIndex((m) => m.memberId === memberId) : -1;
   const selected = selectedIndex >= 0 && members ? members[selectedIndex] : null;
 

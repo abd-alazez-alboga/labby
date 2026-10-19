@@ -163,8 +163,16 @@ export interface AdminTicketDetail extends AdminTicket {
   events: TicketEvent[];
   /** Served only to `support:handle` holders; null otherwise. */
   userPhone: string | null;
-  /** Lost-item tickets: the driver and the reopened chat the handler can read. */
-  lostItem: { driver: Party; chatWindow: 'open' | 'read_only' | 'reopened' } | null;
+  /**
+   * Lost-item tickets: the driver and the reopened chat the handler can read;
+   * `memberId` = the reporter's shared-ride member (T6 amendment h), null on
+   * one-rider rides — the chat log reads that member's thread.
+   */
+  lostItem: {
+    driver: Party;
+    chatWindow: 'open' | 'read_only' | 'reopened';
+    memberId: string | null;
+  } | null;
 }
 
 export interface AdminTicketQuery {
@@ -355,6 +363,11 @@ export function patchTicketCategory(
   );
 }
 
+/** DELETE /admin/ticket-categories/{id} — unused only; 409 `category_in_use` / `system_category`. */
+export function deleteTicketCategory(client: ApiClient, ticketCategoryId: string): Promise<void> {
+  return client.delete<void>(`/api/v1/admin/ticket-categories/${ticketCategoryId}`);
+}
+
 /* ---------- Help CMS (UC-A-23, content:view/manage) ---------- */
 
 export interface AdminHelpCategory {
@@ -413,6 +426,11 @@ export function renameHelpCategory(
   body: { nameEn: string; nameAr: string },
 ): Promise<AdminHelpCategory> {
   return client.patch<AdminHelpCategory>(`/api/v1/admin/help/categories/${helpCategoryId}`, body);
+}
+
+/** DELETE /admin/help/categories/{id} — empty only; 409 `category_not_empty`. */
+export function deleteHelpCategory(client: ApiClient, helpCategoryId: string): Promise<void> {
+  return client.delete<void>(`/api/v1/admin/help/categories/${helpCategoryId}`);
 }
 
 /** PUT /admin/help/categories/order — the complete new order; 422 `order_incomplete`. */
