@@ -10,7 +10,7 @@ import type {
 } from "../../api/growth-types";
 import { useRemote } from "../../onboarding/use-remote";
 import { colors, radius, spacing } from "../../theme/tokens";
-import { formatCount } from "../../trust/format";
+import { formatCount, formatDayMonth } from "../../trust/format";
 import {
   AppText,
   FailureState,
@@ -96,6 +96,7 @@ function LevelCard({ data }: { data: GamificationView }) {
 
 function BadgeTile({ badge }: { badge: BadgeView }) {
   const { t } = useTranslation();
+  const { language } = useDirection();
   return (
     <View style={styles.badge} testID={`badge-${badge.badgeCode}`}>
       <View style={[styles.badgeWell, badge.earned && styles.badgeWellEarned]}>
@@ -113,6 +114,21 @@ function BadgeTile({ badge }: { badge: BadgeView }) {
       >
         {t(`growth.level.badge.${badge.badgeCode}`)}
       </AppText>
+      {badge.earned && badge.awardedAt ? (
+        // UC-S-23: earned badges carry their award date (M13 review W11,
+        // owner-approved board amendment D13Badges).
+        <AppText
+          variant="caption"
+          weight="400"
+          align="center"
+          color={colors.textMuted}
+          testID={`badge-${badge.badgeCode}-earned-at`}
+        >
+          {t("growth.level.earnedAt", {
+            date: formatDayMonth(badge.awardedAt, language),
+          })}
+        </AppText>
+      ) : null}
     </View>
   );
 }

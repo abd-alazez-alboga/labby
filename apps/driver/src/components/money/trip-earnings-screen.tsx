@@ -235,6 +235,20 @@ export function TripEarningsScreen({
                 />
               ) : null}
               {earning.promoCompensation ? (
+                // M13 review W13: fareTotal is the PRE-discount fare — this
+                // muted line says what the rider's promo took off it, so the
+                // cash actually collected adds up (board amendment).
+                <FareLine
+                  label={t("tripEarnings.riderPromo")}
+                  value={formatSignedMoney(
+                    -earning.promoCompensation,
+                    currency,
+                    language,
+                  )}
+                  testID="earning-line-rider-promo"
+                />
+              ) : null}
+              {earning.promoCompensation ? (
                 <FareLine
                   label={t("tripEarnings.promoCompensation")}
                   value={formatSignedMoney(earning.promoCompensation, currency, language, { alwaysSign: true })}

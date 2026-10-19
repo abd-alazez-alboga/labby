@@ -15,6 +15,7 @@ import {
   CHALLENGE_ID,
   CHALLENGES,
   challengeFixture,
+  RESOLVE_REGION,
   ok,
   renderGrowthApp,
 } from "../test-utils/growth";
@@ -131,6 +132,20 @@ describe("challenges (GAME-02)", () => {
     expect(done).toHaveTextContent(/Weekly 40 · Damascus/);
     expect(done).toHaveTextContent(/500 points added/);
     expect(done).toHaveTextContent(/\+500/);
+  });
+
+  it("holds the no-region state without recording [] as data (W14)", async () => {
+    // The region never resolves: the loader must NOT settle with [] (the old
+    // behavior cached it as loaded and flashed the empty state once the
+    // region arrived — M13 review W14), and the screen stays on its
+    // no-region copy without fetching.
+    const contract = await renderGrowthApp(
+      { [RESOLVE_REGION]: { status: 500, body: { status: 500 } } },
+      { initialUrl: "/challenges" },
+    );
+    expect(await screen.findByTestId("challenges-no-region")).toBeTruthy();
+    expect(screen.queryByTestId("challenges-empty")).toBeNull();
+    expect(contract.requestsTo(CHALLENGES)).toHaveLength(0);
   });
 
   it("no challenges shows the empty state", async () => {

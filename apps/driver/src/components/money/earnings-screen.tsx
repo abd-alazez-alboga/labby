@@ -237,7 +237,7 @@ function TierCard({ commission }: { commission: CommissionStatus }) {
   );
 }
 
-/** A fare row's itemized subtitle: method · fare · commission (· tip). */
+/** A fare row's itemized subtitle: method · fare · commission (· tip · promo top-up). */
 function tripParts(
   t: Translate,
   earning: TripEarning,

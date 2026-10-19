@@ -768,6 +768,7 @@
     "walletApplied": "Paid from wallet",
     "commission": "Commission · {{rate}}",
     "tipFrom": "Tip from {{name}} · all yours",
+    "riderPromo": "Rider's promo · covered by Labby",
     "promoCompensation": "Promo discount · covered by Labby",
     "fee": "Cancellation fee · all yours",
     "carriedPassedOn": "Carried fee passed on to the earlier ride's driver",
@@ -1172,6 +1173,7 @@
       "trips": "Trips completed",
       "challengePoints": "Challenge points",
       "badges": "Badges · {{earned}} of {{total}}",
+      "earnedAt": "Earned {{date}}",
       "badge": {
         "ride_10": "10 rides",
         "ride_50": "50 rides",

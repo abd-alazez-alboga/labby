@@ -68,6 +68,13 @@ describe("level & badges (UC-S-23/24)", () => {
     ]) {
       expect(screen.getByTestId(`badge-${code}`)).toBeTruthy();
     }
+    // W11 (UC-S-23): earned badges carry their award date; locked ones none.
+    expect(screen.getByTestId("badge-ride_10-earned-at")).toHaveTextContent(
+      "Earned 2 May",
+    );
+    expect(
+      screen.queryByTestId("badge-first_shared_ride-earned-at"),
+    ).toBeNull();
     expect(screen.getByTestId("level-note")).toHaveTextContent(
       "5-star week: at least 3 ratings within 7 days, all of them 5★. Badges and levels never affect your payouts or dispatch.",
     );

@@ -135,6 +135,10 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     expect(await screen.findByTestId("earning-line-promo")).toHaveTextContent(
       "Promo discount · covered by Labby+SYP 2,800",
     );
+    // W13: the fare line is PRE-discount, so the rider's promo is itemized.
+    expect(screen.getByTestId("earning-line-rider-promo")).toHaveTextContent(
+      "Rider's promo · covered by Labby−SYP 2,800",
+    );
     expect(screen.getByTestId("earning-line-commission")).toHaveTextContent(
       "Commission · 25%−SYP 7,000",
     );

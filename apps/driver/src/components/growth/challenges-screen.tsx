@@ -210,9 +210,16 @@ export function ChallengesScreen() {
   const regionId = region?.status === "resolved" ? region.config?.id ?? null : null;
   const regionName =
     region?.status === "resolved" ? region.config?.name ?? null : null;
+  // M13 review W14: an unresolved region must stay in the LOADING state —
+  // resolving [] here was recorded as data, and the screen then flashed the
+  // empty state while the real list was still on its way.
   const load = useCallback(
     (): Promise<ChallengeView[]> =>
-      regionId ? getChallenges(regionId) : Promise.resolve([]),
+      regionId
+        ? getChallenges(regionId)
+        : new Promise<ChallengeView[]>(() => {
+            // Never settles: the regionId change remounts the loader.
+          }),
     [regionId],
   );
   const { state, refreshing, reload } = useRemote(load);
