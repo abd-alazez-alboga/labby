@@ -199,3 +199,13 @@ These items are non-blocking and go to the backlog:
 - The new admin controls (tag ×, tag filter chip, delete with confirm, article arrows) were added to existing screens under the owner's H4 and W5 rulings, without new boards.
 
 CI: green on the labby-fix commits — run 39289352913 on 0e16b62 and run 39291079583 on 58903a6 (all four jobs each); 605d74d rides with the closure push.
+
+## Re-audit of the N1 fix (`605d74d`, 2026-10-19)
+An independent re-audit of the single fix commit:
+- **N1 resolved.** `HelpCmsPage.tsx` sends the swapped published ids followed by the drafts in `sortOrder`. `articles` comes from `listAdminHelpArticles({ categoryId })`, which has no status filter and no paging (`HelpArticleRepository.findAdminList`). So the body holds every article of the category exactly once, matching `reorderArticles` / `requireCompleteOrder`. After the PUT the list reloads, and the public order (published only, by `sortOrder`) follows.
+- **N3 resolved.** The order cell shows the row's published position (1..n, no gaps), and drafts still show `—`.
+- The test mock mirrors the backend rule (a partial or duplicate list gets 422 `order_incomplete`), and the test asserts the full body. `npx vitest run src/test/help-cms.test.tsx` passed 8/8.
+
+**Verdict: Pass with comments.** M14 stays `review_passed`. Two non-blocking backlog items:
+- No test asserts the order-cell numbers yet. The fixture is already set up for it: three articles share `sortOrder` 1.
+- If another admin adds or deletes an article first, the page's list is stale. The PUT then gets a 422, the page shows the generic `helpCms.actionFailed` message, and the list doesn't reload. This existed before the fix; an optional improvement is to reload on `order_incomplete`.
