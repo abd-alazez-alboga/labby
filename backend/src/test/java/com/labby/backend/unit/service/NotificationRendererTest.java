@@ -61,6 +61,9 @@ class NotificationRendererTest {
       if (event.getValue().startsWith("growth.")) {
         continue; // M13 growth events: see shouldRenderGrowthEvents.
       }
+      if (event.getValue().startsWith("support.") || event.getValue().startsWith("lost_item.")) {
+        continue; // M14 support events: see shouldRenderSupportEvents.
+      }
       Map<String, Object> params =
           switch (event) {
             case DOCUMENT_EXPIRY_REMINDER -> REMINDER_PARAMS;
@@ -678,6 +681,83 @@ class NotificationRendererTest {
         assertThat(text).doesNotContainPattern("[\\u0660-\\u0669]");
       }
     }
+  }
+
+  @Test
+  @DisplayName(
+      "M14 support events: bilingual account notices with the ticket/case deep link and the right"
+          + " audience")
+  void shouldRenderSupportEvents() {
+    Map<String, Object> ticketParams = Map.of("ticketId", "t-1");
+    Rendered ticketCreated =
+        renderer
+            .render("support.ticket_created", Map.of("ticketId", "t-1", "kind", "ticket"))
+            .orElseThrow();
+    assertThat(ticketCreated.audience()).isEqualTo(NotificationAudience.ALL);
+    assertThat(ticketCreated.titleEn()).isEqualTo("Ticket received");
+    Rendered lostCreated =
+        renderer
+            .render("support.ticket_created", Map.of("ticketId", "t-1", "kind", "lost_item"))
+            .orElseThrow();
+    assertThat(lostCreated.titleEn()).isEqualTo("Lost-item case opened");
+    Rendered waitingStatus =
+        renderer
+            .render(
+                "support.ticket_status_changed",
+                Map.of("ticketId", "t-1", "status", "waiting_on_user"))
+            .orElseThrow();
+    assertThat(waitingStatus.audience()).isEqualTo(NotificationAudience.ALL);
+    assertThat(waitingStatus.titleEn()).isEqualTo("Support needs your reply");
+    Rendered closedStatus =
+        renderer
+            .render("support.ticket_status_changed", Map.of("ticketId", "t-1", "status", "closed"))
+            .orElseThrow();
+    assertThat(closedStatus.titleEn()).isEqualTo("Ticket closed");
+    Rendered message = renderer.render("support.ticket_message", ticketParams).orElseThrow();
+    Rendered reminder = renderer.render("support.waiting_reminder", ticketParams).orElseThrow();
+    Rendered caseOpened = renderer.render("lost_item.case_opened", ticketParams).orElseThrow();
+    assertThat(caseOpened.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(caseOpened.linkScreen()).isEqualTo("lost_item_case");
+    Rendered foundRider =
+        renderer
+            .render(
+                "lost_item.case_status_changed",
+                Map.of("ticketId", "t-1", "caseStatus", "found", "as", "rider"))
+            .orElseThrow();
+    assertThat(foundRider.audience()).isEqualTo(NotificationAudience.RIDER);
+    assertThat(foundRider.bodyEn()).contains("your item was found");
+    Rendered foundDriver =
+        renderer
+            .render(
+                "lost_item.case_status_changed",
+                Map.of("ticketId", "t-1", "caseStatus", "found", "as", "driver"))
+            .orElseThrow();
+    assertThat(foundDriver.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(foundDriver.bodyEn()).isNotEqualTo(foundRider.bodyEn());
+    assertThat(foundDriver.linkScreen()).isEqualTo("lost_item_case");
+    for (Rendered one :
+        List.of(
+            ticketCreated,
+            lostCreated,
+            waitingStatus,
+            closedStatus,
+            message,
+            reminder,
+            caseOpened,
+            foundRider,
+            foundDriver)) {
+      assertThat(one.category()).isEqualTo(NotificationCategory.ACCOUNT);
+      assertThat(one.linkParams()).containsEntry("ticketId", "t-1");
+      for (String text : new String[] {one.titleEn(), one.bodyEn(), one.titleAr(), one.bodyAr()}) {
+        assertThat(text).isNotBlank().doesNotContain("%s", "{", "}", "null");
+        assertThat(text.toLowerCase(Locale.ROOT)).doesNotContain("verification", "verify");
+        assertThat(text).doesNotContain("التحقق").doesNotContainPattern("[\\u0660-\\u0669]");
+      }
+      assertThat(one.titleAr()).containsPattern("[\\u0600-\\u06FF]");
+      assertThat(one.bodyAr()).containsPattern("[\\u0600-\\u06FF]");
+      assertThat(one.titleEn()).doesNotContainPattern("[\\u0600-\\u06FF]");
+    }
+    assertThat(message.linkScreen()).isEqualTo("ticket");
   }
 
   @Test
