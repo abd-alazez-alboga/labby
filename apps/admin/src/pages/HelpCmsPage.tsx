@@ -141,8 +141,15 @@ export default function HelpCmsPage() {
       return;
     }
     [ids[index], ids[target]] = [ids[target], ids[index]];
+    // The order endpoint takes every article of the category exactly once
+    // (`order_incomplete`): drafts keep their relative order after the
+    // published ones.
+    const drafts = (articles ?? [])
+      .filter((article) => article.status !== 'published')
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((article) => article.helpArticleId);
     const categoryId = selected.helpCategoryId;
-    void act(() => reorderHelpArticles(apiClient, categoryId, ids));
+    void act(() => reorderHelpArticles(apiClient, categoryId, [...ids, ...drafts]));
   }
 
   function removeCategory(category: AdminHelpCategory) {
@@ -388,7 +395,7 @@ export default function HelpCmsPage() {
                         <td className="table__muted">
                           {article.status === 'published' ? (
                             <span className="help-cats__arrows">
-                              {article.sortOrder + 1}
+                              {orderIndex + 1}
                               {canManage ? (
                                 <>
                                   <button

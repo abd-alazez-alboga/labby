@@ -85,6 +85,19 @@ describe('help CMS', () => {
           path === `/api/v1/admin/help/categories/${HELP_CAT_1}/articles/order`
         ) {
           const body = JSON.parse(String(init?.body)) as { ids: string[] };
+          // As the backend: every article of the category exactly once.
+          const all = articles.map((article) => article.helpArticleId);
+          if (
+            body.ids.length !== all.length ||
+            new Set(body.ids).size !== all.length ||
+            !all.every((id) => body.ids.includes(id))
+          ) {
+            return jsonResponse(422, {
+              status: 422,
+              message: 'order incomplete',
+              code: 'order_incomplete',
+            });
+          }
           articles = articles.map((article) =>
             body.ids.includes(article.helpArticleId)
               ? { ...article, sortOrder: body.ids.indexOf(article.helpArticleId) }
@@ -224,9 +237,9 @@ describe('help CMS', () => {
 
     const calls = callsTo(fetchMock, `/admin/help/categories/${HELP_CAT_1}/articles/order`);
     expect(calls).toHaveLength(1);
-    // The full ordered id list of the category's published articles.
+    // Every article of the category exactly once (drafts after the published ones).
     expect(JSON.parse(String((calls[0][1] as RequestInit).body))).toEqual({
-      ids: ['a3', ARTICLE_1],
+      ids: ['a3', ARTICLE_1, 'a2'],
     });
     expect(latestArticles().find((a) => a.helpArticleId === 'a3')?.sortOrder).toBe(0);
   });
