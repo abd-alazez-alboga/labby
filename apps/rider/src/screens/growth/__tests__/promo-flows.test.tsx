@@ -187,13 +187,29 @@ describe("promo in on-demand booking (UC-R-04 A1)", () => {
 
   it("shows one refusal message at a time, by contract code", async () => {
     const refusals: [number, string, string][] = [
-      [404, "promo_not_found", "We don't know this code. Check the spelling and try again."],
+      [
+        404,
+        "promo_not_found",
+        "We don't know this code. Check the spelling and try again.",
+      ],
       [409, "promo_window", "This code isn't available right now."],
-      [409, "promo_exhausted", "This code has run out. All its uses are taken."],
-      [409, "promo_user_limit", "You've already used this code the most times it allows."],
+      [
+        409,
+        "promo_exhausted",
+        "This code has run out. All its uses are taken.",
+      ],
+      [
+        409,
+        "promo_user_limit",
+        "You've already used this code the most times it allows.",
+      ],
       [409, "promo_first_ride_only", "This code is for first rides only."],
       [409, "promo_wrong_region", "This code doesn't work in this area."],
-      [409, "promo_wrong_service", "This code doesn't work for this ride type."],
+      [
+        409,
+        "promo_wrong_service",
+        "This code doesn't work for this ride type.",
+      ],
     ];
     mockApi({
       ...BASE_ROUTES,
@@ -214,15 +230,18 @@ describe("promo in on-demand booking (UC-R-04 A1)", () => {
     expect(screen.queryByTestId("booking-promo-applied")).toBeNull();
   });
 
-  it("explains a booking-time promo refusal without booking", async () => {
+  it("drops a promo refused at booking so the next tap books without it (W9)", async () => {
     const api = mockApi({
       ...BASE_ROUTES,
       "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
       "POST /api/v1/promos/validate": { status: 200, body: promoValidation() },
-      "POST /api/v1/rides": {
-        status: 409,
-        body: { status: 409, message: "exhausted", code: "promo_exhausted" },
-      },
+      "POST /api/v1/rides": [
+        {
+          status: 409,
+          body: { status: 409, message: "exhausted", code: "promo_exhausted" },
+        },
+        { status: 201, body: ride() },
+      ],
     });
     renderBooking();
     await planToWork();
@@ -230,11 +249,37 @@ describe("promo in on-demand booking (UC-R-04 A1)", () => {
     await screen.findByTestId("booking-promo-applied");
     await fireEvent.press(screen.getByTestId("booking-confirm"));
 
-    expect(await screen.findByTestId("booking-error")).toHaveTextContent(
-      "This code has run out. All its uses are taken.",
-    );
-    expect(api.callsTo("POST", "/api/v1/rides").length).toBe(1);
+    // UC-R-04 A1: the refusal lands on the row, the chip is gone …
+    expect(
+      await screen.findByTestId("booking-promo-row-error"),
+    ).toHaveTextContent("This code has run out. All its uses are taken.");
+    expect(screen.queryByTestId("booking-promo-applied")).toBeNull();
     expect(mockBack).not.toHaveBeenCalled();
+
+    // … and the next tap books WITHOUT the dead code.
+    await fireEvent.press(screen.getByTestId("booking-confirm"));
+    await waitFor(() =>
+      expect(api.callsTo("POST", "/api/v1/rides").length).toBe(2),
+    );
+    expect(
+      (api.callsTo("POST", "/api/v1/rides")[1].body as Record<string, unknown>)
+        .promoCode,
+    ).toBeUndefined();
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("shows the server's discount preview under the applied chip (W12)", async () => {
+    mockApi({
+      ...BASE_ROUTES,
+      "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+      "POST /api/v1/promos/validate": { status: 200, body: promoValidation() },
+    });
+    renderBooking();
+    await planToWork();
+    await applyCode("WELCOME20");
+    expect(
+      await screen.findByTestId("booking-promo-preview"),
+    ).toHaveTextContent("≈ −SYP 4,400 on this estimate");
   });
 
   it("re-validates when another service type is picked", async () => {
@@ -258,9 +303,9 @@ describe("promo in on-demand booking (UC-R-04 A1)", () => {
 
     await fireEvent.press(screen.getByTestId(`booking-option-${comfortId}`));
     // The code doesn't fit the new option: chip dropped, explained inline.
-    expect(await screen.findByTestId("booking-promo-row-error")).toHaveTextContent(
-      "This code doesn't work for this ride type.",
-    );
+    expect(
+      await screen.findByTestId("booking-promo-row-error"),
+    ).toHaveTextContent("This code doesn't work for this ride type.");
     expect(screen.queryByTestId("booking-promo-applied")).toBeNull();
     expect(
       api.callsTo("POST", "/api/v1/promos/validate")[1].body,

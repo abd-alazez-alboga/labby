@@ -71,6 +71,21 @@ beforeEach(async () => {
 });
 
 describe("loyalty screen (UC-R-19)", () => {
+  it("explains an out-of-area region with a retry instead of loading forever (W10)", async () => {
+    mockApi({
+      "GET /api/v1/regions/resolve": {
+        status: 404,
+        body: { status: 404, message: "outside" },
+      },
+    });
+    await renderLoyalty();
+    expect(
+      await screen.findByTestId("loyalty-region-blocked"),
+    ).toHaveTextContent("Outside our service area", { exact: false });
+    expect(screen.getByTestId("loyalty-region-blocked-retry")).toBeOnTheScreen();
+    expect(screen.queryByTestId("loyalty-loading")).toBeNull();
+  });
+
   it("shows the balance card, the region rule and the typed activity", async () => {
     const api = mockApi({
       ...REGION_ROUTE,

@@ -123,6 +123,8 @@ export default function ScheduleScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   // M13 ruling 3: validated + reserved at booking, amount at ride time.
   const [promo, setPromo] = useState<PromoValidation | null>(null);
+  // M13 review W9: a promo refused at BOOKING is dropped, explained on the row.
+  const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -177,7 +179,14 @@ export default function ScheduleScreen() {
       if (rideErrorCode(failure) === "scheduled_too_soon") {
         setTooSoon(rideErrorNumber(failure, "minLeadMinutes") ?? minLead);
       } else {
-        setError(promoErrorMessage(failure, t) ?? rideErrorMessage(failure, t));
+        const promoMessage = promoErrorMessage(failure, t);
+        if (promoMessage) {
+          // Review W9: drop the refused promo so the next tap books without it.
+          setPromo(null);
+          setPromoRefusal(promoMessage);
+        } else {
+          setError(rideErrorMessage(failure, t));
+        }
       }
     } finally {
       setBusy(false);
@@ -347,7 +356,11 @@ export default function ScheduleScreen() {
                   testID={`schedule-option-${item.serviceTypeId}`}
                 >
                   <View style={styles.carWell}>
-                    <Ionicons name="car-outline" size={26} color={colors.text} />
+                    <Ionicons
+                      name="car-outline"
+                      size={26}
+                      color={colors.text}
+                    />
                   </View>
                   <View style={styles.flex}>
                     <AppText variant="rowTitle" weight={800}>
@@ -397,7 +410,11 @@ export default function ScheduleScreen() {
                 }}
                 variant="scheduled"
                 promo={promo}
-                onChange={setPromo}
+                onChange={(next) => {
+                  setPromo(next);
+                  setPromoRefusal(null);
+                }}
+                externalError={promoRefusal}
                 testID="schedule-promo"
               />
             ) : null}
@@ -407,11 +424,17 @@ export default function ScheduleScreen() {
           </ScrollView>
           <View style={[styles.payment, { flexDirection: row }]}>
             <Ionicons
-              name={paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"}
+              name={
+                paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"
+              }
               size={22}
               color={colors.text}
             />
-            <AppText variant="bodyStrong" style={styles.flex} testID="schedule-payment">
+            <AppText
+              variant="bodyStrong"
+              style={styles.flex}
+              testID="schedule-payment"
+            >
               {t(`m12.payment.${paymentMethod}`)}
             </AppText>
             <TextButton

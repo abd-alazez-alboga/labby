@@ -237,9 +237,12 @@ describe("promo on a shared ride (ruling 2)", () => {
     await applyCode("shared-ride-promo", "WELCOME20");
     await fireEvent.press(screen.getByTestId("shared-ride-join"));
 
+    // M13 review W9: the refusal lands on the promo row and the chip drops,
+    // so the next join goes through without the dead code (UC-R-04 A1).
     expect(
-      await screen.findByTestId("shared-ride-error-banner"),
+      await screen.findByTestId("shared-ride-promo-row-error"),
     ).toHaveTextContent(/This ride already has a promo code\./);
+    expect(screen.queryByTestId("shared-ride-promo-applied")).toBeNull();
     expect(
       api.callsTo("POST", `/api/v1/shared-rides/${SHARED_ID}/join`)[0].body,
     ).toEqual({ partySize: 1, paymentMethod: "cash", promoCode: "WELCOME20" });

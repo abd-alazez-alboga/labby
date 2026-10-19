@@ -91,6 +91,7 @@ export function PromoRow({
   variant,
   promo,
   onChange,
+  externalError = null,
   testID = "promo",
 }: {
   context: PromoContext;
@@ -98,6 +99,12 @@ export function PromoRow({
   /** The applied promo, held by the booking surface (sent at booking). */
   promo: PromoValidation | null;
   onChange: (promo: PromoValidation | null) => void;
+  /**
+   * A refusal the SURFACE got at booking time (M13 review W9): shown in the
+   * row's error slot after the surface cleared the promo, so the next tap
+   * books without it (UC-R-04 A1).
+   */
+  externalError?: string | null;
   testID?: string;
 }) {
   const { t, locale } = useLocale();
@@ -238,10 +245,18 @@ export function PromoRow({
   if (promo) {
     return (
       <View style={styles.block}>
-        <View style={[styles.chip, { flexDirection: row }]} testID={`${testID}-applied`}>
+        <View
+          style={[styles.chip, { flexDirection: row }]}
+          testID={`${testID}-applied`}
+        >
           <Ionicons name="pricetag-outline" size={20} color={colors.accent} />
           <View style={styles.flex}>
-            <AppText variant="label" weight={800} tone="accent" testID={`${testID}-code`}>
+            <AppText
+              variant="label"
+              weight={800}
+              tone="accent"
+              testID={`${testID}-code`}
+            >
               {t("growth.promo.appliedTitle", { code: promo.code })}
             </AppText>
             <AppText variant="caption" weight={400} tone="accent">
@@ -249,6 +264,25 @@ export function PromoRow({
                 terms: promoTerms(promo, context.currency, locale, t),
               })}
             </AppText>
+            {promo.discountPreview != null && promo.discountPreview > 0 ? (
+              // M13 review W12 (owner-approved board amendment): the
+              // server's preview against the chosen option's estimate.
+              <AppText
+                variant="caption"
+                weight={400}
+                tone="secondary"
+                testID={`${testID}-preview`}
+              >
+                {t("growth.promo.estimatePreview", {
+                  money: formatMoney(
+                    promo.discountPreview,
+                    context.currency,
+                    locale,
+                    t,
+                  ),
+                })}
+              </AppText>
+            ) : null}
           </View>
           <TextButton
             label={t("growth.promo.remove")}
@@ -284,17 +318,17 @@ export function PromoRow({
           {t("growth.promo.addRow")}
         </AppText>
         <AppText variant="label" weight={700} tone="accent">
-          {t("booking.change")}
+          {t("growth.promo.addAction")}
         </AppText>
       </Pressable>
-      {rowError ? (
+      {(rowError ?? externalError) ? (
         <AppText
           variant="caption"
           weight={700}
           tone="danger"
           testID={`${testID}-row-error`}
         >
-          {rowError}
+          {rowError ?? externalError}
         </AppText>
       ) : null}
       {entry}

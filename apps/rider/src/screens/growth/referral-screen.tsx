@@ -114,14 +114,18 @@ export default function ReferralScreen() {
   const [failure, setFailure] = useState<FailureKind | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // One fetch, after the region settled either way — resolving after mount
+  // used to refetch and flash the amount-less headline (M13 review Info 4).
+  const regionSettled = !region || region.status !== "loading";
   const load = useCallback(async () => {
+    if (!regionSettled) return;
     setFailure(null);
     try {
       setStatus(await getReferralStatus(regionId));
     } catch (error) {
       setFailure(failureKind(error));
     }
-  }, [regionId]);
+  }, [regionId, regionSettled]);
 
   useEffect(() => {
     (async () => {
@@ -131,7 +135,11 @@ export default function ReferralScreen() {
 
   if (failure) {
     return (
-      <ErrorView kind={failure} onRetry={() => void load()} testID="referral-error" />
+      <ErrorView
+        kind={failure}
+        onRetry={() => void load()}
+        testID="referral-error"
+      />
     );
   }
   if (!status) return <LoadingView testID="referral-loading" />;
@@ -188,7 +196,9 @@ export default function ReferralScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
-              copied ? t("growth.referral.copied") : t("growth.referral.copyCode")
+              copied
+                ? t("growth.referral.copied")
+                : t("growth.referral.copyCode")
             }
             onPress={() => void copy()}
             style={({ pressed }) => [styles.copy, pressed && styles.pressed]}
@@ -204,10 +214,18 @@ export default function ReferralScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={share}
-          style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.shareButton,
+            pressed && styles.pressed,
+          ]}
           testID="referral-share"
         >
-          <AppText variant="bodyStrong" weight={800} tone="accent" align="center">
+          <AppText
+            variant="bodyStrong"
+            weight={800}
+            tone="accent"
+            align="center"
+          >
             {t("growth.referral.share")}
           </AppText>
         </Pressable>
@@ -256,7 +274,12 @@ export default function ReferralScreen() {
           size={18}
           color={colors.textSecondary}
         />
-        <AppText variant="caption" tone="secondary" weight={400} style={styles.flex}>
+        <AppText
+          variant="caption"
+          tone="secondary"
+          weight={400}
+          style={styles.flex}
+        >
           {t("growth.referral.note")}
         </AppText>
       </View>

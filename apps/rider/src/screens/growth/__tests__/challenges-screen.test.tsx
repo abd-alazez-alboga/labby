@@ -63,6 +63,23 @@ beforeEach(async () => {
 });
 
 describe("challenges (UC-S-24)", () => {
+  it("explains an out-of-area region with a retry instead of loading forever (W10)", async () => {
+    mockApi({
+      "GET /api/v1/regions/resolve": {
+        status: 404,
+        body: { status: 404, message: "outside" },
+      },
+    });
+    await renderChallenges();
+    expect(
+      await screen.findByTestId("challenges-region-blocked"),
+    ).toHaveTextContent("Outside our service area", { exact: false });
+    expect(
+      screen.getByTestId("challenges-region-blocked-retry"),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId("challenges-loading")).toBeNull();
+  });
+
   it("shows running, completed, ended and upcoming challenges", async () => {
     const running = challengeView();
     const completed = challengeView({

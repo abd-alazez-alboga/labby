@@ -14,6 +14,8 @@ export const growthEn = {
     rowChallenges: "Challenges",
     promo: {
       addRow: "Add a promo code",
+      addAction: "Add",
+      estimatePreview: "≈ −{{money}} on this estimate",
       appliedTitle: "{{code}} applied",
       terms: {
         percent: "{{percent}}% off",
@@ -48,7 +50,8 @@ export const growthEn = {
       rewardBoth: "You both get {{money}} in wallet credit",
       rewardSplit: "You get {{referrer}}, your friend gets {{referee}}",
       rewardNoAmount: "You both get wallet credit",
-      rewardBody: "when a friend signs up with your code and finishes their first ride.",
+      rewardBody:
+        "when a friend signs up with your code and finishes their first ride.",
       copyCode: "Copy code",
       copied: "Copied",
       share: "Share your code",
@@ -157,16 +160,20 @@ export const growthAr: typeof growthEn = {
     rowChallenges: "التحديات",
     promo: {
       addRow: "أضف رمز خصم",
+      addAction: "إضافة",
+      estimatePreview: "≈ −{{money}} على هذا التقدير",
       appliedTitle: "تم تطبيق {{code}}",
       terms: {
         percent: "خصم {{percent}}%",
         percentCapped: "خصم {{percent}}% حتى {{money}}",
         fixed: "خصم {{money}}",
       },
-      appliedFinalFare: "{{terms}} — يُخصم من الأجرة النهائية عند انتهاء الرحلة.",
+      appliedFinalFare:
+        "{{terms}} — يُخصم من الأجرة النهائية عند انتهاء الرحلة.",
       appliedAtRideTime:
         "{{terms}} — حُجز الرمز الآن ويُحسب الخصم على سعر وقت الرحلة.",
-      appliedSharedSeat: "{{terms}} — يُخصم من حصة مقعدك فقط عند انتهاء الرحلة.",
+      appliedSharedSeat:
+        "{{terms}} — يُخصم من حصة مقعدك فقط عند انتهاء الرحلة.",
       remove: "إزالة",
       entryTitle: "أضف رمز خصم",
       codeLabel: "رمز الخصم",

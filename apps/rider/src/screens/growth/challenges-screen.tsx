@@ -26,6 +26,7 @@ import type { AppLocale } from "../../i18n/translations";
 import { useOptionalRegion } from "../../region/region-context";
 import { formatDateTime, formatPoints } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { blockedRegion, RegionBlockedView } from "./region-blocked";
 
 type T = (key: string, params?: Record<string, unknown>) => string;
 
@@ -80,7 +81,12 @@ function ChallengeCard({
           <AppText variant="rowTitle" weight={800}>
             {title}
           </AppText>
-          <AppText variant="caption" tone="secondary" weight={400} testID={`${testID}-done`}>
+          <AppText
+            variant="caption"
+            tone="secondary"
+            weight={400}
+            testID={`${testID}-done`}
+          >
             {t("growth.challenges.done", {
               points: formatPoints(challenge.rewardPoints, locale),
             })}
@@ -103,12 +109,14 @@ function ChallengeCard({
           <AppText variant="rowTitle" weight={800}>
             {title}
           </AppText>
-          <AppText variant="caption" tone="secondary" weight={400}>
-            {progressLine(challenge, locale, t)}
-          </AppText>
         </View>
         <View style={styles.rewardChip}>
-          <AppText variant="caption" weight={800} tone="accent" testID={`${testID}-reward`}>
+          <AppText
+            variant="caption"
+            weight={800}
+            tone="accent"
+            testID={`${testID}-reward`}
+          >
             {t("growth.challenges.reward", {
               points: formatPoints(challenge.rewardPoints, locale),
             })}
@@ -116,13 +124,28 @@ function ChallengeCard({
         </View>
       </View>
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${Math.round(ratio * 100)}%` }]} />
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${Math.round(ratio * 100)}%` },
+          ]}
+        />
       </View>
       <View style={[styles.cardFoot, { flexDirection: row }]}>
-        <AppText variant="caption" weight={800} style={styles.flex} testID={`${testID}-progress`}>
+        <AppText
+          variant="caption"
+          weight={800}
+          style={styles.flex}
+          testID={`${testID}-progress`}
+        >
           {progressLine(challenge, locale, t)}
         </AppText>
-        <AppText variant="caption" tone="muted" weight={400} testID={`${testID}-window`}>
+        <AppText
+          variant="caption"
+          tone="muted"
+          weight={400}
+          testID={`${testID}-window`}
+        >
           {challenge.ended
             ? t("growth.challenges.endedChip")
             : upcoming
@@ -172,6 +195,13 @@ export default function ChallengesScreen() {
       />
     );
   }
+  const blocked = blockedRegion(region);
+  if (blocked) {
+    // M13 review W10: the region rule drives the screen — explain + retry.
+    return (
+      <RegionBlockedView region={blocked} testID="challenges-region-blocked" />
+    );
+  }
   if (!challenges) return <LoadingView testID="challenges-loading" />;
 
   return (
@@ -208,7 +238,12 @@ export default function ChallengesScreen() {
           size={18}
           color={colors.textSecondary}
         />
-        <AppText variant="caption" tone="secondary" weight={400} style={styles.flex}>
+        <AppText
+          variant="caption"
+          tone="secondary"
+          weight={400}
+          style={styles.flex}
+        >
           {t("growth.challenges.note")}
         </AppText>
       </View>

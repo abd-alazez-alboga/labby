@@ -106,6 +106,8 @@ describe("referral screen (UC-R-18)", () => {
           .some((call) => call.query.regionId === regionConfig.id),
       ).toBe(true),
     );
+    // One fetch only — the screen waits for the region to settle (Info 4).
+    expect(api.callsTo("GET", "/api/v1/referrals/me")).toHaveLength(1);
   });
 
   it("falls back to amount-less copy without a reward, and shows blocked", async () => {

@@ -91,7 +91,8 @@ function FactRow({
   const { row } = useDirection();
   return (
     <View style={[styles.fact, { flexDirection: row }]} testID={testID}>
-      {leading ?? (icon ? <Ionicons name={icon} size={20} color={colors.text} /> : null)}
+      {leading ??
+        (icon ? <Ionicons name={icon} size={20} color={colors.text} /> : null)}
       <View style={styles.flex}>
         {label ? (
           <AppText variant="caption" weight={700} tone="muted">
@@ -200,7 +201,8 @@ function CancelSharedSheet({
                     style={[
                       styles.reason,
                       { flexDirection: row },
-                      index < SHARED_CANCEL_REASONS.length - 1 && styles.divider,
+                      index < SHARED_CANCEL_REASONS.length - 1 &&
+                        styles.divider,
                     ]}
                     testID={`shared-cancel-reason-${item}`}
                   >
@@ -225,7 +227,11 @@ function CancelSharedSheet({
               />
             ) : null}
             {error ? (
-              <Banner tone="danger" message={error} testID="shared-cancel-error" />
+              <Banner
+                tone="danger"
+                message={error}
+                testID="shared-cancel-error"
+              />
             ) : null}
           </ScrollView>
           <PrimaryButton
@@ -295,6 +301,8 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
   // M13 ruling 2: a joining member's promo discounts their own seat share;
   // one promo per ride (409 promo_already_applied).
   const [promo, setPromo] = useState<PromoValidation | null>(null);
+  // M13 review W9: a promo refused at BOOKING is dropped, explained on the row.
+  const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // E1: the backend said fewer seats are left than the party needs.
@@ -370,7 +378,11 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
 
   if (!ride) {
     return failure ? (
-      <ErrorView kind={failure} onRetry={() => void load()} testID="shared-ride-error" />
+      <ErrorView
+        kind={failure}
+        onRetry={() => void load()}
+        testID="shared-ride-error"
+      />
     ) : (
       <LoadingView testID="shared-ride-loading" />
     );
@@ -390,7 +402,9 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
     setError(null);
     setShortOf(null);
     try {
-      show(await joinSharedRide(ride.rideId, party, paymentMethod, promo?.code));
+      show(
+        await joinSharedRide(ride.rideId, party, paymentMethod, promo?.code),
+      );
     } catch (failed) {
       const code = rideErrorCode(failed);
       if (code === "insufficient_seats") {
@@ -409,7 +423,14 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
       } else if (code === "active_ride_exists") {
         setError(t("shared.activeRideExists"));
       } else {
-        setError(promoErrorMessage(failed, t) ?? rideErrorMessage(failed, t));
+        const promoMessage = promoErrorMessage(failed, t);
+        if (promoMessage) {
+          // Review W9: drop the refused promo so the next tap books without it.
+          setPromo(null);
+          setPromoRefusal(promoMessage);
+        } else {
+          setError(rideErrorMessage(failed, t));
+        }
       }
     } finally {
       setBusy(false);
@@ -458,7 +479,11 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
         <AppText variant="title" testID="shared-ride-ended">
           {t("shared.endedTitle")}
         </AppText>
-        <AppText variant="body" tone="secondary" testID="shared-ride-ended-body">
+        <AppText
+          variant="body"
+          tone="secondary"
+          testID="shared-ride-ended-body"
+        >
           {body}
         </AppText>
         <PrimaryButton
@@ -474,9 +499,16 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
     content = (
       <>
         <View style={styles.head}>
-          <View style={[styles.chip, row === "row" ? styles.selfStart : styles.selfEnd]}>
+          <View
+            style={[
+              styles.chip,
+              row === "row" ? styles.selfStart : styles.selfEnd,
+            ]}
+          >
             <AppText variant="caption" weight={800} tone="accent">
-              {creator ? t("shared.gatheringCreator") : t("shared.gatheringMember")}
+              {creator
+                ? t("shared.gatheringCreator")
+                : t("shared.gatheringMember")}
             </AppText>
           </View>
           <AppText variant="title">
@@ -489,8 +521,15 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
         <View style={styles.occupancyBox}>
           <OccupancyBar taken={ride.seatsTaken} total={ride.totalSeats} />
           <View style={[styles.valueRow, { flexDirection: row }]}>
-            <AppText variant="heading" style={styles.flex} testID="shared-ride-occupancy">
-              {t("shared.seatsTaken", { taken: ride.seatsTaken, total: ride.totalSeats })}
+            <AppText
+              variant="heading"
+              style={styles.flex}
+              testID="shared-ride-occupancy"
+            >
+              {t("shared.seatsTaken", {
+                taken: ride.seatsTaken,
+                total: ride.totalSeats,
+              })}
             </AppText>
             <AppText variant="secondary" tone="secondary">
               {creator
@@ -515,7 +554,10 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
             />
           ) : (
             <>
-              <ValueRow label={t("shared.wholeRide")} value={money(ride.estimateTotal)} />
+              <ValueRow
+                label={t("shared.wholeRide")}
+                value={money(ride.estimateTotal)}
+              />
               <ValueRow
                 label={
                   me.partySize === 1
@@ -533,7 +575,13 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
             </>
           )}
         </View>
-        {error ? <Banner tone="danger" message={error} testID="shared-ride-error-banner" /> : null}
+        {error ? (
+          <Banner
+            tone="danger"
+            message={error}
+            testID="shared-ride-error-banner"
+          />
+        ) : null}
         {creator ? (
           <>
             <PrimaryButton
@@ -596,7 +644,13 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
             testID="shared-ride-departure"
           />
           <FactRow
-            leading={<SeatDots taken={ride.seatsTaken} total={ride.totalSeats} size={16} />}
+            leading={
+              <SeatDots
+                taken={ride.seatsTaken}
+                total={ride.totalSeats}
+                size={16}
+              />
+            }
             value={t("shared.occupancy", {
               taken: ride.seatsTaken,
               total: ride.totalSeats,
@@ -606,7 +660,10 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
           />
         </View>
         <View style={styles.priceBox}>
-          <ValueRow label={t("shared.wholeRide")} value={money(ride.estimateTotal)} />
+          <ValueRow
+            label={t("shared.wholeRide")}
+            value={money(ride.estimateTotal)}
+          />
           <ValueRow
             label={t("shared.ifAllRide", { seats: ride.totalSeats })}
             value={money(perSeat(ride.estimateTotal, ride.totalSeats))}
@@ -637,17 +694,25 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
         ) : null}
         <View style={[styles.payment, { flexDirection: row }]}>
           <Ionicons
-            name={paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"}
+            name={
+              paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"
+            }
             size={22}
             color={colors.text}
           />
-          <AppText variant="bodyStrong" style={styles.flex} testID="shared-ride-payment">
+          <AppText
+            variant="bodyStrong"
+            style={styles.flex}
+            testID="shared-ride-payment"
+          >
             {t(`m12.payment.${paymentMethod}`)}
           </AppText>
           <TextButton
             label={t("booking.change")}
             onPress={() =>
-              setPaymentMethod((method) => (method === "wallet" ? "cash" : "wallet"))
+              setPaymentMethod((method) =>
+                method === "wallet" ? "cash" : "wallet",
+              )
             }
             testID="shared-ride-payment-change"
           />
@@ -661,13 +726,25 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
           }}
           variant="shared"
           promo={promo}
-          onChange={setPromo}
+          onChange={(next) => {
+            setPromo(next);
+            setPromoRefusal(null);
+          }}
+          externalError={promoRefusal}
           testID="shared-ride-promo"
         />
-        {error ? <Banner tone="danger" message={error} testID="shared-ride-error-banner" /> : null}
+        {error ? (
+          <Banner
+            tone="danger"
+            message={error}
+            testID="shared-ride-error-banner"
+          />
+        ) : null}
         <PrimaryButton
           label={
-            party === 1 ? t("shared.joinOne") : t("shared.joinMany", { count: party })
+            party === 1
+              ? t("shared.joinOne")
+              : t("shared.joinMany", { count: party })
           }
           onPress={() => void join()}
           disabled={shortOf === 0}
@@ -699,12 +776,18 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
       }
       sheet={
         <BottomSheet style={styles.sheet} testID="shared-ride-sheet">
-          <ScrollView contentContainerStyle={styles.sheetContent}>{content}</ScrollView>
+          <ScrollView contentContainerStyle={styles.sheetContent}>
+            {content}
+          </ScrollView>
           <CancelSharedSheet
             visible={cancelOpen}
             onClose={() => setCancelOpen(false)}
             onConfirm={async (reason, note) => {
-              const cancelled = await cancelSharedRide(ride.rideId, reason, note);
+              const cancelled = await cancelSharedRide(
+                ride.rideId,
+                reason,
+                note,
+              );
               setCancelOpen(false);
               show(cancelled);
             }}

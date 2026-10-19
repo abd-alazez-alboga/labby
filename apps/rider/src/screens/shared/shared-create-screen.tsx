@@ -73,6 +73,8 @@ export default function SharedCreateScreen() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   // M13 ruling 2: discounts only the creator's own seat share at the split.
   const [promo, setPromo] = useState<PromoValidation | null>(null);
+  // M13 review W9: a promo refused at BOOKING is dropped, explained on the row.
+  const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -132,7 +134,8 @@ export default function SharedCreateScreen() {
   }
 
   const option =
-    estimate.options.find((item) => item.serviceTypeId === serviceTypeId) ?? null;
+    estimate.options.find((item) => item.serviceTypeId === serviceTypeId) ??
+    null;
 
   const setSeatsClamped = (next: number) => {
     setSeats(next);
@@ -158,7 +161,9 @@ export default function SharedCreateScreen() {
         ...(promo ? { promoCode: promo.code } : {}),
       });
       if (created.state === "gathering") {
-        router.replace(`/shared/${encodeURIComponent(created.rideId)}` as never);
+        router.replace(
+          `/shared/${encodeURIComponent(created.rideId)}` as never,
+        );
       } else {
         // The creator's party filled every seat: dispatched at once.
         void facade?.track(created.rideId);
@@ -177,7 +182,14 @@ export default function SharedCreateScreen() {
       } else if (code === "active_ride_exists") {
         setError(t("shared.activeRideExists"));
       } else {
-        setError(promoErrorMessage(failed, t) ?? rideErrorMessage(failed, t));
+        const promoMessage = promoErrorMessage(failed, t);
+        if (promoMessage) {
+          // Review W9: drop the refused promo so the next tap books without it.
+          setPromo(null);
+          setPromoRefusal(promoMessage);
+        } else {
+          setError(rideErrorMessage(failed, t));
+        }
       }
     } finally {
       setBusy(false);
@@ -190,7 +202,11 @@ export default function SharedCreateScreen() {
   const currency = option?.estimate.components.currency ?? estimate.currency;
 
   return (
-    <Screen edges={["top", "bottom"]} style={styles.page} testID="shared-create">
+    <Screen
+      edges={["top", "bottom"]}
+      style={styles.page}
+      testID="shared-create"
+    >
       <ScrollView contentContainerStyle={styles.content}>
         <Pressable
           accessibilityRole="button"
@@ -251,7 +267,9 @@ export default function SharedCreateScreen() {
                     weight={selected ? 800 : 700}
                     tone={selected ? "default" : "secondary"}
                   >
-                    {item === "at_time" ? t("shared.atTime") : t("shared.whenFull")}
+                    {item === "at_time"
+                      ? t("shared.atTime")
+                      : t("shared.whenFull")}
                   </AppText>
                 </Pressable>
               );
@@ -331,7 +349,11 @@ export default function SharedCreateScreen() {
             }}
             variant="shared"
             promo={promo}
-            onChange={setPromo}
+            onChange={(next) => {
+              setPromo(next);
+              setPromoRefusal(null);
+            }}
+            externalError={promoRefusal}
             testID="shared-create-promo"
           />
         ) : null}

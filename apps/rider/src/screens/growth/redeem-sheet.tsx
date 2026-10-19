@@ -21,6 +21,7 @@ import {
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import type { AppLocale } from "../../i18n/translations";
 import { formatMoney, formatPoints } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 
@@ -34,13 +35,16 @@ export function redeemErrorMessage(
   error: unknown,
   threshold: number,
   t: T,
+  locale: AppLocale,
 ): string {
   if (error instanceof ApiError) {
     if (error.status === 403 || error.body?.code === "account_suspended") {
       return t("growth.redeem.suspended");
     }
     if (error.body?.code === "below_threshold") {
-      return t("growth.redeem.belowThreshold", { points: threshold });
+      return t("growth.redeem.belowThreshold", {
+        points: formatPoints(threshold, locale),
+      });
     }
     if (error.body?.code === "insufficient_points") {
       return t("growth.redeem.insufficient");
@@ -89,7 +93,7 @@ export function RedeemSheet({
       onRedeemed(next);
       onClose();
     } catch (failed) {
-      setError(redeemErrorMessage(failed, threshold, t));
+      setError(redeemErrorMessage(failed, threshold, t, locale));
     } finally {
       setBusy(false);
     }
@@ -163,7 +167,12 @@ export function RedeemSheet({
               </AppText>
             </View>
             <View style={[styles.previewLine, { flexDirection: row }]}>
-              <AppText variant="caption" tone="muted" weight={400} style={styles.flex}>
+              <AppText
+                variant="caption"
+                tone="muted"
+                weight={400}
+                style={styles.flex}
+              >
                 {t("growth.redeem.leftAfter")}
               </AppText>
               <AppText variant="caption" weight={700} testID="redeem-left">
@@ -178,7 +187,12 @@ export function RedeemSheet({
               size={18}
               color={colors.textSecondary}
             />
-            <AppText variant="caption" tone="secondary" weight={400} style={styles.flex}>
+            <AppText
+              variant="caption"
+              tone="secondary"
+              weight={400}
+              style={styles.flex}
+            >
               {t("growth.redeem.note")}
             </AppText>
           </View>
@@ -188,7 +202,9 @@ export function RedeemSheet({
           ) : null}
 
           <PrimaryButton
-            label={t("growth.redeem.cta", { points: formatPoints(points, locale) })}
+            label={t("growth.redeem.cta", {
+              points: formatPoints(points, locale),
+            })}
             onPress={() => void redeem()}
             disabled={points > balance.redeemable}
             loading={busy}

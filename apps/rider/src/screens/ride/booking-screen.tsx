@@ -82,11 +82,7 @@ export function comfortSummary(
   preferences: RiderPreferences,
   t: (key: string) => string,
 ): string {
-  return [
-    preferences.temperature,
-    preferences.conversation,
-    preferences.music,
-  ]
+  return [preferences.temperature, preferences.conversation, preferences.music]
     .map((value) => t(`ridePrefs.values.${value}`))
     .join(" · ");
 }
@@ -222,7 +218,11 @@ function WalletPreview({
         <AppText variant="secondary" tone="secondary" style={styles.flex}>
           {t("booking.walletCovers")}
         </AppText>
-        <AppText variant="secondary" weight={700} testID="booking-wallet-covers">
+        <AppText
+          variant="secondary"
+          weight={700}
+          testID="booking-wallet-covers"
+        >
           {formatMoney(covers, currency, locale, t)}
         </AppText>
       </View>
@@ -230,7 +230,11 @@ function WalletPreview({
         <AppText variant="secondary" tone="secondary" style={styles.flex}>
           {t("booking.remainingCash")}
         </AppText>
-        <AppText variant="secondary" weight={700} testID="booking-wallet-remaining">
+        <AppText
+          variant="secondary"
+          weight={700}
+          testID="booking-wallet-remaining"
+        >
           {t("booking.approxMoney", {
             money: formatMoney(remaining, currency, locale, t),
           })}
@@ -291,6 +295,8 @@ export default function BookingScreen({
   // M13 (UC-R-04 A1): the validated promo, reserved at booking. The
   // estimate stays promo-free; the discount lands on the receipt.
   const [promo, setPromo] = useState<PromoValidation | null>(null);
+  // M13 review W9: a promo refused at BOOKING is dropped, explained on the row.
+  const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
   // M12: the rider's upcoming scheduled rides (for the 60-min warning).
   const [scheduledRides, setScheduledRides] = useState<Ride[]>([]);
   const [warning, setWarning] = useState<Ride | null>(null);
@@ -457,8 +463,15 @@ export default function BookingScreen({
         );
       } else {
         setSurgeChange(null);
-        // A promo_* refusal at booking is about the code, not the ride.
-        setBookError(promoErrorMessage(error, t) ?? rideErrorMessage(error, t));
+        // A promo_* refusal at booking is about the code, not the ride: drop
+        // the promo so the next tap books without it (UC-R-04 A1, review W9).
+        const promoMessage = promoErrorMessage(error, t);
+        if (promoMessage) {
+          setPromo(null);
+          setPromoRefusal(promoMessage);
+        } else {
+          setBookError(rideErrorMessage(error, t));
+        }
       }
     } finally {
       setBooking(false);
@@ -546,7 +559,11 @@ export default function BookingScreen({
           <ScrollView contentContainerStyle={styles.options}>
             {surge ? <SurgeBanner estimate={estimate} /> : null}
             {estimate.options.length === 0 ? (
-              <AppText variant="secondary" tone="muted" testID="booking-no-options">
+              <AppText
+                variant="secondary"
+                tone="muted"
+                testID="booking-no-options"
+              >
                 {t("booking.noOptions")}
               </AppText>
             ) : null}
@@ -567,7 +584,11 @@ export default function BookingScreen({
                   testID={`booking-option-${item.serviceTypeId}`}
                 >
                   <View style={styles.carWell}>
-                    <Ionicons name="car-outline" size={26} color={colors.text} />
+                    <Ionicons
+                      name="car-outline"
+                      size={26}
+                      color={colors.text}
+                    />
                   </View>
                   <View style={styles.optionText}>
                     <AppText variant="rowTitle" weight={800}>
@@ -672,22 +693,36 @@ export default function BookingScreen({
                 }}
                 variant="onDemand"
                 promo={promo}
-                onChange={setPromo}
+                onChange={(next) => {
+                  setPromo(next);
+                  setPromoRefusal(null);
+                }}
+                externalError={promoRefusal}
                 testID="booking-promo"
               />
             ) : null}
             {bookError ? (
-              <Banner tone="danger" message={bookError} testID="booking-error" />
+              <Banner
+                tone="danger"
+                message={bookError}
+                testID="booking-error"
+              />
             ) : null}
           </ScrollView>
           <View style={styles.paymentBlock}>
             <View style={[styles.payment, { flexDirection: row }]}>
               <Ionicons
-                name={paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"}
+                name={
+                  paymentMethod === "wallet" ? "wallet-outline" : "cash-outline"
+                }
                 size={22}
                 color={colors.text}
               />
-              <AppText variant="bodyStrong" style={styles.flex} testID="booking-payment">
+              <AppText
+                variant="bodyStrong"
+                style={styles.flex}
+                testID="booking-payment"
+              >
                 {paymentMethod === "wallet"
                   ? t("booking.payingWallet")
                   : t("booking.cash")}

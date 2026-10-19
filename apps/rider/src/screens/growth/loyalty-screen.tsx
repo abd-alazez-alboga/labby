@@ -38,6 +38,7 @@ import {
   formatSignedPoints,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { blockedRegion, RegionBlockedView } from "./region-blocked";
 import { RedeemSheet } from "./redeem-sheet";
 
 type T = (key: string, params?: Record<string, unknown>) => string;
@@ -46,7 +47,11 @@ type T = (key: string, params?: Record<string, unknown>) => string;
  * "1 point for every SYP 100 you pay on a ride" — the accrual side of the
  * region rule: rates below 1 pt/unit invert into currency units per point.
  */
-export function accrualLine(rule: LoyaltyRule, locale: AppLocale, t: T): string {
+export function accrualLine(
+  rule: LoyaltyRule,
+  locale: AppLocale,
+  t: T,
+): string {
   const money = (amount: number) =>
     formatMoney(amount, rule.currency, locale, t);
   if (rule.pointsPerCurrencyUnit >= 1) {
@@ -64,12 +69,32 @@ export function accrualLine(rule: LoyaltyRule, locale: AppLocale, t: T): string 
 
 const TYPE_META: Record<
   PointsTransaction["type"],
-  { labelKey: string; icon: "car-outline" | "ribbon-outline" | "card-outline" | "create-outline"; accent: boolean }
+  {
+    labelKey: string;
+    icon: "car-outline" | "ribbon-outline" | "card-outline" | "create-outline";
+    accent: boolean;
+  }
 > = {
-  accrual: { labelKey: "growth.loyalty.typeRide", icon: "car-outline", accent: true },
-  challenge: { labelKey: "growth.loyalty.typeChallenge", icon: "ribbon-outline", accent: true },
-  redemption: { labelKey: "growth.loyalty.typeRedemption", icon: "card-outline", accent: false },
-  adjustment: { labelKey: "growth.loyalty.typeAdjustment", icon: "create-outline", accent: false },
+  accrual: {
+    labelKey: "growth.loyalty.typeRide",
+    icon: "car-outline",
+    accent: true,
+  },
+  challenge: {
+    labelKey: "growth.loyalty.typeChallenge",
+    icon: "ribbon-outline",
+    accent: true,
+  },
+  redemption: {
+    labelKey: "growth.loyalty.typeRedemption",
+    icon: "card-outline",
+    accent: false,
+  },
+  adjustment: {
+    labelKey: "growth.loyalty.typeAdjustment",
+    icon: "create-outline",
+    accent: false,
+  },
 };
 
 function ActivityRow({
@@ -144,13 +169,25 @@ export default function LoyaltyScreen() {
 
   if (failure) {
     return (
-      <ErrorView kind={failure} onRetry={() => void load()} testID="loyalty-error" />
+      <ErrorView
+        kind={failure}
+        onRetry={() => void load()}
+        testID="loyalty-error"
+      />
+    );
+  }
+  const blocked = blockedRegion(region);
+  if (blocked) {
+    // M13 review W10: the region rule drives the screen — explain + retry.
+    return (
+      <RegionBlockedView region={blocked} testID="loyalty-region-blocked" />
     );
   }
   if (!balance || !activity) return <LoadingView testID="loyalty-loading" />;
 
   const next = nextLevel(balance.levels, balance.lifetime);
-  const canRedeem = balance.redeemable >= balance.rule.redemptionThresholdPoints;
+  const canRedeem =
+    balance.redeemable >= balance.rule.redemptionThresholdPoints;
   const money = (amount: number) =>
     formatMoney(amount, balance.rule.currency, locale, t);
 
@@ -162,16 +199,31 @@ export default function LoyaltyScreen() {
     >
       <View style={styles.card}>
         <View style={[styles.cardHead, { flexDirection: row }]}>
-          <AppText variant="label" weight={700} tone="onAccent" style={styles.dim}>
+          <AppText
+            variant="label"
+            weight={700}
+            tone="onAccent"
+            style={styles.dim}
+          >
             {t("growth.loyalty.spendable")}
           </AppText>
           <View style={styles.levelChip}>
-            <AppText variant="caption" weight={800} tone="accent" testID="loyalty-level">
+            <AppText
+              variant="caption"
+              weight={800}
+              tone="accent"
+              testID="loyalty-level"
+            >
               {t(`growth.loyalty.level.${balance.level}`)}
             </AppText>
           </View>
         </View>
-        <AppText variant="display" weight={800} tone="onAccent" testID="loyalty-redeemable">
+        <AppText
+          variant="display"
+          weight={800}
+          tone="onAccent"
+          testID="loyalty-redeemable"
+        >
           {formatPoints(balance.redeemable, locale)}
         </AppText>
         <View style={styles.progressTrack}>
@@ -233,7 +285,10 @@ export default function LoyaltyScreen() {
         >
           {t("growth.loyalty.ruleNote", {
             earn: accrualLine(balance.rule, locale, t),
-            threshold: formatPoints(balance.rule.redemptionThresholdPoints, locale),
+            threshold: formatPoints(
+              balance.rule.redemptionThresholdPoints,
+              locale,
+            ),
             money: money(100 * balance.rule.redemptionRate),
           })}
         </AppText>
@@ -241,7 +296,12 @@ export default function LoyaltyScreen() {
 
       <AppText variant="heading">{t("growth.loyalty.activity")}</AppText>
       {activity.length === 0 ? (
-        <AppText variant="secondary" tone="muted" weight={400} testID="loyalty-empty">
+        <AppText
+          variant="secondary"
+          tone="muted"
+          weight={400}
+          testID="loyalty-empty"
+        >
           {t("growth.loyalty.empty")}
         </AppText>
       ) : (
@@ -256,18 +316,20 @@ export default function LoyaltyScreen() {
         </View>
       )}
 
-      <RedeemSheet
-        visible={redeemOpen}
-        balance={balance}
-        onClose={() => setRedeemOpen(false)}
-        onRedeemed={(fresh) => {
-          setBalance(fresh);
-          // The redemption row lands in the history too.
-          void listPointsTransactions()
-            .then((page) => setActivity(page.items))
-            .catch(() => {});
-        }}
-      />
+      {redeemOpen ? (
+        <RedeemSheet
+          visible
+          balance={balance}
+          onClose={() => setRedeemOpen(false)}
+          onRedeemed={(fresh) => {
+            setBalance(fresh);
+            // The redemption row lands in the history too.
+            void listPointsTransactions()
+              .then((page) => setActivity(page.items))
+              .catch(() => {});
+          }}
+        />
+      ) : null}
     </ScreenScrollView>
   );
 }
