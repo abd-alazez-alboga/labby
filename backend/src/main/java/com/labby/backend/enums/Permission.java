@@ -32,6 +32,8 @@ public enum Permission {
   PROMOS_MANAGE("promos:manage"),
   CHALLENGES_VIEW("challenges:view"),
   CHALLENGES_MANAGE("challenges:manage"),
+  CONTENT_VIEW("content:view"),
+  CONTENT_MANAGE("content:manage"),
   ANALYTICS_VIEW("analytics:view"),
   ANALYTICS_EXPORT("analytics:export"),
   AUDIT_VIEW("audit:view"),

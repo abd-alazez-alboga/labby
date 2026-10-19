@@ -74,7 +74,9 @@ abstract class AbstractOnboardingIntegrationTest extends AbstractAuthIntegration
     jdbcTemplate.update("DELETE FROM rating_snapshots");
     // M10 comms rows reference rides and users. sos_events are permanent by trigger and the
     // chat read markers point into chat_messages: TRUNCATE like the money ledgers.
-    jdbcTemplate.execute("TRUNCATE sos_events");
+    // M14 support tickets reference sos_events (and rides, users), so they truncate with it.
+    jdbcTemplate.execute(
+        "TRUNCATE ticket_attachments, ticket_messages, ticket_events, support_tickets, sos_events");
     jdbcTemplate.execute("TRUNCATE chat_messages, chat_threads");
     jdbcTemplate.update("DELETE FROM trip_share_links");
     // M12 scheduled/shared rows reference rides, vehicles and users; the claim-release trail is

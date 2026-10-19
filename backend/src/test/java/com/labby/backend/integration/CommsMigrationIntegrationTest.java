@@ -65,7 +65,9 @@ class CommsMigrationIntegrationTest extends AbstractIntegrationTest {
   void cleanOwnRows() {
     // sos_events are permanent by trigger; TRUNCATE bypasses row-level triggers (same approach
     // as the money ledgers). Threads and messages reference each other via the read markers.
-    jdbcTemplate.execute("TRUNCATE sos_events");
+    // M14 support tickets reference sos_events (and rides, users), so they truncate with it.
+    jdbcTemplate.execute(
+        "TRUNCATE ticket_attachments, ticket_messages, ticket_events, support_tickets, sos_events");
     jdbcTemplate.execute("TRUNCATE chat_messages, chat_threads");
     jdbcTemplate.update(
         "DELETE FROM trip_share_links WHERE ride_id IN (SELECT ride_id FROM"

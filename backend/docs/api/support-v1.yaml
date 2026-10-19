@@ -1,0 +1,1381 @@
+openapi: 3.1.0
+info:
+  title: Labby Support API (M14 contract)
+  version: 0.1.0
+  description: >
+    Contract-first spec for milestone M14, support & content: support tickets with their
+    user <-> support thread, lost-item cases (a ticket subtype that reopens the ride chat), the
+    help center CMS with its public reads and search, ticket categories and feedback. The clients
+    (M14-T3 rider + driver, M14-T4 admin) build against this document; the backend (M14-T2) must
+    implement it exactly — on conflict after T2 lands, the implementation is the truth and this
+    file is amended. Schema: migration V26. SRS: SUP-01..04, LOST-01/02, FDBK-01;
+    UC-S-19..22, UC-R-20, UC-D-21, UC-A-21..25.
+
+
+    **Owner rulings (2026-10-19, M14-T1 plan gate).**
+
+    (1) Priority scale `low / normal / high / urgent`; a ticket is born with its category's default
+    priority and an admin may override it (SUP-03). The queue sorts by priority, then age.
+
+    (2) Attachments: up to **5** per ticket (JPEG/PNG/PDF), at creation only — thread messages are
+    text. A lost-item report carries up to **3** photos (JPEG/PNG), mirroring the REP-01 ruling.
+
+    (3) Lost items are tickets of `kind: lost_item` in the seeded system category **Lost item /
+    مفقودات** (default priority `high`, never deactivated or deleted, never pickable on a plain
+    ticket). **One open case per rider per ride**; a report is accepted any time after the ride
+    completed (no cutoff).
+
+    (4) `waiting_on_user`: ONE reminder notification after **48 h** without a user reply
+    (`labby.support.waiting-reminder-hours`, job `labby.support.reminder-cron`). `resolved ->
+    closed` is an admin action; nothing auto-closes.
+
+    (5) Feedback categories are the fixed catalog `app_experience, pricing, drivers, safety,
+    feature_request, other`, named in app i18n (like badges) — not admin-managed.
+
+    (6) Help CMS and ticket-category management sit behind the new **`content:view` /
+    `content:manage`** permissions (Super Admin only by default). Tickets, lost items and feedback
+    stay under the existing `support:view` / `support:handle`.
+
+    (7) Help article bodies are plain text with paragraphs, 20,000 characters max. Search is a
+    case-insensitive substring match on title + body in the requested language (V1 scale, no
+    full-text extension).
+
+    (8) Every user notification below rides the existing **`account`** category (NTF-01 fixes the
+    category list; `account` is the mutable one). Admins get no push — they work the queues.
+
+    (9) The only admin-opened ticket is the SOS-linked one: from the acknowledge flow an admin
+    opens a ticket **on behalf of the SOS caller**, about the SOS ride (the M10-T4 note stub's real
+    rail). One ticket per SOS event.
+
+
+    **Ticket state machine (SUP-02).** `open -> in_progress -> waiting_on_user -> resolved ->
+    closed`. Admin transitions (`POST /admin/tickets/{id}/status`): `open -> in_progress`;
+    `in_progress -> waiting_on_user | resolved`; `waiting_on_user -> in_progress`;
+    `resolved -> in_progress | closed`. Anything else is 409 `invalid_transition`; `closed` is
+    terminal and reachable only from `resolved`. Implicit moves: a support reply on `open` moves
+    it to `in_progress`; a USER reply on `waiting_on_user` or `resolved` moves it back to
+    `in_progress` (SUP-02 "reply to reopen discussion until closed"); replies on `closed` are
+    409 `ticket_closed`. Entering `waiting_on_user` stamps `waitingSince`; the reminder job sends
+    `support.waiting_reminder` once per stay (a later re-entry gets a fresh reminder). Every
+    status change, priority override and assignment lands in the ticket's event history and —
+    status changes — in a notification to the user. The user is notified on creation too.
+
+
+    **Lost-item case state machine (LOST-02).** `reported -> driver_contacted -> found |
+    not_found`; `found -> returned`; `returned | not_found -> closed` (`POST
+    /admin/lost-items/{id}/case-status`; anything else 409 `invalid_transition`). The case's
+    ticket status MIRRORS the case and is not set directly (`/status` on a lost-item ticket is 409
+    `use_case_status`): `reported` = `open`, `driver_contacted` / `found` = `in_progress`,
+    `not_found` / `returned` = `resolved`, `closed` = `closed`. The thread (rider <-> support)
+    works as on any ticket but never changes the status; the driver has no support thread — they
+    coordinate in the reopened ride chat and see the case status in the app (UC-D-21). Both
+    parties are notified on every case-status change (rider also on opening; driver gets
+    `lost_item.case_opened`).
+
+
+    **Chat reopen (LOST-01, M10 hook).** While a non-closed lost-item case exists for a ride and
+    rider, that rider's chat thread with the driver (V21: one thread per ride x rider) is in
+    window state `reopened` — writable for both, pushes on every message (comms-v1 rules). T2
+    derives the state from the open-case index (`uq_support_tickets_open_case`), so the window
+    tracks the case exactly: opening the case reopens, closing it (`closed`) returns the thread to
+    `read_only` — unless another open case of the same rider on the same ride exists, which the
+    uniqueness rule forbids anyway. A case on a ride older than the 24 h tail reopens a thread
+    that was already read-only; the M10 `reopened_until` column stays for time-bound reopens and
+    is not used by cases. An offline driver follows M10's "Go online to chat" rule.
+
+
+    **Help center (SUP-04).** Public reads serve published articles only, both languages in one
+    payload (instant language switch, NFR-I1); a category is listed when it has at least one
+    published article. Publishing with any of the four texts (title EN/AR, body EN/AR) missing is
+    refused 422 `translation_missing` (and impossible at the DB level). Published content shows in
+    the apps immediately (no cache beyond the request). The support home shows the help center
+    FIRST; "create ticket" is reached from it (UC-S-19 step 1, UC-S-21 A1).
+
+
+    **Feedback (FDBK-01).** Not ride-bound; the submitting app is recorded (`submittedAs`) for the
+    admin filter. No per-item response is promised (UC-S-22) — no notification. Admin tags are
+    free text (trimmed, lower-cased, <= 30 chars). The stats view counts entries by category per
+    time bucket.
+
+
+    **Notifications (category `account`, screen deep links).** `support.ticket_created`,
+    `support.ticket_status_changed`, `support.ticket_message` (support reply),
+    `support.waiting_reminder` → screen `ticket` {ticketId}; `lost_item.case_opened` (driver),
+    `lost_item.case_status_changed` (both) → screen `lost_item_case` {ticketId}. The lost-item
+    rider also gets the plain ticket notifications for the thread. Chat messages in a reopened
+    thread keep M10's `chat` category.
+
+
+    **Audit.** Every admin write here is audit-logged: `ticket.status`, `ticket.priority`,
+    `ticket.assign`, `ticket.reply`, `lost_item.case_status`, `ticket_category.create|update|
+    delete`, `help_category.create|update|delete|reorder`, `help_article.create|update|publish|
+    unpublish|delete|reorder`, `feedback.tag`, `sos.ticket`. The wallet-credit remedy (UC-A-21
+    A2) adds NO endpoint: the admin app deep-links from the ticket to money-v1 `POST
+    /admin/users/{userId}/wallet/credits` (`type=grant`, reason pre-filled with the ticket id).
+
+
+    Errors use the global ErrorResponse shape (status, message, code?, details?). User endpoints
+    need an authenticated rider or driver; `/rides/{rideId}/lost-item` needs the ride's rider (or
+    shared-ride member); admin endpoints are permission-gated as summarised per operation and
+    the admin role-builder (rbac.ts) gains the `content` domain at T4. Pagination is `page` /
+    `size` with `items, page, size, totalItems` like growth-v1.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Help
+  - name: Tickets
+  - name: LostItems
+  - name: Feedback
+  - name: AdminTickets
+  - name: AdminLostItems
+  - name: AdminTicketCategories
+  - name: AdminHelp
+  - name: AdminFeedback
+  - name: AdminSos
+paths:
+  # ─────────────────────────── Help center (both apps, UC-S-21) ───────────────────────────
+  /api/v1/help/categories:
+    get:
+      tags: [Help]
+      summary: Help categories that hold at least one published article, in order
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Ordered by `sortOrder`
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HelpCategory' }
+  /api/v1/help/categories/{helpCategoryId}/articles:
+    get:
+      tags: [Help]
+      summary: Published articles of a category, in order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: helpCategoryId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Summaries ordered by `sortOrder`
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HelpArticleSummary' }
+        '404': { description: Unknown category, or none of its articles is published }
+  /api/v1/help/articles/{helpArticleId}:
+    get:
+      tags: [Help]
+      summary: One published article, both languages
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: helpArticleId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The article
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HelpArticle' }
+        '404': { description: Unknown or not published }
+  /api/v1/help/search:
+    get:
+      tags: [Help]
+      summary: Search published articles (UC-S-21 step 3)
+      description: >
+        Case-insensitive substring match of `q` (2..80 chars, trimmed) on the title and body of
+        the requested language (ruling 7). Results carry both languages like every public read.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 80 } }
+        - { name: lang, in: query, required: true, schema: { type: string, enum: [en, ar] } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Title matches first, then body matches; each within its category order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HelpArticleSummary' }
+        '400': { description: '`query_too_short`' }
+
+  # ─────────────────────────── Tickets (both apps, UC-S-19/20) ───────────────────────────
+  /api/v1/support/ticket-categories:
+    get:
+      tags: [Tickets]
+      summary: Active ticket categories a user may pick (SUP-01)
+      description: The system lost-item category is never listed here (ruling 3).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Ordered by `sortOrder`
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TicketCategory' }
+  /api/v1/ticket-files:
+    post:
+      tags: [Tickets]
+      summary: Upload a ticket attachment or lost-item photo, both apps
+      description: >
+        Same storage rules as `/driver/files` (onboarding-v1.yaml: max size, daily cap, private
+        signed URLs, nightly cleanup of files no ticket references after the retention period).
+        `kind=ticket_attachment` accepts JPEG/PNG/PDF, `kind=lost_item_photo` JPEG/PNG only. The
+        returned `fileId` is usable only by the uploader, once, for a ticket of the matching kind.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [ticket_attachment, lost_item_photo] } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Stored privately
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadedTicketFile' }
+        '400': { description: Empty/unreadable file, unsupported type for the kind, or unknown kind }
+        '413': { description: File too large }
+        '429': { description: Daily upload cap reached }
+  /api/v1/tickets:
+    post:
+      tags: [Tickets]
+      summary: Open a support ticket (UC-S-19)
+      description: >
+        Born `open` with the category's default priority; `support.ticket_created` to the user. An
+        optional ride link must be a ride the caller was a party to (rider, member or driver).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTicketRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ticket' }
+        '400': { description: 'Description blank/too long, more than 5 attachments, or a file id not uploaded by the caller as `ticket_attachment` / already used' }
+        '403': { description: Not a party to the linked ride }
+        '404': { description: Unknown category or ride }
+        '409': { description: '`category_inactive` or `category_reserved` (the system lost-item category)' }
+    get:
+      tags: [Tickets]
+      summary: My tickets, both kinds (UC-S-20)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/TicketStatus' } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Most recently updated first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TicketPage' }
+  /api/v1/tickets/{ticketId}:
+    get:
+      tags: [Tickets]
+      summary: One of my tickets with its thread and history (UC-S-20)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      responses:
+        '200':
+          description: Ticket, messages and events (oldest first), attachment URLs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TicketDetail' }
+        '404': { description: Unknown, or not mine }
+  /api/v1/tickets/{ticketId}/messages:
+    post:
+      tags: [Tickets]
+      summary: Reply in my ticket's thread (UC-S-20)
+      description: >
+        On `waiting_on_user` or `resolved` the ticket moves back to `in_progress` (event + status
+        notification). Not on a lost-item case (its status follows the case) — the reply is still
+        accepted. Closed tickets are read-only.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostMessageRequest' }
+      responses:
+        '201':
+          description: Posted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TicketMessage' }
+        '400': { description: Blank or too long }
+        '404': { description: Unknown, or not mine }
+        '409': { description: '`ticket_closed`' }
+
+  # ─────────────────────────── Lost items (rider reports, driver views; UC-R-20, UC-D-21) ──
+  /api/v1/rides/{rideId}/lost-item:
+    post:
+      tags: [LostItems]
+      summary: Report a lost item on a completed ride (UC-R-20)
+      description: >
+        Rider (or shared-ride member) only. Opens a case `reported` (ticket `open`, system
+        category, priority `high`), reopens the caller's chat thread with the driver (LOST-01),
+        notifies the rider (`support.ticket_created`) and the driver (`lost_item.case_opened`).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/RideId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LostItemReportRequest' }
+      responses:
+        '201':
+          description: Case opened, chat reopened
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LostItemCase' }
+        '400': { description: 'Description blank/too long, more than 3 photos, or a file id not uploaded by the caller as `lost_item_photo` / already used' }
+        '403': { description: Not the rider / a member of this ride }
+        '404': { description: Unknown ride }
+        '409': { description: '`ride_not_completed` or `lost_item_case_open` (one open case per rider per ride)' }
+  /api/v1/lost-items:
+    get:
+      tags: [LostItems]
+      summary: My lost-item cases — as the reporting rider, or as the driver of the ride (UC-D-21)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: open, in: query, schema: { type: boolean }, description: 'true = not closed' }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Most recently updated first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LostItemCasePage' }
+  /api/v1/lost-items/{ticketId}:
+    get:
+      tags: [LostItems]
+      summary: One case — rider or driver view
+      description: >
+        The rider gets the full ticket thread through `/tickets/{ticketId}`; this view is the case
+        itself (description, photos, status, the ride and the chat entry point) for both parties.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      responses:
+        '200':
+          description: The case
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LostItemCase' }
+        '404': { description: Unknown, or not a party to it }
+
+  # ─────────────────────────── Feedback (both apps, UC-S-22) ───────────────────────────
+  /api/v1/feedback:
+    post:
+      tags: [Feedback]
+      summary: Submit feedback or a suggestion (UC-S-22)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeedbackRequest' }
+      responses:
+        '201':
+          description: Recorded — no per-item response is promised
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Feedback' }
+        '400': { description: '`invalid_category`, blank or too long' }
+
+  # ─────────────────────────── Admin: tickets (UC-A-21) ───────────────────────────
+  /api/v1/admin/tickets:
+    get:
+      tags: [AdminTickets]
+      summary: Ticket queue (UC-A-21) — `support:view`
+      description: >
+        Default = every non-closed ticket of both kinds, sorted priority (urgent first) then age
+        (oldest first) — SUP-03. `status` may repeat; passing it replaces the default filter.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: kind, in: query, schema: { $ref: '#/components/schemas/TicketKind' } }
+        - { name: status, in: query, schema: { type: array, items: { $ref: '#/components/schemas/TicketStatus' } }, style: form, explode: true }
+        - { name: priority, in: query, schema: { $ref: '#/components/schemas/TicketPriority' } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: assigneeUserId, in: query, schema: { type: string, format: uuid } }
+        - { name: unassigned, in: query, schema: { type: boolean } }
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - { name: rideId, in: query, schema: { type: string, format: uuid } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: The queue page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicketPage' }
+        '403': { description: Missing `support:view` }
+  /api/v1/admin/tickets/{ticketId}:
+    get:
+      tags: [AdminTickets]
+      summary: Ticket detail with thread, history, attachments, user and ride — `support:view`
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      responses:
+        '200':
+          description: Everything the handler needs; the ride summary links to rides-v1 detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicketDetail' }
+        '404': { description: Unknown }
+  /api/v1/admin/tickets/{ticketId}/messages:
+    post:
+      tags: [AdminTickets]
+      summary: Reply to the user — `support:handle`, audited `ticket.reply`
+      description: >
+        Notifies the user (`support.ticket_message`). On an `open` plain ticket this moves it to
+        `in_progress` (event + status notification). Closed tickets are read-only.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostMessageRequest' }
+      responses:
+        '201':
+          description: Posted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TicketMessage' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown }
+        '409': { description: '`ticket_closed`' }
+  /api/v1/admin/tickets/{ticketId}/status:
+    post:
+      tags: [AdminTickets]
+      summary: Move a plain ticket's status — `support:handle`, audited `ticket.status`
+      description: Transitions per the header's state machine; the user is notified.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/TicketStatus' }
+      responses:
+        '200':
+          description: Moved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicket' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown }
+        '409': { description: '`invalid_transition`, or `use_case_status` on a lost-item ticket' }
+  /api/v1/admin/tickets/{ticketId}/priority:
+    post:
+      tags: [AdminTickets]
+      summary: Override the priority (UC-A-21 A1) — `support:handle`, audited `ticket.priority`
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priority]
+              properties:
+                priority: { $ref: '#/components/schemas/TicketPriority' }
+      responses:
+        '200':
+          description: Overridden (event recorded; no user notification)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicket' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown }
+        '409': { description: '`ticket_closed`' }
+  /api/v1/admin/tickets/{ticketId}/assignee:
+    post:
+      tags: [AdminTickets]
+      summary: Assign (or unassign with null) a handling admin — `support:handle`, audited `ticket.assign`
+      description: >
+        The assignee must be an admin holding `support:handle`. Assigning an `open` plain ticket
+        moves it to `in_progress`. No user notification.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assigneeUserId]
+              properties:
+                assigneeUserId: { type: [string, 'null'], format: uuid }
+      responses:
+        '200':
+          description: Assigned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicket' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown ticket }
+        '409': { description: '`ticket_closed`' }
+        '422': { description: '`assignee_not_handler` — not an admin with `support:handle`' }
+
+  # ─────────────────────────── Admin: lost items (UC-A-22) ───────────────────────────
+  /api/v1/admin/lost-items:
+    get:
+      tags: [AdminLostItems]
+      summary: Lost-item queue — `support:view`
+      description: The lost-item slice of the ticket queue, filterable by case status; same sort.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: caseStatus, in: query, schema: { type: array, items: { $ref: '#/components/schemas/CaseStatus' } }, style: form, explode: true, description: 'Default = every non-closed case' }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: The queue page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicketPage' }
+        '403': { description: Missing `support:view` }
+  /api/v1/admin/lost-items/{ticketId}/case-status:
+    post:
+      tags: [AdminLostItems]
+      summary: Progress a case — `support:handle`, audited `lost_item.case_status`
+      description: >
+        Per the header's case machine; the ticket status mirrors it; both parties are notified
+        (`lost_item.case_status_changed`); `closed` returns the ride chat to read-only (LOST-01).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/TicketId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [caseStatus]
+              properties:
+                caseStatus: { $ref: '#/components/schemas/CaseStatus' }
+      responses:
+        '200':
+          description: Moved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicket' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown, or not a lost-item ticket }
+        '409': { description: '`invalid_transition`' }
+
+  # ─────────────────────────── Admin: ticket categories (UC-A-24) ───────────────────────────
+  /api/v1/admin/ticket-categories:
+    get:
+      tags: [AdminTicketCategories]
+      summary: All ticket categories incl. inactive and the system one — `content:view`
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Ordered by `sortOrder`
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminTicketCategory' }
+        '403': { description: Missing `content:view` }
+    post:
+      tags: [AdminTicketCategories]
+      summary: Create a category — `content:manage`, audited `ticket_category.create`
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveTicketCategoryRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicketCategory' }
+        '403': { description: Missing `content:manage` }
+        '422': { description: Blank name in either language }
+  /api/v1/admin/ticket-categories/{ticketCategoryId}:
+    parameters:
+      - { name: ticketCategoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [AdminTicketCategories]
+      summary: Edit names, default priority, order or active flag — `content:manage`, audited `ticket_category.update`
+      description: >
+        Existing tickets keep their category and priority (UC-A-24). The system lost-item category
+        accepts name and order edits only — `active: false` is 409 `system_category`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatchTicketCategoryRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicketCategory' }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown }
+        '409': { description: '`system_category`' }
+    delete:
+      tags: [AdminTicketCategories]
+      summary: Delete an unused category — `content:manage`, audited `ticket_category.delete`
+      description: A category any ticket references is deactivated instead (PATCH), never deleted.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown }
+        '409': { description: '`category_in_use` or `system_category`' }
+
+  # ─────────────────────────── Admin: help CMS (UC-A-23) ───────────────────────────
+  /api/v1/admin/help/categories:
+    get:
+      tags: [AdminHelp]
+      summary: All help categories with article counts — `content:view`
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Ordered by `sortOrder`
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminHelpCategory' }
+        '403': { description: Missing `content:view` }
+    post:
+      tags: [AdminHelp]
+      summary: Create a help category — `content:manage`, audited `help_category.create`
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveHelpCategoryRequest' }
+      responses:
+        '201':
+          description: Created (appended last)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHelpCategory' }
+        '403': { description: Missing `content:manage` }
+        '422': { description: Blank name in either language }
+  /api/v1/admin/help/categories/order:
+    put:
+      tags: [AdminHelp]
+      summary: Reorder categories — `content:manage`, audited `help_category.reorder`
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderRequest' }
+      responses:
+        '204': { description: Reordered }
+        '403': { description: Missing `content:manage` }
+        '422': { description: '`order_incomplete` — the list must name every category exactly once' }
+  /api/v1/admin/help/categories/{helpCategoryId}:
+    parameters:
+      - { name: helpCategoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [AdminHelp]
+      summary: Rename — `content:manage`, audited `help_category.update`
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveHelpCategoryRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHelpCategory' }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown }
+    delete:
+      tags: [AdminHelp]
+      summary: Delete an empty category — `content:manage`, audited `help_category.delete`
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown }
+        '409': { description: '`category_not_empty`' }
+  /api/v1/admin/help/categories/{helpCategoryId}/articles/order:
+    put:
+      tags: [AdminHelp]
+      summary: Reorder a category's articles — `content:manage`, audited `help_article.reorder`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: helpCategoryId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderRequest' }
+      responses:
+        '204': { description: Reordered }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown category }
+        '422': { description: '`order_incomplete` — every article of the category exactly once' }
+  /api/v1/admin/help/articles:
+    get:
+      tags: [AdminHelp]
+      summary: Articles, drafts included — `content:view`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ArticleStatus' } }
+      responses:
+        '200':
+          description: Ordered by category then `sortOrder`
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminHelpArticle' }
+        '403': { description: Missing `content:view` }
+    post:
+      tags: [AdminHelp]
+      summary: Create a draft — `content:manage`, audited `help_article.create`
+      description: A draft needs a working title in at least one language; everything else may come later.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveHelpArticleRequest' }
+      responses:
+        '201':
+          description: Created as `draft`, appended last in its category
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHelpArticle' }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown category }
+        '422': { description: '`title_required` or `body_too_long`' }
+  /api/v1/admin/help/articles/{helpArticleId}:
+    parameters:
+      - { name: helpArticleId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [AdminHelp]
+      summary: One article, any status — `content:view`
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The article
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHelpArticle' }
+        '404': { description: Unknown }
+    patch:
+      tags: [AdminHelp]
+      summary: Edit texts or move to another category — `content:manage`, audited `help_article.update`
+      description: >
+        Editing a PUBLISHED article applies immediately (apps render the new text on the next
+        read); blanking a text of a published article is 422 `translation_missing` — unpublish
+        first.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveHelpArticleRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHelpArticle' }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown article or category }
+        '422': { description: '`title_required`, `body_too_long` or `translation_missing`' }
+    delete:
+      tags: [AdminHelp]
+      summary: Delete an article — `content:manage`, audited `help_article.delete`
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted (published or not) }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown }
+  /api/v1/admin/help/articles/{helpArticleId}/publish:
+    post:
+      tags: [AdminHelp]
+      summary: Publish — `content:manage`, audited `help_article.publish`
+      description: Refused while any of title EN/AR, body EN/AR is blank (UC-A-23 E1, milestone AC).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: helpArticleId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Published (idempotent)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHelpArticle' }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown }
+        '422': { description: '`translation_missing` — `details.missing` lists the blank fields' }
+  /api/v1/admin/help/articles/{helpArticleId}/unpublish:
+    post:
+      tags: [AdminHelp]
+      summary: Back to draft — `content:manage`, audited `help_article.unpublish`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: helpArticleId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Draft again (idempotent); disappears from the apps on the next read
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHelpArticle' }
+        '403': { description: Missing `content:manage` }
+        '404': { description: Unknown }
+
+  # ─────────────────────────── Admin: feedback (UC-A-25) ───────────────────────────
+  /api/v1/admin/feedback:
+    get:
+      tags: [AdminFeedback]
+      summary: Browse feedback — `support:view`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: category, in: query, schema: { $ref: '#/components/schemas/FeedbackCategory' } }
+        - { name: tag, in: query, schema: { type: string, maxLength: 30 } }
+        - { name: submittedAs, in: query, schema: { type: string, enum: [rider, driver] } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time }, description: Exclusive }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminFeedbackPage' }
+        '403': { description: Missing `support:view` }
+  /api/v1/admin/feedback/stats:
+    get:
+      tags: [AdminFeedback]
+      summary: Counts by category per time bucket (FDBK-01 trends) — `support:view`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date-time }, description: Exclusive }
+        - { name: bucket, in: query, schema: { type: string, enum: [day, week, month], default: day } }
+        - { name: submittedAs, in: query, schema: { type: string, enum: [rider, driver] } }
+      responses:
+        '200':
+          description: One row per bucket (empty buckets included) with a count per category
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeedbackStats' }
+        '400': { description: '`range_invalid` (to <= from, or more than 366 days)' }
+        '403': { description: Missing `support:view` }
+  /api/v1/admin/feedback/{feedbackId}/tags:
+    put:
+      tags: [AdminFeedback]
+      summary: Replace an entry's tags — `support:handle`, audited `feedback.tag`
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: feedbackId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags:
+                  type: array
+                  maxItems: 10
+                  items: { type: string, minLength: 1, maxLength: 30 }
+                  description: Trimmed and lower-cased server-side; duplicates collapse
+      responses:
+        '200':
+          description: Tagged
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminFeedback' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown }
+        '422': { description: '`tag_invalid` (blank after trim, or over 30 chars)' }
+
+  # ─────────────────────────── Admin: SOS → ticket (comms-v1 amendment) ───────────────────────────
+  /api/v1/admin/sos-events/{sosEventId}/ticket:
+    post:
+      tags: [AdminSos]
+      summary: Open the linked support ticket for an SOS event — `support:handle`, audited `sos.ticket`
+      description: >
+        The real rail behind the M10-T4 note stub (ruling 9). The ticket belongs to the SOS caller
+        (`user`), is about the SOS ride, is `openedBy` the admin, starts `in_progress` and
+        assigned to the caller; the caller is notified (`support.ticket_created`). One per event;
+        the event's `ticketId` (comms-v1 `AdminSosEvent`) points back at it.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: sosEventId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [categoryId, description]
+              properties:
+                categoryId: { type: string, format: uuid, description: An active non-system category }
+                description: { type: string, minLength: 1, maxLength: 4000 }
+                priority: { $ref: '#/components/schemas/TicketPriority', description: Defaults to the category's }
+      responses:
+        '201':
+          description: Opened and linked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTicket' }
+        '403': { description: Missing `support:handle` }
+        '404': { description: Unknown event or category }
+        '409': { description: '`ticket_already_linked`, `category_inactive` or `category_reserved`' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    TicketId:
+      name: ticketId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RideId:
+      name: rideId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    TicketKind: { type: string, enum: [ticket, lost_item] }
+    TicketPriority: { type: string, enum: [low, normal, high, urgent] }
+    TicketStatus: { type: string, enum: [open, in_progress, waiting_on_user, resolved, closed] }
+    CaseStatus: { type: string, enum: [reported, driver_contacted, found, not_found, returned, closed] }
+    ArticleStatus: { type: string, enum: [draft, published] }
+    FeedbackCategory:
+      type: string
+      enum: [app_experience, pricing, drivers, safety, feature_request, other]
+    LocalizedText:
+      type: object
+      required: [en, ar]
+      properties:
+        en: { type: string }
+        ar: { type: string }
+
+    # ── help center ──
+    HelpCategory:
+      type: object
+      required: [helpCategoryId, name, sortOrder, articleCount]
+      properties:
+        helpCategoryId: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/LocalizedText' }
+        sortOrder: { type: integer }
+        articleCount: { type: integer, description: Published articles }
+    HelpArticleSummary:
+      type: object
+      required: [helpArticleId, helpCategoryId, title, sortOrder]
+      properties:
+        helpArticleId: { type: string, format: uuid }
+        helpCategoryId: { type: string, format: uuid }
+        title: { $ref: '#/components/schemas/LocalizedText' }
+        sortOrder: { type: integer }
+    HelpArticle:
+      allOf:
+        - $ref: '#/components/schemas/HelpArticleSummary'
+        - type: object
+          required: [body, publishedAt]
+          properties:
+            body: { $ref: '#/components/schemas/LocalizedText', description: Plain text; paragraphs separated by blank lines }
+            publishedAt: { type: string, format: date-time }
+    AdminHelpCategory:
+      type: object
+      required: [helpCategoryId, nameEn, nameAr, sortOrder, articleCount, publishedCount, createdAt, updatedAt]
+      properties:
+        helpCategoryId: { type: string, format: uuid }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        sortOrder: { type: integer }
+        articleCount: { type: integer, description: All articles }
+        publishedCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SaveHelpCategoryRequest:
+      type: object
+      required: [nameEn, nameAr]
+      properties:
+        nameEn: { type: string, minLength: 1, maxLength: 80 }
+        nameAr: { type: string, minLength: 1, maxLength: 80 }
+    OrderRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: string, format: uuid }
+          description: The complete new order, first = top
+    AdminHelpArticle:
+      type: object
+      required: [helpArticleId, helpCategoryId, titleEn, titleAr, bodyEn, bodyAr, sortOrder, status, publishedAt, missing, createdAt, updatedAt]
+      properties:
+        helpArticleId: { type: string, format: uuid }
+        helpCategoryId: { type: string, format: uuid }
+        titleEn: { type: [string, 'null'], maxLength: 160 }
+        titleAr: { type: [string, 'null'], maxLength: 160 }
+        bodyEn: { type: [string, 'null'] }
+        bodyAr: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        missing:
+          type: array
+          items: { type: string, enum: [titleEn, titleAr, bodyEn, bodyAr] }
+          description: The blank fields that block publishing (empty when publishable)
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SaveHelpArticleRequest:
+      type: object
+      required: [helpCategoryId]
+      properties:
+        helpCategoryId: { type: string, format: uuid }
+        titleEn: { type: [string, 'null'], maxLength: 160 }
+        titleAr: { type: [string, 'null'], maxLength: 160 }
+        bodyEn: { type: [string, 'null'], maxLength: 20000 }
+        bodyAr: { type: [string, 'null'], maxLength: 20000 }
+
+    # ── ticket categories ──
+    TicketCategory:
+      type: object
+      required: [ticketCategoryId, name, defaultPriority, sortOrder]
+      properties:
+        ticketCategoryId: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/LocalizedText' }
+        defaultPriority: { $ref: '#/components/schemas/TicketPriority' }
+        sortOrder: { type: integer }
+    AdminTicketCategory:
+      type: object
+      required: [ticketCategoryId, systemCode, nameEn, nameAr, defaultPriority, sortOrder, active, ticketCount, createdAt, updatedAt]
+      properties:
+        ticketCategoryId: { type: string, format: uuid }
+        systemCode: { type: [string, 'null'], description: '`lost_item` on the protected system row' }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        defaultPriority: { $ref: '#/components/schemas/TicketPriority' }
+        sortOrder: { type: integer }
+        active: { type: boolean }
+        ticketCount: { type: integer, description: Tickets referencing it (delete is refused above 0) }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SaveTicketCategoryRequest:
+      type: object
+      required: [nameEn, nameAr, defaultPriority]
+      properties:
+        nameEn: { type: string, minLength: 1, maxLength: 80 }
+        nameAr: { type: string, minLength: 1, maxLength: 80 }
+        defaultPriority: { $ref: '#/components/schemas/TicketPriority' }
+        sortOrder: { type: integer, default: 0 }
+    PatchTicketCategoryRequest:
+      type: object
+      properties:
+        nameEn: { type: string, minLength: 1, maxLength: 80 }
+        nameAr: { type: string, minLength: 1, maxLength: 80 }
+        defaultPriority: { $ref: '#/components/schemas/TicketPriority' }
+        sortOrder: { type: integer }
+        active: { type: boolean }
+
+    # ── tickets ──
+    UploadedTicketFile:
+      type: object
+      required: [fileId, kind, contentType, sizeBytes]
+      properties:
+        fileId: { type: string, format: uuid }
+        kind: { type: string, enum: [ticket_attachment, lost_item_photo] }
+        contentType: { type: string, enum: [image/jpeg, image/png, application/pdf] }
+        sizeBytes: { type: integer }
+    Attachment:
+      type: object
+      required: [fileId, contentType, sizeBytes, url]
+      properties:
+        fileId: { type: string, format: uuid }
+        contentType: { type: string }
+        sizeBytes: { type: integer }
+        url: { type: string, description: "Signed private URL (onboarding-v1 /files/{token})" }
+    CreateTicketRequest:
+      type: object
+      required: [categoryId, description]
+      properties:
+        categoryId: { type: string, format: uuid }
+        description: { type: string, minLength: 1, maxLength: 4000 }
+        rideId: { type: [string, 'null'], format: uuid }
+        attachmentFileIds:
+          type: array
+          maxItems: 5
+          items: { type: string, format: uuid }
+    PostMessageRequest:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 2000 }
+    RideLink:
+      type: object
+      description: Enough to render the ride row; the apps deep-link into ride history / rides-v1
+      required: [rideId, kind, state, startedAt, counterpartName]
+      properties:
+        rideId: { type: string, format: uuid }
+        kind: { type: string }
+        state: { type: string }
+        startedAt: { type: [string, 'null'], format: date-time }
+        counterpartName: { type: string, description: The other party as seen by the ticket's user }
+    Ticket:
+      type: object
+      required: [ticketId, kind, category, priority, status, caseStatus, description, ride, attachments, unreadSupportMessages, createdAt, updatedAt]
+      properties:
+        ticketId: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/TicketKind' }
+        category: { $ref: '#/components/schemas/TicketCategory' }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        caseStatus:
+          oneOf:
+            - $ref: '#/components/schemas/CaseStatus'
+            - type: 'null'
+          description: Lost-item tickets only
+        description: { type: string }
+        ride:
+          oneOf:
+            - $ref: '#/components/schemas/RideLink'
+            - type: 'null'
+        attachments:
+          type: array
+          items: { $ref: '#/components/schemas/Attachment' }
+        unreadSupportMessages: { type: integer, description: Support messages after the user's last read of the thread }
+        lastMessageAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TicketPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Ticket' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    TicketMessage:
+      type: object
+      required: [messageId, ticketId, senderSide, senderName, body, createdAt]
+      properties:
+        messageId: { type: string, format: uuid }
+        ticketId: { type: string, format: uuid }
+        senderSide: { type: string, enum: [user, support] }
+        senderName: { type: string, description: 'Support side: the admin''s display name to admins, the localized "Labby support" to users' }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+    TicketEvent:
+      type: object
+      required: [eventId, type, actorSide, fromValue, toValue, createdAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        type: { type: string, enum: [created, status_changed, priority_changed, assigned, case_status_changed, reminder_sent] }
+        actorSide: { type: string, enum: [user, support, system] }
+        actorName: { type: [string, 'null'], description: Admin names only to admins }
+        fromValue: { type: [string, 'null'] }
+        toValue: { type: [string, 'null'], description: 'For `assigned`: the assignee user id, or null = unassigned' }
+        createdAt: { type: string, format: date-time }
+    TicketDetail:
+      allOf:
+        - $ref: '#/components/schemas/Ticket'
+        - type: object
+          required: [messages, events]
+          properties:
+            messages:
+              type: array
+              items: { $ref: '#/components/schemas/TicketMessage' }
+            events:
+              type: array
+              items: { $ref: '#/components/schemas/TicketEvent' }
+
+    # ── lost items ──
+    LostItemReportRequest:
+      type: object
+      required: [description]
+      properties:
+        description: { type: string, minLength: 1, maxLength: 4000 }
+        photoFileIds:
+          type: array
+          maxItems: 3
+          items: { type: string, format: uuid }
+    LostItemCase:
+      type: object
+      required: [ticketId, caseStatus, status, description, photos, ride, reporter, driver, chatWindow, createdAt, updatedAt]
+      properties:
+        ticketId: { type: string, format: uuid }
+        caseStatus: { $ref: '#/components/schemas/CaseStatus' }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        description: { type: string }
+        photos:
+          type: array
+          items: { $ref: '#/components/schemas/Attachment' }
+        ride: { $ref: '#/components/schemas/RideLink' }
+        reporter: { $ref: '#/components/schemas/Party' }
+        driver: { $ref: '#/components/schemas/Party' }
+        chatWindow: { type: string, enum: [open, read_only, reopened], description: comms-v1 window state of the reporter's thread }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    LostItemCasePage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/LostItemCase' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    Party:
+      type: object
+      required: [userId, name, role]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string, enum: [rider, driver] }
+
+    # ── feedback ──
+    FeedbackRequest:
+      type: object
+      required: [category, body]
+      properties:
+        category: { $ref: '#/components/schemas/FeedbackCategory' }
+        body: { type: string, minLength: 1, maxLength: 2000 }
+    Feedback:
+      type: object
+      required: [feedbackId, category, body, submittedAs, createdAt]
+      properties:
+        feedbackId: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/FeedbackCategory' }
+        body: { type: string }
+        submittedAs: { type: string, enum: [rider, driver] }
+        createdAt: { type: string, format: date-time }
+    AdminFeedback:
+      allOf:
+        - $ref: '#/components/schemas/Feedback'
+        - type: object
+          required: [user, tags]
+          properties:
+            user: { $ref: '#/components/schemas/Party' }
+            tags:
+              type: array
+              items: { type: string }
+    AdminFeedbackPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminFeedback' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    FeedbackStats:
+      type: object
+      required: [from, to, bucket, total, byCategory, buckets]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        bucket: { type: string, enum: [day, week, month] }
+        total: { type: integer }
+        byCategory:
+          type: object
+          additionalProperties: { type: integer }
+          description: Every catalog category present, zero included
+        buckets:
+          type: array
+          items:
+            type: object
+            required: [start, total, byCategory]
+            properties:
+              start: { type: string, format: date-time, description: Bucket start (UTC day/ISO week/month) }
+              total: { type: integer }
+              byCategory:
+                type: object
+                additionalProperties: { type: integer }
+
+    # ── admin tickets ──
+    AdminTicket:
+      allOf:
+        - $ref: '#/components/schemas/Ticket'
+        - type: object
+          required: [user, openedBy, assignee, sosEventId, waitingSince, reminderSentAt, resolvedAt, closedAt, ageSeconds]
+          properties:
+            user: { $ref: '#/components/schemas/Party' }
+            openedBy:
+              type: object
+              required: [userId, name, side]
+              properties:
+                userId: { type: string, format: uuid }
+                name: { type: string }
+                side: { type: string, enum: [user, support] }
+            assignee:
+              oneOf:
+                - type: object
+                  required: [userId, name]
+                  properties:
+                    userId: { type: string, format: uuid }
+                    name: { type: string }
+                - type: 'null'
+            sosEventId: { type: [string, 'null'], format: uuid }
+            waitingSince: { type: [string, 'null'], format: date-time }
+            reminderSentAt: { type: [string, 'null'], format: date-time }
+            resolvedAt: { type: [string, 'null'], format: date-time }
+            closedAt: { type: [string, 'null'], format: date-time }
+            ageSeconds: { type: integer, description: Since creation — the queue's age column }
+    AdminTicketPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminTicket' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+    AdminTicketDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdminTicket'
+        - type: object
+          required: [messages, events, userPhone, lostItem]
+          properties:
+            messages:
+              type: array
+              items: { $ref: '#/components/schemas/TicketMessage' }
+            events:
+              type: array
+              items: { $ref: '#/components/schemas/TicketEvent' }
+            userPhone: { type: [string, 'null'], description: 'Served only to admins holding `support:handle` (M10 contact-access rule); null otherwise' }
+            lostItem:
+              oneOf:
+                - type: object
+                  description: Lost-item tickets — the driver and the reopened chat the handler can read (comms-v1 admin chat)
+                  required: [driver, chatWindow]
+                  properties:
+                    driver: { $ref: '#/components/schemas/Party' }
+                    chatWindow: { type: string, enum: [open, read_only, reopened] }
+                - type: 'null'

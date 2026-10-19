@@ -98,7 +98,9 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     jdbcTemplate.update("DELETE FROM rating_snapshots");
     // M10 sos_events are permanent by trigger; TRUNCATE bypasses it like the ledgers above. The
     // comms rows reference rides and users, so they go before both.
-    jdbcTemplate.execute("TRUNCATE sos_events");
+    // M14 support tickets reference sos_events (and rides, users), so they truncate with it.
+    jdbcTemplate.execute(
+        "TRUNCATE ticket_attachments, ticket_messages, ticket_events, support_tickets, sos_events");
     // Threads and messages reference each other (read markers), so they truncate together.
     jdbcTemplate.execute("TRUNCATE chat_messages, chat_threads");
     jdbcTemplate.update("DELETE FROM trip_share_links");

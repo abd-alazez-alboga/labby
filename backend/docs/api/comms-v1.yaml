@@ -332,8 +332,9 @@ paths:
       tags: [AdminComms]
       summary: Acknowledge an SOS alert (stand-down) — `support:handle`
       description: >
-        Stamps `acknowledgedBy`/`acknowledgedAt` and the optional note (the linked-ticket rail
-        is M14; the note is the stub). Audited. The event's facts stay immutable (SAFE-02);
+        Stamps `acknowledgedBy`/`acknowledgedAt` and the optional note. The linked-ticket rail
+        is support-v1 `POST /admin/sos-events/{sosEventId}/ticket` (M14-T1; the note stays as the
+        quick stand-down remark). Audited. The event's facts stay immutable (SAFE-02);
         acknowledging only clears the pin/alert.
       security: [{ bearerAuth: [] }]
       parameters:
@@ -491,9 +492,10 @@ components:
       allOf:
         - $ref: '#/components/schemas/SosEvent'
         - type: object
-          required: [regionId, triggeredBy, acknowledged]
+          required: [regionId, triggeredBy, acknowledged, ticketId]
           properties:
             regionId: { type: string, format: uuid }
+            ticketId: { type: [string, 'null'], format: uuid, description: 'The linked support ticket (support-v1, M14); null until an admin opens one' }
             triggeredBy:
               type: object
               required: [userId, name, phone]

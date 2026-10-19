@@ -32,7 +32,8 @@ class PermissionTest {
 
   @Test
   @DisplayName(
-      "the catalog covers exactly the M3-T1 domains plus M8's wallets and M13's challenges")
+      "the catalog covers exactly the M3-T1 domains plus M8's wallets, M13's challenges and M14's"
+          + " content")
   void shouldCoverExpectedDomains() {
     Set<String> domains =
         Arrays.stream(Permission.values()).map(Permission::getDomain).collect(Collectors.toSet());
@@ -53,7 +54,8 @@ class PermissionTest {
             "roles",
             "wallets",
             "reports",
-            "challenges");
+            "challenges",
+            "content");
   }
 
   @Test
