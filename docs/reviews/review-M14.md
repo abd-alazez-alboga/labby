@@ -142,3 +142,29 @@ None.
 - Driver: `npx jest src/__tests__/support-{help,ticket,lost-feedback}.test.tsx` → 3 suites, 32/32.
 - Admin: the 7 M14 test files via `npx vitest run` → 30/30.
 - Full gate: CI run 39274776918 on 5b5e12d (T1–T4) **green**; CI run 39282931694 on 28706f6 (T5) **green** (all four jobs).
+
+## Resolution (labby-fix, 2026-10-19)
+Owner rulings: H4 add article reorder arrows (no new board); W5 delete only unused rows; I2 skip the push for the user's own move; contract T6 amendments (h) `memberId`, (i) `outcome`, (j) the I2 rule.
+
+| Finding | Resolution | Commit |
+|---|---|---|
+| H1 | V29 `version` + `@Version`/`@DynamicUpdate` on `SupportTicket` (stale save → 409); read marker stamped by a one-column UPDATE; reminder stamp bumps the version | 0e16b62 |
+| H2 | `memberId` on `LostItemCase` + admin `lostItem`; driver passes it to the chat thread and `/chat`; admin `ChatLogCard` reads it | 0e16b62, 4d53cb4, 7fa3f65 |
+| H3 | V29 `case_outcome` / `LostItemCase.outcome`; rider timeline built from the outcome (not found stays not found after closure) | 0e16b62, 99d4655 |
+| H4 | Up/down arrows on published article rows → `PUT …/articles/order` | 7fa3f65 |
+| W1 | Editor keeps and navigates to the created draft before publishing | 7fa3f65 |
+| W2 | `LoadFailure` + retry on help articles, feedback stats, editor categories | 7fa3f65 |
+| W3, W4 | Driver list re-merged after every page; busy "show older"; inline page error | 4d53cb4 |
+| W5 | Delete for unused ticket categories / empty help categories, confirm step, 409s handled | 7fa3f65 |
+| W6 | Tag remove "×" and tag filter via `?tag=` | 7fa3f65 |
+| W7, W8, W9, W12 | Rider: rides load separately; search error state; composer safe area + keyboard offset; bubbles follow `flipRows` | 99d4655 |
+| W10 | hitSlop / minHeight to 48 px (rider + driver; visuals unchanged) | 99d4655, 4d53cb4 |
+| W11 | Shared-ride lost-item test (only the reporter's thread reopens; member reaches driver + admin) + concurrent double report → one 201, one 409 | 0e16b62 |
+| W13 | Rider deep links / caps / upload / search / not_found tests; driver upload + paging tests; admin not_found, assignee, remedy pre-fill, week-start tests | all four |
+| I1 | Reminder stamp re-checks `waiting_since <= cutoff` | 0e16b62 |
+| I2 | No status push for a user-caused move (history kept); contract amendment j | 0e16b62 |
+| I3 | `TicketFiles` component shared by both services | 0e16b62 |
+| I4 | Lost-item lists batched (rides, threads, open cases, attachments, names) | 0e16b62 |
+| I5 | Admin thread sorts by `Date.parse` | 7fa3f65 |
+
+Scoped results: backend support + chat suites 40/40, ArchUnit 7/7, Checkstyle clean; rider 60/60; driver 40/40; admin 65/65; tsc + eslint clean in all three apps. Not verified on a device: rider keyboard offset / safe-area padding.
