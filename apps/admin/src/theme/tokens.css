@@ -69,6 +69,22 @@
   --labby-danger: #b42318;
   --labby-danger-bg: #fef3f2;
   --labby-online: #12b76a; /* online dot only */
+  --labby-danger-line: #fecdca; /* error banner outline */
+
+  /* Safety (owner-approved functional safety red — SOS surfaces only) */
+  --labby-sos: #d92d20;
+  --labby-sos-text: #7a271a; /* SOS banner secondary line */
+  --labby-sos-tint: #fef9f9; /* open SOS card ground */
+  --labby-sos-ring: #fee4e2; /* SOS timeline dot halo */
+  --labby-sos-shadow: 0 2px 10px rgba(217, 45, 32, 0.5); /* SOS map pin */
+
+  /* Admin functional tints */
+  --labby-suspended: #e7b37a; /* suspended role card outline (amber) */
+  --labby-lilac-hot: #e3d3f0; /* hottest trend cell */
+  --labby-chart-lilac: #c9a8e3; /* cancelled rides bars */
+  --labby-surge-fill: rgba(89, 18, 138, 0.25); /* surge zone legend swatch */
+  --labby-surge-line: rgba(89, 18, 138, 0.6);
+  --labby-dark-hover: #2b2433; /* dark button hover */
 
   /* Spacing */
   --labby-space-1: 4px;
@@ -89,6 +105,7 @@
   /* Shadows */
   --labby-shadow-float: 0 2px 10px rgba(20, 16, 24, 0.16);
   --labby-shadow-sheet: 0 -6px 24px rgba(20, 16, 24, 0.12);
+  --labby-shadow-segment: 0 1px 3px rgba(20, 16, 24, 0.12); /* selected segmented option */
 
   /* Typography */
   --labby-font-latin:

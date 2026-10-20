@@ -820,7 +820,7 @@ input[type='radio'] {
   background: var(--labby-surface);
   color: var(--labby-text);
   font-weight: 800;
-  box-shadow: 0 1px 3px rgba(20, 16, 24, 0.12);
+  box-shadow: var(--labby-shadow-segment);
 }
 
 /* ---------- KPI tiles ---------- */
@@ -2175,7 +2175,7 @@ input[type='radio'] {
 }
 
 /* ---------- Live ops map + SOS (M10, UC-A-19/20) ---------- */
-/* #d92d20 is the owner-approved functional safety red — SOS surfaces only. */
+/* --labby-sos is the owner-approved functional safety red — SOS surfaces only. */
 
 .liveops-controls {
   display: flex;
@@ -2256,7 +2256,7 @@ input[type='radio'] {
   block-size: 30px;
   border-radius: 50% 50% 50% 4px;
   transform: rotate(-45deg);
-  box-shadow: 0 2px 10px rgba(217, 45, 32, 0.5);
+  box-shadow: var(--labby-sos-shadow);
 }
 
 .liveops-sos-pin__drop svg {
@@ -2308,14 +2308,14 @@ input[type='radio'] {
 
 .liveops-legend__dot--surge {
   border-radius: 3px;
-  background: rgba(89, 18, 138, 0.25);
-  border: 1.5px solid rgba(89, 18, 138, 0.6);
+  background: var(--labby-surge-fill);
+  border: 1.5px solid var(--labby-surge-line);
 }
 
 .liveops-legend__dot--sos {
   border-radius: 50% 50% 50% 2px;
   transform: rotate(-45deg);
-  background: #d92d20;
+  background: var(--labby-sos);
 }
 
 .liveops-counts {
@@ -2348,8 +2348,8 @@ input[type='radio'] {
   align-items: center;
   gap: var(--labby-space-4);
   padding: var(--labby-space-4) var(--labby-space-5);
-  background: #fef3f2;
-  border: 1.5px solid #d92d20;
+  background: var(--labby-danger-bg);
+  border: 1.5px solid var(--labby-sos);
   border-radius: var(--labby-radius-card);
 }
 
@@ -2360,7 +2360,7 @@ input[type='radio'] {
   inline-size: 40px;
   block-size: 40px;
   border-radius: var(--labby-radius-round);
-  background: #d92d20;
+  background: var(--labby-sos);
   flex-shrink: 0;
 }
 
@@ -2380,7 +2380,7 @@ input[type='radio'] {
 
 .sos-banner__text span {
   font-size: 13px;
-  color: #7a271a;
+  color: var(--labby-sos-text);
 }
 
 .sos-banner__focus,
@@ -2392,19 +2392,19 @@ input[type='radio'] {
 }
 
 .sos-banner__focus {
-  background: #d92d20;
-  border-color: #d92d20;
+  background: var(--labby-sos);
+  border-color: var(--labby-sos);
 }
 
 .sos-banner__focus:hover {
-  background: #b42318;
-  border-color: #b42318;
+  background: var(--labby-danger);
+  border-color: var(--labby-danger);
   color: var(--labby-on-accent);
 }
 
 .btn--dark:hover {
-  background: #2b2433;
-  border-color: #2b2433;
+  background: var(--labby-dark-hover);
+  border-color: var(--labby-dark-hover);
   color: var(--labby-on-accent);
 }
 
@@ -2431,8 +2431,8 @@ input[type='radio'] {
 }
 
 .sos-item--open {
-  border: 1.5px solid #d92d20;
-  background: #fef9f9;
+  border: 1.5px solid var(--labby-sos);
+  background: var(--labby-sos-tint);
 }
 
 .sos-item__head {
@@ -2455,7 +2455,7 @@ input[type='radio'] {
 .sos-item__open-chip {
   padding: 3px 8px;
   border-radius: 10px;
-  background: #d92d20;
+  background: var(--labby-sos);
   color: var(--labby-on-accent);
   font-size: 12px;
   font-weight: 800;
@@ -2496,7 +2496,7 @@ input[type='radio'] {
   block-size: 20px;
   padding: 0 6px;
   border-radius: var(--labby-radius-round);
-  background: #d92d20;
+  background: var(--labby-sos);
   color: var(--labby-on-accent);
   font-size: 12px;
   font-weight: 800;
@@ -2559,12 +2559,12 @@ input[type='radio'] {
   inline-size: 10px;
   block-size: 10px;
   border-radius: var(--labby-radius-round);
-  background: #d92d20;
+  background: var(--labby-sos);
   flex-shrink: 0;
 }
 
 .table tr.table__row--sos {
-  background: #fef9f9;
+  background: var(--labby-sos-tint);
 }
 
 .ride-detail {
@@ -2622,7 +2622,7 @@ input[type='radio'] {
   gap: 6px;
   padding: 5px 10px;
   border-radius: 12px;
-  background: #d92d20;
+  background: var(--labby-sos);
   color: var(--labby-on-accent);
   font-size: 13px;
   font-weight: 800;
@@ -2678,8 +2678,8 @@ input[type='radio'] {
   inline-size: 12px;
   block-size: 12px;
   inset-inline-start: -1px;
-  background: #d92d20;
-  box-shadow: 0 0 0 3px #fee4e2;
+  background: var(--labby-sos);
+  box-shadow: 0 0 0 3px var(--labby-sos-ring);
 }
 
 .timeline__title {
@@ -3046,7 +3046,7 @@ input[type='radio'] {
 }
 
 .role-card--suspended {
-  border: 2px solid #e7b37a;
+  border: 2px solid var(--labby-suspended);
 }
 
 .role-card__head {
@@ -3405,8 +3405,8 @@ input[type='radio'] {
 }
 
 .trend__cell--hot {
-  background: #e3d3f0;
-  color: #3d0b57;
+  background: var(--labby-lilac-hot);
+  color: var(--labby-accent-pressed);
 }
 
 /* ---------- M15 analytics: dashboard, lists, CSV export ---------- */
@@ -3423,7 +3423,7 @@ input[type='radio'] {
   gap: var(--labby-space-3);
   flex-wrap: wrap;
   padding: 14px 18px;
-  border: 1px solid #fecdca;
+  border: 1px solid var(--labby-danger-line);
   border-radius: var(--labby-radius-card);
   background: var(--labby-danger-bg);
   color: var(--labby-danger);
@@ -3666,8 +3666,8 @@ rect.rides-chart__bar--completed {
 
 .rides-chart__swatch.rides-chart__bar--cancelled,
 rect.rides-chart__bar--cancelled {
-  background: #c9a8e3;
-  fill: #c9a8e3;
+  background: var(--labby-chart-lilac);
+  fill: var(--labby-chart-lilac);
 }
 
 .rides-chart__swatch.rides-chart__bar--other,

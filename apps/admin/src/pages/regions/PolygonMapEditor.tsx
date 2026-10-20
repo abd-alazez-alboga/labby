@@ -9,6 +9,7 @@ import { MapContainer, Polygon, TileLayer, useMap } from 'react-leaflet';
 import type { GeoJsonPolygon } from '../../api/regions';
 import { useConfig } from '../../config/ConfigContext';
 import { DEFAULT_MAP_TILE_URL } from '../../config/runtime-config';
+import { MAP_COLORS } from '../../theme/map-colors';
 import { latLngsToPolygon, polygonToLatLngs } from './leaflet-geojson';
 
 /** A read-only context polygon (e.g. the region boundary behind a zone). */
@@ -57,7 +58,12 @@ export function PolygonMapEditor({
           <Polygon
             key={overlay.id}
             positions={polygonToLatLngs(overlay.polygon)}
-            pathOptions={{ color: '#6b7280', dashArray: '6 6', fill: false, interactive: false }}
+            pathOptions={{
+              color: MAP_COLORS.guide,
+              dashArray: '6 6',
+              fill: false,
+              interactive: false,
+            }}
           />
         ))}
         <DrawLayer polygon={polygon} editable={editable} onPolygonChange={onPolygonChange} />

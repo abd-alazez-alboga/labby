@@ -16,10 +16,12 @@ import type { AdminSosEvent } from '../../api/comms';
 import type { Place, TracePoint } from '../../api/rides';
 import { useConfig } from '../../config/ConfigContext';
 import { DEFAULT_MAP_TILE_URL } from '../../config/runtime-config';
+import { MAP_COLORS } from '../../theme/map-colors';
 
-const ACCENT = '#59128A';
-const MUTED = '#463C58';
-const SOS_RED = '#D92D20';
+const ACCENT = MAP_COLORS.accent;
+const MUTED = MAP_COLORS.muted;
+const SOS_RED = MAP_COLORS.sos;
+const SURFACE = MAP_COLORS.surface;
 
 export interface RideTraceMapProps {
   /** Accessible name of the map region (also the mock hook in tests). */
@@ -39,7 +41,7 @@ function sosIcon(): L.DivIcon {
     className: 'liveops-sos-pin',
     html:
       `<span class="liveops-sos-pin__drop" style="background:${SOS_RED}">` +
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true">' +
+      `<svg width="12" height="12" viewBox="0 0 24 24" fill="${SURFACE}" aria-hidden="true">` +
       '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg></span>',
     iconSize: [30, 30],
     iconAnchor: [15, 30],
@@ -86,7 +88,7 @@ export function RideTraceMap({
         <CircleMarker
           center={[pickup.lat, pickup.lng]}
           radius={8}
-          pathOptions={{ color: MUTED, weight: 3, fillColor: '#FFFFFF', fillOpacity: 1 }}
+          pathOptions={{ color: MUTED, weight: 3, fillColor: SURFACE, fillOpacity: 1 }}
         >
           {pickup.label ? <Tooltip>{pickup.label}</Tooltip> : null}
         </CircleMarker>
@@ -95,7 +97,7 @@ export function RideTraceMap({
             key={`${stop.lat},${stop.lng},${index}`}
             center={[stop.lat, stop.lng]}
             radius={6}
-            pathOptions={{ color: ACCENT, weight: 2, fillColor: '#FFFFFF', fillOpacity: 1 }}
+            pathOptions={{ color: ACCENT, weight: 2, fillColor: SURFACE, fillOpacity: 1 }}
           >
             {stop.label ? <Tooltip>{stop.label}</Tooltip> : null}
           </CircleMarker>
@@ -103,7 +105,7 @@ export function RideTraceMap({
         <CircleMarker
           center={[destination.lat, destination.lng]}
           radius={8}
-          pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: ACCENT, fillOpacity: 1 }}
+          pathOptions={{ color: SURFACE, weight: 3, fillColor: ACCENT, fillOpacity: 1 }}
         >
           {destination.label ? <Tooltip>{destination.label}</Tooltip> : null}
         </CircleMarker>

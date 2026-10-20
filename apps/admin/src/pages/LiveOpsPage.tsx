@@ -7,6 +7,7 @@ import type { AdminSosEvent, LatLng } from '../api/comms';
 import { listRegions, type RegionSummary } from '../api/regions';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { MAP_COLORS } from '../theme/map-colors';
 import { PageHeader, StatusChip } from '../ui';
 import { LiveOpsMap } from './liveops/LiveOpsMap';
 import { toLiveOpsOverlay } from './liveops/live-ops-overlay';
@@ -185,7 +186,7 @@ export default function LiveOpsPage() {
               height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#FFFFFF"
+              stroke={MAP_COLORS.surface}
               strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"

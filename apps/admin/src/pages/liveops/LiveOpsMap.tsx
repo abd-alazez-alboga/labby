@@ -16,13 +16,13 @@ import {
 import type { AdminSosEvent, LatLng, LiveOpsDriver, LiveOpsRide } from '../../api/comms';
 import { useConfig } from '../../config/ConfigContext';
 import { DEFAULT_MAP_TILE_URL } from '../../config/runtime-config';
+import { MAP_COLORS } from '../../theme/map-colors';
 import { polygonToLatLngs } from '../regions/leaflet-geojson';
 import { formatMultiplier, type SurgeOverlayZone } from '../surge';
 
-/** Labby purple — the one accent (design canvas 2026-10-07). */
-const ACCENT = '#59128A';
-/** The approved functional safety red for SOS (owner ruling, M10 canvas). */
-export const SOS_RED = '#D92D20';
+const ACCENT = MAP_COLORS.accent;
+const SOS_RED = MAP_COLORS.sos;
+const SURFACE = MAP_COLORS.surface;
 
 export interface LiveOpsMapProps {
   /** Accessible name of the map region (also the mock hook in tests). */
@@ -46,7 +46,7 @@ function sosIcon(): L.DivIcon {
     className: 'liveops-sos-pin',
     html:
       `<span class="liveops-sos-pin__drop" style="background:${SOS_RED}">` +
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true">' +
+      `<svg width="14" height="14" viewBox="0 0 24 24" fill="${SURFACE}" aria-hidden="true">` +
       '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg></span>',
     iconSize: [34, 34],
     iconAnchor: [17, 34],
@@ -117,8 +117,8 @@ export function LiveOpsMap({
             radius={8}
             pathOptions={
               driver.status === 'on_ride'
-                ? { color: '#FFFFFF', weight: 3, fillColor: ACCENT, fillOpacity: 1 }
-                : { color: ACCENT, weight: 3, fillColor: '#FFFFFF', fillOpacity: 1 }
+                ? { color: SURFACE, weight: 3, fillColor: ACCENT, fillOpacity: 1 }
+                : { color: ACCENT, weight: 3, fillColor: SURFACE, fillOpacity: 1 }
             }
             eventHandlers={{
               click: () =>
