@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { searchAdminRides } from '../../api/rides';
 import { useAuth } from '../../auth/AuthContext';
+import { normalizePhone } from '../../auth/phone';
 import { usePermissions } from '../../auth/usePermissions';
 import { DataTable, PageHeader } from '../../ui';
 import { LoadFailure } from '../onboarding/ReviewUi';
@@ -72,7 +73,7 @@ export function UserLookup({
     }
     setBusy(true);
     try {
-      const page = await searchAdminRides(apiClient, { phone: value });
+      const page = await searchAdminRides(apiClient, { phone: normalizePhone(value) });
       setResults(candidatesFromRides(page.items, mode === 'ledger'));
     } catch (error) {
       setFailure(classifyError(error));

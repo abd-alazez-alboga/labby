@@ -13,6 +13,7 @@ import {
   type RoleSummary,
 } from '../api/rbac';
 import { useAuth } from '../auth/AuthContext';
+import { normalizePhone } from '../auth/phone';
 import { usePermissions } from '../auth/usePermissions';
 import { DataTable, PageHeader } from '../ui';
 import { latinLocale } from './money/money-format';
@@ -103,7 +104,7 @@ export default function AdminsPage() {
     setNotice(null);
     try {
       const response = await createAdmin(apiClient, {
-        phone: phone.trim(),
+        phone: normalizePhone(phone),
         name: name.trim(),
         roleId,
       });

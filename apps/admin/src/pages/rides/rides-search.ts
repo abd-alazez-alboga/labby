@@ -4,6 +4,7 @@ import type {
   AdminRideSummaryPage,
   RideState,
 } from '../../api/rides';
+import { normalizePhone } from '../../auth/phone';
 import { isUuid } from '../money/money-format';
 
 /**
@@ -82,7 +83,7 @@ export function mergePages(
 
 export type QueryKind = 'none' | 'id' | 'phone';
 
-/** What a search-box input means: a pasted UUID, or an exact phone. */
+/** What a search-box input means: a pasted UUID, or an exact phone (canonical E.164, H3). */
 export function classifyQuery(raw: string): { kind: QueryKind; value: string } {
   const trimmed = raw.trim();
   if (trimmed === '') {
@@ -91,7 +92,7 @@ export function classifyQuery(raw: string): { kind: QueryKind; value: string } {
   if (isUuid(trimmed)) {
     return { kind: 'id', value: trimmed.toLowerCase() };
   }
-  return { kind: 'phone', value: trimmed.replace(/[\s-]/g, '') };
+  return { kind: 'phone', value: normalizePhone(trimmed) };
 }
 
 /** The `from`/`to` bounds covering one local calendar day ("YYYY-MM-DD"). */

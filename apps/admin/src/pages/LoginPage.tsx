@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { normalizePhone } from '../auth/phone';
 import { BrandMark } from '../layout/BrandMark';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 
@@ -53,7 +54,7 @@ export default function LoginPage() {
     setSubmitting(true);
     setErrorKey(null);
     try {
-      await login(phone.trim(), password);
+      await login(normalizePhone(phone), password);
       navigate(from, { replace: true });
     } catch (error) {
       setErrorKey(mapLoginError(error));
