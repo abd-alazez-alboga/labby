@@ -5,15 +5,20 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import i18n from '../i18n/i18n';
 import {
   adminTicket,
+  CATEGORY_LOST,
+  CATEGORY_PAYMENTS,
   LOST_TICKET,
   SAMIR_ID,
   stubSupportRoutes,
   SUPPORT_ADMIN,
   OUTSIDER,
+  SYSTEM_CATEGORY,
   TICKET_1,
   TICKET_2,
+  ticketCategory,
   ticketPage,
 } from './support-fixtures';
+import { adminUser } from './test-utils';
 import { callsTo, jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
 
 /**
@@ -169,6 +174,54 @@ describe('support ticket queue', () => {
     expect(callsTo(fetchMock, `assigneeUserId=${SUPPORT_ADMIN.id}`).length).toBeGreaterThan(0);
     // The signed-in admin's id, not Samir's fixture id.
     expect(SUPPORT_ADMIN.id).not.toBe(SAMIR_ID);
+  });
+
+  it('lists every active category in the filter without content:view (W18)', async () => {
+    const OTHER = 'dddd0000-0000-4000-8000-000000000009';
+    seedStoredSession(sessionFor(SUPPORT_ADMIN));
+    const fetchMock = stubSupportRoutes(SUPPORT_ADMIN, (method, path) =>
+      method === 'GET' && path === '/api/v1/support/ticket-categories'
+        ? jsonResponse(200, [
+            {
+              ticketCategoryId: CATEGORY_PAYMENTS,
+              name: { en: 'Payments', ar: 'المدفوعات' },
+              defaultPriority: 'high',
+              sortOrder: 0,
+            },
+            {
+              ticketCategoryId: OTHER,
+              name: { en: 'Account', ar: 'الحساب' },
+              defaultPriority: 'normal',
+              sortOrder: 1,
+            },
+          ])
+        : null,
+    );
+    renderShell();
+
+    const select = await screen.findByRole('combobox', { name: 'Category' });
+    // The queue page is empty, yet every category is listed.
+    expect(await within(select).findByRole('option', { name: 'Account' })).toBeInTheDocument();
+    expect(within(select).getByRole('option', { name: 'Payments' })).toBeInTheDocument();
+    expect(callsTo(fetchMock, '/api/v1/admin/ticket-categories')).toHaveLength(0);
+  });
+
+  it('lists the full category list, system row included, with content:view (W18)', async () => {
+    const editor = adminUser(['support:view', 'content:view']);
+    seedStoredSession(sessionFor(editor));
+    const fetchMock = stubSupportRoutes(editor, (method, path) =>
+      method === 'GET' && path === '/api/v1/admin/ticket-categories'
+        ? jsonResponse(200, [ticketCategory({ active: false }), SYSTEM_CATEGORY])
+        : null,
+    );
+    renderShell();
+
+    const select = await screen.findByRole('combobox', { name: 'Category' });
+    expect(await within(select).findByRole('option', { name: 'Lost item' })).toHaveValue(
+      CATEGORY_LOST,
+    );
+    expect(within(select).getByRole('option', { name: 'Payments' })).toBeInTheDocument();
+    expect(callsTo(fetchMock, '/api/v1/support/ticket-categories')).toHaveLength(0);
   });
 
   it('hides the menu entries and refuses the route without support:view', async () => {

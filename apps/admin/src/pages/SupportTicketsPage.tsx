@@ -3,12 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import {
+  listAdminTicketCategories,
   listAdminTickets,
+  listPickableTicketCategories,
   TICKET_PRIORITIES,
   TICKET_STATUSES,
   type AdminTicket,
   type AdminTicketPage,
   type AdminTicketQuery,
+  type LocalizedText,
   type TicketPriority,
   type TicketStatus,
 } from '../api/support';
@@ -80,6 +83,8 @@ export default function SupportTicketsPage() {
     urgentNotResolved: null,
   });
   const [attempt, setAttempt] = useState(0);
+  const [categories, setCategories] = useState<{ id: string; name: LocalizedText }[]>([]);
+  const canContentView = can('content:view');
 
   // The queue filter, shared by the page and its CSV export (ADM-06).
   const filter = useMemo<AdminTicketQuery>(() => {
@@ -121,6 +126,32 @@ export default function SupportTicketsPage() {
       cancelled = true;
     };
   }, [apiClient, filter, page, attempt]);
+
+  // The category filter lists every category (V1 audit W18): the full list
+  // (incl. inactive + the lost-item system row) with content:view, else the
+  // active ones any account may read. Best effort — the page rows still fill in.
+  useEffect(() => {
+    let cancelled = false;
+    const load: Promise<{ id: string; name: LocalizedText }[]> = canContentView
+      ? listAdminTicketCategories(apiClient).then((all) =>
+          all.map((c) => ({ id: c.ticketCategoryId, name: { en: c.nameEn, ar: c.nameAr } })),
+        )
+      : listPickableTicketCategories(apiClient).then((active) =>
+          active.map((c) => ({ id: c.ticketCategoryId, name: c.name })),
+        );
+    load
+      .then((loaded) => {
+        if (!cancelled) {
+          setCategories(loaded);
+        }
+      })
+      .catch(() => {
+        // Keep the options the loaded page's rows provide.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, canContentView]);
 
   // KPI tiles — one 1-item page each (`totalItems`), like the menu badges.
   useEffect(() => {
@@ -170,9 +201,12 @@ export default function SupportTicketsPage() {
     return t(`support.age.${unit}`, { count });
   }
 
-  // Category filter options come from the loaded page's own rows — no extra
-  // permission needed; picking one narrows to that category server-side.
+  // Category filter options: the loaded category list, plus any category the
+  // page's own rows carry that the list lacks (e.g. inactive without content:view).
   const categoryOptions = new Map<string, string>();
+  for (const category of categories) {
+    categoryOptions.set(category.id, localizedName(category.name, language));
+  }
   for (const ticket of result?.items ?? []) {
     categoryOptions.set(
       ticket.category.ticketCategoryId,

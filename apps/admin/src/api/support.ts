@@ -308,6 +308,23 @@ export function setCaseStatus(
 
 /* ---------- Ticket categories (UC-A-24, content:view/manage) ---------- */
 
+/** One pickable category as every signed-in account reads it (support-v1 TicketCategory). */
+export interface TicketCategory {
+  ticketCategoryId: string;
+  name: LocalizedText;
+  defaultPriority: TicketPriority;
+  sortOrder: number;
+}
+
+/**
+ * GET /support/ticket-categories — the active categories (never the system
+ * lost-item one), any signed-in account. The queue filter's fallback when the
+ * admin lacks content:view (V1 audit W18).
+ */
+export function listPickableTicketCategories(client: ApiClient): Promise<TicketCategory[]> {
+  return client.get<TicketCategory[]>('/api/v1/support/ticket-categories');
+}
+
 export interface AdminTicketCategory {
   ticketCategoryId: string;
   /** `lost_item` on the protected system row. */
