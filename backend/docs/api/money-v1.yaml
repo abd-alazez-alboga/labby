@@ -415,7 +415,9 @@ components:
         COM-01 itemization for one ride that moved money: a completed ride's fare posting, or a
         CANCELLED ride whose collected fee was credited to this driver — such a row carries
         fareTotal / commissionRate / commissionAmount 0, the fee in `cancellationFee`, and the
-        collection moment as `completedAt`.
+        collection moment as `completedAt`. A completed SHARED ride has one row per member
+        (that member's share); each row carries that member's own `tip` and, for the member who
+        redeemed the promo, the `promoCompensation` — never repeated on every share (V1 audit H6).
       required: [rideId, completedAt, currency, fareTotal, paymentMethod, commissionRate,
                  commissionAmount, net]
       properties:
@@ -459,7 +461,7 @@ components:
         from: { type: string, format: date }
         to: { type: string, format: date, description: Inclusive }
         currency: { type: string }
-        trips: { type: integer, description: Completed rides in the period }
+        trips: { type: integer, description: 'Completed rides in the period — a shared ride counts once, however many members paid (V1 audit H6)' }
         fares: { type: number, description: Sum of fare totals }
         commission: { type: number }
         tips: { type: number }

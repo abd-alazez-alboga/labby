@@ -97,7 +97,7 @@ public class RideMoneyServiceImpl implements RideMoneyService {
     // driver as a platform-funded promo_compensation credit (V25), so they are made whole.
     BigDecimal promoDiscount = fare.getDiscount() == null ? BigDecimal.ZERO : fare.getDiscount();
     postFareEntry(ride, payer, fare.getTotal(), step.walletApplied(), promoDiscount, now);
-    postPromoCompensation(ride, promoDiscount);
+    postPromoCompensation(ride, promoDiscount, null);
     for (RiderDue due : step.fromWallet()) {
       markCollected(due, ride, now);
     }
@@ -136,7 +136,8 @@ public class RideMoneyServiceImpl implements RideMoneyService {
           step.walletApplied(),
           memberDiscount,
           now);
-      postPromoCompensation(ride, memberDiscount);
+      // V1 audit H6: attributed to the redeeming member, so earnings attach it to that share.
+      postPromoCompensation(ride, memberDiscount, member.getId());
       for (RiderDue due : step.fromWallet()) {
         markCollected(due, ride, now);
       }
@@ -241,19 +242,23 @@ public class RideMoneyServiceImpl implements RideMoneyService {
             payer.memberId()));
   }
 
-  /** M13 ruling 1: the platform-funded discount, credited to the ride's driver (V25). */
-  private void postPromoCompensation(Ride ride, BigDecimal discount) {
+  /**
+   * M13 ruling 1: the platform-funded discount, credited to the ride's driver (V25) — on a shared
+   * ride attributed to the redeeming member ({@code memberId}).
+   */
+  private void postPromoCompensation(Ride ride, BigDecimal discount, UUID memberId) {
     if (discount.signum() <= 0) {
       return;
     }
     driverLedgerService.post(
         LedgerPosting.forRide(
-            ride.getDriverUserId(),
-            ride.getCurrency(),
-            discount,
-            DriverLedgerType.PROMO_COMPENSATION,
-            ride.getId(),
-            null));
+                ride.getDriverUserId(),
+                ride.getCurrency(),
+                discount,
+                DriverLedgerType.PROMO_COMPENSATION,
+                ride.getId(),
+                null)
+            .forMember(memberId));
   }
 
   @Override

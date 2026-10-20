@@ -10,7 +10,9 @@ import com.labby.backend.model.DriverLedgerEntry;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.repository.DriverLedgerRepository;
+import com.labby.backend.repository.PromoRedemptionRepository;
 import com.labby.backend.repository.RideRepository;
+import com.labby.backend.repository.SharedRideMemberRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.DayOfWeek;
@@ -18,8 +20,11 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -62,6 +67,8 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
   private final RideAccess rideAccess;
   private final DriverLedgerRepository driverLedgerRepository;
   private final RideRepository rideRepository;
+  private final PromoRedemptionRepository promoRedemptionRepository;
+  private final SharedRideMemberRepository sharedRideMemberRepository;
   private final MoneyFloors moneyFloors;
   private final CommissionService commissionService;
   private final Clock clock;
@@ -72,26 +79,18 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     Page<DriverLedgerEntry> anchors =
         driverLedgerRepository.findByDriverUserIdAndTypeInOrderByCreatedAtDescIdDesc(
             driverUserId, TRIP_ANCHORS, PageRequest.of(page, size));
-    List<UUID> rideIds = anchors.getContent().stream().map(DriverLedgerEntry::getRideId).toList();
+    List<UUID> rideIds =
+        anchors.getContent().stream().map(DriverLedgerEntry::getRideId).distinct().toList();
     Map<UUID, Ride> rides =
         rideRepository.findAllById(rideIds).stream()
             .collect(Collectors.toMap(Ride::getId, Function.identity()));
-    Map<UUID, DriverLedgerEntry> tips =
-        rideIds.isEmpty()
-            ? Map.of()
-            : driverLedgerRepository
-                .findByDriverUserIdAndTypeAndRideIdIn(driverUserId, DriverLedgerType.TIP, rideIds)
-                .stream()
-                .collect(Collectors.toMap(DriverLedgerEntry::getRideId, Function.identity()));
+    // V1 audit H6: a shared ride holds one tip per member and its fare anchors are per member, so
+    // tips and the promo compensation are keyed by (ride, member) — each lands on its own share.
+    Map<AnchorKey, DriverLedgerEntry> tips = byAnchor(driverUserId, DriverLedgerType.TIP, rideIds);
     // M13 ruling 1: the platform-funded promo discount rides on the trip row (one per ride, V25).
-    Map<UUID, DriverLedgerEntry> compensations =
-        rideIds.isEmpty()
-            ? Map.of()
-            : driverLedgerRepository
-                .findByDriverUserIdAndTypeAndRideIdIn(
-                    driverUserId, DriverLedgerType.PROMO_COMPENSATION, rideIds)
-                .stream()
-                .collect(Collectors.toMap(DriverLedgerEntry::getRideId, Function.identity()));
+    Map<AnchorKey, DriverLedgerEntry> compensations =
+        byAnchor(driverUserId, DriverLedgerType.PROMO_COMPENSATION, rideIds);
+    attachLegacySharedCompensations(compensations);
     return new TripEarningPageDto(
         anchors.getContent().stream()
             .map(anchor -> toTrip(anchor, rides.get(anchor.getRideId()), tips, compensations))
@@ -102,11 +101,48 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
         anchors.getTotalPages());
   }
 
+  private Map<AnchorKey, DriverLedgerEntry> byAnchor(
+      UUID driverUserId, DriverLedgerType type, List<UUID> rideIds) {
+    if (rideIds.isEmpty()) {
+      return new HashMap<>();
+    }
+    Map<AnchorKey, DriverLedgerEntry> entries = new HashMap<>();
+    for (DriverLedgerEntry entry :
+        driverLedgerRepository.findByDriverUserIdAndTypeAndRideIdIn(driverUserId, type, rideIds)) {
+      entries.putIfAbsent(AnchorKey.of(entry), entry);
+    }
+    return entries;
+  }
+
+  /**
+   * A shared ride's compensation posted before the member attribution (V1 audit H6) carries no
+   * member: it belongs to the share of the member who redeemed the promo, so it is re-keyed to that
+   * member's anchor — attached once, never to every share.
+   */
+  private void attachLegacySharedCompensations(Map<AnchorKey, DriverLedgerEntry> compensations) {
+    for (DriverLedgerEntry legacy : List.copyOf(compensations.values())) {
+      if (legacy.getSharedRideMemberId() != null) {
+        continue;
+      }
+      promoRedemptionRepository
+          .findByRideId(legacy.getRideId())
+          .flatMap(
+              redemption ->
+                  sharedRideMemberRepository.findFirstByRideIdAndRiderUserIdOrderByJoinedAtDesc(
+                      legacy.getRideId(), redemption.getUserId()))
+          .ifPresent(
+              member -> {
+                compensations.remove(AnchorKey.of(legacy));
+                compensations.put(new AnchorKey(legacy.getRideId(), member.getId()), legacy);
+              });
+    }
+  }
+
   private TripEarningDto toTrip(
       DriverLedgerEntry anchor,
       Ride ride,
-      Map<UUID, DriverLedgerEntry> tips,
-      Map<UUID, DriverLedgerEntry> compensations) {
+      Map<AnchorKey, DriverLedgerEntry> tips,
+      Map<AnchorKey, DriverLedgerEntry> compensations) {
     BigDecimal zero = BigDecimal.ZERO.setScale(2);
     if (!FARE_TYPES.contains(anchor.getType())) {
       // A cancelled ride whose fee was credited to this driver: no fare, no commission.
@@ -123,9 +159,9 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
           null,
           anchor.getAmount());
     }
-    DriverLedgerEntry tip = tips.get(anchor.getRideId());
+    DriverLedgerEntry tip = tips.get(AnchorKey.of(anchor));
     BigDecimal tipAmount = tip == null ? null : tip.getAmount();
-    DriverLedgerEntry compensation = compensations.get(anchor.getRideId());
+    DriverLedgerEntry compensation = compensations.get(AnchorKey.of(anchor));
     BigDecimal compensationAmount = compensation == null ? null : compensation.getAmount();
     BigDecimal net = anchor.getAmount();
     if (tipAmount != null) {
@@ -148,6 +184,19 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
         net);
   }
 
+  /**
+   * One trip row's attribution: the ride, and the shared-ride member (null on a non-shared ride).
+   *
+   * @param rideId the ride
+   * @param memberId the shared-ride member, or null
+   */
+  private record AnchorKey(UUID rideId, UUID memberId) {
+
+    static AnchorKey of(DriverLedgerEntry entry) {
+      return new AnchorKey(entry.getRideId(), entry.getSharedRideMemberId());
+    }
+  }
+
   @Override
   public EarningsSummaryDto summary(UUID driverUserId, String period, LocalDate anchor) {
     rideAccess.requireDriver(driverUserId);
@@ -168,7 +217,8 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
                 SUMMARY_TYPES,
                 from.atStartOfDay(zone).toInstant(),
                 to.plusDays(1).atStartOfDay(zone).toInstant());
-    int trips = 0;
+    // V1 audit H6 (incentives Q5): a shared ride is ONE trip, however many member fare entries.
+    Set<UUID> tripRides = new HashSet<>();
     BigDecimal fares = BigDecimal.ZERO;
     BigDecimal commission = BigDecimal.ZERO;
     BigDecimal tips = BigDecimal.ZERO;
@@ -176,7 +226,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     for (DriverLedgerEntry entry : entries) {
       net = net.add(entry.getAmount());
       if (FARE_TYPES.contains(entry.getType())) {
-        trips++;
+        tripRides.add(entry.getRideId());
         fares = fares.add(entry.getFareAmount());
         commission = commission.add(entry.getCommissionAmount());
       } else if (entry.getType() == DriverLedgerType.TIP) {
@@ -184,7 +234,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
       }
     }
     return new EarningsSummaryDto(
-        period, from, to, region.getCurrency(), trips, fares, commission, tips, net);
+        period, from, to, region.getCurrency(), tripRides.size(), fares, commission, tips, net);
   }
 
   @Override

@@ -252,6 +252,25 @@ class SharedRideMoneyIntegrationTest extends AbstractMoneyIntegrationTest {
                 .decimalValue())
         .isEqualByComparingTo("1.50");
 
+    // V1 audit H6: the earnings page attaches each member's own tip to that member's fare row
+    // (it returned 500 with two tips), and the summary counts the shared ride as ONE trip.
+    JsonNode items = ok(get("/api/v1/driver/earnings", driver.token()), HttpStatus.OK).get("items");
+    List<String> rowTips = new java.util.ArrayList<>();
+    for (JsonNode item : items) {
+      if (item.get("rideId").asText().equals(rideId.toString())) {
+        rowTips.add(
+            item.get("tip").isNull()
+                ? null
+                : item.get("tip").decimalValue().setScale(2).toPlainString());
+      }
+    }
+    // One fare row per member, each with that member's own tip.
+    assertThat(rowTips).containsExactlyInAnyOrder("1.00", "0.50");
+    JsonNode summary =
+        ok(get("/api/v1/driver/earnings/summary?period=weekly", driver.token()), HttpStatus.OK);
+    assertThat(summary.get("trips").asInt()).isEqualTo(1);
+    assertThat(summary.get("tips").decimalValue()).isEqualByComparingTo("1.50");
+
     // PAY-03: an admin refund may link the shared ride to a member (not only the creator).
     Map<String, Object> refund = new LinkedHashMap<>();
     refund.put("type", "refund");
