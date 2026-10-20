@@ -64,7 +64,8 @@ public class SurgeZoneServiceImpl implements SurgeZoneService {
     Polygon polygon = GeoJson.toPolygon(request.polygon());
     requireWithinBoundary(region, polygon);
     if (surgeZoneRepository.existsByRegionIdAndNameIgnoreCase(regionId, request.name())) {
-      throw new ResourceAlreadyExistsException("Surge zone", "name", request.name());
+      throw new ResourceAlreadyExistsException("Surge zone", "name", request.name())
+          .withCode("surge_zone_name_taken");
     }
     SurgeZone zone = SurgeZone.builder().regionId(regionId).createdBy(actorUserId).build();
     apply(zone, request, polygon, actorUserId);
@@ -89,7 +90,8 @@ public class SurgeZoneServiceImpl implements SurgeZoneService {
     requireWithinBoundary(region, polygon);
     if (surgeZoneRepository.existsByRegionIdAndNameIgnoreCaseAndIdNot(
         zone.getRegionId(), request.name(), surgeZoneId)) {
-      throw new ResourceAlreadyExistsException("Surge zone", "name", request.name());
+      throw new ResourceAlreadyExistsException("Surge zone", "name", request.name())
+          .withCode("surge_zone_name_taken");
     }
     Map<String, Object> before = snapshot(zone);
     apply(zone, request, polygon, actorUserId);
@@ -179,10 +181,12 @@ public class SurgeZoneServiceImpl implements SurgeZoneService {
   private void requireWithinBoundary(Region region, Polygon polygon) {
     if (region.getBoundary() == null) {
       throw new ConflictException(
-          "The region has no boundary yet; draw the boundary before adding surge zones");
+              "The region has no boundary yet; draw the boundary before adding surge zones")
+          .withCode("region_has_no_boundary");
     }
     if (!regionRepository.boundaryCovers(region.getId(), polygon.toText())) {
-      throw new ConflictException("The zone polygon must lie within the region's boundary");
+      throw new ConflictException("The zone polygon must lie within the region's boundary")
+          .withCode("zone_outside_boundary");
     }
   }
 

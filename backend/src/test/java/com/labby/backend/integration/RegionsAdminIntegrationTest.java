@@ -315,7 +315,10 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
     ResponseEntity<String> blocked =
         send("/api/v1/admin/regions/" + regionId + "/activate", HttpMethod.POST, null, token);
     assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    // Review V1 W37: a distinct code, the parts under details.missing.
     assertThat(blocked.getBody())
+        .contains("\"code\":\"region_incomplete\"")
+        .contains("\"missing\":[")
         .contains("boundary")
         .contains("currency")
         .contains("emergency number")
@@ -383,7 +386,10 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
         send(
             "/api/v1/admin/regions/" + regionId, HttpMethod.PUT, Map.of("name", "Damascus"), token);
     assertThat(stripped.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(stripped.getBody()).contains("currency").contains("surge cap");
+    assertThat(stripped.getBody())
+        .contains("\"code\":\"active_region_incomplete\"")
+        .contains("currency")
+        .contains("surge cap");
 
     // SD-01: the rider app resolves the active region from GPS. The client config also carries
     // the PRC-03 wait-charge values so the app can display accrual (M8).
@@ -639,7 +645,9 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
             fullBundle("Overlap", polygon(36.25, 33.25, 36.75, 33.75)),
             token);
     assertThat(overlappingCreate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(overlappingCreate.getBody()).contains("overlaps");
+    assertThat(overlappingCreate.getBody())
+        .contains("overlaps")
+        .contains("\"code\":\"boundary_overlap\"");
 
     // A draft created without a boundary cannot take an overlapping one later…
     String draftId = createDraft(token, Map.of("name", "Delta"));
@@ -694,7 +702,10 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
             fullBundle("Damascus", polygon(36.0, 33.0, 36.25, 33.25)),
             token);
     assertThat(shrunk.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    assertThat(shrunk.getBody()).contains("surge zones outside").contains("Old City");
+    assertThat(shrunk.getBody())
+        .contains("surge zones outside")
+        .contains("\"code\":\"zones_outside_boundary\"")
+        .contains("\"zoneNames\":[\"Old City\"]");
     assertThat(get("/api/v1/admin/regions/" + regionId, token).getBody()).contains("36.5");
 
     // A shrink that still covers every zone is fine.
@@ -820,10 +831,10 @@ class RegionsAdminIntegrationTest extends AbstractAuthIntegrationTest {
     String otherId = createDraft(token, Map.of("name", "Aleppo"));
 
     // Region names are unique, case-insensitively, on create and on rename.
-    assertThat(
-            send("/api/v1/admin/regions", HttpMethod.POST, Map.of("name", "damascus"), token)
-                .getStatusCode())
-        .isEqualTo(HttpStatus.CONFLICT);
+    ResponseEntity<String> taken =
+        send("/api/v1/admin/regions", HttpMethod.POST, Map.of("name", "damascus"), token);
+    assertThat(taken.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(taken.getBody()).contains("\"code\":\"region_name_taken\"");
     assertThat(
             send(
                     "/api/v1/admin/regions/" + otherId,

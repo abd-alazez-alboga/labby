@@ -76,7 +76,8 @@ public class RegionServiceImpl implements RegionService {
   @Transactional
   public RegionDto createRegion(UUID actorUserId, RegionUpsertRequestDto request) {
     if (regionRepository.existsByNameIgnoreCase(request.name())) {
-      throw new ResourceAlreadyExistsException("Region", "name", request.name());
+      throw new ResourceAlreadyExistsException("Region", "name", request.name())
+          .withCode("region_name_taken");
     }
     Polygon boundary = GeoJson.toPolygon(request.boundary());
     requireNoBoundaryOverlap(NO_REGION_ID, boundary);
@@ -99,7 +100,8 @@ public class RegionServiceImpl implements RegionService {
     Region region = requireRegion(regionId);
     if (!request.name().equalsIgnoreCase(region.getName())
         && regionRepository.existsByNameIgnoreCase(request.name())) {
-      throw new ResourceAlreadyExistsException("Region", "name", request.name());
+      throw new ResourceAlreadyExistsException("Region", "name", request.name())
+          .withCode("region_name_taken");
     }
     Polygon boundary = GeoJson.toPolygon(request.boundary());
     requireNoBoundaryOverlap(regionId, boundary);
@@ -112,8 +114,10 @@ public class RegionServiceImpl implements RegionService {
       List<String> missing = missingBundleParts(region);
       if (!missing.isEmpty()) {
         throw new ConflictException(
-            "An active region cannot clear mandatory config; missing: "
-                + String.join(", ", missing));
+                "An active region cannot clear mandatory config; missing: "
+                    + String.join(", ", missing))
+            .withCode("active_region_incomplete")
+            .withDetail("missing", missing);
       }
     }
     Region saved = regionRepository.save(region);
@@ -137,7 +141,9 @@ public class RegionServiceImpl implements RegionService {
     List<String> missing = missingMandatoryParts(region);
     if (!missing.isEmpty()) {
       throw new ConflictException(
-          "The region cannot be activated; missing: " + String.join(", ", missing));
+              "The region cannot be activated; missing: " + String.join(", ", missing))
+          .withCode("region_incomplete")
+          .withDetail("missing", missing);
     }
     Map<String, Object> before = snapshot(region);
     region.setState(RegionState.ACTIVE);
@@ -189,7 +195,8 @@ public class RegionServiceImpl implements RegionService {
   private void requireNoBoundaryOverlap(UUID excludedRegionId, Polygon boundary) {
     if (boundary != null
         && regionRepository.existsBoundaryOverlapping(excludedRegionId, boundary.toText())) {
-      throw new ConflictException("The boundary overlaps another region's boundary");
+      throw new ConflictException("The boundary overlaps another region's boundary")
+          .withCode("boundary_overlap");
     }
   }
 
@@ -206,8 +213,11 @@ public class RegionServiceImpl implements RegionService {
             : surgeZoneRepository.findZoneNamesOutside(regionId, boundary.toText());
     if (!outside.isEmpty()) {
       throw new ConflictException(
-          "The boundary would leave surge zones outside the region; move or delete them first: "
-              + String.join(", ", outside));
+              "The boundary would leave surge zones outside the region; move or delete them"
+                  + " first: "
+                  + String.join(", ", outside))
+          .withCode("zones_outside_boundary")
+          .withDetail("zoneNames", outside);
     }
   }
 
