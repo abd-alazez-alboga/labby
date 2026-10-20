@@ -245,6 +245,18 @@ describe("booking (UC-R-04)", () => {
     expect(screen.getByTestId("booking-add-stop")).toBeOnTheScreen();
   });
 
+  it("draws the route rail beside the fields, one dot per point (RiderWhereTo)", async () => {
+    mockApi(BASE_ROUTES);
+    await renderBooking();
+    await screen.findByTestId(`booking-saved-${savedHome.id}`);
+    // Pickup + drop-off: two dots joined by one line.
+    expect(screen.getByTestId("booking-rail").children).toHaveLength(3);
+
+    await fireEvent.press(screen.getByTestId("booking-add-stop"));
+    // A stop adds a line and a dot.
+    expect(screen.getByTestId("booking-rail").children).toHaveLength(5);
+  });
+
   it.each([
     [
       "outside_region",

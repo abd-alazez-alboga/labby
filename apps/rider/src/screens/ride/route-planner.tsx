@@ -324,16 +324,30 @@ export function RoutePlanner({
                   : t("booking.routeTitle"))}
             </AppText>
 
-            <View style={styles.fields}>
-              {renderField("pickup", t("booking.pickup"))}
-              {stops.map((_, index) =>
-                renderField(
-                  `stop-${index}`,
-                  t("booking.stop", { number: index + 1 }),
-                  index,
-                ),
-              )}
-              {renderField("destination", t("booking.destination"))}
+            {/* Approved artboard RiderWhereTo: the route rail beside the fields. */}
+            <View style={[styles.route, { flexDirection: row }]}>
+              <View style={styles.rail} testID={`${testID}-rail`}>
+                <View style={styles.dotPickup} />
+                {stops.map((_, index) => (
+                  <React.Fragment key={`rail-stop-${index}`}>
+                    <View style={styles.railLine} />
+                    <View style={styles.dotStop} />
+                  </React.Fragment>
+                ))}
+                <View style={styles.railLine} />
+                <View style={styles.dotDropoff} />
+              </View>
+              <View style={[styles.fields, styles.fieldsColumn]}>
+                {renderField("pickup", t("booking.pickup"))}
+                {stops.map((_, index) =>
+                  renderField(
+                    `stop-${index}`,
+                    t("booking.stop", { number: index + 1 }),
+                    index,
+                  ),
+                )}
+                {renderField("destination", t("booking.destination"))}
+              </View>
             </View>
 
             {allowStops && stops.length < MAX_STOPS ? (
@@ -469,6 +483,41 @@ const styles = StyleSheet.create({
   },
   fields: {
     gap: spacing.sm,
+  },
+  fieldsColumn: {
+    flex: 1,
+  },
+  route: {
+    gap: spacing.md,
+    alignItems: "stretch",
+  },
+  rail: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  railLine: {
+    width: 2,
+    flexGrow: 1,
+    backgroundColor: colors.grabHandle,
+    marginVertical: 4,
+  },
+  dotPickup: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.text,
+  },
+  dotStop: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: colors.textSecondary,
+  },
+  dotDropoff: {
+    width: 10,
+    height: 10,
+    backgroundColor: colors.accent,
   },
   field: {
     alignItems: "center",
