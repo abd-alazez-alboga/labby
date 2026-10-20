@@ -1271,7 +1271,14 @@
     "parties": {
       "rider": "الراكب {{name}}",
       "driver": "السائق {{name}}",
-      "phonesNeedHandle": "تتطلب أرقام الهواتف في هذه الصفحة صلاحية معالجة الدعم"
+      "phonesNeedHandle": "تتطلب أرقام الهواتف في هذه الصفحة صلاحية معالجة الدعم",
+      "creator": "أنشأها {{name}}",
+      "count_zero": "{{count}} مجموعات",
+      "count_one": "مجموعة واحدة",
+      "count_two": "مجموعتان",
+      "count_few": "{{count}} مجموعات",
+      "count_many": "{{count}} مجموعة",
+      "count_other": "{{count}} مجموعة"
     },
     "payment": {
       "cash": "نقدًا",
@@ -1357,11 +1364,39 @@
       "creator": "{{name}} · المنشئ",
       "memberFallback": "الراكب {{n}}",
       "memberRequired": "هذه رحلة مشتركة لكل راكب فيها محادثة خاصة. افتح صفحة الرحلة لقراءة محادثة راكب.",
-      "memberNoThread": "لا توجد محادثة مع هذا الراكب — غادر قبل قبول الرحلة."
+      "memberNoThread": "لا توجد محادثة مع هذا الراكب — غادر قبل قبول الرحلة.",
+      "footnoteClosed": "أُغلقت النافذة بعد 24 ساعة من انتهاء الرحلة · يُسجَّل فتح أي محادثة في سجل التدقيق",
+      "footnoteAudited": "يُسجَّل فتح أي محادثة في سجل التدقيق"
     },
     "errors": {
       "notFound": "لا توجد رحلة بهذا المعرّف.",
       "loadFailed": "تعذّر تحميل الرحلة."
+    },
+    "sharedChip_zero": "مشتركة · {{count}} مقاعد",
+    "sharedChip_one": "مشتركة · مقعد واحد",
+    "sharedChip_two": "مشتركة · مقعدان",
+    "sharedChip_few": "مشتركة · {{count}} مقاعد",
+    "sharedChip_many": "مشتركة · {{count}} مقعدًا",
+    "sharedChip_other": "مشتركة · {{count}} مقعد",
+    "members": {
+      "title": "الركاب",
+      "creator": "المنشئ",
+      "partyOf": "مجموعة من {{count}}",
+      "status": {
+        "joined": "منضم",
+        "left": "غادر قبل الإرسال",
+        "cancelled": "ألغى",
+        "no_show": "غائب",
+        "completed": "اكتملت"
+      },
+      "payment": {
+        "pending": "الدفع معلّق",
+        "paid_cash": "دفع نقدًا",
+        "paid_wallet": "دفع من المحفظة",
+        "paid_mixed": "دفع محفظة + نقدًا",
+        "unpaid": "مسجّل غير مدفوع"
+      },
+      "feeCharged": "فُرضت رسوم"
     }
   },
   "reports": {

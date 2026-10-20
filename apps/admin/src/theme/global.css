@@ -2594,6 +2594,28 @@ input[type='radio'] {
   color: var(--labby-text-secondary);
 }
 
+/* Shared ride Members card (A12ChatLogMembers). */
+.member-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-3);
+}
+
+.member-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--labby-space-3);
+  font-size: 14px;
+}
+
+.member-list__name {
+  font-weight: 700;
+}
+
 .sos-chip {
   display: inline-flex;
   align-items: center;

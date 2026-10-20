@@ -179,8 +179,16 @@ export interface AdminRide {
   fare?: FinalFare | null;
   paymentStatus?: PaymentStatus | null;
   tip?: number | null;
-  /** M12 — kind `shared` only: every party (admin view, first names). */
-  shared?: { members: AdminSharedMember[] } | null;
+  /** M12 — kind `shared` only (scheduled-shared-v1 SharedInfo; admin view, first names). */
+  shared?: AdminSharedInfo | null;
+}
+
+/** The shared extension as the admin view reads it (scheduled-shared-v1 SharedInfo). */
+export interface AdminSharedInfo {
+  totalSeats?: number;
+  seatsTaken?: number;
+  /** Every party, in join order. */
+  members: AdminSharedMember[];
 }
 
 /** One party of a shared ride as the admin view lists it (scheduled-shared-v1 MemberView). */
@@ -190,6 +198,13 @@ export interface AdminSharedMember {
   isCreator: boolean;
   partySize: number;
   status: 'joined' | 'left' | 'cancelled' | 'no_show' | 'completed';
+  paymentMethod?: 'cash' | 'wallet';
+  /** `cancelled` after the grace, or `no_show`. */
+  cancellationFee?: number | null;
+  /** `completed` only — this party's part of the fare. */
+  shareAmount?: number | null;
+  /** Never `split` — that is the whole ride's status. */
+  paymentStatus?: Exclude<PaymentStatus, 'split'> | null;
 }
 
 /** One entry of the dispatch trail, in candidate order (RIDE-03). */

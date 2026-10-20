@@ -1,13 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { ApiError } from '../api/client';
 import type { AdminSosEvent } from '../api/comms';
-import { getAdminRide, type AdminRideDetail, type OfferTrailEntry } from '../api/rides';
+import { listRegions } from '../api/regions';
+import {
+  getAdminRide,
+  type AdminRideDetail,
+  type AdminSharedMember,
+  type OfferTrailEntry,
+} from '../api/rides';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
-import { Section, StatusChip } from '../ui';
+import { bdiMark, Section, StatusChip, withBdi, type ChipTone } from '../ui';
 import { formatMoment, formatMoney, formatNumber } from './money/money-format';
 import { ChatLogCard } from './rides/ChatLogCard';
 import {
@@ -26,6 +32,10 @@ import { formatClock, formatMultiplier, isolateLtr } from './surge';
  * GPS trace on runtime tiles, and the CHAT-03 read-only chat log
  * (support:view only). Party phones follow the artboard note: they need
  * support:handle. The live map's pins and the rides search both land here.
+ * A shared ride (M12, artboard A12ChatLogMembers) adds the "Shared · N seats"
+ * chip, the creator / parties meta and the Members card (status and per-member
+ * payment or fee). User names sit in <bdi> so Arabic names never reorder the
+ * separators around them (V1 audit I107).
  */
 export default function RideDetailPage() {
   const { t, i18n } = useTranslation();
@@ -35,11 +45,13 @@ export default function RideDetailPage() {
   const { can } = usePermissions();
   const canSupportView = can('support:view');
   const canHandle = can('support:handle');
+  const canRegionsView = can('regions:view');
 
   const [detail, setDetail] = useState<AdminRideDetail | null>(null);
   const [error, setError] = useState<'notFound' | 'failed' | null>(null);
   const [sosEvents, setSosEvents] = useState<AdminSosEvent[]>([]);
   const [attempt, setAttempt] = useState(0);
+  const [regionName, setRegionName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!rideId) {
@@ -81,6 +93,28 @@ export default function RideDetailPage() {
       cancelled = true;
     };
   }, [apiClient, rideId, canSupportView, attempt]);
+
+  const regionId = detail?.ride.regionId ?? null;
+  useEffect(() => {
+    setRegionName(null);
+    if (!regionId || !canRegionsView) {
+      return;
+    }
+    // The detail carries only the region id; its name is a best-effort lookup (regions:view).
+    let cancelled = false;
+    listRegions(apiClient)
+      .then((regions) => {
+        if (!cancelled) {
+          setRegionName(regions.find((region) => region.id === regionId)?.name ?? null);
+        }
+      })
+      .catch(() => {
+        // The meta line simply goes without the region.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, regionId, canRegionsView]);
 
   const moments = useMemo(
     () => (detail ? buildTimeline(detail.ride.timeline, sosEvents) : []),
@@ -135,11 +169,15 @@ export default function RideDetailPage() {
   const fare = ride.fare ?? null;
   const components = fare ? fare.components : ride.estimate.components;
 
-  function momentTitle(moment: TimelineMoment): string {
+  const shared = ride.kind === 'shared' ? (ride.shared ?? null) : null;
+  // Pre-dispatch leavers never rode: not a party, no chat thread.
+  const parties = (shared?.members ?? []).filter((member) => member.status !== 'left');
+
+  function momentTitle(moment: TimelineMoment): ReactNode {
     switch (moment.kind) {
       case 'accepted':
         return detail!.driverName
-          ? t('rideDetail.timeline.acceptedBy', { name: detail!.driverName })
+          ? withBdi(t('rideDetail.timeline.acceptedBy', { name: bdiMark(detail!.driverName) }))
           : t('rideDetail.timeline.accepted');
       case 'cancelled':
         return t(
@@ -158,7 +196,7 @@ export default function RideDetailPage() {
     }
   }
 
-  function momentDetail(moment: TimelineMoment): string | null {
+  function momentDetail(moment: TimelineMoment): ReactNode {
     switch (moment.kind) {
       case 'requested':
         return t('rideDetail.timeline.requestedDetail', {
@@ -188,10 +226,12 @@ export default function RideDetailPage() {
           .join(' · ');
       case 'sos':
         return moment.sos?.acknowledged
-          ? t('rideDetail.timeline.sosAcknowledged', {
-              name: moment.sos.acknowledged.byName,
-              time: formatClock(moment.sos.acknowledged.at, language),
-            })
+          ? withBdi(
+              t('rideDetail.timeline.sosAcknowledged', {
+                name: bdiMark(moment.sos.acknowledged.byName),
+                time: formatClock(moment.sos.acknowledged.at, language),
+              }),
+            )
           : t('rideDetail.timeline.sosPermanent');
       default:
         return null;
@@ -213,6 +253,34 @@ export default function RideDetailPage() {
       default:
         return { label: t('rideDetail.offers.open'), className: 'offer--muted' };
     }
+  }
+
+  function memberRow(member: AdminSharedMember, index: number) {
+    const name = member.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: index + 1 });
+    const status = t(`rideDetail.members.status.${member.status}`);
+    let outcome = status;
+    let tone: ChipTone = 'neutral';
+    if (member.status === 'completed') {
+      tone = 'success';
+      if (member.paymentStatus) {
+        outcome = `${status} · ${t(`rideDetail.members.payment.${member.paymentStatus}`)}`;
+      }
+    } else if (member.status === 'no_show' || member.status === 'cancelled') {
+      tone = member.status === 'no_show' || member.cancellationFee ? 'danger' : 'neutral';
+      if (member.cancellationFee) {
+        outcome = `${status} · ${t('rideDetail.members.feeCharged')}`;
+      }
+    }
+    return (
+      <li key={member.memberId} className="member-list__row">
+        <span className="member-list__name">
+          <bdi>{name}</bdi>
+          {member.isCreator ? ` · ${t('rideDetail.members.creator')}` : null}
+          {` · ${t('rideDetail.members.partyOf', { count: member.partySize })}`}
+        </span>
+        <StatusChip tone={tone}>{outcome}</StatusChip>
+      </li>
+    );
   }
 
   const phones =
@@ -244,11 +312,16 @@ export default function RideDetailPage() {
       <header className="page-header">
         <div className="page-header__main">
           <div className="page-header__text">
-            <h1 className="page-header__title" dir="ltr">
-              {t('rideDetail.title', { ref: rideRef(ride.id) })}
+            <h1 className="page-header__title">
+              {withBdi(t('rideDetail.title', { ref: bdiMark(rideRef(ride.id)) }))}
             </h1>
           </div>
           <div className="page-header__meta ride-detail__chips">
+            {shared?.totalSeats ? (
+              <StatusChip tone="accent">
+                {t('rideDetail.sharedChip', { count: shared.totalSeats })}
+              </StatusChip>
+            ) : null}
             <StatusChip tone={rideStateTone(ride.state)}>
               {t(`money.rideState.${ride.state}`)}
             </StatusChip>
@@ -264,18 +337,38 @@ export default function RideDetailPage() {
       </header>
       <p className="ride-detail__meta">
         {formatMoment(ride.timeline.requestedAt, language)}
+        {regionName ? (
+          <>
+            {' · '}
+            <bdi>{regionName}</bdi>
+          </>
+        ) : null}
         {' · '}
         {serviceTypeName}
+        {shared ? null : (
+          <>
+            {' · '}
+            {t(`rideDetail.payment.${ride.paymentMethod}`)}
+          </>
+        )}
         {' · '}
-        {t(`rideDetail.payment.${ride.paymentMethod}`)}
-        {' · '}
-        {t('rideDetail.parties.rider', { name: detail.riderName })}
+        {withBdi(
+          t(shared ? 'rideDetail.parties.creator' : 'rideDetail.parties.rider', {
+            name: bdiMark(detail.riderName),
+          }),
+        )}
         {phones}
         {detail.driverName ? (
           <>
             {' · '}
-            {t('rideDetail.parties.driver', { name: detail.driverName })}
+            {withBdi(t('rideDetail.parties.driver', { name: bdiMark(detail.driverName) }))}
             {driverPhone}
+          </>
+        ) : null}
+        {shared ? (
+          <>
+            {' · '}
+            {t('rideDetail.parties.count', { count: parties.length })}
           </>
         ) : null}
         {canHandle ? null : <> — {t('rideDetail.parties.phonesNeedHandle')}</>}
@@ -285,10 +378,12 @@ export default function RideDetailPage() {
         <div className="sos-banner" role="alert">
           <span className="sos-banner__text">
             <strong>
-              {t('rideDetail.sosBanner', {
-                name: openSos.triggeredBy.name,
-                time: formatClock(openSos.triggeredAt, language),
-              })}
+              {withBdi(
+                t('rideDetail.sosBanner', {
+                  name: bdiMark(openSos.triggeredBy.name),
+                  time: formatClock(openSos.triggeredAt, language),
+                }),
+              )}
             </strong>
             <span>{t('rideDetail.sosBannerHint')}</span>
           </span>
@@ -300,6 +395,12 @@ export default function RideDetailPage() {
 
       <div className="ride-detail">
         <div className="ride-detail__column">
+          {shared ? (
+            <Section title={t('rideDetail.members.title')}>
+              <ul className="member-list">{shared.members.map(memberRow)}</ul>
+            </Section>
+          ) : null}
+
           <Section title={t('rideDetail.timelineTitle')}>
             <ol className="timeline">
               {moments.map((moment, index) => (
@@ -330,10 +431,12 @@ export default function RideDetailPage() {
                   return (
                     <li key={offer.offerId} className="offer-trail__row">
                       <span>
-                        {t('rideDetail.offers.entry', {
-                          name: offer.driverName,
-                          distance: formatNumber(offer.pickupDistanceMeters / 1000, language),
-                        })}
+                        {withBdi(
+                          t('rideDetail.offers.entry', {
+                            name: bdiMark(offer.driverName),
+                            distance: formatNumber(offer.pickupDistanceMeters / 1000, language),
+                          }),
+                        )}
                       </span>
                       <span className={response.className}>{response.label}</span>
                     </li>
@@ -398,11 +501,7 @@ export default function RideDetailPage() {
               rideId={ride.id}
               riderName={detail.riderName}
               driverName={detail.driverName ?? null}
-              members={
-                ride.kind === 'shared'
-                  ? (ride.shared?.members ?? []).filter((member) => member.status !== 'left')
-                  : null
-              }
+              members={shared ? parties : null}
             />
           ) : null}
         </div>

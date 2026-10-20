@@ -220,8 +220,120 @@ describe('ride detail page (UC-A-18, CHAT-03)', () => {
     expect(
       screen.getByText(/phones on this page need the Handle support permission/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/rider Lina K\./)).toBeInTheDocument();
-    expect(screen.getByText(/driver Samer A\./)).toBeInTheDocument();
+    // V1 audit I107: names sit in <bdi>, so the line is asserted as a whole.
+    const meta = document.querySelector('.ride-detail__meta');
+    expect(meta).toHaveTextContent('rider Lina K.');
+    expect(meta).toHaveTextContent('driver Samer A.');
+  });
+
+  it('isolates user names in <bdi> and names the region in the meta line (I81, I107)', async () => {
+    stubDetail(SUPPORT_HANDLER);
+    renderShell();
+    await screen.findByRole('heading', { level: 1, name: 'Ride R-AAAAAAAA' });
+
+    const meta = document.querySelector('.ride-detail__meta')!;
+    await waitFor(() => expect(meta).toHaveTextContent('Damascus'));
+    const isolated = [...meta.querySelectorAll('bdi')].map((node) => node.textContent);
+    expect(isolated).toEqual(expect.arrayContaining(['Damascus', 'Lina K.', 'Samer A.']));
+    const offers = screen.getByRole('heading', { name: 'Offers trail' }).closest('section')!;
+    expect([...offers.querySelectorAll('bdi')].map((node) => node.textContent)).toEqual([
+      'Yara M.',
+      'Samer A.',
+    ]);
+  });
+
+  it('lays the Arabic title out RTL, isolating only the ride ref (I81)', async () => {
+    await i18n.changeLanguage('ar');
+    stubDetail();
+    renderShell();
+
+    const title = await screen.findByRole('heading', { level: 1, name: 'الرحلة R-AAAAAAAA' });
+    expect(title).not.toHaveAttribute('dir');
+    expect(title.querySelector('bdi')).toHaveTextContent('R-AAAAAAAA');
+  });
+
+  it('shows the shared chip, creator meta and the Members card (A12ChatLogMembers, W1, W17)', async () => {
+    const shared = {
+      ...RIDE_DETAIL,
+      ride: {
+        ...RIDE_DETAIL.ride,
+        state: 'completed' as const,
+        kind: 'shared' as const,
+        paymentStatus: 'split' as const,
+        shared: {
+          totalSeats: 4,
+          seatsTaken: 4,
+          members: [
+            {
+              memberId: 'm-rana',
+              firstName: 'Rana',
+              isCreator: true,
+              partySize: 2,
+              status: 'completed' as const,
+              paymentMethod: 'cash' as const,
+              shareAmount: 12000,
+              paymentStatus: 'paid_cash' as const,
+            },
+            {
+              memberId: 'm-omar',
+              firstName: 'Omar',
+              isCreator: false,
+              partySize: 1,
+              status: 'completed' as const,
+              paymentMethod: 'wallet' as const,
+              shareAmount: 6000,
+              paymentStatus: 'paid_wallet' as const,
+            },
+            {
+              memberId: 'm-lina',
+              firstName: 'Lina',
+              isCreator: false,
+              partySize: 1,
+              status: 'no_show' as const,
+              paymentMethod: 'cash' as const,
+              cancellationFee: 2000,
+              paymentStatus: null,
+            },
+          ],
+        },
+      },
+      riderName: 'Rana H.',
+    };
+    stubDetail(SUPPORT_VIEWER, (method, path) =>
+      method === 'GET' && path === DETAIL_PATH ? jsonResponse(200, shared) : null,
+    );
+    renderShell();
+
+    await screen.findByRole('heading', { level: 1, name: 'Ride R-AAAAAAAA' });
+    expect(screen.getByText('Shared · 4 seats')).toBeInTheDocument();
+    const meta = document.querySelector('.ride-detail__meta')!;
+    expect(meta).toHaveTextContent('created by Rana H.');
+    expect(meta).toHaveTextContent('3 parties');
+    // Each member pays for themselves: no ride-level payment method in the meta.
+    expect(meta).not.toHaveTextContent('Cash');
+
+    const members = screen.getByRole('heading', { name: 'Members' }).closest('section')!;
+    const rows = within(members).getAllByRole('listitem');
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'Rana · creator · party of 2Completed · paid cash',
+      'Omar · party of 1Completed · paid wallet',
+      'Lina · party of 1Absent · fee charged',
+    ]);
+    expect(within(rows[2]).getByText('Absent · fee charged')).toHaveAttribute(
+      'data-tone',
+      'danger',
+    );
+
+    // W1: the completed shared ride's status is labelled, never a raw key.
+    const fare = screen.getByRole('heading', { name: 'Fare' }).closest('section')!;
+    expect(fare).toHaveTextContent('Paid per member');
+    expect(fare).not.toHaveTextContent('rideDetail.paymentStatus');
+
+    // The chat card's footnote says thread reads are audited.
+    const chat = screen.getByRole('heading', { name: 'Chat log' }).closest('section')!;
+    expect(
+      await within(chat).findByText('Opening a thread is recorded in the audit log'),
+    ).toBeInTheDocument();
   });
 
   it('switches between the private threads of a shared ride (M12, one read per member)', async () => {

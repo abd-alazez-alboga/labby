@@ -1271,7 +1271,14 @@
     "parties": {
       "rider": "rider {{name}}",
       "driver": "driver {{name}}",
-      "phonesNeedHandle": "phones on this page need the Handle support permission"
+      "phonesNeedHandle": "phones on this page need the Handle support permission",
+      "creator": "created by {{name}}",
+      "count_zero": "{{count}} parties",
+      "count_one": "{{count}} party",
+      "count_two": "{{count}} parties",
+      "count_few": "{{count}} parties",
+      "count_many": "{{count}} parties",
+      "count_other": "{{count}} parties"
     },
     "payment": {
       "cash": "Cash",
@@ -1357,11 +1364,39 @@
       "creator": "{{name}} · creator",
       "memberFallback": "Member {{n}}",
       "memberRequired": "This is a shared ride with one private chat per member. Open the ride's page to read a member's chat.",
-      "memberNoThread": "No chat with this member — they left before the ride was accepted."
+      "memberNoThread": "No chat with this member — they left before the ride was accepted.",
+      "footnoteClosed": "Window closed 24 h after the ride ended · opening a thread is recorded in the audit log",
+      "footnoteAudited": "Opening a thread is recorded in the audit log"
     },
     "errors": {
       "notFound": "No ride with this ID.",
       "loadFailed": "Couldn't load the ride."
+    },
+    "sharedChip_zero": "Shared · {{count}} seats",
+    "sharedChip_one": "Shared · {{count}} seat",
+    "sharedChip_two": "Shared · {{count}} seats",
+    "sharedChip_few": "Shared · {{count}} seats",
+    "sharedChip_many": "Shared · {{count}} seats",
+    "sharedChip_other": "Shared · {{count}} seats",
+    "members": {
+      "title": "Members",
+      "creator": "creator",
+      "partyOf": "party of {{count}}",
+      "status": {
+        "joined": "Joined",
+        "left": "Left before dispatch",
+        "cancelled": "Cancelled",
+        "no_show": "Absent",
+        "completed": "Completed"
+      },
+      "payment": {
+        "pending": "payment pending",
+        "paid_cash": "paid cash",
+        "paid_wallet": "paid wallet",
+        "paid_mixed": "paid wallet + cash",
+        "unpaid": "marked unpaid"
+      },
+      "feeCharged": "fee charged"
     }
   },
   "reports": {

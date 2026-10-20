@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '../../api/client';
 import { getAdminChatLog, type AdminChatLog, type ChatMessage } from '../../api/comms';
 import type { AdminSharedMember } from '../../api/rides';
 import { useAuth } from '../../auth/AuthContext';
-import { Section } from '../../ui';
+import { bdiMark, Section, withBdi } from '../../ui';
 import { formatClock } from '../surge';
 
 /**
@@ -77,9 +77,13 @@ export function ChatLogCard({
     };
   }, [apiClient, rideId, memberId]);
 
-  function memberLabel(member: AdminSharedMember, index: number): string {
+  function memberLabel(member: AdminSharedMember, index: number): ReactNode {
     const name = member.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: index + 1 });
-    return member.isCreator ? t('rideDetail.chat.creator', { name }) : name;
+    return member.isCreator ? (
+      withBdi(t('rideDetail.chat.creator', { name: bdiMark(name) }))
+    ) : (
+      <bdi>{name}</bdi>
+    );
   }
   const bubbleRider = selected
     ? selected.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: selectedIndex + 1 })
@@ -177,9 +181,11 @@ export function ChatLogCard({
                 }
               >
                 <span className="chat-log__meta">
-                  {message.senderRole === 'rider'
-                    ? bubbleRider
-                    : (driverName ?? t('rideDetail.chat.driverFallback'))}
+                  <bdi>
+                    {message.senderRole === 'rider'
+                      ? bubbleRider
+                      : (driverName ?? t('rideDetail.chat.driverFallback'))}
+                  </bdi>
                   {' · '}
                   {formatClock(message.sentAt, i18n.language)}
                 </span>
@@ -188,6 +194,13 @@ export function ChatLogCard({
             ))}
           </ol>
         </>
+      ) : null}
+      {state === 'loaded' && log ? (
+        <p className="panel__hint">
+          {log.windowState === 'read_only'
+            ? t('rideDetail.chat.footnoteClosed')
+            : t('rideDetail.chat.footnoteAudited')}
+        </p>
       ) : null}
     </Section>
   );

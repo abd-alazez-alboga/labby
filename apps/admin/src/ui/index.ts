@@ -1,4 +1,5 @@
 export { Avatar } from './Avatar';
+export { bdiMark, withBdi } from './bdi';
 export { DataTable, TablePager } from './DataTable';
 export { DecisionPanel, ReviewLayout } from './DecisionPanel';
 export { FilterChips, type FilterChipOption } from './FilterChips';

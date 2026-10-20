@@ -105,7 +105,9 @@ describe('report detail', () => {
 
     // Chat log (support:view), bubbles labelled with the report's party names.
     expect(await screen.findByText('Stuck in traffic')).toBeInTheDocument();
-    expect(screen.getAllByText(/^Samer Haddad ·/).length).toBeGreaterThan(0);
+    // The sender name sits in <bdi> (V1 audit I107): match the bubble's meta line as a whole.
+    const metas = [...document.querySelectorAll('.chat-log__meta')].map((el) => el.textContent);
+    expect(metas.some((text) => /^Samer Haddad ·/.test(text ?? ''))).toBe(true);
 
     // Parties with their prior history; names open the trust profile.
     const parties = screen.getByRole('region', { name: 'Parties' });
