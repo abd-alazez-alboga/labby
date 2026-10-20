@@ -797,7 +797,10 @@ components:
         null until `completed`. M8 (money-v1.yaml): `paid_wallet` = fare fully covered by the
         wallet at completion AND no carried due owed in cash (auto-confirmed); otherwise
         `pending` until the driver cash-confirms — `paid_mixed` when the wallet paid part of the
-        fare, else `paid_cash` — or marks it `unpaid`.
+        fare, else `paid_cash` — or marks it `unpaid`. V1 audit W29: a zero total (a promo
+        covering the whole fare) with no due carried in cash settles at completion —
+        `paid_wallet` (wallet method) or `paid_cash` (cash method), `paymentConfirmedAt` set —
+        never `pending`.
     PickupDistanceMode:
       type: string
       enum: [nearby_only, accept_distant_fee]

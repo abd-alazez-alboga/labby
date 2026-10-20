@@ -41,6 +41,13 @@ info:
     ruling 2026-10-12, M8 audit H3). Cash-confirm: a wallet-method ride whose wallet paid part of
     the fare (`walletApplied` > 0) → `paid_mixed`; a wallet-method ride with nothing applied, or
     a cash-method ride → `paid_cash`.
+    **Zero total (V1 audit C2/W29, 2026-10-20).** When a promo covers the whole fare (or share)
+    the amount to collect is 0: nothing is debited from the wallet (no zero-amount entry is ever
+    written) and, when no due is carried in cash, the payment settles AT COMPLETION —
+    `paid_wallet` for a wallet payer, `paid_cash` for a cash payer (nothing was collected), with
+    `paymentConfirmedAt` set — so the driver is never asked to collect 0 or cash-confirm. The
+    same holds per member of a shared ride. A zero total that still carries cash dues stays
+    `pending` as above.
 
 
     **Payment seam (ES-06, NFR-M1).** Every by-method collection above and below (fare or share,

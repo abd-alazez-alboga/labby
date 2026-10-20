@@ -101,8 +101,8 @@ public class RideMoneyServiceImpl implements RideMoneyService {
     for (RiderDue due : step.fromWallet()) {
       markCollected(due, ride, now);
     }
-    if (step.fullyPaid()) {
-      ride.setPaymentStatus(PaymentStatus.PAID_WALLET);
+    if (step.settledAs() != null) {
+      ride.setPaymentStatus(step.settledAs());
       ride.setPaymentConfirmedAt(now);
     }
   }
@@ -140,8 +140,8 @@ public class RideMoneyServiceImpl implements RideMoneyService {
       for (RiderDue due : step.fromWallet()) {
         markCollected(due, ride, now);
       }
-      if (step.fullyPaid()) {
-        member.setPaymentStatus(PaymentStatus.PAID_WALLET);
+      if (step.settledAs() != null) {
+        member.setPaymentStatus(step.settledAs());
         member.setPaymentConfirmedAt(now);
       }
     }
@@ -184,7 +184,24 @@ public class RideMoneyServiceImpl implements RideMoneyService {
       }
     }
     return new WalletStep(
-        walletApplied, fromWallet, wallet && walletApplied.compareTo(amount) == 0 && !cashCarried);
+        walletApplied, fromWallet, settledAs(wallet, walletApplied, amount, cashCarried));
+  }
+
+  /**
+   * The payment status a payer's completion settles at, or null while cash is still due: a wallet
+   * payer whose whole amount the wallet paid is {@code paid_wallet}; V1 audit W29 — a zero amount
+   * (a promo covering the whole fare) with no cash due earmarked has nothing to collect, so a cash
+   * payer settles as {@code paid_cash} too, and the driver is never asked to collect 0.
+   */
+  private static PaymentStatus settledAs(
+      boolean wallet, BigDecimal walletApplied, BigDecimal amount, boolean cashCarried) {
+    if (cashCarried) {
+      return null;
+    }
+    if (wallet && walletApplied.compareTo(amount) == 0) {
+      return PaymentStatus.PAID_WALLET;
+    }
+    return amount.signum() == 0 ? PaymentStatus.PAID_CASH : null;
   }
 
   /**
@@ -568,8 +585,8 @@ public class RideMoneyServiceImpl implements RideMoneyService {
    *
    * @param walletApplied the wallet part of the fare / share
    * @param fromWallet the dues the wallet paid (credited after the driver locks)
-   * @param fullyPaid wallet method, whole amount from the wallet and no cash due earmarked
+   * @param settledAs the status the payment settles at now, or null when cash is still due
    */
   private record WalletStep(
-      BigDecimal walletApplied, List<RiderDue> fromWallet, boolean fullyPaid) {}
+      BigDecimal walletApplied, List<RiderDue> fromWallet, PaymentStatus settledAs) {}
 }

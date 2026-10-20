@@ -98,6 +98,11 @@ public class WalletServiceImpl implements WalletService {
   @Override
   public BigDecimal debitUpTo(
       UUID userId, String currency, BigDecimal maxAmount, WalletTransactionType type, UUID rideId) {
+    // V1 audit C2: nothing to debit (a promo covering the whole fare) writes nothing — the ledger
+    // forbids zero-amount rows.
+    if (maxAmount == null || maxAmount.signum() <= 0) {
+      return BigDecimal.ZERO;
+    }
     WalletBalance balance = walletBalanceRepository.findForUpdate(userId, currency).orElse(null);
     if (balance == null || balance.getBalance().signum() <= 0) {
       return BigDecimal.ZERO;

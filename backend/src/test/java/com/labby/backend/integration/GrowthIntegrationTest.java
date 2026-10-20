@@ -154,7 +154,15 @@ class GrowthIntegrationTest extends AbstractRideIntegrationTest {
     Map<String, Object> big = promoBody("BIGFIX", "fixed", "5.00");
     big.put("regionId", regionId.toString());
     adminPromo(big);
-    UUID floored = finish(driver, bookWith(rider, "BIGFIX"));
+    // V1 audit W29: the zero total settles at completion (paid_cash), no cash-confirm.
+    UUID floored = bookWith(rider, "BIGFIX");
+    dispatchAndAccept(floored, driver);
+    arriveAndStart(floored, driver);
+    assertThat(
+            ok(driverAction(driver, floored, "complete"), HttpStatus.OK)
+                .get("paymentStatus")
+                .asText())
+        .isEqualTo("paid_cash");
     assertThat(fareColumn(floored, "discount")).isEqualByComparingTo("1.50");
     assertThat(fareColumn(floored, "total")).isEqualByComparingTo("0.00");
     assertThat(

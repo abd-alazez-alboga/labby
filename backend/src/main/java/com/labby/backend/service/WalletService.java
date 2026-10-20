@@ -57,7 +57,7 @@ public interface WalletService {
 
   /**
    * Debits as much of {@code maxAmount} as the balance covers (PAY-02: the wallet pays what it
-   * can). No entry is written when the balance is zero.
+   * can). No entry is written when the balance or {@code maxAmount} is zero (V1 audit C2).
    *
    * @param userId the account
    * @param currency the currency

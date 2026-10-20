@@ -24,6 +24,9 @@ public class WalletPaymentProvider implements PaymentProvider {
 
   @Override
   public BigDecimal collectUpTo(PaymentRequest request) {
+    if (request.amount().signum() <= 0) {
+      return BigDecimal.ZERO; // V1 audit C2: a zero fare (full promo) collects nothing
+    }
     return walletService.debitUpTo(
         request.payerUserId(),
         request.currency(),

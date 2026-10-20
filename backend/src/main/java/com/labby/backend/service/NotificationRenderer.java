@@ -896,7 +896,12 @@ public class NotificationRenderer {
     String totalAr = moneyAr(params, "total");
     String bodyEn;
     String bodyAr;
-    if (wallet && cashDue.isEmpty()) {
+    if (zero(params, "total") && cashDue.isEmpty() && !carriedWallet && !carriedCash) {
+      // V1 audit W29: a promo covered the whole fare — the ride settled, nothing to pay.
+      bodyEn =
+          "Your fare is %s. Your promo covered it — there's nothing to pay.".formatted(totalEn);
+      bodyAr = "أجرة رحلتك %s. غطّاها العرض الترويجي، ولا يوجد ما تدفعه.".formatted(totalAr);
+    } else if (wallet && cashDue.isEmpty()) {
       bodyEn =
           carriedWallet
               ? ("Your fare is %s. It was paid from your wallet, together with %s in carried"
@@ -952,6 +957,16 @@ public class NotificationRenderer {
       bodyAr = "أجرة رحلتك %s. يرجى الدفع للسائق نقداً.".formatted(totalAr);
     }
     return toRider(event, params, "You've arrived", bodyEn, "وصلت إلى وجهتك", bodyAr);
+  }
+
+  /** Whether the money param {@code key} is present and zero. */
+  private static boolean zero(Map<String, Object> params, String key) {
+    String value = text(params.get(key));
+    try {
+      return !value.isEmpty() && new BigDecimal(value).signum() == 0;
+    } catch (NumberFormatException ex) {
+      return false;
+    }
   }
 
   /** An account-category notice without a deep link (push tap opens the notification center). */
