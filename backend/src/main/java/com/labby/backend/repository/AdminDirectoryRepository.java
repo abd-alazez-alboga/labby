@@ -1,5 +1,6 @@
 package com.labby.backend.repository;
 
+import com.labby.backend.util.PhoneNumbers;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -65,15 +66,17 @@ public class AdminDirectoryRepository {
    * @param role holds this role (any state), or null
    * @param from createdAt lower bound (inclusive), or null
    * @param to createdAt upper bound (exclusive), or null
+   * @param q the search box (see {@link #userSearch}), or null
    * @param limit rows
    * @param offset rows skipped
    * @return the rows
    */
-  public List<UserRow> users(String role, Instant from, Instant to, int limit, long offset) {
+  public List<UserRow> users(
+      String role, Instant from, Instant to, String q, int limit, long offset) {
     MapSqlParameterSource params = new MapSqlParameterSource();
     return namedJdbcTemplate.query(
         "SELECT u.user_id, u.name, u.phone, u.state, u.created_at FROM users u"
-            + userWhere(role, from, to, params)
+            + userWhere(role, from, to, q, params)
             + " ORDER BY u.created_at DESC, u.user_id"
             + page(limit, offset, params),
         params,
@@ -92,12 +95,13 @@ public class AdminDirectoryRepository {
    * @param role see {@link #users}
    * @param from see {@link #users}
    * @param to see {@link #users}
+   * @param q see {@link #users}
    * @return the count
    */
-  public long countUsers(String role, Instant from, Instant to) {
+  public long countUsers(String role, Instant from, Instant to, String q) {
     MapSqlParameterSource params = new MapSqlParameterSource();
     return namedJdbcTemplate.queryForObject(
-        "SELECT COUNT(*) FROM users u" + userWhere(role, from, to, params), params, Long.class);
+        "SELECT COUNT(*) FROM users u" + userWhere(role, from, to, q, params), params, Long.class);
   }
 
   /**
@@ -119,7 +123,7 @@ public class AdminDirectoryRepository {
   }
 
   private static String userWhere(
-      String role, Instant from, Instant to, MapSqlParameterSource params) {
+      String role, Instant from, Instant to, String q, MapSqlParameterSource params) {
     StringBuilder where = new StringBuilder(" WHERE true");
     if (role != null) {
       where.append(
@@ -128,7 +132,45 @@ public class AdminDirectoryRepository {
       params.addValue("role", role);
     }
     range(where, "u.created_at", from, to, params);
+    userSearch(where, q, params);
     return where.toString();
+  }
+
+  /**
+   * The users search box (review V1 H8): every account, with or without rides. A user id matches
+   * that user only; anything else matches a case-insensitive partial name OR the phone after {@link
+   * PhoneNumbers#normalize} (so {@code 0944…}, {@code 963944…} and {@code +963944…} find the same
+   * stored E.164 number).
+   */
+  private static void userSearch(StringBuilder where, String q, MapSqlParameterSource params) {
+    if (q == null || q.isBlank()) {
+      return;
+    }
+    String trimmed = q.trim();
+    UUID userId = uuidOrNull(trimmed);
+    if (userId != null) {
+      where.append(" AND u.user_id = :qUserId");
+      params.addValue("qUserId", userId);
+      return;
+    }
+    where.append(" AND (u.name ILIKE :qName ESCAPE '\\' OR u.phone = :qPhone)");
+    params.addValue("qName", "%" + escapeLike(trimmed) + "%");
+    params.addValue("qPhone", PhoneNumbers.normalize(trimmed));
+  }
+
+  private static UUID uuidOrNull(String text) {
+    if (text.length() != 36) {
+      return null;
+    }
+    try {
+      return UUID.fromString(text);
+    } catch (IllegalArgumentException ex) {
+      return null;
+    }
+  }
+
+  private static String escapeLike(String text) {
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   // ---- drivers ----------------------------------------------------------------------------------

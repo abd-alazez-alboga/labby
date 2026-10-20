@@ -70,10 +70,13 @@ final class AdminListFilters {
         rideId);
   }
 
-  /** The analytics-v1 {@code GET /admin/users} filters. */
-  static AdminDirectoryService.UserFilter users(String role, Instant from, Instant to) {
+  /** The analytics-v1 {@code GET /admin/users} filters; {@code q} is trimmed, blank = none. */
+  static AdminDirectoryService.UserFilter users(String role, Instant from, Instant to, String q) {
     return new AdminDirectoryService.UserFilter(
-        WireEnums.parse(Role::fromValue, role, "role"), from, to);
+        WireEnums.parse(Role::fromValue, role, "role"),
+        from,
+        to,
+        q == null || q.isBlank() ? null : q.trim());
   }
 
   /** The analytics-v1 {@code GET /admin/drivers} filters. */

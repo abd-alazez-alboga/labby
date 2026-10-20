@@ -43,18 +43,20 @@ public class AdminDirectoryServiceImpl implements AdminDirectoryService {
   @Override
   public AdminUserPageDto users(UserFilter filter, int page, int size) {
     limit();
-    long total = repository.countUsers(role(filter), filter.from(), filter.to());
+    long total = repository.countUsers(role(filter), filter.from(), filter.to(), filter.q());
     return new AdminUserPageDto(userRows(filter, size, offset(page, size)), page, size, total);
   }
 
   @Override
   public List<AdminUserDto> allUsers(UserFilter filter, int maxRows) {
-    ExportLimits.check(repository.countUsers(role(filter), filter.from(), filter.to()), maxRows);
+    ExportLimits.check(
+        repository.countUsers(role(filter), filter.from(), filter.to(), filter.q()), maxRows);
     return userRows(filter, maxRows, 0);
   }
 
   private List<AdminUserDto> userRows(UserFilter filter, int limit, long offset) {
-    List<UserRow> rows = repository.users(role(filter), filter.from(), filter.to(), limit, offset);
+    List<UserRow> rows =
+        repository.users(role(filter), filter.from(), filter.to(), filter.q(), limit, offset);
     Map<UUID, List<RoleDto>> roles =
         repository.roles(rows.stream().map(UserRow::userId).toList()).stream()
             .collect(

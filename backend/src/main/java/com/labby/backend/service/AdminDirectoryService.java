@@ -21,8 +21,18 @@ import java.util.UUID;
  */
 public interface AdminDirectoryService {
 
-  /** Users-list filters; every one optional. */
-  record UserFilter(Role role, Instant from, Instant to) {}
+  /**
+   * Users-list filters; every one optional. {@code q} is the search box (H8): a user id, or a
+   * case-insensitive partial name, or a phone in any format (matched after {@code
+   * PhoneNumbers.normalize}); trimmed, blank = none.
+   */
+  record UserFilter(Role role, Instant from, Instant to, String q) {
+
+    /** No search. */
+    public UserFilter(Role role, Instant from, Instant to) {
+      this(role, from, to, null);
+    }
+  }
 
   /** Drivers-list filters; every one optional. */
   record DriverFilter(UUID regionId, ApplicationStatus status, Boolean online) {}

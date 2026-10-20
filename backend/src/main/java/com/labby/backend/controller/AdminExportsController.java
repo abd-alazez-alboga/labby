@@ -71,11 +71,12 @@ public class AdminExportsController {
       @RequestParam(required = false) String role,
       @RequestParam(required = false) Instant from,
       @RequestParam(required = false) Instant to,
+      @RequestParam(required = false) String q,
       Authentication authentication) {
     return file(
         adminExportService.users(
             SecurityUtils.currentUserId(),
-            AdminListFilters.users(role, from, to),
+            AdminListFilters.users(role, from, to, q),
             contactAccess(authentication)));
   }
 

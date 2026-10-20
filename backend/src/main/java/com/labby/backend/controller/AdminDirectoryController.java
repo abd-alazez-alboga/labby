@@ -39,6 +39,7 @@ public class AdminDirectoryController {
    * @param role holds this role
    * @param from createdAt lower bound (inclusive)
    * @param to createdAt upper bound (exclusive)
+   * @param q search: a user id, part of the name, or a phone in any format
    * @param page zero-based page
    * @param size page size (1..100)
    * @param authentication the caller
@@ -51,12 +52,13 @@ public class AdminDirectoryController {
       @RequestParam(required = false) String role,
       @RequestParam(required = false) Instant from,
       @RequestParam(required = false) Instant to,
+      @RequestParam(required = false) String q,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size,
       Authentication authentication) {
     AdminUserPageDto result =
         adminDirectoryService.users(
-            AdminListFilters.users(role, from, to), Math.max(0, page), Math.clamp(size, 1, 100));
+            AdminListFilters.users(role, from, to, q), Math.max(0, page), Math.clamp(size, 1, 100));
     if (contactAccess(authentication)) {
       return ResponseEntity.ok(result);
     }
