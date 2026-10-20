@@ -1,12 +1,14 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n/i18n';
 import { rideRef } from '../pages/rides/ride-format';
+import { RIDE_DETAIL } from './comms-fixtures';
 import {
   adminTicketDetail,
   OMAR_ID,
+  RIDE_1,
   stubSupportRoutes,
   SUPPORT_ADMIN,
   SUPPORT_VIEWER,
@@ -154,6 +156,39 @@ describe('ticket detail', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'Charged cash after wallet payment' });
     expect(screen.queryByRole('link', { name: 'Grant wallet credit…' })).not.toBeInTheDocument();
+  });
+
+  it('shows the linked ride route, fare and payment state (A14TicketDetail, I86)', async () => {
+    seedStoredSession(sessionFor(SUPPORT_ADMIN));
+    const components = { ...RIDE_DETAIL.ride.estimate.components, total: 42500 };
+    stubSupportRoutes(SUPPORT_ADMIN, (method, path) => {
+      if (method === 'GET' && path === `/api/v1/admin/tickets/${TICKET_1}`) {
+        return jsonResponse(200, adminTicketDetail());
+      }
+      if (method === 'GET' && path === `/api/v1/admin/rides/${RIDE_1}`) {
+        return jsonResponse(200, {
+          ...RIDE_DETAIL,
+          ride: {
+            ...RIDE_DETAIL.ride,
+            id: RIDE_1,
+            state: 'completed',
+            pickup: { lat: 33.51, lng: 36.29, label: 'Umayyad Square' },
+            destination: { lat: 33.5, lng: 36.25, label: 'Mezzeh' },
+            fare: { distanceMeters: 6200, durationSeconds: 900, components },
+            paymentStatus: 'paid_mixed',
+          },
+        });
+      }
+      return null;
+    });
+    renderShell();
+
+    const card = await screen.findByRole('region', { name: 'Linked ride' });
+    expect(await within(card).findByText('Umayyad Square')).toBeInTheDocument();
+    expect(card).toHaveTextContent('Mezzeh');
+    expect(card.textContent?.replace(/[\u2066-\u2069]/g, '')).toContain('SYP 42,500');
+    expect(card).toHaveTextContent('Sami B.');
+    expect(card).toHaveTextContent('Paid wallet + cash');
   });
 
   it('moves the status per the state machine and refetches', async () => {

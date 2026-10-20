@@ -2016,7 +2016,9 @@
       "unassigned": "Unassigned by {{name}} · {{when}}",
       "caseStatus": "Case {{from}} → {{to}} · {{when}} · both parties notified",
       "reminder": "Waiting reminder sent · {{when}}"
-    }
+    },
+    "ridePickup": "Pickup",
+    "rideDestination": "Destination"
   },
   "lostItems": {
     "title": "Lost-item cases",

@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { resolveFileUrl } from '../api/onboarding';
 import { listAdmins, type AdminAccount } from '../api/rbac';
+import { getAdminRide, type AdminRideDetail } from '../api/rides';
 import {
   getAdminTicket,
   postAdminTicketMessage,
@@ -21,10 +22,11 @@ import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { useConfig } from '../config/ConfigContext';
 import { BackLink, ReviewLayout, StatusChip } from '../ui';
-import { formatMoment } from './money/money-format';
+import { formatMoment, formatMoney } from './money/money-format';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
 import { rideRef } from './rides/ride-format';
+import { isolateLtr } from './surge';
 import {
   localizedName,
   PRIORITY_TONES,
@@ -58,6 +60,7 @@ export default function SupportTicketDetailPage() {
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [linkedRide, setLinkedRide] = useState<AdminRideDetail | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +80,36 @@ export default function SupportTicketDetailPage() {
       cancelled = true;
     };
   }, [apiClient, ticketId, attempt]);
+
+  // A14TicketDetail (V1 audit I86): the linked ride card shows its route,
+  // fare and payment state — read from the ride itself (rides:view), best effort.
+  const linkedRideId = ticket?.ride?.rideId ?? null;
+  const canRides = can('rides:view');
+  useEffect(() => {
+    setLinkedRide(null);
+    if (!linkedRideId || !canRides) {
+      return;
+    }
+    let cancelled = false;
+    getAdminRide(apiClient, linkedRideId)
+      .then((loaded) => !cancelled && setLinkedRide(loaded))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, linkedRideId, canRides]);
+  const linkedComponents = linkedRide
+    ? (linkedRide.ride.fare ?? linkedRide.ride.estimate).components
+    : null;
+  const linkedFare = linkedComponents
+    ? isolateLtr(
+        formatMoney(
+          linkedComponents.total,
+          t(`money.currency.${linkedComponents.currency}`, linkedComponents.currency),
+          language,
+        ),
+      )
+    : null;
 
   // The assignee select's options — only loadable with `admins:view`; the
   // "assign to me" / unassign options work without it.
@@ -301,16 +334,41 @@ export default function SupportTicketDetailPage() {
             {ticket.ride ? (
               <section className="card section" aria-label={t('ticketDetail.rideTitle')}>
                 <h2 className="section__heading">{t('ticketDetail.rideTitle')}</h2>
-                {can('rides:view') ? (
-                  <Link className="table__link" to={`/rides/${ticket.ride.rideId}`} dir="ltr">
-                    {rideRef(ticket.ride.rideId)}
-                  </Link>
-                ) : (
-                  <span dir="ltr">{rideRef(ticket.ride.rideId)}</span>
-                )}
+                <p className="linked-ride__title">
+                  {can('rides:view') ? (
+                    <Link className="table__link" to={`/rides/${ticket.ride.rideId}`} dir="ltr">
+                      {rideRef(ticket.ride.rideId)}
+                    </Link>
+                  ) : (
+                    <span dir="ltr">{rideRef(ticket.ride.rideId)}</span>
+                  )}
+                  {linkedRide ? (
+                    <>
+                      {' · '}
+                      <bdi>{linkedRide.ride.pickup.label ?? t('ticketDetail.ridePickup')}</bdi>
+                      {' → '}
+                      <bdi>
+                        {linkedRide.ride.destination.label ?? t('ticketDetail.rideDestination')}
+                      </bdi>
+                    </>
+                  ) : null}
+                </p>
                 <p className="panel__hint">
-                  {ticket.ride.startedAt ? formatMoment(ticket.ride.startedAt, language) : '—'} ·{' '}
-                  <span dir="auto">{ticket.ride.counterpartName}</span>
+                  {ticket.ride.startedAt ? formatMoment(ticket.ride.startedAt, language) : '—'}
+                  {linkedRide ? (
+                    <>
+                      {' · '}
+                      {linkedFare}
+                    </>
+                  ) : null}
+                  {' · '}
+                  <bdi>{ticket.ride.counterpartName}</bdi>
+                  {linkedRide?.ride.paymentStatus ? (
+                    <>
+                      {' · '}
+                      {t(`rideDetail.paymentStatus.${linkedRide.ride.paymentStatus}`)}
+                    </>
+                  ) : null}
                 </p>
               </section>
             ) : null}

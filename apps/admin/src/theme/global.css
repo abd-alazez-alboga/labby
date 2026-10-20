@@ -2616,6 +2616,12 @@ input[type='radio'] {
   font-weight: 700;
 }
 
+/* Ticket detail: the linked ride's ref + route line (A14TicketDetail). */
+.linked-ride__title {
+  margin: 0;
+  font-weight: 700;
+}
+
 .sos-chip {
   display: inline-flex;
   align-items: center;
