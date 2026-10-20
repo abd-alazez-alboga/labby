@@ -705,7 +705,10 @@ export function RideView({
           </View>
         ) : null}
         {sharedChip}
-        <DriverCard driver={driver} />
+        <DriverCard
+          driver={driver}
+          onPhotoExpired={() => void facade.resync()}
+        />
         <SafetyActionsRow ride={ride} />
         {approachFooter}
       </BottomSheet>
@@ -830,7 +833,10 @@ export function RideView({
           </View>
         ) : null}
         {sharedChip}
-        <DriverCard driver={driver} />
+        <DriverCard
+          driver={driver}
+          onPhotoExpired={() => void facade.resync()}
+        />
         <SafetyActionsRow ride={ride} />
         {approachFooter}
       </BottomSheet>

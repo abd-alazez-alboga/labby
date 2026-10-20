@@ -5,9 +5,10 @@
  * breakdown, the "service · Cash / amount est." footer and the ride map.
  */
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 
+import { resolveFileUrl } from "../../api/http-client";
 import type {
   DriverSummary,
   FareComponents,
@@ -148,7 +149,7 @@ export function DriverAvatar({
   rating?: number | null;
 }) {
   const { t, locale } = useLocale();
-  const large = size >= 64;
+  const large = size >= 56;
   // The photo URL that failed to load; that URL falls back to initials.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showPhoto = !!photoUrl && failedUrl !== photoUrl;
@@ -195,15 +196,80 @@ export function DriverAvatar({
   );
 }
 
-/** Driver photo or initials (+ rating badge), first name, vehicle and plate. */
+/**
+ * The vehicle's first photo (DRV-03, UC-R-05 — approved artboard
+ * V1FRiderDriverCardPhoto). The URL is a signed, expiring file URL
+ * (API-relative or absolute): it is resolved against the API base URL, and
+ * a photo that fails to load (expired) asks for a fresh ride once —
+ * `onExpired` — then shows a car icon until a new URL arrives.
+ */
+export function VehiclePhoto({
+  photoUrl,
+  label,
+  onExpired,
+}: {
+  photoUrl?: string | null;
+  /** "Photo of the driver's car: Silver Hyundai Accent". */
+  label: string;
+  onExpired?: () => void;
+}) {
+  // The photo URL that failed to load; that URL shows the car icon.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // One refetch per failure streak: a fresh URL that fails too stays on the
+  // icon instead of looping; a photo that loads resets it.
+  const refetched = useRef(false);
+  const showPhoto = !!photoUrl && failedUrl !== photoUrl;
+  return (
+    <View
+      style={styles.vehiclePhoto}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={label}
+      testID="vehicle-photo-frame"
+    >
+      {showPhoto ? (
+        <Image
+          source={{ uri: resolveFileUrl(photoUrl) }}
+          style={styles.vehicleImage}
+          resizeMode="cover"
+          onLoad={() => {
+            refetched.current = false;
+          }}
+          onError={() => {
+            setFailedUrl(photoUrl);
+            if (onExpired && !refetched.current) {
+              refetched.current = true;
+              onExpired();
+            }
+          }}
+          testID="vehicle-photo"
+        />
+      ) : (
+        <View style={styles.vehicleFallback} testID="vehicle-photo-fallback">
+          <Ionicons name="car-outline" size={34} color={colors.textMuted} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Driver photo or initials (+ rating badge), first name and plate; under
+ * them "Look for · {colour} {make} {model}" beside the vehicle photo
+ * (approved artboard V1FRiderDriverCardPhoto). `compact` (the ended-ride
+ * sheet) keeps the one-row card: vehicle under the name, no plate/photo.
+ */
 export function DriverCard({
   driver,
   compact = false,
   subtitleSuffix,
+  onPhotoExpired,
 }: {
   driver: DriverSummary;
   compact?: boolean;
   subtitleSuffix?: string;
+  /** The vehicle photo's signed URL failed (expired): refetch the ride. */
+  onPhotoExpired?: () => void;
 }) {
   const { t } = useLocale();
   const { row } = useDirection();
@@ -212,24 +278,46 @@ export function DriverCard({
     make: driver.vehicle.make,
     model: driver.vehicle.model,
   });
-  const size = compact ? 44 : 64;
+  if (compact) {
+    return (
+      <View
+        style={[styles.driverRow, { flexDirection: row }]}
+        testID="driver-card"
+      >
+        <DriverAvatar
+          firstName={driver.firstName}
+          photoUrl={driver.photoUrl}
+          size={44}
+          rating={null}
+        />
+        <View style={styles.driverText}>
+          <AppText variant="rowTitle" weight={800} testID="driver-name">
+            {driver.firstName}
+          </AppText>
+          <AppText variant="secondary" tone="secondary" testID="driver-vehicle">
+            {subtitleSuffix ? `${vehicle} · ${subtitleSuffix}` : vehicle}
+          </AppText>
+        </View>
+      </View>
+    );
+  }
   return (
-    <View style={[styles.driverRow, { flexDirection: row }]} testID="driver-card">
-      <DriverAvatar
-        firstName={driver.firstName}
-        photoUrl={driver.photoUrl}
-        size={size}
-        rating={compact ? null : driver.rating}
-      />
-      <View style={styles.driverText}>
-        <AppText variant="rowTitle" weight={800} testID="driver-name">
+    <View style={styles.driverCard} testID="driver-card">
+      <View style={[styles.driverRow, { flexDirection: row }]}>
+        <DriverAvatar
+          firstName={driver.firstName}
+          photoUrl={driver.photoUrl}
+          size={56}
+          rating={driver.rating}
+        />
+        <AppText
+          variant="rowTitle"
+          weight={800}
+          style={styles.driverText}
+          testID="driver-name"
+        >
           {driver.firstName}
         </AppText>
-        <AppText variant="secondary" tone="secondary" testID="driver-vehicle">
-          {subtitleSuffix ? `${vehicle} · ${subtitleSuffix}` : vehicle}
-        </AppText>
-      </View>
-      {compact ? null : (
         <View
           style={styles.plate}
           accessibilityLabel={t("ride.plate", { plate: driver.vehicle.plate })}
@@ -244,7 +332,25 @@ export function DriverCard({
             {driver.vehicle.plate}
           </AppText>
         </View>
-      )}
+      </View>
+      <View
+        style={[styles.vehicleBlock, { flexDirection: row }]}
+        testID="driver-vehicle-block"
+      >
+        <VehiclePhoto
+          photoUrl={driver.vehicle.photoUrl}
+          label={t("ride.vehiclePhotoLabel", { vehicle })}
+          onExpired={onPhotoExpired}
+        />
+        <View style={styles.vehicleText}>
+          <AppText variant="caption" weight={700} tone="muted">
+            {t("ride.lookFor")}
+          </AppText>
+          <AppText variant="rowTitle" weight={800} testID="driver-vehicle">
+            {vehicle}
+          </AppText>
+        </View>
+      </View>
     </View>
   );
 }
@@ -529,6 +635,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   driverText: {
+    flex: 1,
+    gap: 3,
+  },
+  driverCard: {
+    gap: 14,
+  },
+  vehicleBlock: {
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: colors.surfacePage,
+    borderRadius: radius.lg,
+    padding: 10,
+  },
+  vehiclePhoto: {
+    width: 128,
+    height: 80,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceFill,
+  },
+  vehicleImage: {
+    width: "100%",
+    height: "100%",
+  },
+  vehicleFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  vehicleText: {
     flex: 1,
     gap: 3,
   },
