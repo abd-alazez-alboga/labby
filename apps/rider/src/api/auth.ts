@@ -111,6 +111,22 @@ export function isValidPhone(phone: string): boolean {
   return PHONE_PATTERN.test(phone);
 }
 
+/**
+ * The canonical (E.164, Syria by default) form of a typed phone number —
+ * the same rules as the backend (owner ruling on V1 audit H3), so one
+ * handset is one account whichever way it is typed:
+ * spaces and dashes are dropped; `09xxxxxxxx` → `+9639xxxxxxxx`;
+ * `009639…` and `9639…` → `+9639…`; a `+…` number is kept. Anything else
+ * is returned compacted for `isValidPhone` to judge.
+ */
+export function normalizePhone(input: string): string {
+  const compact = input.replace(/[\s-]/g, "");
+  if (/^09[0-9]{8}$/.test(compact)) return `+963${compact.slice(1)}`;
+  if (compact.startsWith("009639")) return `+${compact.slice(2)}`;
+  if (compact.startsWith("9639")) return `+${compact}`;
+  return compact;
+}
+
 export function isValidOtp(code: string): boolean {
   return OTP_PATTERN.test(code);
 }

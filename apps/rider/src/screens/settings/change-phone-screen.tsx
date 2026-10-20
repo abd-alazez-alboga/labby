@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import {
   isValidPhone,
+  normalizePhone,
   phoneChangeComplete,
   phoneChangeStart,
   phoneChangeVerifyCurrent,
@@ -41,7 +42,7 @@ export default function ChangePhoneScreen() {
   const [restartNotice, setRestartNotice] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const trimmedPhone = newPhone.trim();
+  const canonicalPhone = normalizePhone(newPhone);
 
   const restart = () => {
     setStep("newPhone");
@@ -50,7 +51,7 @@ export default function ChangePhoneScreen() {
   };
 
   const start = async () => {
-    if (!isValidPhone(trimmedPhone)) {
+    if (!isValidPhone(canonicalPhone)) {
       setPhoneError(t("auth.phoneInvalid"));
       return;
     }
@@ -58,7 +59,7 @@ export default function ChangePhoneScreen() {
     setRestartNotice(false);
     setBusy(true);
     try {
-      await phoneChangeStart(trimmedPhone);
+      await phoneChangeStart(canonicalPhone);
       setOtpError(null);
       setStep("verifyCurrent");
     } catch (error) {
@@ -170,7 +171,7 @@ export default function ChangePhoneScreen() {
       {step === "verifyNew" ? (
         <View style={styles.step} testID="change-phone-step-verify-new">
           <OtpStep
-            hint={t("changePhone.verifyNewHint", { phone: trimmedPhone })}
+            hint={t("changePhone.verifyNewHint", { phone: canonicalPhone })}
             error={otpError}
             busy={busy}
             onVerify={verifyNew}

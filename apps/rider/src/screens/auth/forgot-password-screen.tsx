@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import {
   isValidPassword,
   isValidPhone,
+  normalizePhone,
   passwordResetComplete,
   passwordResetStart,
   passwordResetVerify,
@@ -47,11 +48,11 @@ export default function ForgotPasswordScreen() {
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const trimmedPhone = phone.trim();
+  const canonicalPhone = normalizePhone(phone);
 
   const sendCode = async (resend: boolean) => {
     if (!resend) {
-      if (!isValidPhone(trimmedPhone)) {
+      if (!isValidPhone(canonicalPhone)) {
         setPhoneError(t("auth.phoneInvalid"));
         return;
       }
@@ -60,7 +61,7 @@ export default function ForgotPasswordScreen() {
     setBusy(true);
     setOtpError(null);
     try {
-      await passwordResetStart(trimmedPhone);
+      await passwordResetStart(canonicalPhone);
       // Always 204 — neutral wording, no account enumeration (NFR-S3).
       cooldown.start();
       if (!resend) {
@@ -82,7 +83,7 @@ export default function ForgotPasswordScreen() {
     setBusy(true);
     setOtpError(null);
     try {
-      const result = await passwordResetVerify(trimmedPhone, code);
+      const result = await passwordResetVerify(canonicalPhone, code);
       setResetToken(result.resetToken);
       setStep("newPassword");
     } catch (error) {
@@ -161,7 +162,7 @@ export default function ForgotPasswordScreen() {
             testID="forgot-neutral-note"
           />
           <OtpStep
-            hint={t("auth.otpHint", { phone: trimmedPhone })}
+            hint={t("auth.otpHint", { phone: canonicalPhone })}
             error={otpError}
             busy={busy}
             onVerify={verifyCode}

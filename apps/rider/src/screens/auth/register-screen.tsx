@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import {
   isValidPassword,
   isValidPhone,
+  normalizePhone,
   NAME_MAX_LENGTH,
   registerComplete,
   registerStart,
@@ -72,12 +73,12 @@ export default function RegisterScreen() {
   const [tokenExpired, setTokenExpired] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const trimmedPhone = phone.trim();
+  const canonicalPhone = normalizePhone(phone);
 
   const sendCode = async (resend: boolean) => {
     if (!resend) {
       setPhoneTaken(false);
-      if (!isValidPhone(trimmedPhone)) {
+      if (!isValidPhone(canonicalPhone)) {
         setPhoneError(t("auth.phoneInvalid"));
         return;
       }
@@ -86,7 +87,7 @@ export default function RegisterScreen() {
     setBusy(true);
     setOtpError(null);
     try {
-      await registerStart(trimmedPhone);
+      await registerStart(canonicalPhone);
       cooldown.start();
       if (!resend) {
         setStep("otp");
@@ -121,7 +122,7 @@ export default function RegisterScreen() {
     setBusy(true);
     setOtpError(null);
     try {
-      const result = await registerVerify(trimmedPhone, code);
+      const result = await registerVerify(canonicalPhone, code);
       if (result.mode === "reactivated") {
         // UC-S-08 — the deleted account is live again; user logs in.
         setStep("reactivated");
@@ -264,7 +265,7 @@ export default function RegisterScreen() {
       {step === "otp" ? (
         <View style={styles.step} testID="register-step-otp">
           <OtpStep
-            hint={t("auth.otpHint", { phone: trimmedPhone })}
+            hint={t("auth.otpHint", { phone: canonicalPhone })}
             error={otpError}
             busy={busy}
             onVerify={verifyCode}

@@ -80,6 +80,19 @@ describe("ChangePhoneScreen (UC-S-06)", () => {
     });
   });
 
+  it("starts the change with the canonical E.164 number (H3)", async () => {
+    const api = mockApi({ [START]: { status: 204 } });
+
+    await startWizard("0933-000-111");
+
+    expect(
+      await screen.findByTestId("change-phone-step-current"),
+    ).toBeOnTheScreen();
+    expect(
+      api.callsTo("POST", "/api/v1/users/me/phone-change/start")[0].body,
+    ).toEqual({ newPhone: "+963933000111" });
+  });
+
   it("rejects a new phone already in use (409, UC-S-06 E1)", async () => {
     mockApi({
       [START]: { status: 409, body: { status: 409, message: "in use" } },

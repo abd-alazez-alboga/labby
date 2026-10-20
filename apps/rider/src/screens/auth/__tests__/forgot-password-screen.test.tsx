@@ -81,6 +81,20 @@ describe("ForgotPasswordScreen (UC-S-04)", () => {
     expect(mockReplace).toHaveBeenCalledWith("/login");
   });
 
+  it("starts the reset with the canonical E.164 number (H3)", async () => {
+    const api = mockApi({ [START]: { status: 204 } });
+
+    await renderWithProviders(<ForgotPasswordScreen />);
+    expect(await screen.findByTestId("forgot-step-phone")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId("forgot-phone"), "963 933 000 111");
+    await fireEvent.press(screen.getByTestId("forgot-send-code"));
+
+    expect(await screen.findByTestId("forgot-step-otp")).toBeOnTheScreen();
+    expect(
+      api.callsTo("POST", "/api/v1/auth/password-reset/start")[0].body,
+    ).toEqual({ phone: "+963933000111" });
+  });
+
   it("shows the wrong-code error on 400", async () => {
     mockApi({
       [START]: { status: 204 },

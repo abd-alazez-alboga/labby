@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { isValidPhone, login } from "../../api/auth";
+import { isValidPhone, login, normalizePhone } from "../../api/auth";
 import { ApiError } from "../../api/http-client";
 import { useAuth } from "../../auth/auth-context";
 import {
@@ -35,7 +35,8 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    const phoneOk = isValidPhone(phone.trim());
+    const canonicalPhone = normalizePhone(phone);
+    const phoneOk = isValidPhone(canonicalPhone);
     const passwordOk = password.length > 0;
     setPhoneError(phoneOk ? null : t("auth.phoneInvalid"));
     setPasswordError(passwordOk ? null : t("login.passwordRequired"));
@@ -46,7 +47,7 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       const session = await login({
-        phone: phone.trim(),
+        phone: canonicalPhone,
         password,
         client: "rider",
       });

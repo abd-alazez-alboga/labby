@@ -92,6 +92,21 @@ describe("LoginScreen (UC-S-02)", () => {
     ).toBeOnTheScreen();
   });
 
+  it("signs in with the canonical E.164 number however it was typed (H3)", async () => {
+    const api = mockApi({ [LOGIN]: { status: 200, body: tokensResponse() } });
+
+    await submitLogin("0933 000-111");
+
+    await waitFor(() =>
+      expect(api.callsTo("POST", "/api/v1/auth/login")).toHaveLength(1),
+    );
+    expect(api.callsTo("POST", "/api/v1/auth/login")[0].body).toEqual({
+      phone: "+963933000111",
+      password: "supersecret1",
+      client: "rider",
+    });
+  });
+
   it("validates phone format and password presence before calling the API", async () => {
     const api = mockApi({});
 

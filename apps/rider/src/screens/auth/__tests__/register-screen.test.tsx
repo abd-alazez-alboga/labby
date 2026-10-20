@@ -326,6 +326,32 @@ describe("RegisterScreen (UC-S-01 / UC-S-08)", () => {
     }
   });
 
+  it("registers the canonical E.164 number however it was typed (H3)", async () => {
+    const api = mockApi({
+      [START]: { status: 204 },
+      [VERIFY]: { status: 200, body: { mode: "new", registrationToken: "reg-1" } },
+    });
+
+    await renderWithProviders(<RegisterScreen />);
+    expect(await screen.findByTestId("register-step-phone")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId("register-phone"), "00963 933 000 111");
+    await fireEvent.press(screen.getByTestId("register-send-code"));
+    expect(await screen.findByTestId("register-step-otp")).toBeOnTheScreen();
+    expect(api.callsTo("POST", "/api/v1/auth/register/start")[0].body).toEqual({
+      phone: "+963933000111",
+    });
+
+    await fireEvent.changeText(screen.getByTestId("register-otp-code-input"), "123456");
+    await fireEvent.press(screen.getByTestId("register-otp-verify"));
+    await waitFor(() =>
+      expect(api.callsTo("POST", "/api/v1/auth/register/verify")).toHaveLength(1),
+    );
+    expect(api.callsTo("POST", "/api/v1/auth/register/verify")[0].body).toEqual({
+      phone: "+963933000111",
+      code: "123456",
+    });
+  });
+
   it("redirects to login when the phone is already registered (409, UC-S-01 E5)", async () => {
     mockApi({
       [START]: { status: 409, body: { status: 409, message: "taken" } },
