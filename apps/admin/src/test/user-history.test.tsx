@@ -360,7 +360,59 @@ describe('user history tab', () => {
     expect(await screen.findByText('آخر 2 من 143')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'عرض كل الرحلات' })).toBeInTheDocument();
     expect(await screen.findByText('فضي')).toBeInTheDocument();
-    expect(screen.getByText('212 رحلة + 0 نقطة تحديات')).toBeInTheDocument();
+    expect(screen.getByText('212 رحلة + 0 نقاط من التحديات')).toBeInTheDocument();
     expect(screen.getByText('مشكلة في التطبيق')).toBeInTheDocument();
+  });
+
+  it('pluralises the level counts in English (1 trip, 1 point)', async () => {
+    stubHistory(HISTORY_ADMIN, {
+      gamification: jsonResponse(200, {
+        rider: view({ lifetime: 1 }),
+        driver: view({ level: 'bronze', lifetime: 1, driverTrips: 1, challengePoints: 1 }),
+      }),
+    });
+    renderShell();
+
+    const badges = await screen.findByRole('region', { name: 'Badges & level' });
+    expect(await within(badges).findByText('1 lifetime point')).toBeInTheDocument();
+    expect(within(badges).getByText('1 trip + 1 challenge point')).toBeInTheDocument();
+  });
+
+  it('pluralises the level counts in Arabic (3 trips take the 3-10 form)', async () => {
+    await i18n.changeLanguage('ar');
+    stubHistory(HISTORY_ADMIN, {
+      gamification: jsonResponse(200, {
+        rider: view({ lifetime: 2 }),
+        driver: view({ level: 'bronze', lifetime: 3, driverTrips: 3, challengePoints: 1 }),
+      }),
+    });
+    renderShell();
+
+    expect(await screen.findByText('نقطتان مدى الحياة')).toBeInTheDocument();
+    expect(screen.getByText('3 رحلات + نقطة واحدة من التحديات')).toBeInTheDocument();
+  });
+
+  it('does not claim "Latest" when the user has more tickets than one page', async () => {
+    // The queue sorts by priority then age, so a 50-row page may miss the newest updates.
+    stubHistory(HISTORY_ADMIN, {
+      tickets: jsonResponse(200, {
+        items: Array.from({ length: 50 }, (_, index) =>
+          adminTicket({
+            ticketId: `ticket-${index}`,
+            updatedAt: `2026-10-${String((index % 19) + 1).padStart(2, '0')}T09:00:00Z`,
+          }),
+        ),
+        page: 0,
+        size: 50,
+        totalItems: 75,
+      }),
+    });
+    renderShell();
+
+    await screen.findByRole('heading', { name: 'Samer Haddad' });
+    const tickets = screen.getByRole('heading', { name: 'Support tickets' }).closest('section')!;
+    expect(await within(tickets).findByText('Total: 75')).toBeInTheDocument();
+    expect(within(tickets).queryByText(/^Latest/)).not.toBeInTheDocument();
+    expect(within(tickets).getAllByRole('row')).toHaveLength(11);
   });
 });

@@ -19,8 +19,8 @@
 #                             rsync next to the dumps when BACKUP_OFFSITE_TARGET is set
 #   PG_DUMP                   pg_dump command (default "pg_dump"; e.g.
 #                             "docker exec -i labby-postgres pg_dump" for the local container)
-#   PG_RESTORE_CHECK          pg_restore command used to verify the archive when pg_restore is not
-#                             on PATH (e.g. "docker exec -i labby-postgres pg_restore")
+#   PG_RESTORE_CHECK          overrides the pg_restore command used to verify the archive (e.g.
+#                             "docker exec -i labby-postgres pg_restore")
 set -euo pipefail
 # The dump holds personal data (phones, password hashes): readable by the backup user only.
 umask 077

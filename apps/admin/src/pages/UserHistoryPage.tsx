@@ -30,12 +30,17 @@ const ALL_TICKET_STATUSES: readonly TicketStatus[] = [
   'resolved',
   'closed',
 ];
-/** The ticket list sorts by priority then age; one 50-row page is re-sorted by last update. */
+/**
+ * The ticket list only sorts by priority then age (no last-update sort), so one 50-row page is
+ * re-sorted by last update: the true latest only when the page holds every ticket.
+ */
 const TICKET_PAGE = 50;
 
 interface Latest<T> {
   items: T[];
   total: number;
+  /** False when the shown rows may not be the newest (more tickets than one page). */
+  newestKnown: boolean;
 }
 
 type SectionState<T> = { status: 'loading' } | { status: 'failed' } | { status: 'ready'; data: T };
@@ -69,7 +74,7 @@ function useSection<T>(
 
 async function loadRides(client: ApiClient, userId: string): Promise<Latest<AdminRideSummary>> {
   const page = await searchAdminRides(client, { userId, size: LATEST });
-  return { items: page.items, total: page.totalItems };
+  return { items: page.items, total: page.totalItems, newestKnown: true };
 }
 
 async function loadTickets(client: ApiClient, userId: string): Promise<Latest<AdminTicket>> {
@@ -81,12 +86,12 @@ async function loadTickets(client: ApiClient, userId: string): Promise<Latest<Ad
   const items = [...page.items]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, LATEST);
-  return { items, total: page.totalItems };
+  return { items, total: page.totalItems, newestKnown: page.totalItems <= TICKET_PAGE };
 }
 
 async function loadAudit(client: ApiClient, userId: string): Promise<Latest<AuditLogEntry>> {
   const page = await queryAuditLog(client, { targetId: userId, size: LATEST });
-  return { items: page.items, total: page.totalItems };
+  return { items: page.items, total: page.totalItems, newestKnown: true };
 }
 
 /** The human reason of an audit entry: the admin's note, else the recorded reason. */
@@ -180,15 +185,19 @@ export default function UserHistoryPage() {
   );
 }
 
-/** "Latest 10 of 143", or "Total: 3" when everything is shown. */
-function CountHint({ shown, total }: { shown: number; total: number }) {
+/**
+ * "Latest 10 of 143", or "Total: 3" when everything is shown — and also when the rows shown may
+ * not be the newest, so the hint never claims "Latest" it cannot vouch for.
+ */
+function CountHint<T>({ data }: { data: Latest<T> }) {
   const { t, i18n } = useTranslation();
   const number = (value: number) => formatNumber(value, i18n.language);
+  const shown = data.items.length;
   return (
     <span className="panel__hint">
-      {total > shown
-        ? t('history.latest', { shown: number(shown), total: number(total) })
-        : t('history.total', { total: number(total) })}
+      {data.total > shown && data.newestKnown
+        ? t('history.latest', { shown: number(shown), total: number(data.total) })
+        : t('history.total', { total: number(data.total) })}
     </span>
   );
 }
@@ -251,9 +260,7 @@ function RidesSection({
       title={t('history.rides.title')}
       actions={
         <>
-          {ready && ready.total > 0 ? (
-            <CountHint shown={ready.items.length} total={ready.total} />
-          ) : null}
+          {ready && ready.total > 0 ? <CountHint data={ready} /> : null}
           {/* The Rides page filters a pasted user id to that user's rides (rider OR driver). */}
           <Link className="btn btn--primary" to={`/rides?${new URLSearchParams({ q: userId })}`}>
             {t('history.rides.viewAll')}
@@ -309,11 +316,7 @@ function TicketsSection({
   return (
     <DataTable
       title={t('history.tickets.title')}
-      actions={
-        ready && ready.total > 0 ? (
-          <CountHint shown={ready.items.length} total={ready.total} />
-        ) : undefined
-      }
+      actions={ready && ready.total > 0 ? <CountHint data={ready} /> : undefined}
       isEmpty={!ready || ready.items.length === 0}
       empty={ready ? t('history.tickets.empty') : <SectionStatus state={state} onRetry={onRetry} />}
     >
@@ -367,6 +370,8 @@ function GamificationSection({
   // Badges are per account: both role views carry the same catalog.
   const badges = (ready?.rider ?? ready?.driver)?.badges ?? [];
   const earnedAny = badges.some((badge) => badge.earned);
+  const driverTrips = ready?.driver?.driverTrips ?? 0;
+  const challengePoints = ready?.driver?.challengePoints ?? 0;
 
   return (
     <section className="card panel" aria-label={t('history.gamification.title')}>
@@ -386,6 +391,7 @@ function GamificationSection({
                 </span>
                 <span className="kpi__hint">
                   {t('history.gamification.riderLifetime', {
+                    count: ready.rider.lifetime,
                     points: number(ready.rider.lifetime),
                   })}
                 </span>
@@ -399,8 +405,14 @@ function GamificationSection({
                 </span>
                 <span className="kpi__hint">
                   {t('history.gamification.driverLifetime', {
-                    trips: number(ready.driver.driverTrips ?? 0),
-                    points: number(ready.driver.challengePoints ?? 0),
+                    trips: t('history.gamification.driverTrips', {
+                      count: driverTrips,
+                      trips: number(driverTrips),
+                    }),
+                    points: t('history.gamification.challengePoints', {
+                      count: challengePoints,
+                      points: number(challengePoints),
+                    }),
                   })}
                 </span>
               </div>
@@ -452,11 +464,7 @@ function AuditSection({
   return (
     <DataTable
       title={t('history.audit.title')}
-      actions={
-        ready && ready.total > 0 ? (
-          <CountHint shown={ready.items.length} total={ready.total} />
-        ) : undefined
-      }
+      actions={ready && ready.total > 0 ? <CountHint data={ready} /> : undefined}
       isEmpty={!ready || ready.items.length === 0}
       empty={ready ? t('history.audit.empty') : <SectionStatus state={state} onRetry={onRetry} />}
     >

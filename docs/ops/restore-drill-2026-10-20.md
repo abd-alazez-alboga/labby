@@ -1,8 +1,8 @@
 # Restore drill — 2026-10-20 (M15-T6)
 
-**Result: PASS** (run A below, re-run as run B after the M15 review fixed the checksum file —
-run B restores the copy fetched from the off-server target on a "clean host", the production
-path). A real backup of the Labby database was restored into a clean PostgreSQL 16 +
+**Result: PASS.** Run B (after the M15 review fixed the checksum file) restored the copy fetched
+from the off-server target on a "clean host" — the production path — in **18 s**, all tables
+matching; details below. Run A, the first drill (same machine), is kept for its application check: a real backup of the Labby database was restored into a clean PostgreSQL 16 +
 PostGIS instance, verified row-for-row against the source, and the backend booted on the restored
 copy (Flyway validated all 31 migrations, an admin signed in). Wall time from an empty instance to
 verified data: **23 s** (RTO target ≤ 4 h). The backup is a nightly full dump, so the worst-case

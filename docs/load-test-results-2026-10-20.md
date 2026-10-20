@@ -89,8 +89,8 @@ ERROR log line.
 
 **Why the 01:18 slowdown is not a capacity problem:**
 - All 26 slow offers came while the last riders of the ramp joined. The backend JVM had started
-  two minutes earlier and was still compiling hot paths: the first sample shows the backend
-  process at ~10 cores during logins, then 2–4.5 cores in steady state.
+  two minutes earlier and was still compiling hot paths: the first sample shows the java processes (backend + generator)
+  at ~10 cores during logins, then 2–4.5 cores in steady state.
 - In the slow minute, 110–120 drivers were busy, fewer than the 130 average over the run, so free
   drivers existed.
 - Run 2, on a backend that had already served run 1, had no ride over 3 s.
