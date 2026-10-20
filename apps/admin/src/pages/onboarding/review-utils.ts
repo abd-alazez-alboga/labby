@@ -1,5 +1,6 @@
 import { ApiError } from '../../api/client';
 import type { DriverDocument, FileRef, ServiceTypeRef } from '../../api/onboarding';
+import { latinLocale } from '../money/money-format';
 
 /**
  * Shared, framework-free helpers for the M5 review screens: error
@@ -69,7 +70,7 @@ export function nextRefreshDelay(files: readonly FileRef[], nowMs: number = Date
 }
 
 export function formatDateTime(value: string | null | undefined, language: string): string {
-  return value ? new Date(value).toLocaleString(language) : '—';
+  return value ? new Date(value).toLocaleString(latinLocale(language)) : '—';
 }
 
 /** A service type's name in the UI language. */

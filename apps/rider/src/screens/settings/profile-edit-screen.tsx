@@ -74,9 +74,8 @@ export default function ProfileEditScreen() {
         await reloadIfDirectionChanged(updated.language, "/settings");
       }
     } catch (error) {
-      if (error instanceof ApiError && error.body?.message) {
-        setServerError(error.body.message);
-      } else if (error instanceof ApiError) {
+      // Server messages are English-only (M15-T4): show the localized copy instead.
+      if (error instanceof ApiError) {
         setServerError(t("profile.saveFailed"));
       } else {
         setServerError(t("common.networkError"));
@@ -109,7 +108,7 @@ export default function ProfileEditScreen() {
     } catch (error) {
       // UC-S-09 exception: invalid image type/size → rejected with reason.
       if (error instanceof ApiError && error.status === 400) {
-        setPhotoError(error.body?.message ?? t("profile.photoUploadFailed"));
+        setPhotoError(t("profile.photoUploadFailed"));
       } else {
         setPhotoError(t("common.networkError"));
       }

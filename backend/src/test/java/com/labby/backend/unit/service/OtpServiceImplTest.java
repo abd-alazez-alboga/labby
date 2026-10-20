@@ -20,6 +20,7 @@ import com.labby.backend.repository.OtpCodeRepository;
 import com.labby.backend.service.OtpServiceImpl;
 import com.labby.backend.service.SmsSender;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
@@ -90,6 +91,27 @@ class OtpServiceImplTest {
     ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
     verify(smsSender).send(eq(PHONE), message.capture());
     assertThat(message.getValue()).contains("رمز لبي");
+  }
+
+  @Test
+  @DisplayName("M15-T4: the SMS keeps Western digits even on an Arabic default locale")
+  void shouldKeepWesternDigitsWhateverTheDefaultLocale() {
+    when(otpCodeRepository.countByPhoneAndCreatedAtAfter(eq(PHONE), any())).thenReturn(0L);
+    when(otpCodeRepository.findTopByPhoneAndPurposeOrderByCreatedAtDesc(PHONE, OtpPurpose.TWO_FA))
+        .thenReturn(Optional.empty());
+    Locale previous = Locale.getDefault();
+    try {
+      Locale.setDefault(Locale.forLanguageTag("ar-EG"));
+      otpService.issue(PHONE, OtpPurpose.TWO_FA, Language.AR);
+    } finally {
+      Locale.setDefault(previous);
+    }
+
+    ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+    verify(smsSender).send(eq(PHONE), message.capture());
+    assertThat(message.getValue())
+        .containsPattern("[0-9]")
+        .doesNotContainPattern("[\\u0660-\\u0669]");
   }
 
   @Test

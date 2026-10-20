@@ -16,7 +16,8 @@ export function formatNotificationTime(
     date.getMonth() === now.getMonth() &&
     date.getDate() === now.getDate();
   try {
-    return new Intl.DateTimeFormat(locale, {
+    // Western digits in Arabic too (owner ruling 2026-10-11, M15-T4).
+    return new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
       ...(sameDay ? {} : { day: "numeric", month: "short" }),
       hour: "numeric",
       minute: "2-digit",

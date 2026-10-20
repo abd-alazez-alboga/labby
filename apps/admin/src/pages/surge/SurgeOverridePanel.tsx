@@ -57,6 +57,11 @@ export function SurgeOverridePanel({
   const hasOverride = zone.overrideMultiplier !== null;
   const nextTime = nextCycleAt ? formatClock(nextCycleAt, language) : null;
 
+  // Server validation messages are English-only (M15-T4): shown as the detail line in the
+  // English UI only, never as raw English inside the Arabic UI.
+  const serverDetail = (message: string | undefined) =>
+    language.startsWith('en') ? message : undefined;
+
   function mapError(failure: unknown): PanelError {
     if (failure instanceof ApiError && failure.code === 'override_above_cap') {
       const reported = Number(failure.details?.cap);
@@ -64,14 +69,14 @@ export function SurgeOverridePanel({
         ? { message: t('surgeLive.errors.aboveCap', { cap: x(reported) }) }
         : {
             message: t('surgeLive.errors.rejected'),
-            detail: failure.serverMessage,
+            detail: serverDetail(failure.serverMessage),
           };
     }
     switch (classifyError(failure)) {
       case 'validation':
         return {
           message: t('surgeLive.errors.rejected'),
-          detail: failure instanceof ApiError ? failure.serverMessage : undefined,
+          detail: failure instanceof ApiError ? serverDetail(failure.serverMessage) : undefined,
         };
       case 'forbidden':
         return { message: t('surgeLive.errors.forbidden') };

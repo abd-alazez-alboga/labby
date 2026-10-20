@@ -1,6 +1,7 @@
 {
   "app": {
-    "title": "Labby Admin"
+    "title": "Labby Admin",
+    "brandName": "Labby"
   },
   "nav": {
     "dashboard": "Dashboard",

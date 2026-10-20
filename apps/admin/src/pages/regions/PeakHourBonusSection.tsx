@@ -60,7 +60,9 @@ export function PeakHourBonusSection({
         <div className="form-field">
           <label htmlFor="bundle-peak-bonus">
             {currency
-              ? t('regionDetail.peak.bonusPerTripCurrency', { currency })
+              ? t('regionDetail.peak.bonusPerTripCurrency', {
+                  currency: t(`money.currency.${currency}`, currency),
+                })
               : t('regionDetail.peak.bonusPerTrip')}
           </label>
           <input

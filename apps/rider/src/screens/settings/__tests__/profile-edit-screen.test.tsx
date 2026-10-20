@@ -150,6 +150,12 @@ describe("ProfileEditScreen (UC-S-09/10)", () => {
     await fireEvent.press(screen.getByTestId("profile-change-photo"));
 
     expect(await screen.findByTestId("profile-photo-error")).toBeOnTheScreen();
-    expect(screen.getByText("Unsupported type")).toBeOnTheScreen();
+    // The server's English message is not shown raw (M15-T4); the localized reason is.
+    expect(
+      screen.getByText(
+        "The photo could not be uploaded. Use a supported image type and size.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText("Unsupported type")).toBeNull();
   });
 });

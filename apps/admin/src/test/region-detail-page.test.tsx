@@ -418,7 +418,7 @@ describe('region detail page', () => {
 
       expect(await screen.findByText('مكافأة ساعات الذروة')).toBeInTheDocument();
       expect(document.documentElement).toHaveAttribute('dir', 'rtl');
-      expect(screen.getByLabelText('المكافأة لكل رحلة (SYP)')).toHaveValue(1);
+      expect(screen.getByLabelText('المكافأة لكل رحلة (ل.س)')).toHaveValue(1);
       const [weekdays] = screen.getAllByRole('group', { name: 'الأيام' });
       expect(within(weekdays).getByRole('button', { name: 'الاثنين' })).toHaveAttribute(
         'aria-pressed',

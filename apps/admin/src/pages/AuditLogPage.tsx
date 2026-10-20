@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { queryAuditLog, type AuditLogPage as AuditPage, type AuditLogQuery } from '../api/rbac';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable, PageHeader, TablePager } from '../ui';
+import { latinLocale } from './money/money-format';
 
 const PAGE_SIZE = 25;
 
@@ -173,7 +174,7 @@ export default function AuditLogPage() {
           <tbody>
             {result.items.map((entry) => (
               <tr key={entry.id}>
-                <td>{new Date(entry.createdAt).toLocaleString(i18n.language)}</td>
+                <td>{new Date(entry.createdAt).toLocaleString(latinLocale(i18n.language))}</td>
                 <td>{entry.actorName}</td>
                 <td>
                   <code dir="ltr">{entry.action}</code>

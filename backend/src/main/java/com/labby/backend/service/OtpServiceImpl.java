@@ -11,6 +11,7 @@ import com.labby.backend.repository.OtpCodeRepository;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -57,7 +58,7 @@ public class OtpServiceImpl implements OtpService {
               throw new TooManyRequestsException("Please wait before requesting a new code");
             });
 
-    String code = "%06d".formatted(RANDOM.nextInt(1_000_000));
+    String code = String.format(Locale.ROOT, "%06d", RANDOM.nextInt(1_000_000));
     smsSender.send(phone, buildMessage(code, language));
 
     otpCodeRepository.save(
@@ -98,10 +99,13 @@ public class OtpServiceImpl implements OtpService {
   private String buildMessage(String code, Language language) {
     long minutes = Math.max(1, otpProperties.expirySeconds() / 60);
     // Wording is delivery-tested (M2-T6): carriers filter OTP-style messages containing
-    // "verification"/"التحقق", so neither variant may use those words.
+    // "verification"/"التحقق", so neither variant may use those words. Locale.ROOT keeps the
+    // digits Western whatever the JVM default locale (owner ruling, M15-T4).
     if (language == Language.AR) {
-      return "رمز لبي الخاص بك هو %s. صالح لمدة %d دقائق.".formatted(code, minutes);
+      return String.format(
+          Locale.ROOT, "رمز لبي الخاص بك هو %s. صالح لمدة %d دقائق.", code, minutes);
     }
-    return "Your Labby code is %s. It expires in %d minutes.".formatted(code, minutes);
+    return String.format(
+        Locale.ROOT, "Your Labby code is %s. It expires in %d minutes.", code, minutes);
   }
 }

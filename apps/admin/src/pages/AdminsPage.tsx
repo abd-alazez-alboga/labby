@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { DataTable, PageHeader } from '../ui';
+import { latinLocale } from './money/money-format';
 
 type Notice =
   { kind: 'created' } | { kind: 'grantedExisting' } | { kind: 'error'; messageKey: string };
@@ -287,7 +288,7 @@ export default function AdminsPage() {
                     {t(`admins.states.${admin.state}`)}
                   </span>
                 </td>
-                <td>{new Date(admin.grantedAt).toLocaleString(i18n.language)}</td>
+                <td>{new Date(admin.grantedAt).toLocaleString(latinLocale(i18n.language))}</td>
                 {canManage ? (
                   <td>
                     {admin.state === 'active' ? (
