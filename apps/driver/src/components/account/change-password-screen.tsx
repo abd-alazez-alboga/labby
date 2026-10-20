@@ -7,6 +7,7 @@ import { registerThisDevice } from "../../notifications/push";
 import {
   OTP_PATTERN,
   OTP_RESEND_COOLDOWN_SECONDS,
+  PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
 } from "../../api/auth-types";
 import { useAuth } from "../../auth/AuthProvider";
@@ -63,7 +64,11 @@ export function ChangePasswordScreen() {
         setStep("code");
       }
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 429: "auth.otp.rateLimited" }));
+      setErrorKey(errorKeyFor(error, {
+          429: "auth.otp.rateLimited",
+          502: "auth.otp.sendFailed",
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -93,7 +98,10 @@ export function ChangePasswordScreen() {
   };
 
   const submit = async () => {
-    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+    if (
+      newPassword.length < PASSWORD_MIN_LENGTH ||
+      newPassword.length > PASSWORD_MAX_LENGTH
+    ) {
       setFieldErrorKey("auth.validation.password");
       return;
     }

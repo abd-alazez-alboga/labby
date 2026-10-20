@@ -226,6 +226,40 @@ describe("RegisterScreen (UC-S-01 / UC-S-08)", () => {
     ).toBeTruthy();
   });
 
+  it("shows the could-not-send copy when the SMS gateway fails (502)", async () => {
+    installContractFetch({
+      "POST /api/v1/auth/register/start": {
+        status: 502,
+        body: { status: 502, message: "sms gateway down" },
+      },
+    });
+    renderRegister();
+
+    fireEvent.changeText(screen.getByTestId("register-phone"), PHONE);
+    fireEvent.press(screen.getByTestId("register-send-code"));
+
+    await screen.findByTestId("register-error");
+    expect(
+      screen.getByText("The code could not be sent. Please try again later."),
+    ).toBeTruthy();
+    expect(screen.getByTestId("register-step-phone")).toBeTruthy();
+  });
+
+  it("sends a locally typed number in E.164 (H3)", async () => {
+    const contract = installContractFetch({
+      "POST /api/v1/auth/register/start": { status: 204 },
+    });
+    renderRegister();
+
+    fireEvent.changeText(screen.getByTestId("register-phone"), "0933 000-111");
+    fireEvent.press(screen.getByTestId("register-send-code"));
+
+    await screen.findByTestId("register-step-code");
+    expect(
+      contract.requestsTo("POST /api/v1/auth/register/start")[0].body,
+    ).toEqual({ phone: "+963933000111" });
+  });
+
   it("takes the reactivation branch (mode=reactivated) to login instead of creating an account", async () => {
     const contract = installContractFetch({
       "POST /api/v1/auth/register/start": { status: 204 },

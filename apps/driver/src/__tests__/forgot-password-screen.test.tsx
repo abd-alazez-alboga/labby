@@ -80,6 +80,40 @@ describe("ForgotPasswordScreen (UC-S-04)", () => {
     expect(await screen.findByTestId("login-route")).toBeTruthy();
   });
 
+  it("shows the could-not-send copy when the SMS gateway fails (502)", async () => {
+    installContractFetch({
+      "POST /api/v1/auth/password-reset/start": {
+        status: 502,
+        body: { status: 502, message: "sms gateway down" },
+      },
+    });
+    renderReset();
+
+    fireEvent.changeText(screen.getByTestId("reset-phone"), PHONE);
+    fireEvent.press(screen.getByTestId("reset-send-code"));
+
+    await screen.findByTestId("reset-error");
+    expect(
+      screen.getByText("The code could not be sent. Please try again later."),
+    ).toBeTruthy();
+    expect(screen.getByTestId("reset-step-phone")).toBeTruthy();
+  });
+
+  it("sends a 00963 number in E.164 (H3)", async () => {
+    const contract = installContractFetch({
+      "POST /api/v1/auth/password-reset/start": { status: 204 },
+    });
+    renderReset();
+
+    fireEvent.changeText(screen.getByTestId("reset-phone"), "00963933000111");
+    fireEvent.press(screen.getByTestId("reset-send-code"));
+
+    await screen.findByTestId("reset-step-code");
+    expect(
+      contract.requestsTo("POST /api/v1/auth/password-reset/start")[0].body,
+    ).toEqual({ phone: "+963933000111" });
+  });
+
   it("shows the wrong-code error on 400 and stays on the code step", async () => {
     const contract = installContractFetch({
       "POST /api/v1/auth/password-reset/start": { status: 204 },

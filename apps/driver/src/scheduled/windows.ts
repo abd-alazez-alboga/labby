@@ -8,13 +8,7 @@ import type { AvailabilityWindow, DayOfWeek } from "../api/scheduled-types";
  * server is the judge; these only shape and order what the screen edits.
  */
 
-const HH_MM = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
-
 export const ALL_DAY_TIME = "00:00";
-
-export function isTime(value: string): boolean {
-  return HH_MM.test(value);
-}
 
 /** Minutes since midnight of an `HH:mm`. */
 export function toMinutes(value: string): number {

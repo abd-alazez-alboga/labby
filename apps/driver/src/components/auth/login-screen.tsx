@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { errorKeyFor } from "./error-key";
 import { login } from "../../api/auth";
 import { PHONE_PATTERN } from "../../api/auth-types";
+import { normalizePhone } from "../../api/phone";
 import { useAuth } from "../../auth/AuthProvider";
 import {
   Banner,
@@ -31,7 +32,7 @@ export function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    const trimmed = phone.trim();
+    const trimmed = normalizePhone(phone);
     if (!PHONE_PATTERN.test(trimmed)) {
       setFieldError("auth.validation.phone");
       return;

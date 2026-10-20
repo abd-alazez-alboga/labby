@@ -7,6 +7,7 @@ import {
   phoneChangeVerifyCurrent,
 } from "../../api/auth";
 import { OTP_PATTERN, PHONE_PATTERN } from "../../api/auth-types";
+import { normalizePhone } from "../../api/phone";
 import { useAuth } from "../../auth/AuthProvider";
 import { errorKeyFor } from "../auth/error-key";
 import {
@@ -44,7 +45,7 @@ export function ChangePhoneScreen() {
   };
 
   const start = async () => {
-    const trimmed = newPhone.trim();
+    const trimmed = normalizePhone(newPhone);
     if (!PHONE_PATTERN.test(trimmed)) {
       setFieldErrorKey("auth.validation.phone");
       return;
@@ -57,7 +58,12 @@ export function ChangePhoneScreen() {
       setCode("");
       setStep("current-code");
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 409: "account.phone.taken" }));
+      setErrorKey(errorKeyFor(error, {
+          409: "account.phone.taken",
+          // The SMS gateway could not send the code (UC-S-01 E4 copy).
+          502: "auth.otp.sendFailed",
+        }),
+      );
     } finally {
       setBusy(false);
     }

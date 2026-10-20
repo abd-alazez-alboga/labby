@@ -56,7 +56,7 @@
     "validation": {
       "phone": "Enter a valid phone number.",
       "passwordRequired": "Enter your password.",
-      "password": "The password must be at least 8 characters.",
+      "password": "The password must be 8 to 72 characters.",
       "name": "Enter your name.",
       "code": "Enter the 6-digit code.",
       "terms": "You must accept the Terms of Service to continue.",
@@ -68,7 +68,8 @@
       "resendIn": "Resend code ({{seconds}}s)",
       "wrongCode": "That code is not correct. Try again.",
       "expired": "That code expired or was tried too many times. Request a new one.",
-      "rateLimited": "Too many codes requested. Please wait before trying again."
+      "rateLimited": "Too many codes requested. Please wait before trying again.",
+      "sendFailed": "The code could not be sent. Please try again later."
     },
     "login": {
       "title": "Log in",
@@ -134,6 +135,7 @@
     "changePhone": "Change phone number",
     "deleteAccount": "Delete account",
     "logout": "Log out",
+    "logoutBlockedRide": "Finish your current ride before logging out.",
     "profile": {
       "title": "Edit profile",
       "save": "Save",

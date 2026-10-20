@@ -28,10 +28,6 @@ export function setUnread(next: number): void {
   emit();
 }
 
-export function decrementUnread(): void {
-  setUnread(unread - 1);
-}
-
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {

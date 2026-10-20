@@ -161,6 +161,27 @@ describe("account screens (UC-S-05/06/07/09/10)", () => {
       ).toBeTruthy();
     });
 
+    it("shows the could-not-send copy when the 2FA code cannot be sent (502)", async () => {
+      await seedSession(driverUser(), "1");
+      installContractFetch({
+        "POST /api/v1/users/me/2fa/request": {
+          status: 502,
+          body: { status: 502, message: "sms gateway down" },
+        },
+      });
+      renderScreen(ChangePasswordScreen);
+
+      fireEvent.changeText(
+        screen.getByTestId("change-password-current"),
+        "oldpass99",
+      );
+      fireEvent.press(screen.getByTestId("change-password-continue"));
+      await screen.findByTestId("change-password-error");
+      expect(
+        screen.getByText("The code could not be sent. Please try again later."),
+      ).toBeTruthy();
+    });
+
     it("forgot-password escape hatch signs out into the reset flow", async () => {
       await seedSession(driverUser(), "1");
       const contract = installContractFetch({
@@ -320,6 +341,41 @@ describe("account screens (UC-S-05/06/07/09/10)", () => {
       expect(
         screen.getByText("That phone number is already in use."),
       ).toBeTruthy();
+    });
+
+    it("shows the could-not-send copy when the SMS gateway fails (502)", async () => {
+      await seedSession(driverUser(), "1");
+      installContractFetch({
+        "POST /api/v1/users/me/phone-change/start": {
+          status: 502,
+          body: { status: 502, message: "sms gateway down" },
+        },
+      });
+      renderScreen(ChangePhoneScreen);
+
+      fireEvent.changeText(screen.getByTestId("change-phone-new"), "0933000111");
+      fireEvent.press(screen.getByTestId("change-phone-start"));
+
+      await screen.findByTestId("change-phone-error");
+      expect(
+        screen.getByText("The code could not be sent. Please try again later."),
+      ).toBeTruthy();
+    });
+
+    it("sends the new phone in E.164 (H3)", async () => {
+      await seedSession(driverUser(), "1");
+      const contract = installContractFetch({
+        "POST /api/v1/users/me/phone-change/start": { status: 204 },
+      });
+      renderScreen(ChangePhoneScreen);
+
+      fireEvent.changeText(screen.getByTestId("change-phone-new"), "0933 000 111");
+      fireEvent.press(screen.getByTestId("change-phone-start"));
+
+      await screen.findByTestId("change-phone-step-current-code");
+      expect(
+        contract.requestsTo("POST /api/v1/users/me/phone-change/start")[0].body,
+      ).toEqual({ newPhone: "+963933000111" });
     });
 
     it("restarts the whole flow on 410 at the verify step", async () => {

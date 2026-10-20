@@ -21,9 +21,11 @@ import {
 import {
   OTP_PATTERN,
   OTP_RESEND_COOLDOWN_SECONDS,
+  PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   PHONE_PATTERN,
 } from "../../api/auth-types";
+import { normalizePhone } from "../../api/phone";
 import { useAuth } from "../../auth/AuthProvider";
 
 type Step = "phone" | "code" | "details" | "reactivated";
@@ -52,7 +54,7 @@ export function RegisterScreen() {
   const cooldown = useCooldown();
 
   const sendCode = async (isResend: boolean) => {
-    const trimmed = phone.trim();
+    const trimmed = normalizePhone(phone);
     if (!PHONE_PATTERN.test(trimmed)) {
       setFieldErrorKey("auth.validation.phone");
       return;
@@ -70,6 +72,7 @@ export function RegisterScreen() {
         errorKeyFor(error, {
           409: "auth.register.phoneTaken",
           429: "auth.otp.rateLimited",
+          502: "auth.otp.sendFailed",
         }),
       );
     } finally {
@@ -86,7 +89,7 @@ export function RegisterScreen() {
     setErrorKey(null);
     setBusy(true);
     try {
-      const result = await registerVerify(phone.trim(), code.trim());
+      const result = await registerVerify(normalizePhone(phone), code.trim());
       if (result.mode === "reactivated") {
         // UC-S-08: the deleted account is live again — no new account.
         setStep("reactivated");
@@ -111,7 +114,10 @@ export function RegisterScreen() {
       setFieldErrorKey("auth.validation.name");
       return;
     }
-    if (password.length < PASSWORD_MIN_LENGTH) {
+    if (
+      password.length < PASSWORD_MIN_LENGTH ||
+      password.length > PASSWORD_MAX_LENGTH
+    ) {
       setFieldErrorKey("auth.validation.password");
       return;
     }
@@ -202,7 +208,7 @@ export function RegisterScreen() {
       {step === "code" ? (
         <>
           <BodyText testID="register-otp-hint">
-            {t("auth.otp.sentTo", { phone: phone.trim() })}
+            {t("auth.otp.sentTo", { phone: normalizePhone(phone) })}
           </BodyText>
           <TextField
             label={t("auth.fields.code")}

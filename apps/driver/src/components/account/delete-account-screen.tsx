@@ -39,7 +39,11 @@ export function DeleteAccountScreen() {
       setCodeSent(true);
       cooldown.start(OTP_RESEND_COOLDOWN_SECONDS);
     } catch (error) {
-      setErrorKey(errorKeyFor(error, { 429: "auth.otp.rateLimited" }));
+      setErrorKey(errorKeyFor(error, {
+          429: "auth.otp.rateLimited",
+          502: "auth.otp.sendFailed",
+        }),
+      );
     } finally {
       setBusy(false);
     }

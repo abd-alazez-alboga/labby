@@ -20,9 +20,11 @@ import {
 import {
   OTP_PATTERN,
   OTP_RESEND_COOLDOWN_SECONDS,
+  PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   PHONE_PATTERN,
 } from "../../api/auth-types";
+import { normalizePhone } from "../../api/phone";
 
 type Step = "phone" | "code" | "password" | "done";
 
@@ -47,7 +49,7 @@ export function ForgotPasswordScreen() {
   const cooldown = useCooldown();
 
   const sendCode = async (isResend: boolean) => {
-    const trimmed = phone.trim();
+    const trimmed = normalizePhone(phone);
     if (!PHONE_PATTERN.test(trimmed)) {
       setFieldErrorKey("auth.validation.phone");
       return;
@@ -62,8 +64,9 @@ export function ForgotPasswordScreen() {
       if (!isResend) setStep("code");
     } catch (error) {
       // The contract keeps this neutral (204 even on unknown phones);
-      // anything else is a transport/server failure.
-      setErrorKey(errorKeyFor(error, {}));
+      // anything else is a transport/server failure — 502 means the SMS
+      // gateway could not send the code (UC-S-01 E4 copy).
+      setErrorKey(errorKeyFor(error, { 502: "auth.otp.sendFailed" }));
     } finally {
       setBusy(false);
     }
@@ -78,7 +81,7 @@ export function ForgotPasswordScreen() {
     setErrorKey(null);
     setBusy(true);
     try {
-      const result = await passwordResetVerify(phone.trim(), code.trim());
+      const result = await passwordResetVerify(normalizePhone(phone), code.trim());
       setResetToken(result.resetToken);
       setStep("password");
     } catch (error) {
@@ -94,7 +97,10 @@ export function ForgotPasswordScreen() {
   };
 
   const complete = async () => {
-    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+    if (
+      newPassword.length < PASSWORD_MIN_LENGTH ||
+      newPassword.length > PASSWORD_MAX_LENGTH
+    ) {
       setFieldErrorKey("auth.validation.password");
       return;
     }
