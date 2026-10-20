@@ -51,6 +51,7 @@ import {
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import { countKey } from "../../i18n/plural";
 import { useOptionalActiveRide } from "../../ride/ride-context";
 import { rideErrorMessage } from "../../ride/ride-errors";
 import { formatMoney, placeLabel, serviceName } from "../../ride/ride-format";
@@ -646,7 +647,18 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
               label={
                 ride.seatsTaken === 1
                   ? t("shared.startOne")
-                  : t("shared.startMany", { count: ride.seatsTaken })
+                  : t(
+                      countKey(
+                        {
+                          one: "shared.startOne",
+                          two: "shared.startTwo",
+                          few: "shared.startMany",
+                          many: "shared.startElevenPlus",
+                        },
+                        ride.seatsTaken,
+                      ),
+                      { count: ride.seatsTaken },
+                    )
               }
               onPress={() => void start()}
               loading={busy}
@@ -675,7 +687,18 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
         ? t("shared.insufficientNone")
         : shortOf === 1
           ? t("shared.insufficientOne")
-          : t("shared.insufficientMany", { count: shortOf ?? 0 });
+          : t(
+              countKey(
+                {
+                  one: "shared.insufficientOne",
+                  two: "shared.insufficientTwo",
+                  few: "shared.insufficientMany",
+                  many: "shared.insufficientElevenPlus",
+                },
+                shortOf ?? 0,
+              ),
+              { count: shortOf ?? 0 },
+            );
     content = (
       <>
         <View style={styles.head}>
@@ -801,7 +824,18 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
           label={
             party === 1
               ? t("shared.joinOne")
-              : t("shared.joinMany", { count: party })
+              : t(
+                  countKey(
+                    {
+                      one: "shared.joinOne",
+                      two: "shared.joinTwo",
+                      few: "shared.joinMany",
+                      many: "shared.joinElevenPlus",
+                    },
+                    party,
+                  ),
+                  { count: party },
+                )
           }
           onPress={() => void join()}
           disabled={shortOf === 0}

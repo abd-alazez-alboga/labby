@@ -28,6 +28,7 @@ import {
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import { countKey } from "../../i18n/plural";
 import { UnreadBadge } from "../../notifications/unread-badge";
 import { colors, radius, spacing } from "../../theme/tokens";
 
@@ -126,13 +127,18 @@ export default function SupportHomeScreen() {
             key={category.helpCategoryId}
             testID={`support-topic-${category.helpCategoryId}`}
             title={localized(category.name, locale)}
-            subtitle={
-              category.articleCount === 1
-                ? t("support.articleCountOne")
-                : t("support.articleCount", {
-                    count: category.articleCount,
-                  })
-            }
+            subtitle={t(
+              countKey(
+                {
+                  one: "support.articleCountOne",
+                  two: "support.articleCountTwo",
+                  few: "support.articleCount",
+                  many: "support.articleCountElevenPlus",
+                },
+                category.articleCount,
+              ),
+              { count: category.articleCount },
+            )}
             icon={TOPIC_ICONS[index % TOPIC_ICONS.length]}
             chevron
             last={index === categories.length - 1}

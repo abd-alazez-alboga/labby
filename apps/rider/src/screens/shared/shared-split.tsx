@@ -11,6 +11,7 @@ import { StyleSheet, View } from "react-native";
 import type { MemberView, SplitSummary } from "../../api/scheduled-shared";
 import { AppText, useDirection } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import { countKey } from "../../i18n/plural";
 import { formatMoney } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 
@@ -49,7 +50,18 @@ export function SharedSplit({
       value:
         me.partySize === 1
           ? t("shared.partySeatsOne")
-          : t("shared.partySeatsMany", { count: me.partySize }),
+          : t(
+              countKey(
+                {
+                  one: "shared.partySeatsOne",
+                  two: "shared.partySeatsTwo",
+                  few: "shared.partySeatsMany",
+                  many: "shared.partySeatsElevenPlus",
+                },
+                me.partySize,
+              ),
+              { count: me.partySize },
+            ),
     });
   }
   return (

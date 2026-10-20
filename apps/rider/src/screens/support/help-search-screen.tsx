@@ -33,6 +33,7 @@ import {
   useFontFamily,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import { countKey } from "../../i18n/plural";
 import { colors, radius, spacing } from "../../theme/tokens";
 
 const DEBOUNCE_MS = 300;
@@ -108,13 +109,18 @@ export default function HelpSearchScreen() {
     return category ? localized(category.name, locale) : undefined;
   };
 
-  const countLine =
-    results.length === 1
-      ? t("help.searchResultsOne", { query: trimmed })
-      : t("help.searchResults", {
-          count: results.length,
-          query: trimmed,
-        });
+  const countLine = t(
+    countKey(
+      {
+        one: "help.searchResultsOne",
+        two: "help.searchResultsTwo",
+        few: "help.searchResults",
+        many: "help.searchResultsElevenPlus",
+      },
+      results.length,
+    ),
+    { count: results.length, query: trimmed },
+  );
 
   return (
     <ScreenScrollView
