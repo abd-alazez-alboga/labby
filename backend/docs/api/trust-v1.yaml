@@ -117,7 +117,9 @@ info:
     it is a party to (`POST /rides/{id}/sos`) and finish a ride already in flight (accepted /
     driver_arrived / in_progress): `GET /rides/active`, `GET /driver/rides/active`; as its rider
     `GET /rides/{id}`, `GET /rides/{id}/cancellation-quote`, `POST /rides/{id}/cancel`,
-    `PUT /rides/{id}/route`; as its driver `GET /driver/rides/{id}`,
+    `PUT /rides/{id}/route`; as a member of an in-flight SHARED ride `GET /shared-rides/{id}`,
+    `GET /shared-rides/{id}/leave-quote` and `POST /shared-rides/{id}/leave` (the shared-ride
+    cancel; review V1 C1); as its driver `GET /driver/rides/{id}`,
     `POST /driver/rides/{id}/arrive|start|complete|cancel`, `POST /driver/locations` and
     `GET /driver/availability` (cold-start resume of the GPS stream; setting availability stays
     refused); as either
@@ -125,7 +127,9 @@ info:
     `POST /rides/{id}/chat/read`), `GET /chat/quick-replies` and `POST /routing/route`. After
     completion, while the cash payment is `pending`, its driver may still `GET /driver/rides/{id}`
     and `POST /driver/rides/{id}/cash-confirm|mark-unpaid`. Everything new stays refused (booking,
-    estimates, availability, offers, wallet, ratings, reports, other rides' chat). Dispatch never
+    estimates, scheduling and every `/scheduled-rides` / `/shared-rides` call — create, browse,
+    join, start, cancel — review V1 C1, availability, offers, wallet, ratings, reports, other
+    rides' chat); the booking services refuse a suspended account with the same 403 too. Dispatch never
     offers the account a ride, and a driver goes offline when the ride ends. Admin accounts are not
     suspended here (409 `admin_account`) — RBAC's `/admin/admins/{id}/deactivate` covers them.
     Every change is audit-logged (actor + note) and notifies the user (category `account`).

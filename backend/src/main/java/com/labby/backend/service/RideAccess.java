@@ -1,5 +1,6 @@
 package com.labby.backend.service;
 
+import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.ApplicationStatus;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
@@ -7,6 +8,7 @@ import com.labby.backend.exception.ForbiddenException;
 import com.labby.backend.model.RoleAssignment;
 import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
+import com.labby.backend.repository.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,7 @@ public class RideAccess {
 
   private final RoleAssignmentRepository roleAssignmentRepository;
   private final DriverProfileRepository driverProfileRepository;
+  private final UserRepository userRepository;
 
   /**
    * Requires the rider role (any state).
@@ -36,11 +39,21 @@ public class RideAccess {
 
   /**
    * Requires an ACTIVE rider role (booking, UC-R-04 E3): a suspended role is a 403 carrying its
-   * {@code suspensionReason}.
+   * {@code suspensionReason}. A whole-account suspension (USR-06) is a 403 {@code
+   * account_suspended} too — the same answer as the central gate, so no booking path (on-demand,
+   * scheduled, shared) depends on being listed there alone (review V1 C1).
    *
    * @param userId the account
    */
   public void requireActiveRider(UUID userId) {
+    boolean accountSuspended =
+        userRepository
+            .findById(userId)
+            .map(user -> user.getState() == AccountState.SUSPENDED)
+            .orElse(false);
+    if (accountSuspended) {
+      throw new ForbiddenException("Your account is suspended").withCode("account_suspended");
+    }
     RoleAssignment role =
         roleAssignmentRepository
             .findByUserIdAndRole(userId, Role.RIDER)

@@ -303,7 +303,10 @@ info:
     Errors use the global ErrorResponse shape (status, message, code?, details?). A request the
     ride's state does not allow is 409 `illegal_state` with `details.state`. Rider endpoints need
     the rider role (403 otherwise; a suspended rider role → 403 `rider_suspended`), driver
-    endpoints an approved driver (403 otherwise). No admin endpoint is added: scheduled and
+    endpoints an approved driver (403 otherwise). A whole-account suspension (USR-06, trust-v1)
+    refuses every `/scheduled-rides` and `/shared-rides` call with 403 `account_suspended`
+    (review V1 C1) — except a member finishing an in-flight shared ride (`GET
+    /shared-rides/{id}`, its `leave-quote` and `leave`; trust-v1 "SOS + finish the ride"). No admin endpoint is added: scheduled and
     shared rides show in the rides-v1 admin views (`kind`).
 servers:
   - url: http://localhost:8080
@@ -332,7 +335,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/RideWithExtensions' }
         '400': { description: Validation }
-        '403': { description: '`rider_suspended`' }
+        '403': { description: '`rider_suspended` | `account_suspended`' }
         '422': { description: '`scheduled_too_soon` (details.minLeadMinutes) | `outside_region` | `too_many_stops` | `service_type_unavailable`' }
     get:
       tags: [ScheduledRides]
@@ -460,7 +463,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/SharedRide' }
         '400': { description: Validation }
-        '403': { description: '`rider_suspended`' }
+        '403': { description: '`rider_suspended` | `account_suspended`' }
         '409': { description: '`active_ride_exists`' }
         '422': { description: '`outside_region` | `service_type_unavailable` | `seats_unavailable` (details.maxSeats) | `party_too_large` | `departure_in_past`' }
     get:
@@ -538,7 +541,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SharedRide' }
-        '403': { description: '`rider_suspended`' }
+        '403': { description: '`rider_suspended` | `account_suspended`' }
         '409': { description: '`insufficient_seats` (details.seatsLeft) | `shared_ride_closed` | `already_member` | `active_ride_exists`' }
 
   /api/v1/shared-rides/{rideId}/leave-quote:

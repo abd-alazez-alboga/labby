@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.enums.ClientType;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -63,7 +64,17 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
             get("/api/v1/rider/preferences", driver.token()),
             get("/api/v1/chat/quick-replies?as=driver", driver.token()),
             get("/api/v1/ratings/pending?as=driver", driver.token()),
-            get("/api/v1/reports/mine?as=driver", driver.token()))) {
+            get("/api/v1/reports/mine?as=driver", driver.token()),
+            // Review V1 C1: scheduling and shared rides are booking paths too.
+            post("/api/v1/scheduled-rides", scheduledBooking(), driver.token()),
+            get("/api/v1/scheduled-rides", driver.token()),
+            post("/api/v1/shared-rides", sharedBooking(), driver.token()),
+            get("/api/v1/shared-rides?lat=" + PICKUP_LAT + "&lng=" + PICKUP_LNG, driver.token()),
+            post(
+                "/api/v1/shared-rides/" + UUID.randomUUID() + "/join",
+                Map.of("partySize", 1, "paymentMethod", "cash"),
+                driver.token()),
+            post("/api/v1/shared-rides/" + UUID.randomUUID() + "/start", null, driver.token()))) {
       assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
       assertThat(code(refused)).isEqualTo("account_suspended");
     }
@@ -182,6 +193,98 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
     // SOS is never gated: on the ended ride the normal SOS rules answer, not the suspension.
     ResponseEntity<JsonNode> lateSos = post("/api/v1/rides/" + rideId + "/sos", sos, rider.token());
     assertThat(code(lateSos)).isEqualTo("ride_not_active");
+  }
+
+  @Test
+  @DisplayName(
+      "USR-06 / review V1 C1: a suspended rider can neither schedule nor create, join or start a"
+          + " shared ride, even with a real gathering ride to join")
+  void shouldRefuseScheduledAndSharedRidesToASuspendedAccount() {
+    driverAt(PICKUP_LAT, PICKUP_LNG); // a vehicle with the seats a shared ride needs
+    Account creator = rider();
+    Account suspended = rider();
+    UUID gathering =
+        UUID.fromString(
+            ok(post("/api/v1/shared-rides", sharedBooking(), creator.token()), HttpStatus.CREATED)
+                .get("rideId")
+                .asText());
+    ok(
+        post(
+            "/api/v1/admin/users/" + suspended.userId() + "/suspend",
+            Map.of("note", "Investigation"),
+            admin),
+        HttpStatus.OK);
+
+    for (ResponseEntity<JsonNode> refused :
+        List.of(
+            post("/api/v1/scheduled-rides", scheduledBooking(), suspended.token()),
+            post("/api/v1/shared-rides", sharedBooking(), suspended.token()),
+            get("/api/v1/shared-rides/" + gathering, suspended.token()),
+            post(
+                "/api/v1/shared-rides/" + gathering + "/join",
+                Map.of("partySize", 1, "paymentMethod", "cash"),
+                suspended.token()))) {
+      assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+      assertThat(code(refused)).isEqualTo("account_suspended");
+    }
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM rides r LEFT JOIN shared_ride_members m ON m.ride_id ="
+                    + " r.ride_id WHERE r.rider_user_id = ? OR m.rider_user_id = ?",
+                Integer.class,
+                suspended.userId(),
+                suspended.userId()))
+        .isZero();
+
+    // The creator of a gathering ride is refused the start once suspended (its membership ended
+    // with the suspension, so nothing is left to start).
+    ok(
+        post(
+            "/api/v1/admin/users/" + creator.userId() + "/suspend",
+            Map.of("note", "Investigation"),
+            admin),
+        HttpStatus.OK);
+    ResponseEntity<JsonNode> start =
+        post("/api/v1/shared-rides/" + gathering + "/start", null, creator.token());
+    assertThat(start.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(code(start)).isEqualTo("account_suspended");
+  }
+
+  @Test
+  @DisplayName(
+      "USR-06 finish-the-ride on a shared ride: a suspended member of an in-flight shared ride"
+          + " may still read it and its leave quote")
+  void shouldLetASuspendedMemberFinishAnInFlightSharedRide() {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    Account creator = rider();
+    Account member = rider();
+    Map<String, Object> body = sharedBooking();
+    body.put("totalSeats", 2);
+    UUID rideId =
+        UUID.fromString(
+            ok(post("/api/v1/shared-rides", body, creator.token()), HttpStatus.CREATED)
+                .get("rideId")
+                .asText());
+    ok(
+        post(
+            "/api/v1/shared-rides/" + rideId + "/join",
+            Map.of("partySize", 1, "paymentMethod", "cash"),
+            member.token()),
+        HttpStatus.OK);
+    dispatchAndAccept(rideId, driver);
+    ok(
+        post(
+            "/api/v1/admin/users/" + member.userId() + "/suspend",
+            Map.of("note", "Investigation"),
+            admin),
+        HttpStatus.OK);
+
+    ok(get("/api/v1/shared-rides/" + rideId, member.token()), HttpStatus.OK);
+    ok(get("/api/v1/shared-rides/" + rideId + "/leave-quote", member.token()), HttpStatus.OK);
+    ResponseEntity<JsonNode> other =
+        get("/api/v1/shared-rides/" + UUID.randomUUID(), member.token());
+    assertThat(other.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(code(other)).isEqualTo("account_suspended");
   }
 
   @Test
@@ -451,5 +554,25 @@ class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
     }
     assertThat(roleRow(rider.userId(), "rider").get("state")).isEqualTo("active");
     assertThat(auditActions(rider.userId().toString())).isEmpty();
+  }
+
+  /** A valid scheduled booking two days ahead (scheduled-shared-v1 S1). */
+  private Map<String, Object> scheduledBooking() {
+    Map<String, Object> body = new LinkedHashMap<>(booking(List.of()));
+    body.put("scheduledAt", CLOCK.instant().plus(Duration.ofDays(2)).toString());
+    return body;
+  }
+
+  /** A valid "when full" shared ride for 3 seats (scheduled-shared-v1 P1). */
+  private Map<String, Object> sharedBooking() {
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("pickup", place(PICKUP_LAT, PICKUP_LNG));
+    body.put("destination", place(DEST_LAT, DEST_LNG));
+    body.put("serviceTypeId", economy.toString());
+    body.put("paymentMethod", "cash");
+    body.put("totalSeats", 3);
+    body.put("partySize", 1);
+    body.put("departure", Map.of("mode", "when_full"));
+    return body;
   }
 }

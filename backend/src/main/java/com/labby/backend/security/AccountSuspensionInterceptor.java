@@ -40,17 +40,23 @@ import org.springframework.web.servlet.HandlerInterceptor;
  *       {@code GET /chat/quick-replies} and {@code POST /routing/route}.
  * </ul>
  *
- * Everything else — booking and estimates, availability, offers, wallet, ratings, reports, chat of
- * other rides — stays refused. Deliberately NOT a {@code @Component}: like {@link JwtAuthFilter},
- * it is built and registered only by the MVC config.
+ * Everything else — booking and estimates, scheduling, creating / joining / starting shared rides
+ * (review V1 C1), availability, offers, wallet, ratings, reports, chat of other rides — stays
+ * refused. Deliberately NOT a {@code @Component}: like {@link JwtAuthFilter}, it is built and
+ * registered only by the MVC config.
  */
 @RequiredArgsConstructor
 public class AccountSuspensionInterceptor implements HandlerInterceptor {
 
-  /** The rider/driver feature endpoints (rides-v1, money-v1, comms-v1, trust-v1, onboarding-v1). */
+  /**
+   * The rider/driver feature endpoints (rides-v1, money-v1, comms-v1, trust-v1, onboarding-v1,
+   * scheduled-shared-v1).
+   */
   public static final List<String> FEATURE_PATHS =
       List.of(
           "/api/v1/rides/**",
+          "/api/v1/scheduled-rides/**",
+          "/api/v1/shared-rides/**",
           "/api/v1/rider/**",
           "/api/v1/driver/**",
           "/api/v1/wallet/**",
@@ -64,6 +70,8 @@ public class AccountSuspensionInterceptor implements HandlerInterceptor {
   private static final Pattern SOS = Pattern.compile("/api/v1/rides/" + ID + "/sos");
   private static final Pattern RIDER_RIDE =
       Pattern.compile("/api/v1/rides/" + ID + "(/cancellation-quote|/cancel|/route)?");
+  private static final Pattern SHARED_RIDE =
+      Pattern.compile("/api/v1/shared-rides/" + ID + "(/leave-quote|/leave)?");
   private static final Pattern CHAT =
       Pattern.compile("/api/v1/rides/" + ID + "/chat(/messages|/read)?");
   private static final Pattern DRIVER_RIDE = Pattern.compile("/api/v1/driver/rides/" + ID);
@@ -107,6 +115,12 @@ public class AccountSuspensionInterceptor implements HandlerInterceptor {
           tail == null || "/cancellation-quote".equals(tail)
               ? get
               : "/cancel".equals(tail) ? post : "PUT".equals(method);
+      return allowedMethod && rideParty(userId, matcher.group(1), RideParty.RIDER);
+    }
+    if ((matcher = SHARED_RIDE.matcher(path)).matches()) {
+      // A member finishing an in-flight shared ride: its view, and leaving it (the shared-ride
+      // cancel). Before dispatch nothing is in flight, so browse / join / start stay refused.
+      boolean allowedMethod = "/leave".equals(matcher.group(2)) ? post : get;
       return allowedMethod && rideParty(userId, matcher.group(1), RideParty.RIDER);
     }
     if ((matcher = CHAT.matcher(path)).matches()) {
