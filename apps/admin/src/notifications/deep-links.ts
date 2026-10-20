@@ -4,19 +4,40 @@ import type { DeepLink } from '../api/notifications';
 export const NOTIFICATION_CENTER_PATH = '/notifications';
 export const NOTIFICATION_PREFERENCES_PATH = '/notifications/preferences';
 
+/** The live ops map (UC-A-19/20), where an SOS alert is handled. */
+export const LIVE_OPS_PATH = '/live-ops';
+
+/** The live map opened on an SOS: its region and ride when the link names them. */
+function liveOpsPath(params: Record<string, string>): string {
+  const query = new URLSearchParams();
+  if (params.regionId) {
+    query.set('region', params.regionId);
+  }
+  if (params.rideId) {
+    query.set('ride', params.rideId);
+  }
+  const search = query.toString();
+  return search ? `${LIVE_OPS_PATH}?${search}` : LIVE_OPS_PATH;
+}
+
 /**
  * Deep-link catalog → admin routes (UC-S-11). The contract's catalog
  * (realtime-v1.yaml) is `{screen, params}`; "unknown screens open the
  * notification center".
  *
- * Today the catalog only names the center itself plus driver-app screens
- * (`driver_application`, `driver_documents`, `driver_vehicles`) — those are
- * a driver's OWN screens with no admin counterpart, so in this client they
- * fall back to the center like any unknown screen. Later milestones add
- * admin-relevant screens (e.g. M7 `ride`, M10 SOS) as entries here.
+ * The admin screens: the center itself, and the live ops map for the SAFE-01
+ * SOS alert (`live_ops`, also accepted as `sos`) — a tap on the safety push,
+ * or on its center row, lands where the alert is acknowledged (V1 audit W6).
+ * The background web push opens the same-origin `/live-ops` URL the backend
+ * sets as its webpush link; that route is the same page. Driver-app screens
+ * (`driver_application`, `driver_documents`, `driver_vehicles`) and rider
+ * screens (`ride`, `chat`, …) have no admin counterpart and fall back to the
+ * center like any unknown screen.
  */
 const ADMIN_SCREENS: Record<string, (params: Record<string, string>) => string | null> = {
   notifications: () => NOTIFICATION_CENTER_PATH,
+  live_ops: liveOpsPath,
+  sos: liveOpsPath,
 };
 
 /** The admin route a notification's link opens; anything unmapped opens the center. */

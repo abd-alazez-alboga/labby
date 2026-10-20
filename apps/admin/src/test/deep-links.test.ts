@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deepLinkFromPushData,
   deepLinkToPath,
+  LIVE_OPS_PATH,
   NOTIFICATION_CENTER_PATH,
 } from '../notifications/deep-links';
 
@@ -10,6 +11,18 @@ import {
 describe('admin deep-link mapper', () => {
   it('maps the center screen to the center', () => {
     expect(deepLinkToPath({ screen: 'notifications' })).toBe(NOTIFICATION_CENTER_PATH);
+  });
+
+  it('opens the live ops map for the SOS alert (SAFE-01, V1 audit W6)', () => {
+    for (const screen of ['live_ops', 'sos']) {
+      expect(deepLinkToPath({ screen, params: { regionId: 'region-1', rideId: 'r-1' } })).toBe(
+        `${LIVE_OPS_PATH}?region=region-1&ride=r-1`,
+      );
+      expect(deepLinkToPath({ screen, params: { rideId: 'r-1' } })).toBe(
+        `${LIVE_OPS_PATH}?ride=r-1`,
+      );
+      expect(deepLinkToPath({ screen })).toBe(LIVE_OPS_PATH);
+    }
   });
 
   it('opens the center for a missing link', () => {
