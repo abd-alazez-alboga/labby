@@ -17,6 +17,7 @@ import com.labby.backend.dto.CreateAdminResponseDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.AdminCreationMode;
 import com.labby.backend.enums.Language;
+import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
@@ -32,6 +33,7 @@ import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.AdminAccountServiceImpl;
 import com.labby.backend.service.AuditService;
+import com.labby.backend.service.NotificationService;
 import com.labby.backend.service.OtpService;
 import com.labby.backend.service.SuperAdminGuard;
 import com.labby.backend.util.RbacIds;
@@ -59,6 +61,7 @@ class AdminAccountServiceImplTest {
   @Mock private AuditService auditService;
   @Mock private OtpService otpService;
   @Mock private PasswordEncoder passwordEncoder;
+  @Mock private NotificationService notificationService;
 
   private AdminAccountServiceImpl service;
 
@@ -72,7 +75,8 @@ class AdminAccountServiceImplTest {
             auditService,
             otpService,
             passwordEncoder,
-            new SuperAdminGuard(roleAssignmentRepository));
+            new SuperAdminGuard(roleAssignmentRepository),
+            notificationService);
   }
 
   private static RbacRole role(UUID id, String name) {
@@ -295,6 +299,32 @@ class AdminAccountServiceImplTest {
     verify(auditService)
         .record(
             eq(ACTOR), eq("admin.reactivate"), eq("admin"), eq(userId.toString()), any(), any());
+  }
+
+  @Test
+  @DisplayName("V1 audit W10: deactivate / reactivate notify the admin with the note, once")
+  void shouldNotifyAdminOfRoleStateChanges() {
+    UUID userId = UUID.randomUUID();
+    RoleAssignment assignment = adminAssignment(userId, RbacIds.SUPPORT_ROLE_ID, RoleState.ACTIVE);
+    when(roleAssignmentRepository.findByUserIdAndRole(userId, Role.ADMIN))
+        .thenReturn(Optional.of(assignment));
+    when(rbacRoleRepository.findById(RbacIds.SUPPORT_ROLE_ID))
+        .thenReturn(Optional.of(role(RbacIds.SUPPORT_ROLE_ID, "Support")));
+    when(userRepository.findById(userId))
+        .thenReturn(Optional.of(user(userId, AccountState.ACTIVE)));
+    stubAssignmentSave();
+
+    service.deactivate(ACTOR, userId, "Left the team");
+    verify(notificationService)
+        .queue(
+            userId,
+            NotificationEvent.ROLE_SUSPENDED,
+            java.util.Map.of("role", "admin", "note", "Left the team"));
+    service.deactivate(ACTOR, userId, "again"); // a no-op: no second notice
+    service.reactivate(ACTOR, userId, null);
+    verify(notificationService)
+        .queue(userId, NotificationEvent.ROLE_REACTIVATED, java.util.Map.of("role", "admin"));
+    org.mockito.Mockito.verifyNoMoreInteractions(notificationService);
   }
 
   @Test

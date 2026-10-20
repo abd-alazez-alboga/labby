@@ -85,7 +85,11 @@ public enum NotificationEvent {
    * and minRatedRides (low_rating — the rule that fired).
    */
   ROLE_SUSPENDED("account.role_suspended"),
-  /** To the user whose role an admin reactivated (USR-06). Params: role, note. */
+  /**
+   * To the user whose role an admin reactivated (USR-06). Params: role, note. V1 audit W10: also
+   * role {@code admin} (the admin role reactivated, note optional) — and {@link #ROLE_SUSPENDED}
+   * with role {@code admin} for a deactivation.
+   */
   ROLE_REACTIVATED("account.role_reactivated"),
   /** To the user whose whole account an admin suspended (USR-06 "deactivate"). Params: note. */
   ACCOUNT_SUSPENDED("account.suspended"),

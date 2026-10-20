@@ -52,4 +52,26 @@ public interface AdminAccountService {
    * @return the updated admin account
    */
   AdminAccountDto reactivate(UUID actorUserId, UUID userId);
+
+  /**
+   * {@link #deactivate(UUID, UUID)}, and the admin is notified (account category, EN + AR) with the
+   * optional note when their admin role actually changed state (V1 audit W10, USR-04).
+   *
+   * @param actorUserId the acting admin (audited)
+   * @param userId the target admin's user id
+   * @param note the reason shown to the admin, or null
+   * @return the updated admin account
+   */
+  AdminAccountDto deactivate(UUID actorUserId, UUID userId, String note);
+
+  /**
+   * {@link #reactivate(UUID, UUID)}, and the admin is notified with the optional note when their
+   * admin role actually changed state (V1 audit W10, USR-04).
+   *
+   * @param actorUserId the acting admin (audited)
+   * @param userId the target admin's user id
+   * @param note the reason shown to the admin, or null
+   * @return the updated admin account
+   */
+  AdminAccountDto reactivate(UUID actorUserId, UUID userId, String note);
 }

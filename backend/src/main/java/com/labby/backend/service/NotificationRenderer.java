@@ -869,6 +869,9 @@ public class NotificationRenderer {
    * link — a push tap opens the notification center.
    */
   private static Rendered roleSuspended(NotificationEvent event, Map<String, Object> params) {
+    if (isAdminRole(params)) {
+      return adminRoleState(event, params, false);
+    }
     boolean driver = "driver".equals(text(params.get("role")));
     String titleEn = driver ? "Driver account suspended" : "Rider account suspended";
     String titleAr = driver ? "تم إيقاف حساب السائق" : "تم إيقاف حساب الراكب";
@@ -902,6 +905,9 @@ public class NotificationRenderer {
 
   /** USR-06: an admin lifted a role suspension, with the admin's reason. */
   private static Rendered roleReactivated(NotificationEvent event, Map<String, Object> params) {
+    if (isAdminRole(params)) {
+      return adminRoleState(event, params, true);
+    }
     boolean driver = "driver".equals(text(params.get("role")));
     return account(
         event,
@@ -912,6 +918,36 @@ public class NotificationRenderer {
         driver ? "أُعيد تفعيل حساب السائق" : "أُعيد تفعيل حساب الراكب",
         "أصبح حساب %s الخاص بك فعّالاً من جديد. السبب: %s"
             .formatted(driver ? "السائق" : "الراكب", text(params.get("note"))));
+  }
+
+  private static boolean isAdminRole(Map<String, Object> params) {
+    return "admin".equals(text(params.get("role")));
+  }
+
+  /**
+   * V1 audit W10 (USR-04): an admin's admin role was deactivated / reactivated, with the optional
+   * note — to the admin dashboard.
+   */
+  private static Rendered adminRoleState(
+      NotificationEvent event, Map<String, Object> params, boolean active) {
+    String note = text(params.get("note"));
+    String reasonEn = note.isEmpty() ? "" : " Reason: " + note;
+    String reasonAr = note.isEmpty() ? "" : " السبب: " + note;
+    return active
+        ? account(
+            event,
+            NotificationAudience.ADMIN,
+            "Admin access restored",
+            "Your Labby admin access is active again." + reasonEn,
+            "أُعيد تفعيل صلاحيات الإدارة",
+            "أصبحت صلاحياتك الإدارية في لبي فعّالة من جديد." + reasonAr)
+        : account(
+            event,
+            NotificationAudience.ADMIN,
+            "Admin access deactivated",
+            "Your Labby admin access has been deactivated." + reasonEn,
+            "تم إيقاف صلاحيات الإدارة",
+            "تم إيقاف صلاحياتك الإدارية في لبي." + reasonAr);
   }
 
   /** REP-02: the outcome of the reporter's report — never the internal notes. */

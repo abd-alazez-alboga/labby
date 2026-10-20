@@ -1,6 +1,7 @@
 package com.labby.backend.controller;
 
 import com.labby.backend.dto.AdminAccountDto;
+import com.labby.backend.dto.AdminStateNoteRequestDto;
 import com.labby.backend.dto.ChangeAdminRoleRequestDto;
 import com.labby.backend.dto.CreateAdminRequestDto;
 import com.labby.backend.dto.CreateAdminResponseDto;
@@ -82,25 +83,35 @@ public class AdminAccountsController {
    * Deactivates an admin (UC-A-02).
    *
    * @param userId the target admin's user id
+   * @param request the optional note shown to the admin (V1 audit W10)
    * @return 200 with the updated admin
    */
   @PostMapping("/{userId}/deactivate")
   @PreAuthorize("hasAuthority('admins:manage')")
   @Operation(summary = "Deactivate an admin")
-  public ResponseEntity<AdminAccountDto> deactivate(@PathVariable UUID userId) {
-    return ResponseEntity.ok(adminAccountService.deactivate(SecurityUtils.currentUserId(), userId));
+  public ResponseEntity<AdminAccountDto> deactivate(
+      @PathVariable UUID userId,
+      @Valid @RequestBody(required = false) AdminStateNoteRequestDto request) {
+    return ResponseEntity.ok(
+        adminAccountService.deactivate(
+            SecurityUtils.currentUserId(), userId, request == null ? null : request.note()));
   }
 
   /**
    * Reactivates a deactivated admin (UC-A-02).
    *
    * @param userId the target admin's user id
+   * @param request the optional note shown to the admin (V1 audit W10)
    * @return 200 with the updated admin
    */
   @PostMapping("/{userId}/reactivate")
   @PreAuthorize("hasAuthority('admins:manage')")
   @Operation(summary = "Reactivate a deactivated admin")
-  public ResponseEntity<AdminAccountDto> reactivate(@PathVariable UUID userId) {
-    return ResponseEntity.ok(adminAccountService.reactivate(SecurityUtils.currentUserId(), userId));
+  public ResponseEntity<AdminAccountDto> reactivate(
+      @PathVariable UUID userId,
+      @Valid @RequestBody(required = false) AdminStateNoteRequestDto request) {
+    return ResponseEntity.ok(
+        adminAccountService.reactivate(
+            SecurityUtils.currentUserId(), userId, request == null ? null : request.note()));
   }
 }

@@ -8,6 +8,7 @@ import com.labby.backend.dto.RoleSummaryDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.AdminCreationMode;
 import com.labby.backend.enums.Language;
+import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
@@ -23,6 +24,7 @@ import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.util.RbacIds;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +54,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
   private final OtpService otpService;
   private final PasswordEncoder passwordEncoder;
   private final SuperAdminGuard superAdminGuard;
+  private final NotificationService notificationService;
 
   @Override
   @Transactional(readOnly = true)
@@ -178,6 +181,38 @@ public class AdminAccountServiceImpl implements AdminAccountService {
           stateSnapshot(assignment, role));
     }
     return toDto(requireUser(userId), assignment, role);
+  }
+
+  @Override
+  @Transactional
+  public AdminAccountDto deactivate(UUID actorUserId, UUID userId, String note) {
+    boolean wasActive = requireAdminAssignment(userId).getState() == RoleState.ACTIVE;
+    AdminAccountDto result = deactivate(actorUserId, userId);
+    if (wasActive) {
+      notifyAdminRoleState(userId, NotificationEvent.ROLE_SUSPENDED, note);
+    }
+    return result;
+  }
+
+  @Override
+  @Transactional
+  public AdminAccountDto reactivate(UUID actorUserId, UUID userId, String note) {
+    boolean wasSuspended = requireAdminAssignment(userId).getState() == RoleState.SUSPENDED;
+    AdminAccountDto result = reactivate(actorUserId, userId);
+    if (wasSuspended) {
+      notifyAdminRoleState(userId, NotificationEvent.ROLE_REACTIVATED, note);
+    }
+    return result;
+  }
+
+  /** V1 audit W10 (USR-04): the admin hears about their admin role's state change. */
+  private void notifyAdminRoleState(UUID userId, NotificationEvent event, String note) {
+    Map<String, Object> params = new LinkedHashMap<>();
+    params.put("role", "admin");
+    if (note != null && !note.isBlank()) {
+      params.put("note", note.trim());
+    }
+    notificationService.queue(userId, event, params);
   }
 
   private CreateAdminResponseDto createFreshAdmin(

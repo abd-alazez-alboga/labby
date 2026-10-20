@@ -108,4 +108,23 @@ class NotificationRendererAuditFixesTest {
     assertThat(trip.titleEn()).isEqualTo("Your arrival is delayed");
     assertThat(trip.bodyAr()).contains("7 دقائق");
   }
+
+  @Test
+  @DisplayName("W10: an admin's deactivation / reactivation renders to the admin, note optional")
+  void shouldRenderAdminRoleStateChanges() {
+    Rendered off =
+        renderer
+            .render("account.role_suspended", Map.of("role", "admin", "note", "Left the team"))
+            .orElseThrow();
+    assertThat(off.audience()).isEqualTo(NotificationAudience.ADMIN);
+    assertThat(off.category()).isEqualTo(com.labby.backend.enums.NotificationCategory.ACCOUNT);
+    assertThat(off.titleEn()).isEqualTo("Admin access deactivated");
+    assertThat(off.bodyEn()).endsWith("Reason: Left the team");
+    assertThat(off.bodyAr()).contains("Left the team");
+    Rendered on =
+        renderer.render("account.role_reactivated", Map.of("role", "admin")).orElseThrow();
+    assertThat(on.audience()).isEqualTo(NotificationAudience.ADMIN);
+    assertThat(on.bodyEn()).isEqualTo("Your Labby admin access is active again.");
+    assertThat(on.bodyAr()).doesNotContain("السبب");
+  }
 }
