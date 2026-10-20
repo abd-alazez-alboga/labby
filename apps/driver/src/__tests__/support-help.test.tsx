@@ -196,6 +196,23 @@ describe("support home + help center (UC-S-19/21)", () => {
     expect(contract.requests.filter((r) => r.path.includes("/help/search"))).toHaveLength(1);
   });
 
+  it("search results name their category (I55)", async () => {
+    const search = "GET /api/v1/help/search?q=refund&lang=en";
+    await renderSupportApp(
+      {
+        [search]: ok([helpArticleFixture()]),
+        [HELP_CATEGORIES]: ok([helpCategoryFixture()]),
+      },
+      { initialUrl: "/help-search" },
+    );
+    await screen.findByTestId("help-search-screen");
+    fireEvent.changeText(screen.getByTestId("help-search-input"), "refund");
+
+    expect(
+      await screen.findByTestId(`help-search-result-${ARTICLE_REFUND}`),
+    ).toHaveTextContent("Payments & wallet", { exact: false });
+  });
+
   it("an empty search steers to creating a ticket (UC-S-21 A1)", async () => {
     await renderSupportApp(
       { "GET /api/v1/help/search?q=teleport&lang=en": ok([]) },

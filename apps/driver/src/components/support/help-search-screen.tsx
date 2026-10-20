@@ -3,8 +3,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
-import { searchHelp } from "../../api/support";
-import type { HelpArticleSummary } from "../../api/support-types";
+import { getHelpCategories, searchHelp } from "../../api/support";
+import type {
+  HelpArticleSummary,
+  HelpCategory,
+} from "../../api/support-types";
 import { HELP_QUERY_MAX, HELP_QUERY_MIN } from "../../api/support-types";
 import { pluralCategory } from "../../money/format";
 import { failureKindOf } from "../../onboarding/server-errors";
@@ -43,10 +46,19 @@ export function HelpSearchScreen() {
   const [query, setQuery] = useState("");
   const [retryTick, setRetryTick] = useState(0);
   const [results, setResults] = useState<Results>({ status: "idle" });
+  // I55 (board S14HelpSearch): each result names its category.
+  const [categories, setCategories] = useState<HelpCategory[]>([]);
   const mounted = useRef(true);
   const requestSeq = useRef(0);
   useEffect(() => {
     mounted.current = true;
+    getHelpCategories()
+      .then((found) => {
+        if (mounted.current) setCategories(found);
+      })
+      .catch(() => {
+        // Best-effort: results still show without their category.
+      });
     return () => {
       mounted.current = false;
     };
@@ -141,6 +153,12 @@ export function HelpSearchScreen() {
                 <ListRow
                   key={article.helpArticleId}
                   title={article.title[lang]}
+                  subtitle={
+                    categories.find(
+                      (category) =>
+                        category.helpCategoryId === article.helpCategoryId,
+                    )?.name[lang] ?? null
+                  }
                   chevron
                   onPress={() =>
                     router.push({
