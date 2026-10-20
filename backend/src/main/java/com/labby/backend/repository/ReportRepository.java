@@ -30,6 +30,14 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
   Page<Report> findByStatusAndReportedUserIdOrderByCreatedAtAsc(
       ReportStatus status, UUID reportedUserId, Pageable pageable);
 
+  /** The admin queue for one reporter (reports the user filed, either side), oldest first. */
+  Page<Report> findByStatusAndReporterUserIdOrderByCreatedAtAsc(
+      ReportStatus status, UUID reporterUserId, Pageable pageable);
+
+  /** The admin queue for one reporter and one reported user, oldest first. */
+  Page<Report> findByStatusAndReporterUserIdAndReportedUserIdOrderByCreatedAtAsc(
+      ReportStatus status, UUID reporterUserId, UUID reportedUserId, Pageable pageable);
+
   long countByReportedUserIdAndReportedRole(UUID reportedUserId, RideParty reportedRole);
 
   long countByReportedUserIdAndReportedRoleAndStatus(

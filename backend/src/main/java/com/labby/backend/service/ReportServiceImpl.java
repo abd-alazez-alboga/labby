@@ -203,7 +203,8 @@ public class ReportServiceImpl implements ReportService {
 
   @Override
   @Transactional(readOnly = true)
-  public AdminReportPageDto adminList(String status, UUID reportedUserId, int page, int size) {
+  public AdminReportPageDto adminList(
+      String status, UUID reportedUserId, UUID reporterUserId, int page, int size) {
     ReportStatus statusFilter;
     try {
       statusFilter =
@@ -212,11 +213,22 @@ public class ReportServiceImpl implements ReportService {
       throw new InvalidRequestException("Unknown status: " + status);
     }
     PageRequest pageRequest = PageRequest.of(page, size);
-    Page<Report> reports =
-        reportedUserId == null
-            ? reportRepository.findByStatusOrderByCreatedAtAsc(statusFilter, pageRequest)
-            : reportRepository.findByStatusAndReportedUserIdOrderByCreatedAtAsc(
-                statusFilter, reportedUserId, pageRequest);
+    Page<Report> reports;
+    if (reporterUserId != null && reportedUserId != null) {
+      reports =
+          reportRepository.findByStatusAndReporterUserIdAndReportedUserIdOrderByCreatedAtAsc(
+              statusFilter, reporterUserId, reportedUserId, pageRequest);
+    } else if (reporterUserId != null) {
+      reports =
+          reportRepository.findByStatusAndReporterUserIdOrderByCreatedAtAsc(
+              statusFilter, reporterUserId, pageRequest);
+    } else if (reportedUserId != null) {
+      reports =
+          reportRepository.findByStatusAndReportedUserIdOrderByCreatedAtAsc(
+              statusFilter, reportedUserId, pageRequest);
+    } else {
+      reports = reportRepository.findByStatusOrderByCreatedAtAsc(statusFilter, pageRequest);
+    }
     Map<UUID, User> users = users(reports.getContent());
     return new AdminReportPageDto(
         reports.getContent().stream().map(report -> toSummary(report, users)).toList(),

@@ -312,6 +312,13 @@ paths:
           description: Default `open`
           schema: { $ref: '#/components/schemas/ReportStatus' }
         - { name: reportedUserId, in: query, schema: { type: string, format: uuid } }
+        - name: reporterUserId
+          in: query
+          description: >
+            Reports this user FILED, as rider or driver (review V1 W4, the profile's "Reports
+            made"). Same status rule as the queue (one status per call, default `open`); combines
+            with `reportedUserId`.
+          schema: { type: string, format: uuid }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/Size' }
       responses:

@@ -34,6 +34,7 @@ public class AdminReportsController {
    *
    * @param status open (default), substantiated or unsubstantiated
    * @param reportedUserId optional reported-user filter
+   * @param reporterUserId optional reporter filter (the reports the user filed, review V1 W4)
    * @param page zero-based page
    * @param size page size (1..100)
    * @return 200 with one page
@@ -44,11 +45,12 @@ public class AdminReportsController {
   public ResponseEntity<AdminReportPageDto> list(
       @RequestParam(required = false) String status,
       @RequestParam(required = false) UUID reportedUserId,
+      @RequestParam(required = false) UUID reporterUserId,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
     return ResponseEntity.ok(
         reportService.adminList(
-            status, reportedUserId, Math.max(0, page), Math.clamp(size, 1, 100)));
+            status, reportedUserId, reporterUserId, Math.max(0, page), Math.clamp(size, 1, 100)));
   }
 
   /**

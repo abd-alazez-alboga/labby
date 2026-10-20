@@ -63,11 +63,13 @@ public interface ReportService {
    *
    * @param status {@code open} (default), {@code substantiated} or {@code unsubstantiated}
    * @param reportedUserId optional reported-user filter
+   * @param reporterUserId optional reporter filter (reports the user filed, as rider or driver)
    * @param page zero-based page
    * @param size page size
    * @return the page
    */
-  AdminReportPageDto adminList(String status, UUID reportedUserId, int page, int size);
+  AdminReportPageDto adminList(
+      String status, UUID reportedUserId, UUID reporterUserId, int page, int size);
 
   /**
    * One report with photos and both parties' history.
