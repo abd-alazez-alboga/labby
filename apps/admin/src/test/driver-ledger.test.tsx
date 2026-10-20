@@ -13,7 +13,7 @@ import {
   stubMoneyRoutes,
 } from './money-fixtures';
 import { bodyOf } from './onboarding-fixtures';
-import { jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
+import { adminUser, jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
 
 function settlementResponse(overrides: Partial<SettlementResponse> = {}): SettlementResponse {
   return {
@@ -50,6 +50,34 @@ describe('driver ledger page', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('names the driver instead of the ID when arriving without a name (I80)', async () => {
+    const viewer = adminUser(['settlements:view', 'users:view']);
+    seedStoredSession(sessionFor(viewer));
+    stubMoneyRoutes(viewer, (method, path) =>
+      method === 'GET' && path === `/api/v1/admin/users/${DRIVER_ID}/trust`
+        ? jsonResponse(200, {
+            userId: DRIVER_ID,
+            name: 'Khaled Darwish',
+            accountState: 'active',
+            roles: [
+              {
+                role: 'driver',
+                state: 'active',
+                liveRatingCount: 0,
+                openFlags: [],
+                activeWarnings: [],
+              },
+            ],
+          })
+        : null,
+    );
+    renderShell();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Khaled Darwish' })).toBeVisible();
+    expect(screen.getByText('Driver · active')).toBeInTheDocument();
+    expect(screen.queryByText(DRIVER_ID)).toBeNull();
   });
 
   it('shows balance, floor, the warning chip and typed entries', async () => {

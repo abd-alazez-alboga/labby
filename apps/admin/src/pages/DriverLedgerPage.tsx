@@ -16,6 +16,7 @@ import { BackLink, DataTable, KpiRow, KpiTile, PageHeader, ReviewLayout, TablePa
 import { formatDay, formatNumber, formatSigned } from './money/money-format';
 import { FloorStatusChip, Money, RideRef } from './money/MoneyUi';
 import { useCurrencyLabel } from './money/use-currency-label';
+import { useUserIdentity } from './money/use-user-identity';
 import { SettlementPanel } from './money/SettlementPanel';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
@@ -39,6 +40,7 @@ export default function DriverLedgerPage() {
   const currencyLabel = useCurrencyLabel();
 
   const passedName = (location.state as { name?: string } | null)?.name;
+  const { identity, summary } = useUserIdentity(driverUserId);
 
   const [view, setView] = useState<DriverLedgerView | null>(null);
   const [loadError, setLoadError] = useState<FailureKind | null>(null);
@@ -181,8 +183,10 @@ export default function DriverLedgerPage() {
     <section className="page">
       {backLink}
       <PageHeader
-        title={passedName ?? t('money.ledger.title')}
-        description={<span dir="ltr">{driverUserId}</span>}
+        title={<bdi>{identity?.name ?? passedName ?? t('money.ledger.title')}</bdi>}
+        description={
+          summary ?? (identity || passedName ? null : <span dir="ltr">{driverUserId}</span>)
+        }
         meta={selected ? <FloorStatusChip status={selected.status} /> : null}
       />
 

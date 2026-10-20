@@ -19,7 +19,7 @@ import {
   walletView,
 } from './money-fixtures';
 import { bodyOf } from './onboarding-fixtures';
-import { jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
+import { adminUser, jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
 
 const CREDITS = `/api/v1/admin/users/${USER_ID}/wallet/credits`;
 const OLD_RIDE = '00000000-0000-4000-8000-00000000cc99';
@@ -43,6 +43,34 @@ describe('user wallet page', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('names the user, their role and state on a cold load instead of the ID (I79)', async () => {
+    const viewer = adminUser(['wallets:view', 'users:view']);
+    seedStoredSession(sessionFor(viewer));
+    stubMoneyRoutes(viewer, (method, path) =>
+      method === 'GET' && path === `/api/v1/admin/users/${USER_ID}/trust`
+        ? jsonResponse(200, {
+            userId: USER_ID,
+            name: 'Rana Khoury',
+            accountState: 'active',
+            roles: [
+              {
+                role: 'rider',
+                state: 'active',
+                liveRatingCount: 0,
+                openFlags: [],
+                activeWarnings: [],
+              },
+            ],
+          })
+        : null,
+    );
+    renderShell();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rana Khoury' })).toBeVisible();
+    expect(screen.getByText('Rider · active')).toBeInTheDocument();
+    expect(screen.queryByText(USER_ID)).toBeNull();
   });
 
   it('shows balances, the pending due, and the typed history with ride links', async () => {

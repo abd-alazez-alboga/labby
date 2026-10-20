@@ -1081,6 +1081,18 @@
       "successOk": "Settlement recorded — new balance {{balance}}.",
       "successResumed": "Settlement recorded — new balance {{balance}}. Above the floor again: ride offers resume and the driver is notified.",
       "successBlocked": "Settlement recorded — new balance {{balance}}. Still at or below the floor — offers stay paused."
+    },
+    "identity": {
+      "role": {
+        "rider": "Rider",
+        "driver": "Driver",
+        "admin": "Admin"
+      },
+      "state": {
+        "active": "active",
+        "suspended": "suspended",
+        "deleted": "deleted"
+      }
     }
   },
   "surgeLive": {

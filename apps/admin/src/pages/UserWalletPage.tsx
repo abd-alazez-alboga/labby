@@ -19,6 +19,7 @@ import { formatDay, formatSigned } from './money/money-format';
 import { Money, RideRef } from './money/MoneyUi';
 import { UserProfileTabs } from './trust/TrustUi';
 import { useCurrencyLabel } from './money/use-currency-label';
+import { useUserIdentity } from './money/use-user-identity';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
 
@@ -64,6 +65,7 @@ export default function UserWalletPage() {
   const canManage = can('wallets:manage');
   const canRides = can('rides:view');
   const currencyLabel = useCurrencyLabel();
+  const { identity, summary } = useUserIdentity(userId);
 
   // The lookup page passes the display name along; a cold URL has none. The
   // M14 ticket remedy deep link also pre-fills the grant reason (UC-A-21 A2).
@@ -187,10 +189,10 @@ export default function UserWalletPage() {
     <section className="page">
       {backLink}
       <PageHeader
-        title={passedName ?? t('money.wallet.title')}
-        description={<span dir="ltr">{userId}</span>}
+        title={<bdi>{identity?.name ?? passedName ?? t('money.wallet.title')}</bdi>}
+        description={summary ?? (identity || passedName ? null : <span dir="ltr">{userId}</span>)}
       />
-      <UserProfileTabs userId={userId} name={passedName} />
+      <UserProfileTabs userId={userId} name={identity?.name ?? passedName} />
 
       <ReviewLayout
         aside={
