@@ -43,7 +43,8 @@ info:
     **Deep links (UC-S-11).** `link` is `{screen, params}` from a fixed catalog the clients map
     to routes: `driver_application`, `driver_documents` (params: `documentType?`),
     `driver_vehicles`, `notifications`; M7 adds `ride` (params: `rideId`) and `ride_offer` (params: `offerId`) —
-    see rides-v1.yaml — and later milestones more screens.
+    see rides-v1.yaml — and later milestones more screens (V1 audit W6: `live_ops`, params
+    `rideId`, admin dashboard only — comms-v1.yaml SOS).
     Unknown screens open the notification center. A notification with nothing to act on in the
     app has no link (`link: null`, no `screen` in the push) and a push tap opens the center: e.g.
     `driver.suspended` links to `driver_documents` only when its reason is `document_expired`.

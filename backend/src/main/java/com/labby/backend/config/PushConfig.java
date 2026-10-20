@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -30,6 +31,10 @@ public class PushConfig {
 
   private static final String FIREBASE_APP_NAME = "labby";
 
+  /** The CORS browser origins; the first is the admin dashboard (V1 audit W6 push links). */
+  @Value("${labby.cors.allowed-origins:}")
+  private String allowedOrigins;
+
   /**
    * The push sender.
    *
@@ -42,7 +47,12 @@ public class PushConfig {
       log.info("Firebase credentials not configured: pushes are logged, not sent");
       return new LoggingPushSender();
     }
-    return new FcmPushSender(FirebaseMessaging.getInstance(firebaseApp(notificationProperties)));
+    // V1 audit W6: the admin dashboard is the first allowed browser origin (CORS config); its
+    // pushes link back into it.
+    String adminOrigin = allowedOrigins == null ? "" : allowedOrigins.split(",")[0].trim();
+    return new FcmPushSender(
+        FirebaseMessaging.getInstance(firebaseApp(notificationProperties)),
+        adminOrigin.isEmpty() ? null : adminOrigin);
   }
 
   private static FirebaseApp firebaseApp(NotificationProperties properties) {

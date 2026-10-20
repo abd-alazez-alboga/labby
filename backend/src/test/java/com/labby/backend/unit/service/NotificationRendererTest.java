@@ -516,7 +516,9 @@ class NotificationRendererTest {
     assertThat(sos.audience()).isEqualTo(NotificationAudience.ADMIN);
     assertThat(sos.bodyEn()).contains("rider");
     assertThat(sos.bodyAr()).contains("راكب");
-    assertThat(sos.linkScreen()).isNull();
+    // V1 audit W6: the SOS alert deep-links to the admin live-ops page.
+    assertThat(sos.linkScreen()).isEqualTo("live_ops");
+    assertThat(sos.linkParams()).containsEntry("rideId", "11111111-1111-1111-1111-111111111111");
     Rendered sosDriver = renderer.render("sos.triggered", Map.of("role", "driver")).orElseThrow();
     assertThat(sosDriver.bodyEn()).contains("driver");
     assertThat(sosDriver.bodyAr()).contains("سائق");

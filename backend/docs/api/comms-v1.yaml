@@ -90,6 +90,11 @@ info:
     (audited); the event itself can never be deleted or altered. Of two concurrent acknowledges
     exactly one wins; the other is 409 `already_acknowledged`. SOS pushes are dispatched ahead of
     every other queued notification, and a dispatch pass starts right after the SOS commits.
+    **Push link (V1 audit W6).** The `sos.triggered` notification deep-links to the admin
+    live-ops page: `link = {screen: live_ops, params: {rideId}}` (push data `screen` /
+    `params`), and the FCM web push sets `webpush.fcm_options.link` to the dashboard's live-ops
+    URL — `<first labby.cors.allowed-origins origin>/live-ops`, only when that origin is
+    `https://` (FCM refuses other links) — so a background tap opens live ops.
 
 
     **Live ops map feed (ADM-03, UC-A-19).** `GET /admin/regions/{regionId}/live-ops` is one

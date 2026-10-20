@@ -715,6 +715,9 @@ public class NotificationRenderer {
                 .formatted(leadAr(minutes)));
   }
 
+  /** V1 audit W6: the admin live-ops page (deep-link screen of the SOS alert). */
+  public static final String SCREEN_LIVE_OPS = "live_ops";
+
   private static boolean isDriver(Map<String, Object> params) {
     return "driver".equals(text(params.get("as")));
   }
@@ -1003,8 +1006,9 @@ public class NotificationRenderer {
   }
 
   /**
-   * SAFE-01: the SOS alert to support admins (category {@code safety} — never muted). The admin
-   * dashboard has no deep-link screen catalog, so a push tap opens the notification center.
+   * SAFE-01: the SOS alert to support admins (category {@code safety} — never muted). V1 audit W6:
+   * it deep-links to the admin live-ops page ({@code live_ops}, params {@code rideId}); the FCM web
+   * push carries the same-origin live-ops URL as its click link ({@link FcmPushSender}).
    */
   private static Rendered sosTriggered(NotificationEvent event, Map<String, Object> params) {
     boolean driver = "driver".equals(text(params.get("role")));
@@ -1018,8 +1022,10 @@ public class NotificationRenderer {
         "تنبيه استغاثة",
         "أطلق %s إشارة استغاثة أثناء رحلة. افتح خريطة العمليات المباشرة الآن."
             .formatted(driver ? "سائق" : "راكب"),
-        null,
-        Map.of());
+        SCREEN_LIVE_OPS,
+        text(params.get("rideId")).isEmpty()
+            ? Map.of()
+            : Map.of("rideId", text(params.get("rideId"))));
   }
 
   /**

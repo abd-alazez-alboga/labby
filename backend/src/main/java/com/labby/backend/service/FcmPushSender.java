@@ -9,10 +9,12 @@ import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.SendResponse;
+import com.google.firebase.messaging.WebpushConfig;
+import com.google.firebase.messaging.WebpushFcmOptions;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -23,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
  * logged.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class FcmPushSender implements PushSender {
 
   /**
@@ -35,7 +36,42 @@ public class FcmPushSender implements PushSender {
   /** FCM's multicast limit. */
   static final int MAX_TOKENS_PER_CALL = 500;
 
+  /**
+   * V1 audit W6: admin deep-link screens → their path in the admin dashboard. A push linking one
+   * gets a web-push click link (same origin as the dashboard), so a background tap on the SOS alert
+   * opens live ops.
+   */
+  static final Map<String, String> ADMIN_WEB_PATHS =
+      Map.of(NotificationRenderer.SCREEN_LIVE_OPS, "/live-ops");
+
   private final FirebaseMessaging firebaseMessaging;
+
+  /** The admin dashboard's https origin, or null (no web-push click links). */
+  private final String adminWebOrigin;
+
+  /**
+   * A sender without web-push click links.
+   *
+   * @param firebaseMessaging the Firebase client
+   */
+  public FcmPushSender(FirebaseMessaging firebaseMessaging) {
+    this(firebaseMessaging, null);
+  }
+
+  /**
+   * A sender whose admin pushes link into the dashboard at {@code adminWebOrigin}. FCM accepts
+   * HTTPS links only, so any other origin (local http dev) disables the links.
+   *
+   * @param firebaseMessaging the Firebase client
+   * @param adminWebOrigin the dashboard origin (e.g. {@code https://admin.example.com}), or null
+   */
+  public FcmPushSender(FirebaseMessaging firebaseMessaging, String adminWebOrigin) {
+    this.firebaseMessaging = firebaseMessaging;
+    this.adminWebOrigin =
+        adminWebOrigin != null && adminWebOrigin.startsWith("https://")
+            ? adminWebOrigin.replaceAll("/+$", "")
+            : null;
+  }
 
   @Override
   public PushResult send(List<String> tokens, PushMessage message) {
@@ -64,8 +100,14 @@ public class FcmPushSender implements PushSender {
   }
 
   private BatchResponse sendChunk(List<String> chunk, PushMessage message) {
+    MulticastMessage.Builder builder = MulticastMessage.builder();
+    String link = webLink(message);
+    if (link != null) {
+      builder.setWebpushConfig(
+          WebpushConfig.builder().setFcmOptions(WebpushFcmOptions.withLink(link)).build());
+    }
     MulticastMessage multicast =
-        MulticastMessage.builder()
+        builder
             .setNotification(
                 Notification.builder().setTitle(message.title()).setBody(message.body()).build())
             .setAndroidConfig(
@@ -81,6 +123,13 @@ public class FcmPushSender implements PushSender {
     } catch (FirebaseMessagingException ex) {
       throw new IllegalStateException("FCM send failed: " + errorCode(ex), ex);
     }
+  }
+
+  /** The dashboard URL a web-push tap opens (V1 audit W6), or null. */
+  String webLink(PushMessage message) {
+    String screen = message.data().get("screen");
+    String path = screen == null ? null : ADMIN_WEB_PATHS.get(screen);
+    return adminWebOrigin == null || path == null ? null : adminWebOrigin + path;
   }
 
   /**
