@@ -66,6 +66,9 @@ labby:
     # Per phone+IP failed-login throttling (NFR-S3).
     login-max-attempts: ${LOGIN_THROTTLE_MAX_ATTEMPTS:10}
     login-window-seconds: ${LOGIN_THROTTLE_WINDOW_SECONDS:900}
+    # Daily purge of expired failed-login counters (V32). Spring cron, operating timezone; "-"
+    # disables it.
+    login-failure-purge-cron: ${LOGIN_FAILURE_PURGE_CRON:0 40 3 * * *}
   otp:
     # AUTH-04 policy values.
     expiry-seconds: ${OTP_EXPIRY_SECONDS:300}

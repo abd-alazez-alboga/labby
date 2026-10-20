@@ -32,11 +32,14 @@ info:
     (`labby.incentives.cron`, operating zone) and every tick pays each region's last FINISHED
     week in that region's own zone, so a region is paid within the first hour of its own Monday
     and a missed tick is caught up by the next one. One award or region that fails is logged
-    and retried on the next tick; it never stops the others.
+    and retried on the next tick; it never stops the others. A finished week is evaluated only
+    during the 24 h after it ends (region zone), so a config edited later never pays it
+    retroactively.
 
     (Q4) The weekly rating is the average of the ratings drivers received on rides COMPLETED
     that week; the reward needs at least `minWeeklyTrips` completed trips that week and an
-    average at or above `minAvgRating` (inclusive).
+    average at or above `minAvgRating` (inclusive). Only ratings given before the week ended
+    count, so the result does not depend on which tick evaluates the week.
 
     (Q5) A trip is a completed ride the driver drove, counted in the ride's region by its
     completion time in that region's zone; every ride kind counts once (a shared ride is one

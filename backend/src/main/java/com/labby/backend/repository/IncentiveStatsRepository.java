@@ -62,7 +62,9 @@ public class IncentiveStatsRepository {
   }
 
   /**
-   * Ratings drivers received on the week's completed rides, per driver (Q4).
+   * Ratings drivers received on the week's completed rides, per driver (Q4) — only ratings given
+   * before the week ended, so the payout does not depend on which hourly tick evaluates the week (a
+   * rating left on Monday for a Sunday ride counts for nothing, as with the single Monday run).
    *
    * @param regionId the region
    * @param from completion lower bound (inclusive)
@@ -75,7 +77,7 @@ public class IncentiveStatsRepository {
     return namedJdbcTemplate.query(
         "SELECT r.driver_user_id, AVG(ra.score) AS average, COUNT(*) AS n FROM rides r"
             + " JOIN ratings ra ON ra.ride_id = r.ride_id AND ra.rated_role = 'driver'"
-            + " AND ra.rated_user_id = r.driver_user_id"
+            + " AND ra.rated_user_id = r.driver_user_id AND ra.created_at < :to"
             + WEEK_RIDES
             + driverClause(driverUserId)
             + " GROUP BY r.driver_user_id",

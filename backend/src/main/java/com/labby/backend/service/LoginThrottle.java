@@ -71,6 +71,17 @@ public class LoginThrottle {
     loginFailureRepository.deletePair(phone, clientIp);
   }
 
+  /**
+   * Deletes the counters whose window has passed, so failed logins for phones that never return do
+   * not accumulate.
+   *
+   * @return rows deleted
+   */
+  @Transactional
+  public int purgeExpired() {
+    return loginFailureRepository.deleteExpired(Instant.now().minusSeconds(windowSeconds));
+  }
+
   private boolean isExpired(LoginFailure window) {
     return window.getWindowStart().plusSeconds(windowSeconds).isBefore(Instant.now());
   }

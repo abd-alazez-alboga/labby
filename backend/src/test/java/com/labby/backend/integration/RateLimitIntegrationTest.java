@@ -21,6 +21,7 @@ class RateLimitIntegrationTest extends AbstractAuthIntegrationTest {
 
   @Autowired private AuthProperties authProperties;
   @Autowired private LoginFailureRepository loginFailureRepository;
+  @Autowired private LoginThrottle loginThrottle;
 
   @Test
   @DisplayName("requesting a second OTP inside the 60s cooldown answers 429")
@@ -124,6 +125,22 @@ class RateLimitIntegrationTest extends AbstractAuthIntegrationTest {
             jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM login_failures WHERE phone = ?", Integer.class, phone))
         .isZero();
+  }
+
+  @Test
+  @DisplayName("the purge deletes only counters whose window has passed")
+  void shouldPurgeExpiredCounters() {
+    String phone = "+963911500007";
+    register(phone, "Secret123!", "Patient");
+    tryLogin(phone, "WrongPass1!", ClientType.RIDER);
+    tryLogin("+963911500008", "WrongPass1!", ClientType.RIDER);
+    jdbcTemplate.update(
+        "UPDATE login_failures SET window_start = now() - interval '901 seconds' WHERE phone = ?",
+        phone);
+
+    assertThat(loginThrottle.purgeExpired()).isEqualTo(1);
+    assertThat(jdbcTemplate.queryForList("SELECT phone FROM login_failures", String.class))
+        .containsExactly("+963911500008");
   }
 
   @Test

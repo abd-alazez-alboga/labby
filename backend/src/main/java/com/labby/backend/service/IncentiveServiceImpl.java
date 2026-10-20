@@ -25,6 +25,7 @@ import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.service.DriverLedgerService.LedgerPosting;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -54,6 +55,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class IncentiveServiceImpl implements IncentiveService {
 
   private static final int RECENT_AWARDS = 8;
+
+  /**
+   * A finished week is evaluated only during this long after it ends in the region's zone: long
+   * enough for the hourly ticks to catch up a missed run, short enough that a region config edited
+   * later in the week never pays the previous week retroactively.
+   */
+  static final Duration EVALUATION_WINDOW = Duration.ofHours(24);
 
   /** The exactly-once key (V31): its violation is a concurrent run that paid first. */
   private static final String WEEK_KEY = "uq_incentive_awards_week";
@@ -139,6 +147,9 @@ public class IncentiveServiceImpl implements IncentiveService {
     }
     ZoneId zone = ZoneId.of(region.getTimeZone());
     Week week = Week.containing(now, zone).previous(zone);
+    if (!now.isBefore(week.to().plus(EVALUATION_WINDOW))) {
+      return 0;
+    }
     int paid = 0;
     for (Award award : awards(region, config, zone, week)) {
       if (IncentivePolicy.money(award.amount()).signum() <= 0) {

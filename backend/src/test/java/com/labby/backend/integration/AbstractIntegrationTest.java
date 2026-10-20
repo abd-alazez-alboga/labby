@@ -60,6 +60,8 @@ public abstract class AbstractIntegrationTest {
     registry.add("labby.support.reminder-cron", () -> "-");
     // The M15 incentive evaluation runs only when tests call its service on their clock.
     registry.add("labby.incentives.cron", () -> "-");
+    // The V32 failed-login purge runs only when tests call LoginThrottle.purgeExpired.
+    registry.add("labby.auth.login-failure-purge-cron", () -> "-");
     // Tests never call the public OSRM server: the discard port refuses connections, so routing
     // takes the straight-line fallback unless a test points the URL at its own stub (M6-T3).
     registry.add("labby.routing.osrm-url", () -> "http://127.0.0.1:9");

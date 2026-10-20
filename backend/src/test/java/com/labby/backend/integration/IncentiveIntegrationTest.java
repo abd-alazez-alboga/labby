@@ -222,6 +222,37 @@ class IncentiveIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(amountOf(fewTrips, "rating")).isNull();
   }
 
+  @Test
+  @DisplayName("one evaluation per week: late ratings and later config edits change nothing")
+  void shouldEvaluateAWeekOnlyInsideItsWindow() {
+    Account lateRated = newDriver();
+    rateTrips(lateRated, 30, 4, 1); // 4.80 counting only in-week ratings
+    // A 1 left on Monday for a Sunday trip would pull the average to 4.17 — it must not count.
+    UUID sundayTrip = trip(lateRated, local(2026, 10, 18, 20, 0));
+    CLOCK.set(local(2026, 10, 19, 10, 0));
+    fixtureRating(sundayTrip, rider.userId(), "rider", lateRated.userId(), "driver", 1);
+    Account belowTier = newDriver();
+    offPeakTrips(belowTier, 35);
+    CLOCK.set(EVALUATION);
+
+    incentiveService.evaluatePreviousWeek(EVALUATION);
+    assertThat(amountOf(lateRated, "rating")).isEqualByComparingTo("20.00");
+    assertThat(amountOf(belowTier, "weekly_trips")).isNull();
+
+    // Wednesday: an admin lowers the first tier to 30 trips; last week is closed (24 h window).
+    jdbcTemplate.update(
+        "UPDATE regions SET incentive_values = jsonb_set(incentive_values,"
+            + " '{weeklyTripBonuses,1,trips}', '30') WHERE region_id = ?",
+        regionId);
+    Instant wednesday = local(2026, 10, 21, 10, 0);
+    CLOCK.set(wednesday);
+    assertThat(incentiveService.evaluatePreviousWeek(wednesday)).isZero();
+    assertThat(amountOf(belowTier, "weekly_trips")).isNull();
+    // Inside the window (Monday 23:00) a tick still runs with the current config: the 31- and
+    // 35-trip drivers now reach the lowered tier — the window bounds how late an edit can apply.
+    assertThat(incentiveService.evaluatePreviousWeek(local(2026, 10, 19, 23, 0))).isEqualTo(2);
+  }
+
   /**
    * {@code trips} off-peak trips; the first ones rated: {@code fives} × 5 then {@code fours} × 4.
    */
@@ -231,6 +262,8 @@ class IncentiveIntegrationTest extends AbstractTrustIntegrationTest {
       UUID rideId = trip(driver, start.plusSeconds(60L * i));
       int score = i < fives ? 5 : i < fives + fours ? 4 : 0;
       if (score > 0) {
+        // Rated as the trip completes, inside the week (only those count — re-audit N1).
+        CLOCK.set(start.plusSeconds(60L * i + 1800));
         fixtureRating(rideId, rider.userId(), "rider", driver.userId(), "driver", score);
       }
     }

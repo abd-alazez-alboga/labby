@@ -45,6 +45,16 @@ public interface LoginFailureRepository extends JpaRepository<LoginFailure, UUID
       @Param("now") Instant now,
       @Param("windowStartCutoff") Instant windowStartCutoff);
 
+  /**
+   * Deletes every counter whose window started before the cutoff (it no longer throttles).
+   *
+   * @param windowStartCutoff {@code now − window}
+   * @return rows deleted
+   */
+  @Modifying
+  @Query("DELETE FROM LoginFailure f WHERE f.windowStart < :windowStartCutoff")
+  int deleteExpired(@Param("windowStartCutoff") Instant windowStartCutoff);
+
   @Modifying
   @Query("DELETE FROM LoginFailure f WHERE f.phone = :phone AND f.clientIp = :clientIp")
   int deletePair(@Param("phone") String phone, @Param("clientIp") String clientIp);
