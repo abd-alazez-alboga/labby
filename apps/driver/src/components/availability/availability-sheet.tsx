@@ -191,11 +191,8 @@ export function AvailabilitySheet({
         </Muted>
       ) : null}
       {online ? <StreamIndicator ctx={ctx} /> : null}
-      {!blocked ? (
-        <Muted>
-          {t(online ? "availability.onlineHint" : "availability.offlineHint")}
-        </Muted>
-      ) : null}
+      {/* I70 (board DriverOffline): offline shows status + region only. */}
+      {online && !blocked ? <Muted>{t("availability.onlineHint")}</Muted> : null}
 
       {blocked ? (
         <Banner

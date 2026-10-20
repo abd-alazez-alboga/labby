@@ -167,10 +167,18 @@ describe("online/offline toggle (UC-D-04)", () => {
     expect(screen.getByTestId("availability-status")).toHaveTextContent(
       "You're offline",
     );
+    // I62: the top-bar "Online" pill only while online; I70: no offline hint.
+    expect(screen.queryByTestId("home-online-pill")).toBeNull();
+    expect(
+      screen.queryByText("Go online to share your location and receive ride requests."),
+    ).toBeNull();
 
     fireEvent.press(screen.getByTestId("availability-toggle"));
 
     expect(await screen.findByTestId("availability-online")).toBeTruthy();
+    expect(screen.getByTestId("home-online-pill")).toHaveTextContent("Online", {
+      exact: false,
+    });
     expect(locationMock.requestForegroundPermissionsAsync).toHaveBeenCalled();
     expect(contract.requestsTo(PUT)[0].body).toEqual({ online: true });
 

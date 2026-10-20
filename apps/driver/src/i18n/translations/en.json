@@ -427,7 +427,6 @@
     "loading": "Checking your status…",
     "offlineTitle": "You're offline",
     "onlineTitle": "You're online",
-    "offlineHint": "Go online to share your location and receive ride requests.",
     "onlineHint": "Keep Labby open while you're online — your location is shared every few seconds.",
     "onlineSince": "Online since {{time}}",
     "goOnline": "Go online",

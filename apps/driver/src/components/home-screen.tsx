@@ -23,7 +23,7 @@ import { OsmMap } from "./map/osm-map";
 import { ScheduledEntry } from "./scheduled/scheduled-entry";
 import { NotificationsBell } from "./notifications/notifications-bell";
 import { BackgroundLocationBanner } from "./availability/background-location-banner";
-import { RideNoticeBanner } from "./ride/ride-parts";
+import { OnlinePill, RideNoticeBanner } from "./ride/ride-parts";
 import { RideScreen } from "./ride/ride-screen";
 import { SharedCollectScreen } from "./ride/shared-parts";
 import { FloorBlockedCard, FloorWarningBanner } from "./money/floor";
@@ -275,6 +275,13 @@ export function HomeScreen() {
             onPress={() => router.push("/settings")}
             testID="settings-link"
           />
+          {/* I62 (boards DriverHeatmap / DriverNotice*): the online pill. */}
+          {availability?.load.status === "loaded" &&
+          availability.load.data.online ? (
+            <View testID="home-online-pill">
+              <OnlinePill />
+            </View>
+          ) : null}
           <View style={[styles.fabGroup, flipRows && styles.rowReverse]}>
             <NotificationsBell />
             <HeatmapToggle ctx={heat} />
