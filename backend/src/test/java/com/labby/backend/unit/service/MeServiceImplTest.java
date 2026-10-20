@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,10 +20,13 @@ import com.labby.backend.dto.UserProfileDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.Language;
 import com.labby.backend.enums.OtpPurpose;
+import com.labby.backend.enums.PhoneChangeStage;
 import com.labby.backend.exception.GoneException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
+import com.labby.backend.model.PhoneChangeSession;
 import com.labby.backend.model.User;
+import com.labby.backend.repository.PhoneChangeSessionRepository;
 import com.labby.backend.repository.RbacRoleRepository;
 import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
@@ -34,7 +38,10 @@ import com.labby.backend.service.OtpService;
 import com.labby.backend.service.ProfileServiceImpl;
 import com.labby.backend.service.StorageProvider;
 import com.labby.backend.util.UserMapper;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +69,10 @@ class MeServiceImplTest {
   @Mock private StorageProvider storageProvider;
   @Mock private DeviceTokenService deviceTokenService;
   @Mock private DriverApplicationService driverApplicationService;
+  @Mock private PhoneChangeSessionRepository phoneChangeSessionRepository;
+
+  /** The phone_change_sessions table behind the repository mock (one row per account). */
+  private final Map<UUID, PhoneChangeSession> phoneChanges = new HashMap<>();
 
   private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
   @Mock private RbacRoleRepository rbacRoleRepository;
@@ -85,7 +96,8 @@ class MeServiceImplTest {
             new StorageProperties("/tmp/labby-test", 5_242_880, 10_485_760, 300, 50, 7),
             new ProfileServiceImpl(userMapper, rbacRoleRepository),
             deviceTokenService,
-            driverApplicationService);
+            driverApplicationService,
+            phoneChangeSessionRepository);
     userId = UUID.randomUUID();
     user =
         User.builder()
@@ -95,6 +107,28 @@ class MeServiceImplTest {
             .build();
     user.setId(userId);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    lenient()
+        .when(phoneChangeSessionRepository.findById(any()))
+        .thenAnswer(invocation -> Optional.ofNullable(phoneChanges.get(invocation.getArgument(0))));
+    lenient()
+        .doAnswer(
+            invocation -> {
+              UUID owner = invocation.getArgument(0);
+              phoneChanges.put(
+                  owner,
+                  PhoneChangeSession.builder()
+                      .userId(owner)
+                      .newPhone(invocation.getArgument(1))
+                      .stage(PhoneChangeStage.fromValue(invocation.getArgument(2)))
+                      .expiresAt(invocation.getArgument(3))
+                      .build());
+              return null;
+            })
+        .when(phoneChangeSessionRepository)
+        .upsert(any(), any(), any(), any());
+    lenient()
+        .when(phoneChangeSessionRepository.deleteForUser(any()))
+        .thenAnswer(invocation -> phoneChanges.remove(invocation.getArgument(0)) == null ? 0 : 1);
   }
 
   @Test
@@ -190,6 +224,27 @@ class MeServiceImplTest {
                 meService.phoneChangeVerifyCurrent(
                     userId, new PhoneChangeVerifyRequestDto("111111")))
         .isInstanceOf(GoneException.class);
+  }
+
+  @Test
+  @DisplayName("an expired phone change answers Gone and is removed")
+  void shouldThrowGoneAndRemoveSessionWhenExpired() {
+    phoneChanges.put(
+        userId,
+        PhoneChangeSession.builder()
+            .userId(userId)
+            .newPhone(NEW_PHONE)
+            .stage(PhoneChangeStage.AWAITING_CURRENT)
+            .expiresAt(Instant.now().minusSeconds(1))
+            .build());
+
+    assertThatThrownBy(
+            () ->
+                meService.phoneChangeVerifyCurrent(
+                    userId, new PhoneChangeVerifyRequestDto("111111")))
+        .isInstanceOf(GoneException.class);
+    assertThat(phoneChanges).doesNotContainKey(userId);
+    verify(otpService, never()).validateAndConsume(anyString(), any(), anyString());
   }
 
   @Test

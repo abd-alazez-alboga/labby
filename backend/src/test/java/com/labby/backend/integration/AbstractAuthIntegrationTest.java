@@ -125,6 +125,10 @@ public abstract class AbstractAuthIntegrationTest extends AbstractIntegrationTes
     jdbcTemplate.update("DELETE FROM driver_locations");
     jdbcTemplate.update("DELETE FROM refresh_tokens");
     jdbcTemplate.update("DELETE FROM otp_codes");
+    // V32 auth state: phone changes cascade with their user, but are cleared explicitly; login
+    // counters are keyed by phone + IP (every test calls from 127.0.0.1), not by user.
+    jdbcTemplate.update("DELETE FROM phone_change_sessions");
+    jdbcTemplate.update("DELETE FROM login_failures");
     jdbcTemplate.update("DELETE FROM role_assignments");
     jdbcTemplate.update("DELETE FROM users");
   }

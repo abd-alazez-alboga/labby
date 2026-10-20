@@ -10,12 +10,15 @@ import com.labby.backend.dto.UserPhotoDto;
 import com.labby.backend.dto.UserProfileDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.OtpPurpose;
+import com.labby.backend.enums.PhoneChangeStage;
 import com.labby.backend.exception.GoneException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.exception.UnauthorizedException;
+import com.labby.backend.model.PhoneChangeSession;
 import com.labby.backend.model.User;
+import com.labby.backend.repository.PhoneChangeSessionRepository;
 import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
@@ -25,7 +28,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,9 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Own-account operations. The phone change is a strict three-step state machine held in memory:
- * nothing about the account mutates until the final step succeeds (ES-02); a restart simply
- * restarts the flow.
+ * Own-account operations. The phone change is a strict three-step state machine persisted per
+ * account ({@code phone_change_sessions}, V32 — no instance-local state, NFR-P4): nothing about the
+ * account mutates until the final step succeeds (ES-02). A step that finds the flow expired, out of
+ * order or its OTP gone ends it (410) and the client restarts; that removal commits even though the
+ * step fails ({@code noRollbackFor}).
  */
 @Service
 @Transactional
@@ -46,15 +50,6 @@ public class MeServiceImpl implements MeService {
   private static final Duration PHONE_CHANGE_TTL = Duration.ofMinutes(15);
   private static final Map<String, String> ALLOWED_PHOTO_TYPES =
       Map.of("image/jpeg", ".jpg", "image/png", ".png", "image/webp", ".webp");
-
-  private enum PhoneChangeStage {
-    AWAITING_CURRENT,
-    AWAITING_NEW
-  }
-
-  private record PhoneChangeSession(String newPhone, PhoneChangeStage stage, Instant expiresAt) {}
-
-  private final Map<UUID, PhoneChangeSession> phoneChangeSessions = new ConcurrentHashMap<>();
 
   private final UserRepository userRepository;
   private final RoleAssignmentRepository roleAssignmentRepository;
@@ -66,6 +61,7 @@ public class MeServiceImpl implements MeService {
   private final ProfileService profileService;
   private final DeviceTokenService deviceTokenService;
   private final DriverApplicationService driverApplicationService;
+  private final PhoneChangeSessionRepository phoneChangeSessionRepository;
 
   @Override
   @Transactional(readOnly = true)
@@ -116,15 +112,11 @@ public class MeServiceImpl implements MeService {
     assertPhoneFree(request.newPhone());
 
     otpService.issue(user.getPhone(), OtpPurpose.TWO_FA, user.getLanguage());
-    phoneChangeSessions.put(
-        userId,
-        new PhoneChangeSession(
-            request.newPhone(),
-            PhoneChangeStage.AWAITING_CURRENT,
-            Instant.now().plus(PHONE_CHANGE_TTL)));
+    savePhoneChange(userId, request.newPhone(), PhoneChangeStage.AWAITING_CURRENT);
   }
 
   @Override
+  @Transactional(noRollbackFor = GoneException.class)
   public void phoneChangeVerifyCurrent(UUID userId, PhoneChangeVerifyRequestDto request) {
     User user = loadUsableUser(userId);
     PhoneChangeSession session = liveSession(userId, PhoneChangeStage.AWAITING_CURRENT);
@@ -132,32 +124,28 @@ public class MeServiceImpl implements MeService {
     try {
       otpService.validateAndConsume(user.getPhone(), OtpPurpose.TWO_FA, request.code());
     } catch (GoneException ex) {
-      phoneChangeSessions.remove(userId);
+      phoneChangeSessionRepository.deleteForUser(userId);
       throw ex;
     }
 
-    otpService.issue(session.newPhone(), OtpPurpose.TWO_FA, user.getLanguage());
-    phoneChangeSessions.put(
-        userId,
-        new PhoneChangeSession(
-            session.newPhone(),
-            PhoneChangeStage.AWAITING_NEW,
-            Instant.now().plus(PHONE_CHANGE_TTL)));
+    otpService.issue(session.getNewPhone(), OtpPurpose.TWO_FA, user.getLanguage());
+    savePhoneChange(userId, session.getNewPhone(), PhoneChangeStage.AWAITING_NEW);
   }
 
   @Override
+  @Transactional(noRollbackFor = GoneException.class)
   public UserProfileDto phoneChangeComplete(UUID userId, PhoneChangeVerifyRequestDto request) {
     User user = loadUsableUser(userId);
     PhoneChangeSession session = liveSession(userId, PhoneChangeStage.AWAITING_NEW);
 
     try {
-      otpService.validateAndConsume(session.newPhone(), OtpPurpose.TWO_FA, request.code());
+      otpService.validateAndConsume(session.getNewPhone(), OtpPurpose.TWO_FA, request.code());
     } catch (GoneException ex) {
-      phoneChangeSessions.remove(userId);
+      phoneChangeSessionRepository.deleteForUser(userId);
       throw ex;
     }
 
-    user.setPhone(session.newPhone());
+    user.setPhone(session.getNewPhone());
     try {
       // Flush now so a concurrent registration of the same phone surfaces as the DB
       // unique-constraint violation (race-safe uniqueness).
@@ -165,7 +153,7 @@ public class MeServiceImpl implements MeService {
     } catch (DataIntegrityViolationException ex) {
       throw new ResourceAlreadyExistsException("Phone is already registered");
     }
-    phoneChangeSessions.remove(userId);
+    phoneChangeSessionRepository.deleteForUser(userId);
     return toProfile(user);
   }
 
@@ -183,7 +171,7 @@ public class MeServiceImpl implements MeService {
     userRepository.save(user);
     refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
     deviceTokenService.removeAllForUser(userId);
-    phoneChangeSessions.remove(userId);
+    phoneChangeSessionRepository.deleteForUser(userId);
   }
 
   @Override
@@ -251,12 +239,20 @@ public class MeServiceImpl implements MeService {
             });
   }
 
+  /** Starts or advances the account's phone change, live for {@link #PHONE_CHANGE_TTL}. */
+  private void savePhoneChange(UUID userId, String newPhone, PhoneChangeStage stage) {
+    phoneChangeSessionRepository.upsert(
+        userId, newPhone, stage.getValue(), Instant.now().plus(PHONE_CHANGE_TTL));
+  }
+
   private PhoneChangeSession liveSession(UUID userId, PhoneChangeStage expectedStage) {
-    PhoneChangeSession session = phoneChangeSessions.get(userId);
+    PhoneChangeSession session = phoneChangeSessionRepository.findById(userId).orElse(null);
     if (session == null
-        || session.expiresAt().isBefore(Instant.now())
-        || session.stage() != expectedStage) {
-      phoneChangeSessions.remove(userId);
+        || session.getExpiresAt().isBefore(Instant.now())
+        || session.getStage() != expectedStage) {
+      if (session != null) {
+        phoneChangeSessionRepository.deleteForUser(userId);
+      }
       throw new GoneException("Phone change expired or out of order; restart the flow");
     }
     return session;

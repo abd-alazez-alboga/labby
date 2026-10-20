@@ -6,9 +6,13 @@ import com.labby.backend.dto.AuthTokensResponseDto;
 import com.labby.backend.dto.UserProfileDto;
 import com.labby.backend.enums.ClientType;
 import com.labby.backend.enums.Language;
+import com.labby.backend.enums.OtpPurpose;
+import com.labby.backend.service.OtpService;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +25,8 @@ import org.springframework.util.MultiValueMap;
 
 /** Profile edit, 2FA password change, 3-step phone change, photo upload (USR-03, AUTH-05). */
 class AccountManagementIntegrationTest extends AbstractAuthIntegrationTest {
+
+  @Autowired private OtpService otpService;
 
   @Test
   @DisplayName("PUT /users/me updates name and language")
@@ -181,6 +187,78 @@ class AccountManagementIntegrationTest extends AbstractAuthIntegrationTest {
             authorized(Map.of("code", "123456"), session.accessToken()),
             String.class);
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.GONE);
+  }
+
+  @Test
+  @DisplayName("phone-change state lives in the database: a flow another instance began completes")
+  void shouldCompletePhoneChangeWhenStateWasWrittenElsewhere() {
+    String oldPhone = "+963911400009";
+    String newPhone = "+963911400010";
+    AuthTokensResponseDto session = register(oldPhone, "Secret123!", "Roamer");
+    ageOtpCodes(oldPhone);
+
+    assertThat(
+            restTemplate
+                .postForEntity(
+                    "/api/v1/users/me/phone-change/start",
+                    authorized(Map.of("newPhone", newPhone), session.accessToken()),
+                    Void.class)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.NO_CONTENT);
+    UUID userId =
+        jdbcTemplate.queryForObject(
+            "SELECT user_id FROM users WHERE phone = ?", UUID.class, oldPhone);
+    assertThat(
+            jdbcTemplate.queryForMap(
+                "SELECT new_phone, stage FROM phone_change_sessions WHERE user_id = ?", userId))
+        .containsEntry("new_phone", newPhone)
+        .containsEntry("stage", "awaiting_current");
+
+    // Step 2 as another API instance would have run it: only the database carries the stage.
+    jdbcTemplate.update(
+        "UPDATE phone_change_sessions SET stage = 'awaiting_new' WHERE user_id = ?", userId);
+    otpService.issue(newPhone, OtpPurpose.TWO_FA, Language.EN);
+
+    ResponseEntity<UserProfileDto> complete =
+        restTemplate.postForEntity(
+            "/api/v1/users/me/phone-change/complete",
+            authorized(Map.of("code", lastCodeFor(newPhone)), session.accessToken()),
+            UserProfileDto.class);
+    assertThat(complete.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(complete.getBody()).isNotNull();
+    assertThat(complete.getBody().phone()).isEqualTo(newPhone);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM phone_change_sessions WHERE user_id = ?",
+                Integer.class,
+                userId))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName("an expired phone change answers 410 and its row is removed")
+  void shouldRejectPhoneChangeStepWhenExpired() {
+    String phone = "+963911400011";
+    AuthTokensResponseDto session = register(phone, "Secret123!", "Latecomer");
+    ageOtpCodes(phone);
+    restTemplate.postForEntity(
+        "/api/v1/users/me/phone-change/start",
+        authorized(Map.of("newPhone", "+963911400012"), session.accessToken()),
+        Void.class);
+    jdbcTemplate.update(
+        "UPDATE phone_change_sessions SET expires_at = now() - interval '1 minute'");
+
+    ResponseEntity<String> response =
+        restTemplate.postForEntity(
+            "/api/v1/users/me/phone-change/verify-current",
+            authorized(Map.of("code", lastCodeFor(phone)), session.accessToken()),
+            String.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.GONE);
+    // The removal commits although the step answered 410.
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM phone_change_sessions", Integer.class))
+        .isZero();
   }
 
   @Test

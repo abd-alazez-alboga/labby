@@ -140,7 +140,9 @@ public class AuthServiceImpl implements AuthService {
     return issueSession(user);
   }
 
+  // The failed attempt's throttle count (LoginThrottle, V32) must commit with the 401.
   @Override
+  @Transactional(noRollbackFor = UnauthorizedException.class)
   public AuthTokensResponseDto login(LoginRequestDto request, String clientIp) {
     loginThrottle.check(request.phone(), clientIp);
 

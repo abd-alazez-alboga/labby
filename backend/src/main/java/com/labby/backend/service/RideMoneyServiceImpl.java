@@ -27,6 +27,8 @@ import com.labby.backend.repository.RiderDueRepository;
 import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.WalletTransactionRepository;
 import com.labby.backend.service.DriverLedgerService.LedgerPosting;
+import com.labby.backend.service.PaymentProvider.Charge;
+import com.labby.backend.service.PaymentProvider.PaymentRequest;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -55,6 +57,9 @@ import org.springframework.transaction.annotation.Transactional;
  * order first (M8 audit W2), always AFTER the rider's wallet (the tip's order). A completed shared
  * ride (RIDE-P4, M12) runs the same engine once per completed member — their share, their payment
  * method, their dues — with every entry attributed to the member ({@code shared_ride_member_id}).
+ * Every by-method collection (fare or share, carried dues, cancellation fees) goes through the
+ * payer's {@link PaymentProvider} (ES-06 seam): the wallet debits on-platform, cash collects
+ * nothing on-platform and is settled by the driver's cash-confirm.
  */
 @Service
 @Transactional
@@ -69,6 +74,7 @@ public class RideMoneyServiceImpl implements RideMoneyService {
       List.of(SharedMemberStatus.JOINED, SharedMemberStatus.COMPLETED);
 
   private final WalletService walletService;
+  private final PaymentProviders paymentProviders;
   private final DriverLedgerService driverLedgerService;
   private final CommissionService commissionService;
   private final RegionRepository regionRepository;
@@ -146,34 +152,29 @@ public class RideMoneyServiceImpl implements RideMoneyService {
   }
 
   /**
-   * The wallet half of one payer's completion: the fare (or share) from the wallet first, then
-   * every pending due in the ride's currency — taken from the wallet in full when it covers it
-   * (wallet method), else earmarked for cash (owner ruling (a), H2/H3).
+   * The wallet half of one payer's completion: the fare (or share) collected by the payer's
+   * provider first (the wallet pays what it can, cash nothing), then every pending due in the
+   * ride's currency — collected in full on-platform when the provider can (wallet method and
+   * covered), else earmarked for cash (owner ruling (a), H2/H3).
    */
   private WalletStep walletStep(Ride ride, Payer payer, BigDecimal amount) {
     boolean wallet = payer.method() == PaymentMethod.WALLET;
+    PaymentProvider provider = paymentProviders.forMethod(payer.method());
     BigDecimal walletApplied =
-        wallet
-            ? walletService.debitUpTo(
-                payer.riderUserId(),
-                ride.getCurrency(),
-                amount,
-                WalletTransactionType.FARE_PAYMENT,
-                ride.getId())
-            : BigDecimal.ZERO;
+        provider.collectUpTo(
+            new PaymentRequest(
+                payer.riderUserId(), ride.getCurrency(), amount, Charge.FARE, ride.getId()));
     List<RiderDue> fromWallet = new ArrayList<>();
     boolean cashCarried = false;
     for (RiderDue due : riderDueRepository.lockPending(payer.riderUserId(), ride.getCurrency())) {
       boolean paid =
-          wallet
-              && walletService
-                  .debitIfCovered(
-                      payer.riderUserId(),
-                      due.getCurrency(),
-                      due.getAmount(),
-                      WalletTransactionType.CANCELLATION_FEE,
-                      due.getSourceRideId())
-                  .isPresent();
+          provider.collectInFull(
+              new PaymentRequest(
+                  payer.riderUserId(),
+                  due.getCurrency(),
+                  due.getAmount(),
+                  Charge.CANCELLATION_FEE,
+                  due.getSourceRideId()));
       if (paid) {
         fromWallet.add(due);
       } else {
@@ -364,16 +365,16 @@ public class RideMoneyServiceImpl implements RideMoneyService {
   }
 
   private void collectFee(Ride ride, Payer payer, BigDecimal fee) {
-    BigDecimal collected = BigDecimal.ZERO;
-    if (payer.method() == PaymentMethod.WALLET) {
-      collected =
-          walletService.debitUpTo(
-              payer.riderUserId(),
-              ride.getCurrency(),
-              fee,
-              WalletTransactionType.CANCELLATION_FEE,
-              ride.getId());
-    }
+    BigDecimal collected =
+        paymentProviders
+            .forMethod(payer.method())
+            .collectUpTo(
+                new PaymentRequest(
+                    payer.riderUserId(),
+                    ride.getCurrency(),
+                    fee,
+                    Charge.CANCELLATION_FEE,
+                    ride.getId()));
     BigDecimal remainder = fee.subtract(collected);
     if (remainder.signum() > 0) {
       riderDueRepository.saveAndFlush(

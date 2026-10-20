@@ -43,6 +43,13 @@ info:
     a cash-method ride → `paid_cash`.
 
 
+    **Payment seam (ES-06, NFR-M1).** Every by-method collection above and below (fare or share,
+    carried dues, cancellation fees) goes through the backend's `PaymentProvider` interface, one
+    provider per method: `wallet` debits the earned-credit wallet, `cash` collects nothing
+    on-platform (paid in person, settled by cash-confirm). V2 card gateways plug in behind it; the
+    wire contract does not change.
+
+
     **Cancellation fees (RIDE-07, PRC-03; owner rulings 2026-10-11).** The fee recorded on a
     cancelled ride goes 100% to that ride's driver, commission-free. Collection: on a
     wallet-method ride the wallet is debited at cancellation (`cancellation_fee`, linked to the
