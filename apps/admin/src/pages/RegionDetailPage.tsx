@@ -17,7 +17,7 @@ import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { BackLink, PageHeader, ReviewLayout } from '../ui';
 import { ActivationCard } from './regions/ActivationCard';
-import { BundleForm } from './regions/BundleForm';
+import { BUNDLE_FORM_ID, BundleForm } from './regions/BundleForm';
 import { ServiceTypesSection } from './regions/ServiceTypesSection';
 import { SurchargeWindowsSection } from './regions/SurchargeWindowsSection';
 import { SurgeZonesSection } from './regions/SurgeZonesSection';
@@ -133,7 +133,16 @@ export default function RegionDetailPage() {
   return (
     <section className="page">
       <BackLink to="/regions">{t('regionDetail.backToList')}</BackLink>
-      <PageHeader title={region.name} />
+      <PageHeader
+        title={region.name}
+        actions={
+          canEditRegion ? (
+            <button className="btn btn--primary" type="submit" form={BUNDLE_FORM_ID}>
+              {t('regionDetail.saveConfiguration')}
+            </button>
+          ) : null
+        }
+      />
 
       <ReviewLayout
         aside={

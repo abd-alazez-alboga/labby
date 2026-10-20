@@ -33,6 +33,9 @@ function toNumberOrNull(value: string): number | null {
   return value.trim() === '' ? null : Number(value);
 }
 
+/** The bundle form's id: the page header's "Save configuration" submits it (A15RegionIncentives). */
+export const BUNDLE_FORM_ID = 'region-bundle';
+
 /** The backend's peak-window rule codes (M15-T3) — shown in the peak sub-section. */
 const PEAK_WINDOW_CODES = new Set(['peak_windows_required', 'peak_window_invalid']);
 
@@ -328,6 +331,9 @@ export function BundleForm({
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) {
+      return;
+    }
     setSaved(false);
     setSaveError(null);
     setPeakError(null);
@@ -375,7 +381,7 @@ export function BundleForm({
   }
 
   return (
-    <form className="card panel" onSubmit={(event) => void handleSave(event)}>
+    <form id={BUNDLE_FORM_ID} className="card panel" onSubmit={(event) => void handleSave(event)}>
       <h2 className="panel__title">{t('regionDetail.bundleTitle')}</h2>
       <p className="panel__hint">{t('regionDetail.bundleHint')}</p>
 
@@ -681,7 +687,8 @@ export function BundleForm({
 
       {canEdit ? (
         <div className="panel__row">
-          <button className="btn btn--primary" type="submit" disabled={submitting}>
+          {/* The page's one primary is the header's "Save configuration"; this repeats it. */}
+          <button className="btn" type="submit" disabled={submitting}>
             {submitting ? t('regionDetail.saving') : t('regionDetail.save')}
           </button>
         </div>

@@ -171,11 +171,7 @@ export function ServiceTypesSection({
 
       {canEdit ? (
         <p>
-          <button
-            className="btn btn--primary"
-            type="button"
-            onClick={() => openEditor({ mode: 'create' })}
-          >
+          <button className="btn" type="button" onClick={() => openEditor({ mode: 'create' })}>
             {t('serviceTypes.add')}
           </button>
         </p>

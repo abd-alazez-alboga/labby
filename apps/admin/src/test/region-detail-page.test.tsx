@@ -55,6 +55,30 @@ describe('region detail page', () => {
     vi.unstubAllGlobals();
   });
 
+  it('has one primary action, the header save, which submits the bundle (I84, I102)', async () => {
+    seedStoredSession(sessionFor(FULL_ACCESS));
+    const fetchMock = stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION, (method, path) =>
+      method === 'PUT' && path === '/api/v1/admin/regions/region-1'
+        ? jsonResponse(200, COMPLETE_REGION)
+        : null,
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    const save = await screen.findByRole('button', { name: 'Save configuration' });
+    expect(save).toHaveClass('btn--primary');
+    // The section "Add" buttons and the bottom save are secondary (the draft's
+    // activation card keeps its own decision button in the aside).
+    for (const name of ['Add service type', 'Add surcharge window', 'Add surge zone']) {
+      expect(await screen.findByRole('button', { name })).not.toHaveClass('btn--primary');
+    }
+    expect(screen.getByRole('button', { name: 'Save bundle' })).not.toHaveClass('btn--primary');
+
+    await user.click(save);
+    expect(await screen.findByText('Region saved.')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT')).toHaveLength(1);
+  });
+
   it('saves the full bundle PUT with filled values, cleared nulls and the drawn boundary', async () => {
     seedStoredSession(sessionFor(FULL_ACCESS));
     const fetchMock = stubRegionRoutes(FULL_ACCESS, DRAFT_REGION, (method, path) =>

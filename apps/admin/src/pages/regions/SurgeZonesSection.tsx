@@ -190,11 +190,7 @@ export function SurgeZonesSection({
 
       {canEdit ? (
         <p>
-          <button
-            className="btn btn--primary"
-            type="button"
-            onClick={() => openEditor({ mode: 'create' })}
-          >
+          <button className="btn" type="button" onClick={() => openEditor({ mode: 'create' })}>
             {t('surgeZones.add')}
           </button>
         </p>
