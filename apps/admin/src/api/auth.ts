@@ -69,3 +69,15 @@ export function logout(client: ApiClient, refreshToken: string): Promise<void> {
 export function getMyProfile(client: ApiClient): Promise<UserProfile> {
   return client.get<UserProfile>('/api/v1/users/me');
 }
+
+/**
+ * PUT /users/me — name + account language (auth-v1 UpdateProfileRequest). The
+ * admin language switch saves the language here so pushes and the
+ * notification center follow it (UC-S-10, V1 audit W14).
+ */
+export function updateMyProfile(
+  client: ApiClient,
+  body: { name: string; language: 'en' | 'ar' },
+): Promise<UserProfile> {
+  return client.put<UserProfile>('/api/v1/users/me', body);
+}
