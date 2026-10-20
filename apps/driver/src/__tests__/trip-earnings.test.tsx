@@ -145,6 +145,13 @@ describe("per-trip earnings breakdown (UC-D-15)", () => {
     expect(screen.getByTestId("earning-line-net")).toHaveTextContent(
       "Balance change+SYP 800",
     );
+    // I63 (amended board): the rider's promo sits right under the fare.
+    const order = (screen.getByTestId("trip-earnings-lines").children as {
+      props: { testID?: string };
+    }[]).map((child) => child.props.testID);
+    expect(order.indexOf("earning-line-rider-promo")).toBe(
+      order.indexOf("earning-line-fare") + 1,
+    );
   });
 
   it("wallet ride: completion settles instantly and the net is credited", async () => {

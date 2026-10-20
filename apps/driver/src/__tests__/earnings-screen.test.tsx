@@ -28,6 +28,7 @@ import {
   walletEarningFixture,
 } from "../test-utils/money";
 import { renderMoneyScreens } from "../test-utils/money-harness";
+import { completedRide } from "../test-utils/rides";
 import { NON_WESTERN_DIGITS, simulateArabicIndicIcu } from "../test-utils/intl";
 import { screen } from "../test-utils/ride-harness";
 import type { MockResponse } from "../test-utils/contract";
@@ -268,6 +269,29 @@ describe("earnings screen (UC-D-15)", () => {
       { exact: false },
     );
     expect(walletRow).toHaveTextContent("+SYP 23,625", { exact: false });
+  });
+
+  it("a trip row opens its Trip earnings breakdown (I59)", async () => {
+    const earning = tripEarningFixture();
+    await renderMoneyScreens(
+      {
+        ...baseRoutes(),
+        [`GET /api/v1/driver/rides/${earning.rideId}`]: ok(
+          completedRide({ id: earning.rideId, paymentStatus: "paid_cash" }),
+        ),
+      },
+      { initialUrl: "/earnings" },
+    );
+
+    fireEvent.press(await screen.findByTestId(`trip-row-${earning.rideId}`));
+
+    expect(await screen.findByTestId("trip-earnings-screen")).toBeTruthy();
+    expect(await screen.findByTestId("earning-line-commission")).toHaveTextContent(
+      "−SYP 7,000",
+      { exact: false },
+    );
+    // Opened from the list: no link back to the week.
+    expect(screen.queryByTestId("trip-earnings-see-week")).toBeNull();
   });
 
   it("pages the trip list with Show more", async () => {

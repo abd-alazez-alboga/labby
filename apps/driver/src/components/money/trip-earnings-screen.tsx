@@ -35,6 +35,16 @@ import { FareLine } from "../ride/ride-parts";
 /** Secondary text on the near-black card. */
 const ON_DARK_MUTED = colors.lineStrong;
 
+/**
+ * I59: the earnings list hands the tapped row's entry to the Trip earnings
+ * route, so an older trip (beyond the first page) still itemizes.
+ */
+const knownEarnings = new Map<string, TripEarning>();
+
+export function rememberTripEarning(earning: TripEarning): void {
+  knownEarnings.set(earning.rideId, earning);
+}
+
 type Load =
   | { status: "loading" }
   | { status: "loaded"; earning: TripEarning }
@@ -54,9 +64,12 @@ type Load =
 export function TripEarningsScreen({
   ride,
   onDone,
+  fromEarnings = false,
 }: {
   ride: Ride;
   onDone: () => void;
+  /** I59: opened from the earnings list — no "See this week's earnings". */
+  fromEarnings?: boolean;
 }) {
   const { t } = useTranslation();
   const { flipRows, language } = useDirection();
@@ -82,7 +95,9 @@ export function TripEarningsScreen({
         moneyReload ? moneyReload() : Promise.resolve(),
       ]);
       if (!mounted.current) return;
-      const earning = page.items.find((item) => item.rideId === ride.id);
+      const earning =
+        page.items.find((item) => item.rideId === ride.id) ??
+        knownEarnings.get(ride.id);
       setLoad(earning ? { status: "loaded", earning } : { status: "missing" });
     } catch (caught) {
       if (mounted.current)
@@ -194,6 +209,20 @@ export function TripEarningsScreen({
                 value={formatMoney(earning.fareTotal, currency, language)}
                 testID="earning-line-fare"
               />
+              {earning.promoCompensation ? (
+                // M13 review W13: fareTotal is the PRE-discount fare — this
+                // muted line says what the rider's promo took off it, so the
+                // cash actually collected adds up (board amendment; I63: right under the fare).
+                <FareLine
+                  label={t("tripEarnings.riderPromo")}
+                  value={formatSignedMoney(
+                    -earning.promoCompensation,
+                    currency,
+                    language,
+                  )}
+                  testID="earning-line-rider-promo"
+                />
+              ) : null}
               {mixed && ride.walletApplied ? (
                 <FareLine
                   label={t("tripEarnings.walletApplied")}
@@ -232,20 +261,6 @@ export function TripEarningsScreen({
                   value={formatSignedMoney(earning.tip, currency, language, { alwaysSign: true })}
                   valueColor={colors.accent}
                   testID="earning-line-tip"
-                />
-              ) : null}
-              {earning.promoCompensation ? (
-                // M13 review W13: fareTotal is the PRE-discount fare — this
-                // muted line says what the rider's promo took off it, so the
-                // cash actually collected adds up (board amendment).
-                <FareLine
-                  label={t("tripEarnings.riderPromo")}
-                  value={formatSignedMoney(
-                    -earning.promoCompensation,
-                    currency,
-                    language,
-                  )}
-                  testID="earning-line-rider-promo"
                 />
               ) : null}
               {earning.promoCompensation ? (
@@ -306,14 +321,16 @@ export function TripEarningsScreen({
           onPress={onDone}
           testID="trip-earnings-done"
         />
-        <TextButton
-          title={t("tripEarnings.seeWeek")}
-          onPress={() => {
-            onDone();
-            router.push("/earnings");
-          }}
-          testID="trip-earnings-see-week"
-        />
+        {fromEarnings ? null : (
+          <TextButton
+            title={t("tripEarnings.seeWeek")}
+            onPress={() => {
+              onDone();
+              router.push("/earnings");
+            }}
+            testID="trip-earnings-see-week"
+          />
+        )}
       </View>
     </View>
   );

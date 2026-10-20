@@ -780,6 +780,7 @@
     "seeBalance": "See my balance"
   },
   "tripEarnings": {
+    "title": "Trip earnings",
     "collectedCash": "You collected in cash",
     "credited": "Credited to you",
     "cashRide": "cash ride",

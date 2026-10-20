@@ -41,6 +41,7 @@ import {
   useDirection,
 } from "../ui";
 import { ProgressBar } from "../ride/ride-parts";
+import { rememberTripEarning } from "./trip-earnings-screen";
 import type { PendingRating } from "../../api/trust-types";
 import { useOptionalRatingPrompt } from "../../trust/RatingPromptProvider";
 import { countCopy, daysLeft } from "../../trust/format";
@@ -333,6 +334,7 @@ function TripRow({
 }) {
   const { t } = useTranslation();
   const { language } = useDirection();
+  const router = useRouter();
   // W17: a credited cancellation fee is one item — no fare/commission lines.
   const parts = isFeeOnlyEarning(earning)
     ? [t("earnings.rowFee")]
@@ -353,6 +355,14 @@ function TripRow({
           })}
         </AppText>
       }
+      // I59 (board DriverEarnings): a trip row opens its Trip earnings.
+      onPress={() => {
+        rememberTripEarning(earning);
+        router.push({
+          pathname: "/trip-earnings",
+          params: { rideId: earning.rideId },
+        });
+      }}
       last={last}
       testID={`trip-row-${earning.rideId}`}
     >

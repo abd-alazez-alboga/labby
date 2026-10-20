@@ -4,6 +4,7 @@ import React from "react";
 import { AuthProvider } from "../auth/AuthProvider";
 import { BalanceScreen } from "../components/money/balance-screen";
 import { EarningsScreen } from "../components/money/earnings-screen";
+import { TripEarningsRoute } from "../components/money/trip-earnings-route";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { DriverMoneyProvider } from "../money/DriverMoneyProvider";
 import { driverUser, installContractFetch, seedSession } from "./contract";
@@ -37,6 +38,7 @@ export async function renderMoneyScreens(
       },
       earnings: () => <EarningsScreen />,
       balance: () => <BalanceScreen />,
+      "trip-earnings": () => <TripEarningsRoute />,
     },
     { initialUrl: options.initialUrl },
   );

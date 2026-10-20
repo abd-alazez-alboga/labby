@@ -174,6 +174,11 @@ function AppStack() {
           name="balance"
           options={{ title: t("balance.title") }}
         />
+        {/* I59: a trip row of the earnings list opens its breakdown. */}
+        <Stack.Screen
+          name="trip-earnings"
+          options={{ title: t("tripEarnings.title") }}
+        />
         {/* Incentives (M15, UC-D-17) — weekly progress, informational like
             earnings, so a role-suspended driver may look. */}
         <Stack.Screen

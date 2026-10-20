@@ -780,6 +780,7 @@
     "seeBalance": "عرض رصيدي"
   },
   "tripEarnings": {
+    "title": "أرباح الرحلة",
     "collectedCash": "حصّلت نقداً",
     "credited": "أُضيف إلى رصيدك",
     "cashRide": "رحلة نقدية",
