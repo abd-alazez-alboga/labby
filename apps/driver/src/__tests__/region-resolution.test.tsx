@@ -148,7 +148,7 @@ describe("region resolution (M4-T4, SD-01)", () => {
     renderHome();
 
     expect(await screen.findByTestId("region-badge")).toHaveTextContent(
-      "Damascus · SYP",
+      "Damascus",
     );
     expect(contract.requestsTo(RESOLVE_AT_A)).toHaveLength(1);
     expect(contract.requestsTo(RESOLVE_AT_A)[0].headers.Authorization).toBe(
@@ -164,6 +164,24 @@ describe("region resolution (M4-T4, SD-01)", () => {
     });
   });
 
+  it("shows the region and its service types without the currency (I70, board DriverOffline)", async () => {
+    await seedSession(driverUser());
+    mockLocation({ granted: true, at: pointA });
+    installContractFetch({
+      [META]: metaOk,
+      [RESOLVE_AT_A]: { status: 200, body: regionA },
+    });
+
+    renderHome();
+
+    expect(await screen.findByTestId("region-line")).toHaveTextContent(
+      "Damascus · Economy",
+    );
+    expect(screen.getByTestId("region-line")).not.toHaveTextContent("SYP", {
+      exact: false,
+    });
+  });
+
   it("re-resolves only past the significant-move threshold and switches config across a boundary", async () => {
     await seedSession(driverUser());
     mockLocation({ granted: true, at: pointA });
@@ -175,7 +193,7 @@ describe("region resolution (M4-T4, SD-01)", () => {
 
     renderHome();
     expect(await screen.findByTestId("region-badge")).toHaveTextContent(
-      "Damascus · SYP",
+      "Damascus",
     );
 
     // A < 1.5 km nudge is not significant — no second resolve call.
@@ -186,14 +204,14 @@ describe("region resolution (M4-T4, SD-01)", () => {
       ),
     ).toHaveLength(1);
     expect(screen.getByTestId("region-badge")).toHaveTextContent(
-      "Damascus · SYP",
+      "Damascus",
     );
 
     // Crossing into region B re-resolves and switches the stored config.
     await moveTo(pointB);
     await waitFor(() => {
       expect(screen.getByTestId("region-badge")).toHaveTextContent(
-        "Homs · SYP",
+        "Homs",
       );
     });
     expect(contract.requestsTo(RESOLVE_AT_B)).toHaveLength(1);
@@ -227,7 +245,7 @@ describe("region resolution (M4-T4, SD-01)", () => {
 
     fireEvent.press(screen.getByTestId("region-retry"));
     expect(await screen.findByTestId("region-badge")).toHaveTextContent(
-      "Damascus · SYP",
+      "Damascus",
     );
   });
 
@@ -244,7 +262,7 @@ describe("region resolution (M4-T4, SD-01)", () => {
 
     // Server trouble is NOT "outside the area": the last config stays usable.
     expect(await screen.findByTestId("region-badge")).toHaveTextContent(
-      "Damascus · SYP",
+      "Damascus",
     );
     expect(screen.queryByTestId("region-outside")).toBeNull();
     expect(screen.queryByTestId("region-error")).toBeNull();

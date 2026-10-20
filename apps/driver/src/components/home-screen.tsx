@@ -113,8 +113,9 @@ function HomeMap({
 }
 
 /**
- * Region resolution (M4-T4) under the status title: region + currency and
- * its service types once resolved, "finding your area" while loading.
+ * Region resolution (M4-T4) under the status title: the region and its
+ * service types once resolved (board DriverOffline, I70: no currency),
+ * "finding your area" while loading.
  */
 function RegionLine({ region }: { region: RegionContextValue | null }) {
   const { t } = useTranslation();
@@ -126,13 +127,17 @@ function RegionLine({ region }: { region: RegionContextValue | null }) {
       .map((type) => (language === "ar" ? type.nameAr : type.nameEn))
       .join(language === "ar" ? "، " : ", ");
     return (
-      <AppText variant="secondary" color={colors.textSecondary}>
+      <AppText
+        variant="secondary"
+        color={colors.textSecondary}
+        testID="region-line"
+      >
         <AppText
           variant="secondary"
           color={colors.textSecondary}
           testID="region-badge"
         >
-          {`${config.name} · ${config.currency}`}
+          {config.name}
         </AppText>
         {services ? ` · ${services}` : null}
       </AppText>
