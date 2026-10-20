@@ -117,6 +117,21 @@ export const trustEn = {
     rideCancelledTitle: "Ride cancelled",
     rideCancelledBody: "Cancelled because your account was suspended.",
     historyCancelled: "Cancelled · account suspended",
+    contactSupport: "Contact support",
+    contactSupportHint:
+      "Opens a support ticket about this suspension. You can add details before sending.",
+    refusedTitle: "You can't book right now",
+    refusedBody: "Your rider account is suspended.",
+    refusedNote: "Reason: “{{note}}”",
+    refusedNothingCharged: "Nothing was booked and nothing was charged.",
+    ticket: {
+      notice:
+        "We filled this in about your suspension. Add anything that helps our team review it.",
+      roleLine: "My rider account was suspended.",
+      accountLine: "My Labby account was suspended.",
+      reasonLine: "Reason shown: “{{reason}}”",
+      reviewLine: "I'd like my account to be reviewed.",
+    },
   },
   driverRating: {
     label: "Rated {{rating}} out of 5",
@@ -231,6 +246,21 @@ export const trustAr: typeof trustEn = {
     rideCancelledTitle: "أُلغيت الرحلة",
     rideCancelledBody: "أُلغيت لأن حسابك موقوف.",
     historyCancelled: "أُلغيت · الحساب موقوف",
+    contactSupport: "تواصل مع الدعم",
+    contactSupportHint:
+      "نفتح لك تذكرة دعم عن هذا الإيقاف، ويمكنك إضافة ما تريد قبل الإرسال.",
+    refusedTitle: "لا يمكنك الحجز الآن",
+    refusedBody: "حسابك كراكب موقوف.",
+    refusedNote: "السبب: «{{note}}»",
+    refusedNothingCharged: "لم يُحجز شيء ولم يُخصم أي مبلغ.",
+    ticket: {
+      notice:
+        "عبّأنا هذه التذكرة عن إيقاف حسابك. أضف ما يساعد فريقنا على مراجعته.",
+      roleLine: "تم إيقاف حسابي كراكب.",
+      accountLine: "تم إيقاف حسابي في لبي.",
+      reasonLine: "السبب المعروض: «{{reason}}»",
+      reviewLine: "أرجو مراجعة حسابي.",
+    },
   },
   driverRating: {
     label: "التقييم {{rating}} من 5",

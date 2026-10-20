@@ -103,7 +103,15 @@ describe("suspended screen (USR-04..06)", () => {
     );
     expect(screen.queryByTestId("suspended-note")).toBeNull();
     expect(screen.queryByTestId("home-where-to")).toBeNull();
-    expect(screen.queryByText(/support/i)).toBeNull();
+    // W39 (approved artboard V1FRiderSuspendedAppeal): the appeal path.
+    expect(screen.getByTestId("suspended-contact-support")).toHaveTextContent(
+      "Contact support",
+    );
+    expect(
+      screen.getByText(
+        "Opens a support ticket about this suspension. You can add details before sending.",
+      ),
+    ).toBeOnTheScreen();
     expect(
       screen.getByText(
         "Your account will be reactivated if our team reviews it. You'll get a notification when that happens.",
@@ -116,6 +124,10 @@ describe("suspended screen (USR-04..06)", () => {
 
     await fireEvent.press(screen.getByTestId("suspended-settings"));
     expect(mockPush).toHaveBeenCalledWith("/settings");
+    await fireEvent.press(screen.getByTestId("suspended-contact-support"));
+    expect(mockPush).toHaveBeenCalledWith(
+      "/new-ticket?about=suspension&reason=low_rating",
+    );
   });
 
   it("rider role suspended manually: the admin's note", async () => {
@@ -133,6 +145,10 @@ describe("suspended screen (USR-04..06)", () => {
       "Your rider account is suspended",
     );
     expect(screen.queryByTestId("suspended-rule")).toBeNull();
+    await fireEvent.press(screen.getByTestId("suspended-contact-support"));
+    expect(mockPush).toHaveBeenCalledWith(
+      "/new-ticket?about=suspension&reason=manual",
+    );
   });
 
   it("whole account suspended: the account title and the note", async () => {
@@ -208,6 +224,16 @@ describe("suspended screen (USR-04..06)", () => {
     expect(
       screen.getByText("انخفض متوسط تقييمك كراكب عن الحد الأدنى المسموح به في منطقتك."),
     ).toBeOnTheScreen();
+    // V1FRiderSuspendedAppealAr.
+    expect(screen.getByTestId("suspended-contact-support")).toHaveTextContent(
+      "تواصل مع الدعم",
+    );
+    expect(
+      screen.getByText(
+        "نفتح لك تذكرة دعم عن هذا الإيقاف، ويمكنك إضافة ما تريد قبل الإرسال.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId("suspended-settings")).toHaveTextContent("الإعدادات");
   });
 });
 

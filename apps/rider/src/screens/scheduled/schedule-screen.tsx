@@ -54,6 +54,10 @@ import { colors, radius, spacing } from "../../theme/tokens";
 import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { RideMap } from "../ride/ride-parts";
 import { type PlannedRoute, RoutePlanner } from "../ride/route-planner";
+import {
+  BookingRefusedSheet,
+  useBookingRefusal,
+} from "../trust/suspension-support";
 import { earliestSlot, WhenPicker } from "./when-picker";
 
 /** `/booking?route=…` — the planned route handed to on-demand booking. */
@@ -127,6 +131,8 @@ export default function ScheduleScreen() {
   const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 403 rider_suspended: the booking-refused sheet (W39).
+  const refused = useBookingRefusal();
 
   const minLead = DEFAULT_MIN_LEAD_MIN;
   const option =
@@ -184,7 +190,7 @@ export default function ScheduleScreen() {
           // Review W9: drop the refused promo so the next tap books without it.
           setPromo(null);
           setPromoRefusal(promoMessage);
-        } else {
+        } else if (!refused.catchRefusal(failure)) {
           setError(rideErrorMessage(failure, t));
         }
       }
@@ -457,6 +463,7 @@ export default function ScheduleScreen() {
             testID="schedule-confirm"
           />
           {sheets}
+          <BookingRefusedSheet refusal={refused.refusal} onClose={refused.close} />
         </BottomSheet>
       }
     />

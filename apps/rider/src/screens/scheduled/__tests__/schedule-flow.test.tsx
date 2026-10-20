@@ -232,6 +232,33 @@ describe("schedule a ride (UC-R-10)", () => {
     });
   });
 
+  it("403 rider_suspended opens the booking-refused sheet (W39)", async () => {
+    mockApi({
+      ...BASE,
+      "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+      "POST /api/v1/scheduled-rides": {
+        status: 403,
+        body: {
+          status: 403,
+          message: "x",
+          code: "rider_suspended",
+          details: { suspensionReason: "low_rating" },
+        },
+      },
+    });
+    await renderSchedule();
+    await pickTomorrowAndPlan();
+    await fireEvent.press(await screen.findByTestId("schedule-confirm"));
+
+    expect(await screen.findByTestId("booking-refused-body")).toHaveTextContent(
+      "Your rider account is suspended. Your average rider rating fell below the minimum allowed in your area.",
+    );
+    expect(screen.getByTestId("booking-refused-support")).toBeOnTheScreen();
+    expect(mockReplace).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId("booking-refused-close"));
+    expect(screen.queryByTestId("booking-refused")).toBeNull();
+  });
+
   it("'Ride now instead' goes to on-demand booking", async () => {
     mockApi(BASE);
     await renderSchedule();

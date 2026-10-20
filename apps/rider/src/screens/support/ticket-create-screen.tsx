@@ -3,7 +3,10 @@
  * admin-managed category list, description, up to 5 photo attachments
  * (uploaded as `ticket_attachment` the moment they are picked, like the
  * M11 report photos), and an optional link to one of the rider's rides.
- * Submitting opens the new ticket's thread.
+ * Submitting opens the new ticket's thread. Opened from a suspension
+ * (approved artboard V1FRiderSuspendedTicket, W39) it arrives pre-filled:
+ * the `account_suspend` category selected when the server has it, the
+ * description drafted (editable) and a note saying so.
  */
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -19,7 +22,9 @@ import {
 
 import { ApiError, failureKind, type FailureKind } from "../../api/http-client";
 import { listRides, type RideSummary } from "../../api/rides";
+import { useOptionalAuth } from "../../auth/auth-context";
 import {
+  ACCOUNT_SUSPEND_CATEGORY,
   createTicket,
   listTicketCategories,
   localized,
@@ -42,6 +47,11 @@ import {
 import { useLocale } from "../../i18n/locale-context";
 import { formatDate } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
+import { riderSuspension } from "../../trust/suspension";
+import {
+  suspensionTicketDescription,
+  withFallbackReason,
+} from "../../trust/suspension-ticket";
 
 interface PickedFile {
   key: string;
@@ -59,12 +69,32 @@ function uploadErrorKey(error: unknown): string {
 
 export default function TicketCreateScreen({
   initialRideId = null,
+  aboutSuspension = null,
 }: {
   initialRideId?: string | null;
+  /**
+   * Opened from "Contact support" on a suspension (W39); `reason` is the
+   * refusal's `suspensionReason` for when the profile has none yet.
+   */
+  aboutSuspension?: { reason: string | null } | null;
 }) {
   const { t, locale } = useLocale();
   const { row } = useDirection();
   const router = useRouter();
+  const auth = useOptionalAuth();
+  // The `account_suspend` category, when the server has it, is selected
+  // once the list loads. The drafted description follows the profile (its
+  // re-read may bring the admin's note) until the rider edits it.
+  const initialCategoryCode = aboutSuspension ? ACCOUNT_SUSPEND_CATEGORY : null;
+  const draft = aboutSuspension
+    ? suspensionTicketDescription(
+        withFallbackReason(
+          riderSuspension(auth?.user ?? null, auth?.suspensionSignal ?? null),
+          aboutSuspension.reason,
+        ),
+        t,
+      )
+    : "";
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [rides, setRides] = useState<RideSummary[]>([]);
   // The ride link is optional: a failed ride history only hides the picker.
@@ -74,7 +104,9 @@ export default function TicketCreateScreen({
   );
   const [failure, setFailure] = useState<FailureKind>("network");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [description, setDescription] = useState("");
+  // null = untouched: the draft shows.
+  const [edited, setDescription] = useState<string | null>(null);
+  const description = edited ?? draft;
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [rideId, setRideId] = useState<string | null>(initialRideId);
@@ -93,14 +125,22 @@ export default function TicketCreateScreen({
       () => setRidesFailed(true),
     );
     try {
-      setCategories(await listTicketCategories());
+      const list = await listTicketCategories();
+      setCategories(list);
+      if (initialCategoryCode) {
+        // The rider's own pick wins over the pre-selection on a reload.
+        const preset = list.find(
+          (category) => category.systemCode === initialCategoryCode,
+        );
+        setCategoryId((current) => current ?? preset?.ticketCategoryId ?? null);
+      }
       await history;
       setStatus("ready");
     } catch (error) {
       setFailure(failureKind(error));
       setStatus("error");
     }
-  }, []);
+  }, [initialCategoryCode]);
 
   useEffect(() => {
     (async () => {
@@ -203,6 +243,13 @@ export default function TicketCreateScreen({
       keyboardShouldPersistTaps="handled"
       testID="ticket-create"
     >
+      {aboutSuspension ? (
+        <Banner
+          tone="accent"
+          message={t("suspended.ticket.notice")}
+          testID="ticket-create-notice"
+        />
+      ) : null}
       <View style={styles.group}>
         <AppText variant="label" weight={700} tone="secondary">
           {t("ticketCreate.categoryLabel")}

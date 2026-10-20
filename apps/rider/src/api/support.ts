@@ -62,7 +62,15 @@ export interface TicketCategory {
   name: LocalizedText;
   defaultPriority: TicketPriority;
   sortOrder: number;
+  /**
+   * The protected system row's code (e.g. `account_suspend`), null for
+   * admin-made categories; older servers omit it.
+   */
+  systemCode?: string | null;
 }
+
+/** The category a suspension appeal is filed under (W39). */
+export const ACCOUNT_SUSPEND_CATEGORY = "account_suspend";
 
 export interface UploadedTicketFile {
   fileId: string;

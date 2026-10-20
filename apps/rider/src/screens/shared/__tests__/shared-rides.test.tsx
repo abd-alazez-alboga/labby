@@ -281,6 +281,28 @@ describe("join a shared ride (UC-R-13)", () => {
     expect(mockBack).toHaveBeenCalled();
   });
 
+  it("a suspended rider's join opens the booking-refused sheet (W39)", async () => {
+    mockApi({
+      ...ACTIVE_NONE,
+      [`GET ${SHARED}`]: { status: 200, body: sharedRide() },
+      [`POST ${SHARED}/join`]: {
+        status: 403,
+        body: {
+          status: 403,
+          message: "x",
+          code: "rider_suspended",
+          details: { suspensionReason: "low_rating" },
+        },
+      },
+    });
+    await withProviders(<SharedRideScreen rideId={SHARED_ID} />);
+    await fireEvent.press(await screen.findByTestId("shared-ride-join"));
+    expect(await screen.findByTestId("booking-refused-body")).toHaveTextContent(
+      "Your rider account is suspended. Your average rider rating fell below the minimum allowed in your area.",
+    );
+    expect(screen.getByTestId("booking-refused-support")).toBeOnTheScreen();
+  });
+
   it("the join that fills the ride hands over to the live ride", async () => {
     mockApi({
       ...ACTIVE_NONE,
@@ -549,6 +571,30 @@ describe("create a shared ride (UC-R-12)", () => {
     expect(await screen.findByTestId("shared-create-error")).toHaveTextContent(
       "Pick a departure time in the future.",
     );
+  });
+
+  it("a suspended rider's publish opens the booking-refused sheet (W39)", async () => {
+    mockApi({
+      ...ACTIVE_NONE,
+      "GET /api/v1/rider/saved-locations": { status: 200, body: [savedWork] },
+      "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+      "POST /api/v1/shared-rides": {
+        status: 403,
+        body: {
+          status: 403,
+          message: "x",
+          code: "rider_suspended",
+          details: { suspensionReason: "low_rating" },
+        },
+      },
+    });
+    await withProviders(<SharedCreateScreen />);
+    await planRoute();
+    await fireEvent.press(await screen.findByTestId("shared-create-publish"));
+    expect(await screen.findByTestId("booking-refused-title")).toHaveTextContent(
+      "You can't book right now",
+    );
+    expect(screen.queryByTestId("shared-create-error")).toBeNull();
   });
 
   it("explains an active ride in the way", async () => {

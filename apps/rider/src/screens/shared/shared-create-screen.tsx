@@ -48,6 +48,10 @@ import { colors, radius, spacing } from "../../theme/tokens";
 import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { type PlannedRoute, RoutePlanner } from "../ride/route-planner";
 import { earliestSlot, WhenPicker } from "../scheduled/when-picker";
+import {
+  BookingRefusedSheet,
+  useBookingRefusal,
+} from "../trust/suspension-support";
 import { departureWhen, Stepper } from "./shared-parts";
 
 /** A fresh shared ride leaves at least this far ahead by default. */
@@ -77,6 +81,8 @@ export default function SharedCreateScreen() {
   const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 403 rider_suspended: the booking-refused sheet (W39).
+  const refused = useBookingRefusal();
 
   // M12 review W6: the published estimate has no surge and the departure
   // time's surcharge (surge locks at dispatch) — the estimate asks for the
@@ -187,7 +193,7 @@ export default function SharedCreateScreen() {
           // Review W9: drop the refused promo so the next tap books without it.
           setPromo(null);
           setPromoRefusal(promoMessage);
-        } else {
+        } else if (!refused.catchRefusal(failed)) {
           setError(rideErrorMessage(failed, t));
         }
       }
@@ -456,6 +462,7 @@ export default function SharedCreateScreen() {
           </BottomSheet>
         </View>
       </Modal>
+      <BookingRefusedSheet refusal={refused.refusal} onClose={refused.close} />
     </Screen>
   );
 }

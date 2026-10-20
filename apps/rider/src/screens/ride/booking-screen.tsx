@@ -75,6 +75,10 @@ import { RideMap } from "./ride-parts";
 import { type PlannedRoute, RoutePlanner } from "./route-planner";
 import { ScheduledCancelSheet } from "../scheduled/scheduled-cancel-sheet";
 import { ScheduledWarningSheet } from "../scheduled/scheduled-warning-sheet";
+import {
+  BookingRefusedSheet,
+  useBookingRefusal,
+} from "../trust/suspension-support";
 import { type SurgeChange, SurgeChangedSheet } from "./surge-changed-sheet";
 
 /** "Cool · Quiet · No pref." — the comfort preferences shown in booking. */
@@ -278,6 +282,8 @@ export default function BookingScreen({
   const [selected, setSelected] = useState<string | null>(null);
   const [bookError, setBookError] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
+  // 403 rider_suspended: the booking-refused sheet (W39).
+  const refused = useBookingRefusal();
   // 409 surge_changed: the price-changed sheet (null = closed).
   const [surgeChange, setSurgeChange] = useState<SurgeChange | null>(null);
   // The estimate re-fetch behind the open sheet failed: the options still
@@ -475,7 +481,7 @@ export default function BookingScreen({
         if (promoMessage) {
           setPromo(null);
           setPromoRefusal(promoMessage);
-        } else {
+        } else if (!refused.catchRefusal(error)) {
           setBookError(rideErrorMessage(error, t));
         }
       }
@@ -809,6 +815,10 @@ export default function BookingScreen({
                 setEstimate(null);
               }
             }}
+          />
+          <BookingRefusedSheet
+            refusal={refused.refusal}
+            onClose={refused.close}
           />
         </BottomSheet>
       }

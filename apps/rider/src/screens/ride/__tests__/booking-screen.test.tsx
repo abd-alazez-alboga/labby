@@ -285,35 +285,8 @@ describe("booking (UC-R-04)", () => {
       { status: 409, body: { status: 409, message: "x", code: "active_ride_exists" } },
       "You already have an active ride.",
     ],
-    [
-      "rider_suspended (403)",
-      "book",
-      {
-        status: 403,
-        body: {
-          status: 403,
-          message: "x",
-          code: "rider_suspended",
-          details: { suspensionReason: "low_rating" },
-        },
-      },
-      // W39: the reason as a localized label, never the raw enum.
-      "Your rider account is suspended (low rating).",
-    ],
-    [
-      "rider_suspended with an unknown reason (403)",
-      "book",
-      {
-        status: 403,
-        body: {
-          status: 403,
-          message: "x",
-          code: "rider_suspended",
-          details: { suspensionReason: "unpaid_balance" },
-        },
-      },
-      "Your rider account is suspended.",
-    ],
+    // rider_suspended (403) opens the booking-refused sheet instead (W39,
+    // approved artboard V1FRiderBookingRefused) — see its describe below.
     [
       "payment_method_unavailable",
       "book",
@@ -340,6 +313,94 @@ describe("booking (UC-R-04)", () => {
     await fireEvent.press(await screen.findByTestId("booking-confirm"));
     expect(await screen.findByTestId("booking-error")).toHaveTextContent(message);
     expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  describe("refused because the rider is suspended (W39, V1FRiderBookingRefused)", () => {
+    function suspended(reason: string) {
+      return {
+        status: 403,
+        body: {
+          status: 403,
+          message: "x",
+          code: "rider_suspended",
+          details: { suspensionReason: reason },
+        },
+      };
+    }
+
+    it("explains the reason in plain words and offers Contact support", async () => {
+      mockApi({
+        ...BASE_ROUTES,
+        "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+        "POST /api/v1/rides": suspended("low_rating"),
+      });
+      await renderBooking();
+      await planToWork();
+      await fireEvent.press(await screen.findByTestId("booking-confirm"));
+
+      expect(await screen.findByTestId("booking-refused-title")).toHaveTextContent(
+        "You can't book right now",
+      );
+      // Never the raw enum: the rating rule, in words.
+      expect(screen.getByTestId("booking-refused-body")).toHaveTextContent(
+        "Your rider account is suspended. Your average rider rating fell below the minimum allowed in your area.",
+      );
+      expect(
+        screen.getByText("Nothing was booked and nothing was charged."),
+      ).toBeOnTheScreen();
+      expect(screen.queryByTestId("booking-error")).toBeNull();
+      expect(screen.queryByText(/low_rating/)).toBeNull();
+      expect(mockBack).not.toHaveBeenCalled();
+
+      await fireEvent.press(screen.getByTestId("booking-refused-support"));
+      expect(mockPush).toHaveBeenCalledWith(
+        "/new-ticket?about=suspension&reason=low_rating",
+      );
+      expect(screen.queryByTestId("booking-refused")).toBeNull();
+    });
+
+    it("an unknown reason shows the plain line; Close dismisses the sheet", async () => {
+      mockApi({
+        ...BASE_ROUTES,
+        "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+        "POST /api/v1/rides": suspended("unpaid_balance"),
+      });
+      await renderBooking();
+      await planToWork();
+      await fireEvent.press(await screen.findByTestId("booking-confirm"));
+
+      expect(await screen.findByTestId("booking-refused-body")).toHaveTextContent(
+        /^Your rider account is suspended\.$/,
+      );
+      await fireEvent.press(screen.getByTestId("booking-refused-close"));
+      expect(screen.queryByTestId("booking-refused")).toBeNull();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("renders in Arabic", async () => {
+      await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+      mockApi({
+        ...BASE_ROUTES,
+        "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+        "POST /api/v1/rides": suspended("low_rating"),
+      });
+      await renderBooking();
+      await waitFor(() =>
+        expect(screen.getByTestId("booking-input-pickup").props.value).toBe(
+          "موقعك الحالي",
+        ),
+      );
+      await fireEvent.press(await screen.findByTestId(`booking-saved-${savedWork.id}`));
+      await fireEvent.press(screen.getByTestId("booking-submit"));
+      await fireEvent.press(await screen.findByTestId("booking-confirm"));
+
+      expect(await screen.findByText("لا يمكنك الحجز الآن")).toBeOnTheScreen();
+      expect(screen.getByTestId("booking-refused-body")).toHaveTextContent(
+        "حسابك كراكب موقوف. انخفض متوسط تقييمك كراكب عن الحد الأدنى المسموح به في منطقتك.",
+      );
+      expect(screen.getByText("تواصل مع الدعم")).toBeOnTheScreen();
+      expect(screen.getByText("إغلاق")).toBeOnTheScreen();
+    });
   });
 
   it("starts from a saved place tapped on home", async () => {

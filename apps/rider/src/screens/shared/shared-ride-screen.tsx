@@ -59,6 +59,10 @@ import { colors, radius, spacing } from "../../theme/tokens";
 import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { RideMap } from "../ride/ride-parts";
 import {
+  BookingRefusedSheet,
+  useBookingRefusal,
+} from "../trust/suspension-support";
+import {
   departureRule,
   departureValue,
   OccupancyBar,
@@ -361,6 +365,8 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
   const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 403 rider_suspended on join: the booking-refused sheet (W39).
+  const refused = useBookingRefusal();
   // E1: the backend said fewer seats are left than the party needs.
   const [shortOf, setShortOf] = useState<number | null>(null);
   const [closed, setClosed] = useState(false);
@@ -485,7 +491,7 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
           // Review W9: drop the refused promo so the next tap books without it.
           setPromo(null);
           setPromoRefusal(promoMessage);
-        } else {
+        } else if (!refused.catchRefusal(failed)) {
           setError(rideErrorMessage(failed, t));
         }
       }
@@ -895,6 +901,10 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
               setClosed(false);
               back();
             }}
+          />
+          <BookingRefusedSheet
+            refusal={refused.refusal}
+            onClose={refused.close}
           />
         </BottomSheet>
       }

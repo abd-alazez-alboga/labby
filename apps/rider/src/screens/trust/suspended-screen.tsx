@@ -1,12 +1,13 @@
 /**
- * Suspended state (USR-04..06, M11) — approved artboard RiderSuspended:
- * shown on home instead of booking while the rider role or the whole
- * account is suspended. The reason card carries the admin's note ("from
- * the Labby team", manual suspensions and whole-account suspensions) or the
- * rating rule (`low_rating`); without a known reason the card is left out.
- * No "Contact support" action: the approved board has none (an appeal /
- * contact entry is Phase B, not V1). The menu button keeps Settings
- * (language, log out) reachable.
+ * Suspended state (USR-04..06, M11) — approved artboards RiderSuspended
+ * and V1FRiderSuspendedAppeal (+Ar, V1 audit W39): shown on home instead
+ * of booking while the rider role or the whole account is suspended. The
+ * reason card carries the admin's note ("from the Labby team", manual
+ * suspensions and whole-account suspensions) or the rating rule
+ * (`low_rating`); without a known reason the card is left out. "Contact
+ * support" opens the create-ticket flow pre-filled about the suspension
+ * (UC-R-04 E3 appeal); the Settings link keeps language and log out
+ * reachable.
  *
  * SOS and finishing a ride already in flight stay available (owner ruling
  * 2026-10-15): home shows that ride, not this screen, while it lasts.
@@ -18,14 +19,15 @@ import { StyleSheet, View } from "react-native";
 
 import {
   AppText,
-  MapFab,
+  PrimaryButton,
   Screen,
   ScreenScrollView,
-  useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
 import { colors, radius, spacing } from "../../theme/tokens";
 import type { RiderSuspension } from "../../trust/suspension";
+import { suspensionTicketHref } from "../../trust/suspension-ticket";
+import { QuietLink } from "./suspension-support";
 
 export default function SuspendedScreen({
   suspension,
@@ -33,20 +35,11 @@ export default function SuspendedScreen({
   suspension: RiderSuspension;
 }) {
   const { t } = useLocale();
-  const { row } = useDirection();
   const router = useRouter();
   const lowRating = suspension.scope === "role" && suspension.reason === "low_rating";
 
   return (
     <Screen edges={["top"]} style={styles.page} testID="suspended-screen">
-      <View style={[styles.topBar, { flexDirection: row }]}>
-        <MapFab
-          icon="menu"
-          accessibilityLabel={t("home.openSettings")}
-          onPress={() => router.push("/settings")}
-          testID="suspended-settings"
-        />
-      </View>
       <ScreenScrollView contentContainerStyle={styles.content}>
         <View style={styles.iconWell}>
           <Ionicons name="ban-outline" size={30} color={colors.text} />
@@ -64,7 +57,7 @@ export default function SuspendedScreen({
           </AppText>
         </View>
         {suspension.note ? (
-          <View style={styles.noteCard} testID="suspended-note">
+          <View style={styles.reasonCard} testID="suspended-note">
             <AppText variant="caption" weight={700} tone="muted">
               {t("suspended.reasonFromTeam")}
             </AppText>
@@ -74,23 +67,40 @@ export default function SuspendedScreen({
           </View>
         ) : null}
         {lowRating ? (
-          <View style={styles.ruleCard} testID="suspended-rule">
+          <View style={styles.reasonCard} testID="suspended-rule">
             <AppText variant="caption" weight={700} tone="muted">
               {t("suspended.reasonLabel")}
             </AppText>
-            <AppText variant="body" weight={700} style={styles.lines}>
+            <AppText variant="bodyStrong" style={styles.lines}>
               {t("suspended.lowRating")}
             </AppText>
           </View>
         ) : null}
         <AppText
-          variant="caption"
-          tone="muted"
+          variant="secondary"
+          tone="secondary"
           weight={400}
-          style={[styles.footer, styles.lines]}
+          style={styles.lines}
         >
           {t("suspended.footer")}
         </AppText>
+        <View style={styles.actions}>
+          <PrimaryButton
+            label={t("suspended.contactSupport")}
+            onPress={() =>
+              router.push(suspensionTicketHref(suspension.reason) as never)
+            }
+            testID="suspended-contact-support"
+          />
+          <AppText variant="caption" tone="muted" weight={400} align="center">
+            {t("suspended.contactSupportHint")}
+          </AppText>
+          <QuietLink
+            label={t("home.openSettings")}
+            onPress={() => router.push("/settings")}
+            testID="suspended-settings"
+          />
+        </View>
       </ScreenScrollView>
     </Screen>
   );
@@ -101,16 +111,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
-  topBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.xxxl,
+    paddingTop: 40,
     paddingBottom: 34,
-    gap: spacing.xl,
+    gap: 18,
   },
   iconWell: {
     width: 64,
@@ -126,20 +132,15 @@ const styles = StyleSheet.create({
   lines: {
     lineHeight: 22,
   },
-  noteCard: {
+  reasonCard: {
     gap: 6,
     borderWidth: 1.5,
     borderColor: colors.line,
     borderRadius: radius.lg,
     padding: spacing.lg,
   },
-  ruleCard: {
-    gap: 6,
-    backgroundColor: colors.surfaceFill,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  footer: {
+  actions: {
     marginTop: "auto",
+    gap: spacing.sm,
   },
 });
