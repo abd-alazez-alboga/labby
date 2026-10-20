@@ -7,16 +7,24 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.QueryTimeoutException;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Maps exceptions to JSON {@link ErrorResponse} payloads. */
 @Slf4j
@@ -169,6 +177,57 @@ public class GlobalExceptionHandler {
                 status.value(),
                 status.getReasonPhrase(),
                 "Missing request parameter: " + ex.getParameterName()));
+  }
+
+  /**
+   * V1 audit I106: an HTTP method the path does not support is 405 (with {@code Allow}), never the
+   * catch-all 500.
+   */
+  @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+  public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+      HttpRequestMethodNotSupportedException ex) {
+    HttpStatus status = HttpStatus.METHOD_NOT_ALLOWED;
+    ResponseEntity.BodyBuilder response = ResponseEntity.status(status);
+    if (ex.getSupportedHttpMethods() != null && !ex.getSupportedHttpMethods().isEmpty()) {
+      response.allow(ex.getSupportedHttpMethods().toArray(HttpMethod[]::new));
+    }
+    return response.body(
+        ErrorResponse.of(status.value(), status.getReasonPhrase(), "Method not allowed"));
+  }
+
+  /** V1 audit I106: an unsupported request Content-Type is 415. */
+  @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+  public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(
+      HttpMediaTypeNotSupportedException ex) {
+    HttpStatus status = HttpStatus.UNSUPPORTED_MEDIA_TYPE;
+    return ResponseEntity.status(status)
+        .body(
+            ErrorResponse.of(status.value(), status.getReasonPhrase(), "Unsupported content type"));
+  }
+
+  /** V1 audit I106: an Accept header no representation satisfies is 406. */
+  @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+  public ResponseEntity<ErrorResponse> handleMediaTypeNotAcceptable(
+      HttpMediaTypeNotAcceptableException ex) {
+    HttpStatus status = HttpStatus.NOT_ACCEPTABLE;
+    return ResponseEntity.status(status)
+        .body(ErrorResponse.of(status.value(), status.getReasonPhrase(), "Not acceptable"));
+  }
+
+  /** V1 audit I106: an unknown path (no handler, no static resource) is 404. */
+  @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+  public ResponseEntity<ErrorResponse> handleNoResource(Exception ex) {
+    HttpStatus status = HttpStatus.NOT_FOUND;
+    return ResponseEntity.status(status)
+        .body(ErrorResponse.of(status.value(), status.getReasonPhrase(), "Not found"));
+  }
+
+  /** V1 audit I106: a missing required header or multipart part is 400. */
+  @ExceptionHandler({MissingRequestHeaderException.class, MissingServletRequestPartException.class})
+  public ResponseEntity<ErrorResponse> handleMissingRequestPart(Exception ex) {
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    return ResponseEntity.status(status)
+        .body(ErrorResponse.of(status.value(), status.getReasonPhrase(), "Missing request part"));
   }
 
   /** Catch-all: never leak internals, always log. */

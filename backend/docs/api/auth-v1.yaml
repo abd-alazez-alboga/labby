@@ -7,7 +7,10 @@ info:
     document; the backend (M2-T2) must implement it exactly. Springdoc output is the living
     mirror once implemented — on conflict after T2 lands, the implementation is the truth.
     SRS: AUTH-01..07, USR-01..07, ES-01/02. All responses are JSON; errors use the global
-    ErrorResponse shape from M1 (status, message, fieldErrors?).
+    ErrorResponse shape from M1 (status, message, fieldErrors?). Protocol errors on ANY
+    endpoint map to their HTTP status, never 500 (V1 audit I106): an unsupported method → 405
+    (with `Allow`), an unsupported Content-Type → 415, an unacceptable Accept → 406, an unknown
+    path → 404, a missing required header or multipart part → 400.
 servers:
   - url: http://localhost:8080
 tags:
