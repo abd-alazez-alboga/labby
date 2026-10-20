@@ -1,5 +1,5 @@
 /**
- * Header for non-map screens (design system ScreenHeader): a 44 px back
+ * Header for non-map screens (design system ScreenHeader): a 48 px back
  * chevron that flips in RTL, then a 32/800 title aligned to the reading
  * start. Clears the status bar itself — the stack layouts render it as the
  * native-stack `header`, so screens keep owning only their content.
@@ -10,7 +10,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useOptionalLocale } from "../../i18n/locale-context";
-import { colors, spacing } from "../../theme/tokens";
+import { colors, spacing, touchTarget } from "../../theme/tokens";
 import { useDirection } from "./direction";
 import { AppText } from "./text";
 
@@ -61,20 +61,21 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     gap: spacing.lg,
   },
+  // A full 48 px touch target (V1 audit I92).
   back: {
-    width: 44,
-    height: 44,
+    width: touchTarget,
+    height: touchTarget,
     alignItems: "center",
     justifyContent: "center",
   },
   // The chevron's glyph sits optically flush with the title edge.
   backLtr: {
     alignSelf: "flex-start",
-    marginStart: -10,
+    marginStart: -12,
   },
   backRtl: {
     alignSelf: "flex-end",
-    marginEnd: -10,
+    marginEnd: -12,
   },
   pressed: {
     opacity: 0.6,

@@ -299,6 +299,10 @@ describe("ui primitives", () => {
       expect(screen.getByTestId("icon-chevron-back")).toBeOnTheScreen();
       await fireEvent.press(screen.getByLabelText("Back"));
       expect(onBack).toHaveBeenCalled();
+      // A full 48 px touch target (V1 audit I92).
+      expect(
+        flat<ViewStyle>(screen.getByTestId("screen-header-back").props.style),
+      ).toMatchObject({ width: 48, height: 48 });
     });
 
     it("points the back chevron the other way in RTL", async () => {
