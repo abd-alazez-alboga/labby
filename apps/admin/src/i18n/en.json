@@ -1041,7 +1041,8 @@
       "dueLine": "Cancellation fee · {{date}} · collects on next ride",
       "dueLineMany": "{{count}} cancellation fees · latest {{date}} · collect on next ride",
       "activityTitle": "Wallet activity",
-      "empty": "No wallet activity yet."
+      "empty": "No wallet activity yet.",
+      "backToRide": "Ride"
     },
     "panel": {
       "title": "Grant credit / refund",
@@ -1065,7 +1066,15 @@
       "reasonRequired": "A reason is required — the user sees it.",
       "rideRequired": "A refund must be linked to one of the user's rides.",
       "rejected": "The server rejected the entry — check the amount, currency and ride link.",
-      "success": "Credited {{amount}}. Balances are up to date."
+      "success": "Credited {{amount}}. Balances are up to date.",
+      "fromRideChip": "From ride",
+      "fromRide": "Opened from ride",
+      "fromRideEnd": ". Refund and the ride are already selected.",
+      "rideTotal": "Ride total {{amount}}.",
+      "rideTotalWallet": "Ride total {{amount}}, paid from the wallet.",
+      "rideTotalCash": "Ride total {{amount}}, paid in cash.",
+      "rideTotalMixed": "Ride total {{amount}}, paid wallet + cash.",
+      "rideCancellationFee": "Cancellation fee {{amount}}."
     },
     "ledger": {
       "back": "Back to driver ledgers",
@@ -1468,6 +1477,11 @@
         "unpaid": "marked unpaid"
       },
       "feeCharged": "fee charged"
+    },
+    "refund": {
+      "action": "Refund rider",
+      "pickTitle": "Refund which member?",
+      "memberUnavailable": "Only the creator's wallet opens from here for now. Find the other members under Users."
     }
   },
   "reports": {

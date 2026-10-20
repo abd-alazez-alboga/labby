@@ -2,9 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { postWalletCredit, type WalletCreditType, type WalletTransaction } from '../../api/money';
-import type { AdminRideSummary } from '../../api/rides';
+import type { AdminRideDetail, AdminRideSummary } from '../../api/rides';
 import { useAuth } from '../../auth/AuthContext';
-import { DecisionPanel } from '../../ui';
+import { DecisionPanel, StatusChip } from '../../ui';
+import { rideRef } from '../rides/ride-format';
 import { classifyError } from '../onboarding/review-utils';
 import { formatMoment, formatMoney, isUuid, parseAmount, rejectionDetail } from './money-format';
 import { useCurrencyLabel } from './use-currency-label';
@@ -13,12 +14,43 @@ import { useCurrencyLabel } from './use-currency-label';
 const ENTER_RIDE_ID = '__enter-ride-id__';
 
 /**
+ * The ride a refund was opened from (the ride detail's "Refund rider", V1
+ * audit W28): pre-selects Refund and the ride; its detail (when readable)
+ * gives the amount hint.
+ */
+export interface RefundFromRide {
+  rideId: string;
+  detail: AdminRideDetail | null;
+}
+
+/** The amount hint: the ride's total and how it was paid, or its cancellation fee. */
+function rideAmountHint(detail: AdminRideDetail): { key: string; amount: number } | null {
+  const { ride } = detail;
+  if (ride.fare) {
+    switch (ride.paymentStatus) {
+      case 'paid_wallet':
+        return { key: 'money.panel.rideTotalWallet', amount: ride.fare.components.total };
+      case 'paid_cash':
+        return { key: 'money.panel.rideTotalCash', amount: ride.fare.components.total };
+      case 'paid_mixed':
+        return { key: 'money.panel.rideTotalMixed', amount: ride.fare.components.total };
+      default:
+        return { key: 'money.panel.rideTotal', amount: ride.fare.components.total };
+    }
+  }
+  return ride.cancellationFee
+    ? { key: 'money.panel.rideCancellationFee', amount: ride.cancellationFee }
+    : null;
+}
+
+/**
  * UC-A-15 side panel: grant wallet credit or issue a refund. A refund MUST
  * link one of the user's rides (PAY-03) and both need a reason the user will
  * see. Rendered only with `wallets:manage` (the server enforces the same
  * code); the backend notifies the user and audit-logs the action. A refund
  * linked to a listed ride is locked to that ride's currency (the server
- * rejects a mismatch).
+ * rejects a mismatch). Opened from a ride (W28) it starts on Refund with the
+ * ride linked — amount and reason stay for the admin to fill.
  */
 export function GrantRefundPanel({
   userId,
@@ -26,6 +58,7 @@ export function GrantRefundPanel({
   rides,
   onCredited,
   initialReason = '',
+  fromRide,
 }: {
   userId: string;
   /** Currencies offered in the form; the wallet's, defaulting to SYP. */
@@ -39,18 +72,20 @@ export function GrantRefundPanel({
   onCredited: (transaction: WalletTransaction) => void;
   /** Pre-filled reason — the M14 ticket remedy deep link (UC-A-21 A2). */
   initialReason?: string;
+  /** Opened from a ride detail: Refund + that ride pre-selected (W28). */
+  fromRide?: RefundFromRide;
 }) {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
   const currencyLabel = useCurrencyLabel();
 
-  const [type, setType] = useState<WalletCreditType>('grant');
+  const [type, setType] = useState<WalletCreditType>(fromRide ? 'refund' : 'grant');
   const [amountRaw, setAmountRaw] = useState('');
   const [currency, setCurrency] = useState(currencies[0] ?? 'SYP');
   // The select's value: '' (none), a listed ride id, or ENTER_RIDE_ID.
-  const [rideChoice, setRideChoice] = useState('');
+  const [rideChoice, setRideChoice] = useState(fromRide?.rideId ?? '');
   // The typed ride ID — the only input without rides:view.
-  const [typedRideId, setTypedRideId] = useState('');
+  const [typedRideId, setTypedRideId] = useState(fromRide?.rideId ?? '');
   const [reason, setReason] = useState(initialReason);
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -67,6 +102,11 @@ export function GrantRefundPanel({
     lockedCurrency !== null && !currencies.includes(lockedCurrency)
       ? [...currencies, lockedCurrency]
       : currencies;
+
+  // The "opened from ride" notice holds while that pre-selection stands.
+  const selectedFromRide =
+    fromRide && type === 'refund' && linkedRide === fromRide.rideId ? fromRide : null;
+  const amountHint = selectedFromRide?.detail ? rideAmountHint(selectedFromRide.detail) : null;
 
   const amount = parseAmount(amountRaw);
   const submitLabel =
@@ -144,8 +184,26 @@ export function GrantRefundPanel({
   }
 
   return (
-    <DecisionPanel title={t('money.panel.title')} label={t('money.panel.title')}>
+    <DecisionPanel
+      title={
+        fromRide ? (
+          <span className="decision-panel__title-row">
+            {t('money.panel.title')}
+            <StatusChip tone="accent">{t('money.panel.fromRideChip')}</StatusChip>
+          </span>
+        ) : (
+          t('money.panel.title')
+        )
+      }
+      label={t('money.panel.title')}
+    >
       <form className="decision-panel__actions" onSubmit={(event) => void submit(event)}>
+        {selectedFromRide ? (
+          <p className="banner from-ride-notice" role="status">
+            {t('money.panel.fromRide')} <bdi dir="ltr">{rideRef(selectedFromRide.rideId)}</bdi>
+            {t('money.panel.fromRideEnd')}
+          </p>
+        ) : null}
         <div className="segmented" role="group" aria-label={t('money.panel.typeLabel')}>
           {(['grant', 'refund'] as const).map((option) => (
             <button
@@ -170,7 +228,19 @@ export function GrantRefundPanel({
             inputMode="decimal"
             value={amountRaw}
             onChange={(event) => setAmountRaw(event.target.value)}
+            aria-describedby={amountHint ? 'credit-amount-hint' : undefined}
           />
+          {amountHint && selectedFromRide?.detail ? (
+            <p id="credit-amount-hint" className="panel__hint">
+              {t(amountHint.key, {
+                amount: formatMoney(
+                  amountHint.amount,
+                  currencyLabel(selectedFromRide.detail.ride.estimate.components.currency),
+                  i18n.language,
+                ),
+              })}
+            </p>
+          ) : null}
         </div>
 
         {currencyOptions.length > 1 ? (

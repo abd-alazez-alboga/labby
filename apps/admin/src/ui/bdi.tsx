@@ -16,15 +16,21 @@ export function bdiMark(value: string): string {
  * I107): an Arabic name inside an LTR template — or a Latin one inside Arabic — is isolated, so
  * the bidi algorithm cannot reorder the separators and digits around it.
  *
+ * `wrap` optionally decorates each isolated value (e.g. a link to the user's profile).
+ *
  * @example withBdi(t('rideDetail.parties.rider', { name: bdiMark(riderName) }))
  */
-export function withBdi(text: string): ReactNode {
+export function withBdi(text: string, wrap?: (isolated: ReactNode) => ReactNode): ReactNode {
   if (!text.includes(MARK)) {
     return text;
   }
   return text
     .split(MARK)
     .map((part, index) =>
-      index % 2 === 1 ? <bdi key={index}>{part}</bdi> : <Fragment key={index}>{part}</Fragment>,
+      index % 2 === 1 ? (
+        <Fragment key={index}>{wrap ? wrap(<bdi>{part}</bdi>) : <bdi>{part}</bdi>}</Fragment>
+      ) : (
+        <Fragment key={index}>{part}</Fragment>
+      ),
     );
 }

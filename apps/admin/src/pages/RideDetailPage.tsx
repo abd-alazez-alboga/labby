@@ -36,7 +36,10 @@ import { formatClock, formatMultiplier, isolateLtr } from './surge';
  * A shared ride (M12, artboard A12ChatLogMembers) adds the "Shared · N seats"
  * chip, the creator / parties meta and the Members card (status and per-member
  * payment or fee). User names sit in <bdi> so Arabic names never reorder the
- * separators around them (V1 audit I107).
+ * separators around them (V1 audit I107), and link to the user's profile
+ * with users:view. "Refund rider" (wallets:manage + wallets:view, V1 audit
+ * W28, board V1FAdminRideRefund) opens the rider's wallet with Refund and
+ * this ride pre-selected; on a shared ride it first asks which member.
  */
 export default function RideDetailPage() {
   const { t, i18n } = useTranslation();
@@ -47,8 +50,12 @@ export default function RideDetailPage() {
   const canSupportView = can('support:view');
   const canHandle = can('support:handle');
   const canRegionsView = can('regions:view');
+  const canUsersView = can('users:view');
+  // W28: the refund lands on the wallet page, which itself needs wallets:view.
+  const canRefund = can('wallets:manage') && can('wallets:view');
 
   const [detail, setDetail] = useState<AdminRideDetail | null>(null);
+  const [pickingMember, setPickingMember] = useState(false);
   const [error, setError] = useState<'notFound' | 'failed' | null>(null);
   const [sosEvents, setSosEvents] = useState<AdminSosEvent[]>([]);
   const [attempt, setAttempt] = useState(0);
@@ -60,6 +67,7 @@ export default function RideDetailPage() {
     }
     let cancelled = false;
     setDetail(null);
+    setPickingMember(false);
     setError(null);
     setSosEvents([]);
     getAdminRide(apiClient, rideId)
@@ -169,6 +177,19 @@ export default function RideDetailPage() {
     isolateLtr(formatMoney(amount, currencyLabel(currency), language));
   const fare = ride.fare ?? null;
   const components = fare ? fare.components : ride.estimate.components;
+
+  /** The user's wallet with Refund selected and this ride linked (V1 audit W28). */
+  const refundLink = (userId: string) =>
+    `/users/${userId}/wallet?${new URLSearchParams({ refundRide: ride.id })}`;
+  /** A party's name links to their profile when the admin may open it (V1FAdminRideRefund). */
+  const profileLink = (userId: string | null | undefined, name: string) =>
+    canUsersView && userId
+      ? (isolated: ReactNode) => (
+          <Link className="ride-detail__party" to={`/users/${userId}/trust`} state={{ name }}>
+            {isolated}
+          </Link>
+        )
+      : undefined;
 
   const shared = ride.kind === 'shared' ? (ride.shared ?? null) : null;
   // Pre-dispatch leavers never rode: not a party, no chat thread.
@@ -335,7 +356,72 @@ export default function RideDetailPage() {
             ) : null}
           </div>
         </div>
+        {canRefund ? (
+          <div className="page-header__actions">
+            {shared ? (
+              <button
+                className="btn btn--primary"
+                type="button"
+                aria-expanded={pickingMember}
+                onClick={() => setPickingMember((open) => !open)}
+              >
+                {t('rideDetail.refund.action')}
+              </button>
+            ) : (
+              <Link
+                className="btn btn--primary"
+                to={refundLink(detail.riderUserId)}
+                state={{ name: detail.riderName }}
+              >
+                {t('rideDetail.refund.action')}
+              </Link>
+            )}
+          </div>
+        ) : null}
       </header>
+      {canRefund && shared && pickingMember ? (
+        <section
+          className="card section refund-picker"
+          aria-label={t('rideDetail.refund.pickTitle')}
+        >
+          <h2 className="section__heading">{t('rideDetail.refund.pickTitle')}</h2>
+          <ul className="refund-picker__list">
+            {parties.map((member, index) => {
+              // The admin view names members but serves only the creator's account id.
+              const userId = member.isCreator ? detail.riderUserId : null;
+              const name =
+                member.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: index + 1 });
+              const label = (
+                <>
+                  <bdi>{name}</bdi>
+                  {member.isCreator ? ` · ${t('rideDetail.members.creator')}` : null}
+                  {` · ${t('rideDetail.members.partyOf', { count: member.partySize })}`}
+                </>
+              );
+              return (
+                <li key={member.memberId}>
+                  {userId ? (
+                    <Link
+                      className="btn refund-picker__member"
+                      to={refundLink(userId)}
+                      state={{ name: detail.riderName }}
+                    >
+                      {label}
+                    </Link>
+                  ) : (
+                    <span className="btn refund-picker__member" aria-disabled="true">
+                      {label}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {parties.some((member) => !member.isCreator) ? (
+            <p className="panel__hint">{t('rideDetail.refund.memberUnavailable')}</p>
+          ) : null}
+        </section>
+      ) : null}
       <p className="ride-detail__meta">
         {formatMoment(ride.timeline.requestedAt, language)}
         {regionName ? (
@@ -357,12 +443,16 @@ export default function RideDetailPage() {
           t(shared ? 'rideDetail.parties.creator' : 'rideDetail.parties.rider', {
             name: bdiMark(detail.riderName),
           }),
+          profileLink(detail.riderUserId, detail.riderName),
         )}
         {phones}
         {detail.driverName ? (
           <>
             {' · '}
-            {withBdi(t('rideDetail.parties.driver', { name: bdiMark(detail.driverName) }))}
+            {withBdi(
+              t('rideDetail.parties.driver', { name: bdiMark(detail.driverName) }),
+              profileLink(detail.driverUserId, detail.driverName),
+            )}
             {driverPhone}
           </>
         ) : null}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import {
   getUserWallet,
@@ -10,11 +10,16 @@ import {
   type WalletTransactionPage,
   type WalletView,
 } from '../api/money';
-import { searchAdminRides, type AdminRideSummary } from '../api/rides';
+import {
+  getAdminRide,
+  searchAdminRides,
+  type AdminRideDetail,
+  type AdminRideSummary,
+} from '../api/rides';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { BackLink, DataTable, KpiRow, KpiTile, PageHeader, ReviewLayout, TablePager } from '../ui';
-import { GrantRefundPanel } from './money/GrantRefundPanel';
+import { GrantRefundPanel, type RefundFromRide } from './money/GrantRefundPanel';
 import { formatDay, formatSigned } from './money/money-format';
 import { Money, RideRef } from './money/MoneyUi';
 import { UserProfileTabs } from './trust/TrustUi';
@@ -22,6 +27,7 @@ import { useCurrencyLabel } from './money/use-currency-label';
 import { useUserIdentity } from './money/use-user-identity';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
+import { rideRef } from './rides/ride-format';
 
 const PAGE_SIZE = 20;
 
@@ -51,10 +57,38 @@ function pendingDueByCurrency(wallet: WalletView): Map<string, PendingDueSummary
   return sums;
 }
 
+/** The ride as a refund-link option (the ride detail's own read; V1 audit W28). */
+function rideOption(detail: AdminRideDetail): AdminRideSummary {
+  const { ride } = detail;
+  return {
+    id: ride.id,
+    state: ride.state,
+    requestedAt: ride.timeline.requestedAt,
+    pickup: ride.pickup,
+    destination: ride.destination,
+    serviceTypeNameEn: ride.serviceTypeNameEn,
+    serviceTypeNameAr: ride.serviceTypeNameAr,
+    total: ride.fare?.components.total ?? null,
+    cancellationFee: ride.cancellationFee ?? null,
+    currency: ride.estimate.components.currency,
+    kind: ride.kind,
+    regionId: ride.regionId,
+    regionName: '',
+    riderUserId: detail.riderUserId,
+    riderName: detail.riderName,
+    driverUserId: detail.driverUserId ?? null,
+    driverName: detail.driverName ?? null,
+  };
+}
+
 /**
  * UC-A-15 (extends UC-A-13): a user's wallet — per-currency balances,
  * pending dues, the typed transaction history, and (with `wallets:manage`)
  * the grant/refund side panel. Viewing needs `wallets:view` (route guard).
+ * The ride detail's "Refund rider" opens it with `?refundRide=<rideId>`
+ * (V1 audit W28, board V1FAdminRideRefundWallet): Refund and that ride are
+ * pre-selected, the ride total is the amount hint, and the back link
+ * returns to the ride.
  */
 export default function UserWalletPage() {
   const { t, i18n } = useTranslation();
@@ -72,6 +106,8 @@ export default function UserWalletPage() {
   const passedState = location.state as { name?: string; grantReason?: string } | null;
   const passedName = passedState?.name;
   const grantReason = passedState?.grantReason ?? '';
+  const [searchParams] = useSearchParams();
+  const refundRideId = searchParams.get('refundRide');
 
   const [wallet, setWallet] = useState<WalletView | null>(null);
   const [walletError, setWalletError] = useState<FailureKind | null>(null);
@@ -80,6 +116,10 @@ export default function UserWalletPage() {
   const [rides, setRides] = useState<AdminRideSummary[] | null>(null);
   const [page, setPage] = useState(0);
   const [refresh, setRefresh] = useState(0);
+  /** The ride the refund comes from: undefined while loading, null when not readable. */
+  const [fromRideDetail, setFromRideDetail] = useState<AdminRideDetail | null | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -144,6 +184,30 @@ export default function UserWalletPage() {
     };
   }, [apiClient, userId, canRides]);
 
+  // The ride the ride detail sent us from (rides:view) — its total and currency.
+  useEffect(() => {
+    if (!refundRideId || !canRides) {
+      setFromRideDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setFromRideDetail(undefined);
+    getAdminRide(apiClient, refundRideId)
+      .then((loaded) => {
+        if (!cancelled) {
+          setFromRideDetail(loaded);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFromRideDetail(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, refundRideId, canRides]);
+
   const ridesById = useMemo(() => new Map((rides ?? []).map((ride) => [ride.id, ride])), [rides]);
   // The search matches rider OR driver; only rides the user TOOK can be
   // linked to a grant/refund (the server rejects the rest).
@@ -151,6 +215,16 @@ export default function UserWalletPage() {
     () => (rides ?? []).filter((ride) => ride.riderUserId === userId),
     [rides, userId],
   );
+  // A shared-ride member's ride (or one beyond the newest page) joins the options.
+  const linkableRides = useMemo(() => {
+    if (!fromRideDetail || riddenRides.some((ride) => ride.id === fromRideDetail.ride.id)) {
+      return riddenRides;
+    }
+    return [rideOption(fromRideDetail), ...riddenRides];
+  }, [riddenRides, fromRideDetail]);
+  const fromRide: RefundFromRide | undefined = refundRideId
+    ? { rideId: refundRideId, detail: fromRideDetail ?? null }
+    : undefined;
 
   function onCredited() {
     // UC-A-15: balances and history update instantly — refetch both.
@@ -158,7 +232,13 @@ export default function UserWalletPage() {
     setRefresh((n) => n + 1);
   }
 
-  const backLink = <BackLink to="/users">{t('money.wallet.back')}</BackLink>;
+  const backLink = refundRideId ? (
+    <BackLink to={`/rides/${refundRideId}`}>
+      {t('money.wallet.backToRide')} <bdi dir="ltr">{rideRef(refundRideId)}</bdi>
+    </BackLink>
+  ) : (
+    <BackLink to="/users">{t('money.wallet.back')}</BackLink>
+  );
 
   if (walletError) {
     return (
@@ -196,15 +276,19 @@ export default function UserWalletPage() {
 
       <ReviewLayout
         aside={
-          canManage ? (
+          !canManage ? null : refundRideId && fromRideDetail === undefined ? (
+            <div className="loading">{t('common.loading')}</div>
+          ) : (
             <GrantRefundPanel
+              key={refundRideId ?? 'panel'}
               userId={userId}
               currencies={currencies}
-              rides={canRides ? riddenRides : null}
+              rides={canRides ? linkableRides : null}
               onCredited={onCredited}
               initialReason={grantReason}
+              fromRide={fromRide}
             />
-          ) : null
+          )
         }
       >
         <KpiRow>
