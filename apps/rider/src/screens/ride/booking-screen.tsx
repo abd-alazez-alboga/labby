@@ -377,6 +377,12 @@ export default function BookingScreen({
       estimate?.options.find((item) => item.serviceTypeId === selected) ?? null,
     [estimate, selected],
   );
+  // Paying with a wallet that covers only part of the chosen estimate.
+  const walletShort =
+    paymentMethod === "wallet" &&
+    !!option &&
+    walletBalance !== null &&
+    walletBalance < option.estimate.components.total;
 
   /**
    * 409 surge_changed: nothing was booked. Re-fetch the estimate so the
@@ -753,7 +759,9 @@ export default function BookingScreen({
                     name: option ? serviceName(option, locale) : "",
                     multiplier: surgeText,
                   })
-                : t("booking.choose", {
+                : // Approved artboard RiderWalletShort: "Book Economy" when
+                  // the wallet covers only part of the estimate.
+                  t(walletShort ? "booking.book" : "booking.choose", {
                     name: option ? serviceName(option, locale) : "",
                   })
             }

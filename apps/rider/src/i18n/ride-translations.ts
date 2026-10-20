@@ -41,6 +41,7 @@ export const rideEn = {
     estimateSuffix: "{{money}} est.",
     cash: "Cash",
     choose: "Choose {{name}}",
+    book: "Book {{name}}",
     surgeTitle: "High demand in {{zone}}",
     surgeTitleNearby: "High demand nearby",
     surgeBody:
@@ -328,6 +329,7 @@ export const rideAr = {
     estimateSuffix: "{{money}} تقديريًا",
     cash: "نقدًا",
     choose: "اختر {{name}}",
+    book: "احجز {{name}}",
     surgeTitle: "طلب مرتفع في {{zone}}",
     surgeTitleNearby: "طلب مرتفع بالقرب منك",
     surgeBody:

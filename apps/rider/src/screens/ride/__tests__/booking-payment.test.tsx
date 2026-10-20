@@ -151,6 +151,10 @@ describe("booking payment choice (PAY-02)", () => {
         "Your wallet doesn't cover the full estimate — the rest is due in cash at the end.",
       ),
     ).toBeOnTheScreen();
+    // Approved artboard RiderWalletShort (V1 audit I41).
+    expect(screen.getByTestId("booking-confirm")).toHaveTextContent(
+      /^Book Economy$/,
+    );
 
     await fireEvent.press(screen.getByTestId("booking-confirm"));
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
@@ -176,6 +180,9 @@ describe("booking payment choice (PAY-02)", () => {
       await screen.findByText("Your wallet covers this ride's estimate."),
     ).toBeOnTheScreen();
     expect(screen.queryByTestId("booking-wallet-covers")).toBeNull();
+    expect(screen.getByTestId("booking-confirm")).toHaveTextContent(
+      /^Choose Economy$/,
+    );
   });
 
   it("notes when the balance couldn't be read and can switch back to cash", async () => {
