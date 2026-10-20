@@ -35,6 +35,13 @@ export function isAfterToday(iso: string, now: Date = new Date()): boolean {
   return iso > todayIso(now);
 }
 
+/** Whole calendar days from today to `iso` (negative once it has passed). */
+export function daysUntil(iso: string, now: Date = new Date()): number {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = fromIsoDate(iso.slice(0, 10));
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
 /** Vehicle years run 1980..next calendar year (contract VehicleInput.year). */
 export function maxVehicleYear(now: Date = new Date()): number {
   return now.getFullYear() + 1;

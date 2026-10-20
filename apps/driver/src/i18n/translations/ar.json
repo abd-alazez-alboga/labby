@@ -366,12 +366,23 @@
       "notActiveYet": "لم تُفعّل صلاحية القيادة في حسابك بعد. حاول مجدداً بعد قليل."
     },
     "documents": {
-      "title": "وثائقي",
-      "intro": "حافظ على سريان وثائقك لتواصل القيادة. جدّد أي وثيقة قبل انتهاء صلاحيتها.",
+      "title": "الوثائق",
       "expired": "منتهية",
       "valid": "سارية",
+      "renewSoon": "جدّدها قريباً",
       "expiredOn": "انتهت بعد",
+      "expires": "تنتهي في",
       "validThrough": "سارية حتى",
+      "expiringToday": "تنتهي صلاحية {{document}} اليوم.",
+      "expiringIn": {
+        "zero": "تنتهي صلاحية {{document}} بعد {{days}} يوم.",
+        "one": "تنتهي صلاحية {{document}} بعد يوم واحد.",
+        "two": "تنتهي صلاحية {{document}} بعد يومين.",
+        "few": "تنتهي صلاحية {{document}} بعد {{days}} أيام.",
+        "many": "تنتهي صلاحية {{document}} بعد {{days}} يوماً.",
+        "other": "تنتهي صلاحية {{document}} بعد {{days}} يوم."
+      },
+      "expiringBody": "جدّدها الآن لتواصل القيادة دون انقطاع.",
       "renewalPending": "التجديد قيد المراجعة",
       "renewalPendingHint": "تجديدك (الساري حتى {{date}}) بانتظار المراجعة.",
       "renewalRejected": "رُفض التجديد",

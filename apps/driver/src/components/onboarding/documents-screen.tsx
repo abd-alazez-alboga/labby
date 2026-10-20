@@ -7,7 +7,8 @@ import { getMyDocuments } from "../../api/onboarding";
 import type { DocumentSlot } from "../../api/onboarding-types";
 import { DOCUMENT_TYPES } from "../../api/onboarding-types";
 import { useLocale } from "../../i18n/LocaleProvider";
-import { formatDate } from "../../onboarding/dates";
+import { pluralCategory } from "../../money/format";
+import { daysUntil, formatDate } from "../../onboarding/dates";
 import { useRemote } from "../../onboarding/use-remote";
 import { colors, radius, spacing } from "../../theme/tokens";
 import {
@@ -23,6 +24,19 @@ import {
 } from "../ui";
 
 const NOT_APPROVED = [409] as const;
+
+/** DRV-04: the first expiry reminder goes out 30 days ahead — "Renew soon" from then. */
+export const RENEW_SOON_DAYS = 30;
+
+/** Days left on a not-yet-expired document inside the DRV-04 horizon, else null. */
+export function renewSoonDays(
+  slot: DocumentSlot,
+  now: Date = new Date(),
+): number | null {
+  if (slot.expired) return null;
+  const days = daysUntil(slot.current.expiresOn, now);
+  return days >= 0 && days <= RENEW_SOON_DAYS ? days : null;
+}
 
 function SlotRow({
   slot,
@@ -40,10 +54,14 @@ function SlotRow({
   const pending = renewal?.reviewStatus === "pending";
   const rejected = renewal?.reviewStatus === "rejected";
   const name = t(`onboarding.documentTypes.${slot.type}`);
+  const soon = renewSoonDays(slot) !== null;
+  // Board DriverDocuments: the row says when, nothing else (I66).
   const validity = `${t(
     slot.expired
       ? "onboarding.documents.expiredOn"
-      : "onboarding.documents.validThrough",
+      : soon
+        ? "onboarding.documents.expires"
+        : "onboarding.documents.validThrough",
   )} ${formatDate(current.expiresOn, language)}`;
 
   return (
@@ -54,14 +72,22 @@ function SlotRow({
       <View testID={`slot-${slot.type}`}>
         <ListRow
           title={name}
-          subtitle={`${current.number} · ${validity}`}
-          subtitleColor={slot.expired ? colors.danger : undefined}
+          subtitle={validity}
+          subtitleColor={
+            slot.expired ? colors.danger : soon ? colors.warning : undefined
+          }
           trailing={
             slot.expired ? (
               <StatusChip
                 label={t("onboarding.documents.expired")}
                 tone="danger"
                 testID={`slot-${slot.type}-expired`}
+              />
+            ) : soon ? (
+              <StatusChip
+                label={t("onboarding.documents.renewSoon")}
+                tone="warning"
+                testID={`slot-${slot.type}-soon`}
               />
             ) : (
               <StatusChip
@@ -112,10 +138,13 @@ function SlotRow({
 /**
  * UC-D-19 — the four current documents with expiry and renewal state; the
  * entry point for renewing (also from the expiry-suspension state). Each
- * row opens its renewal; an expired document's renewal is pinned below.
+ * row opens its renewal; an expired document's renewal is pinned below,
+ * else the soonest one inside the DRV-04 30-day horizon (W19, board
+ * DriverDocuments: "Renew soon" chip, banner and "Renew {document}").
  */
 export function DocumentsScreen() {
   const { t } = useTranslation();
+  const { language } = useLocale();
   const router = useRouter();
   const { state, refreshing, reload } = useRemote(getMyDocuments, NOT_APPROVED);
   // Set when a notification deep link (driver_documents) names a document.
@@ -129,9 +158,18 @@ export function DocumentsScreen() {
         )
       : [];
   const anyExpired = ordered.some((slot) => slot.expired);
-  const renewFirst = ordered.find(
-    (slot) => slot.expired && slot.renewal?.reviewStatus !== "pending",
+  const renewable = ordered.filter(
+    (slot) => slot.renewal?.reviewStatus !== "pending",
   );
+  // The soonest renewable document inside the 30-day horizon.
+  const expiring = renewable
+    .map((slot) => ({ slot, days: renewSoonDays(slot) }))
+    .filter((entry): entry is { slot: DocumentSlot; days: number } =>
+      entry.days !== null,
+    )
+    .sort((a, b) => a.days - b.days)[0];
+  const renewFirst =
+    renewable.find((slot) => slot.expired) ?? expiring?.slot ?? null;
 
   return (
     <Screen
@@ -171,12 +209,34 @@ export function DocumentsScreen() {
       ) : null}
       {state.status === "loaded" ? (
         <>
-          <BodyText>{t("onboarding.documents.intro")}</BodyText>
           {anyExpired ? (
             <Banner
               tone="danger"
               message={t("onboarding.documents.expiredBanner")}
               testID="documents-expired-banner"
+            />
+          ) : expiring ? (
+            <Banner
+              tone="warning"
+              title={
+                expiring.days === 0
+                  ? t("onboarding.documents.expiringToday", {
+                      document: t(
+                        `onboarding.documentTypes.${expiring.slot.type}`,
+                      ),
+                    })
+                  : t(
+                      `onboarding.documents.expiringIn.${pluralCategory(expiring.days, language)}`,
+                      {
+                        document: t(
+                          `onboarding.documentTypes.${expiring.slot.type}`,
+                        ),
+                        days: expiring.days,
+                      },
+                    )
+              }
+              message={t("onboarding.documents.expiringBody")}
+              testID="documents-expiring-banner"
             />
           ) : null}
           <View>

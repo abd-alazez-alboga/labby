@@ -366,12 +366,23 @@
       "notActiveYet": "Your driver access isn't active on your account yet. Try again in a moment."
     },
     "documents": {
-      "title": "My documents",
-      "intro": "Keep your documents valid to keep driving. Renew any document before it expires.",
+      "title": "Documents",
       "expired": "Expired",
       "valid": "Valid",
+      "renewSoon": "Renew soon",
       "expiredOn": "Expired after",
+      "expires": "Expires",
       "validThrough": "Valid through",
+      "expiringToday": "{{document}} expires today.",
+      "expiringIn": {
+        "zero": "{{document}} expires in {{days}} days.",
+        "one": "{{document}} expires in {{days}} day.",
+        "two": "{{document}} expires in {{days}} days.",
+        "few": "{{document}} expires in {{days}} days.",
+        "many": "{{document}} expires in {{days}} days.",
+        "other": "{{document}} expires in {{days}} days."
+      },
+      "expiringBody": "Renew it now to keep driving without interruption.",
       "renewalPending": "Renewal under review",
       "renewalPendingHint": "Your renewal (valid through {{date}}) is waiting for review.",
       "renewalRejected": "Renewal rejected",

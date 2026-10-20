@@ -306,6 +306,77 @@ describe("document renewal (UC-D-19)", () => {
     ).toBeNull();
   });
 
+  it("marks a document inside the 30-day horizon 'Renew soon' and pins its renewal (W19)", async () => {
+    await open("/documents", {
+      "GET /api/v1/driver/documents": {
+        status: 200,
+        body: [
+          slotFixture("government_id"),
+          slotFixture("drivers_license", {
+            current: documentFixture("drivers_license", {
+              reviewStatus: "approved",
+              expiresOn: isoInDays(25),
+            }),
+          }),
+          slotFixture("vehicle_registration"),
+          slotFixture("insurance", {
+            current: documentFixture("insurance", {
+              reviewStatus: "approved",
+              expiresOn: isoInDays(20),
+            }),
+          }),
+        ],
+      },
+    });
+
+    await screen.findByTestId("slot-insurance");
+    expect(screen.getByTestId("slot-insurance-soon")).toHaveTextContent(
+      "Renew soon",
+    );
+    expect(screen.getByTestId("slot-drivers_license-soon")).toBeTruthy();
+    expect(screen.queryByTestId("slot-government_id-soon")).toBeNull();
+    // Board copy (I66): "Expires <date>" / "Valid through <date>", no number.
+    expect(screen.getByTestId("slot-insurance")).toHaveTextContent("Expires ", {
+      exact: false,
+    });
+    expect(screen.getByTestId("slot-insurance")).not.toHaveTextContent(
+      "INSURANCE-1",
+      { exact: false },
+    );
+    expect(screen.getByText("Documents")).toBeTruthy();
+    // The soonest one drives the banner and the pinned primary.
+    expect(screen.getByTestId("documents-expiring-banner")).toHaveTextContent(
+      "Insurance expires in 20 days.",
+      { exact: false },
+    );
+    expect(screen.queryByTestId("documents-expired-banner")).toBeNull();
+    expect(screen.getByTestId("documents-renew-primary")).toHaveTextContent(
+      "Renew insurance",
+      { exact: false },
+    );
+  });
+
+  it("shows no 'Renew soon' state past the 30-day horizon", async () => {
+    await open("/documents", {
+      "GET /api/v1/driver/documents": {
+        status: 200,
+        body: [
+          slotFixture("insurance", {
+            current: documentFixture("insurance", {
+              reviewStatus: "approved",
+              expiresOn: isoInDays(31),
+            }),
+          }),
+        ],
+      },
+    });
+
+    await screen.findByTestId("slot-insurance");
+    expect(screen.queryByTestId("slot-insurance-soon")).toBeNull();
+    expect(screen.queryByTestId("documents-expiring-banner")).toBeNull();
+    expect(screen.queryByTestId("documents-renew-primary")).toBeNull();
+  });
+
   it("renews a document: inline validation incl. E2, then the exact body", async () => {
     const contract = await open("/documents", {
       "GET /api/v1/driver/documents": { status: 200, body: ALL_SLOTS },
