@@ -51,6 +51,15 @@ export function memberName(
   );
 }
 
+/** "Rana and Omar" / "Rana, Omar and Sami" ("رنا وعمر"). */
+function joinNames(t: TFunction, names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return t("ride.shared.namesAnd", {
+    list: names.slice(0, -1).join(t("ride.shared.namesSeparator")),
+    last: names[names.length - 1],
+  });
+}
+
 /** "Party of 2 · Cash". */
 function memberSubtitle(
   t: TFunction,
@@ -138,9 +147,14 @@ export function NoShowConfirmSheet({
   const member = members.find((item) => item.memberId === memberId) ?? null;
   if (!member || member.status !== "joined") return null;
   const name = memberName(t, member, members.indexOf(member), language);
-  const others = members.filter(
+  const remaining = members.filter(
     (item) => item.status === "joined" && item.memberId !== memberId,
-  ).length;
+  );
+  const others = remaining.length;
+  // I75 (board D12NoShowConfirm): name who the ride continues with.
+  const otherNames = remaining.map((item) =>
+    memberName(t, item, members.indexOf(item), language),
+  );
   const busy = ctx.pending === "memberNoShow";
   const error = ctx.error?.action === "memberNoShow" ? ctx.error : null;
   return (
@@ -158,7 +172,10 @@ export function NoShowConfirmSheet({
         </AppText>
         <AppText color={colors.textSecondary}>
           {others > 0
-            ? t("ride.shared.noShowCopy", { name })
+            ? t("ride.shared.noShowCopy", {
+                name,
+                others: joinNames(t, otherNames),
+              })
             : t("ride.shared.noShowCopyLast", { name })}
         </AppText>
         {error?.kind === "noShowTooEarly" ? (

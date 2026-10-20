@@ -235,6 +235,29 @@ describe("safety actions on the ride screens (UC-S-13..16)", () => {
     expect(screen.queryByTestId("sos-sheet")).toBeNull();
   });
 
+  it("the pre-arrival no-show hint names the region's free wait (I67)", async () => {
+    await renderActiveRide(
+      {
+        [RESOLVE_REGION]: ok({ ...regionBody(), waitGraceMin: 7 }),
+        [RESOLVE_REGION_LIVE]: ok({ ...regionBody(), waitGraceMin: 7 }),
+      },
+      { region: true },
+    );
+    emitPosition(33.5, 36.28);
+    // Region resolved (the SOS sheet reads the same config).
+    fireEvent.press(await screen.findByTestId("sos-pill"));
+    await waitFor(() =>
+      expect(screen.getByTestId("sos-body")).toHaveTextContent(/Damascus/),
+    );
+    fireEvent.press(screen.getByTestId("sos-cancel"));
+
+    fireEvent.press(await screen.findByTestId("ride-cancel-open"));
+    expect(await screen.findByTestId("cancel-sheet")).toHaveTextContent(
+      "Available after 7 min waiting · rider pays the fee",
+      { exact: false },
+    );
+  });
+
   it("SOS: a failed POST retries exactly once and never blocks the dialer", async () => {
     const { contract } = await renderActiveRide(
       {

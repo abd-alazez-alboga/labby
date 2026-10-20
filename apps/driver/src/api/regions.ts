@@ -26,6 +26,8 @@ export interface RegionConfig {
   /** ISO 4217. */
   currency: string;
   emergencyNumber: string;
+  /** PRC-03: the free wait at pickup in minutes; null = the SRS default 5. */
+  waitGraceMin?: number | null;
   serviceTypes: RegionServiceType[];
 }
 

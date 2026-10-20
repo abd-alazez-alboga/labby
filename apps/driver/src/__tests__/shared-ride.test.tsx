@@ -219,6 +219,10 @@ describe("shared ride (UC-D-13)", () => {
     expect(screen.getByTestId("member-no-show-sheet")).toHaveTextContent(
       /pays the cancellation fee and no share of the fare/,
     );
+    // I75: the sheet names who the ride continues with.
+    expect(screen.getByTestId("member-no-show-sheet")).toHaveTextContent(
+      /The ride continues with Rana and Omar\./,
+    );
     fireEvent.press(screen.getByTestId("member-no-show-confirm"));
 
     expect(await screen.findByTestId(`member-status-${LINA.memberId}`)).toHaveTextContent("Absent");

@@ -7,8 +7,9 @@ import {
   DRIVER_CANCEL_REASONS,
 } from "../../api/ride-types";
 import type { DriverCancelReason, Ride } from "../../api/ride-types";
+import { useOptionalRegion } from "../../region/RegionProvider";
 import type { DriverRideContextValue } from "../../rides/DriverRideProvider";
-import { formatClock, formatTime } from "../../rides/format";
+import { formatClock, formatNumber, formatTime } from "../../rides/format";
 import { useNow } from "../../rides/use-now";
 import { colors, radius, spacing } from "../../theme/tokens";
 import {
@@ -21,6 +22,9 @@ import {
   useDirection,
   useSafeBottomBar,
 } from "../ui";
+
+/** PRC-03: the region's free wait when it sets none (SRS default). */
+const DEFAULT_WAIT_GRACE_MIN = 5;
 
 /** Whether the server will accept `rider_no_show` right now (UC-D-07 E2). */
 export function noShowAllowed(ride: Ride, now: number): boolean {
@@ -86,11 +90,21 @@ export function CancelSheet({
     if (done) onClose();
   };
 
+  // I67 (board DriverCancel): before arrival the hint names the free wait.
+  const region = useOptionalRegion();
+  const graceMin =
+    region?.status === "resolved" && region.config
+      ? (region.config.waitGraceMin ?? DEFAULT_WAIT_GRACE_MIN)
+      : null;
   const noShowHint = (() => {
     if (allowNoShow) return t("ride.cancel.noShowAvailable");
     if (ride.state === "driver_arrived" && graceLeft !== null)
       return t("ride.cancel.noShowIn", {
         time: formatClock(Math.max(0, graceLeft), language),
+      });
+    if (graceMin !== null)
+      return t("ride.cancel.noShowAfterMinutes", {
+        minutes: formatNumber(graceMin, language),
       });
     return t("ride.cancel.noShowAfterArrival");
   })();
