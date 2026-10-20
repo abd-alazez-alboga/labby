@@ -136,6 +136,7 @@ class LoadScenario {
       workers.submit(() -> riderLoop(tokens.get(account.userId()), area, delay));
     }
     Thread.sleep(Duration.ofSeconds(durationSeconds));
+    Instant stopped = Instant.now();
     running = false;
     workers.shutdown();
     workers.awaitTermination(90, TimeUnit.SECONDS);
@@ -156,7 +157,7 @@ class LoadScenario {
     results.put("statusCounts", new java.util.TreeMap<>(statusCounts));
     try (Connection db = DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
       results.put("firstOffer", firstOfferStats(db, start, driverAccounts));
-      results.put("ingestion", ingestionStats(db, driverAccounts));
+      results.put("ingestion", ingestionStats(db, driverAccounts, stopped));
     }
     String report = JSON.writerWithDefaultPrettyPrinter().writeValueAsString(results);
     Files.writeString(Path.of("target", "load-results.json"), report);
@@ -307,31 +308,39 @@ class LoadScenario {
         "/api/v1/driver/availability",
         token,
         Map.of("online", true));
+    // Two fixed schedules: a GPS sample every 5 s (NFR-P1) and an offer poll every 2 s; the loop
+    // sleeps until whichever is due first, so the 5 s cadence is not stretched by the poll.
     long nextSample = 0;
+    long nextPoll = 0;
     while (running) {
       long now = System.currentTimeMillis();
       if (now >= nextSample) {
         position[0] += random.nextDouble(-0.0005, 0.0005);
         position[1] += random.nextDouble(-0.0005, 0.0005);
         sendLocation(token, position);
-        nextSample = now + 5_000;
+        nextSample = nextSample == 0 || now - nextSample > 5_000 ? now + 5_000 : nextSample + 5_000;
       }
-      JsonNode offer =
-          call("GET /driver/offers/open", "GET", "/api/v1/driver/offers/open", token, null);
-      if (offer != null && offer.hasNonNull("id")) {
-        JsonNode accepted =
-            call(
-                "POST /driver/offers/{id}/accept",
-                "POST",
-                "/api/v1/driver/offers/" + offer.get("id").asText() + "/accept",
-                token,
-                null);
-        if (accepted != null && accepted.hasNonNull("id")) {
-          driveRide(token, accepted, position);
-          nextSample = 0;
+      if (now >= nextPoll) {
+        nextPoll = now + 2_000;
+        JsonNode offer =
+            call("GET /driver/offers/open", "GET", "/api/v1/driver/offers/open", token, null);
+        if (offer != null && offer.hasNonNull("id")) {
+          JsonNode accepted =
+              call(
+                  "POST /driver/offers/{id}/accept",
+                  "POST",
+                  "/api/v1/driver/offers/" + offer.get("id").asText() + "/accept",
+                  token,
+                  null);
+          if (accepted != null && accepted.hasNonNull("id")) {
+            driveRide(token, accepted, position);
+            nextSample = 0;
+            nextPoll = 0;
+            continue;
+          }
         }
       }
-      sleep(2_000);
+      sleep(Math.max(1, Math.min(nextSample, nextPoll) - System.currentTimeMillis()));
     }
   }
 
@@ -534,19 +543,28 @@ class LoadScenario {
     try (PreparedStatement statement =
         db.prepareStatement(
             "SELECT EXTRACT(EPOCH FROM (MIN(o.offered_at) - r.requested_at)) * 1000 AS ms"
-                + " FROM rides r JOIN ride_offers o ON o.ride_id = r.ride_id"
-                + " WHERE r.requested_at >= ? AND o.driver_user_id = ANY (?)"
+                + " FROM rides r LEFT JOIN ride_offers o"
+                + " ON o.ride_id = r.ride_id AND o.driver_user_id = ANY (?)"
+                + " WHERE r.requested_at >= ?"
                 + " GROUP BY r.ride_id, r.requested_at ORDER BY ms")) {
-      statement.setObject(1, java.sql.Timestamp.from(since));
       statement.setArray(
-          2, db.createArrayOf("uuid", drivers.stream().map(Account::userId).toArray()));
+          1, db.createArrayOf("uuid", drivers.stream().map(Account::userId).toArray()));
+      statement.setObject(2, java.sql.Timestamp.from(since));
       List<Long> values = new ArrayList<>();
+      int withoutOffer = 0;
       try (ResultSet rs = statement.executeQuery()) {
         while (rs.next()) {
-          values.add((long) (rs.getDouble(1) * 1000));
+          double ms = rs.getDouble(1);
+          if (rs.wasNull()) {
+            // Never offered: counted apart so it cannot drop out of the p95.
+            withoutOffer++;
+          } else {
+            values.add((long) (ms * 1000));
+          }
         }
       }
       stats.put("ridesWithOffer", values.size());
+      stats.put("ridesWithoutOffer", withoutOffer);
       stats.put("p50Ms", percentile(values, 50));
       stats.put("p95Ms", percentile(values, 95));
       stats.put("maxMs", values.isEmpty() ? 0 : values.get(values.size() - 1) / 1000.0);
@@ -568,23 +586,27 @@ class LoadScenario {
   }
 
   /** Location ingestion (NFR-P2/P3): server receive lag vs the sample time, and freshness now. */
-  private static Map<String, Object> ingestionStats(Connection db, List<Account> drivers)
-      throws SQLException {
+  private static Map<String, Object> ingestionStats(
+      Connection db, List<Account> drivers, Instant stopped) throws SQLException {
     Map<String, Object> stats = new LinkedHashMap<>();
     try (PreparedStatement statement =
         db.prepareStatement(
             "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY lag),"
-                + " percentile_cont(0.95) WITHIN GROUP (ORDER BY lag), max(lag), count(*)"
-                + " FROM (SELECT EXTRACT(EPOCH FROM (received_at - recorded_at)) * 1000 AS lag"
-                + " FROM driver_locations WHERE user_id = ANY (?)) s")) {
+                + " percentile_cont(0.95) WITHIN GROUP (ORDER BY lag), max(lag), count(*),"
+                + " count(*) FILTER (WHERE received_at >= ?)"
+                + " FROM (SELECT EXTRACT(EPOCH FROM (received_at - recorded_at)) * 1000 AS lag,"
+                + " received_at FROM driver_locations WHERE user_id = ANY (?)) s")) {
+      statement.setObject(1, java.sql.Timestamp.from(stopped.minusSeconds(15)));
       statement.setArray(
-          1, db.createArrayOf("uuid", drivers.stream().map(Account::userId).toArray()));
+          2, db.createArrayOf("uuid", drivers.stream().map(Account::userId).toArray()));
       try (ResultSet rs = statement.executeQuery()) {
         rs.next();
         stats.put("lastSampleReceiveLagP50Ms", rs.getDouble(1));
         stats.put("lastSampleReceiveLagP95Ms", rs.getDouble(2));
         stats.put("lastSampleReceiveLagMaxMs", rs.getDouble(3));
         stats.put("driversWithPosition", rs.getLong(4));
+        // A last sample within 3 cycles of the stop means the driver kept the cadence to the end.
+        stats.put("driversFreshWithin15s", rs.getLong(5));
       }
     }
     return stats;

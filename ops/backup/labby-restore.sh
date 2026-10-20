@@ -29,10 +29,15 @@ if ! sql "SELECT 1" > /dev/null; then
   log "cannot connect to $PGDATABASE@$PGHOST:$PGPORT"
   exit 1
 fi
-if [ -f "$dump.sha256" ]; then
-  (cd "$(dirname "$dump")" && sha256sum --check --status "$(basename "$dump").sha256")
-  log "checksum ok"
+if [ ! -f "$dump.sha256" ]; then
+  log "refusing: $dump.sha256 not found (fetch it with the dump; it was written next to it)"
+  exit 1
 fi
+if ! (cd "$(dirname "$dump")" && sha256sum --check --status "$(basename "$dump").sha256"); then
+  log "refusing: checksum mismatch for $dump (corrupt or incomplete copy)"
+  exit 1
+fi
+log "checksum ok"
 if [ "$(sql "SELECT to_regclass('public.flyway_schema_history') IS NOT NULL")" = "t" ]; then
   log "refusing: $PGDATABASE already holds a Labby schema (restore into an empty database)"
   exit 1

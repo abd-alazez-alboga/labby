@@ -19,7 +19,11 @@
 #                             rsync next to the dumps when BACKUP_OFFSITE_TARGET is set
 #   PG_DUMP                   pg_dump command (default "pg_dump"; e.g.
 #                             "docker exec -i labby-postgres pg_dump" for the local container)
+#   PG_RESTORE_CHECK          pg_restore command used to verify the archive when pg_restore is not
+#                             on PATH (e.g. "docker exec -i labby-postgres pg_restore")
 set -euo pipefail
+# The dump holds personal data (phones, password hashes): readable by the backup user only.
+umask 077
 
 : "${PGHOST:=localhost}" "${PGPORT:=5432}" "${PGDATABASE:=labby}" "${PGUSER:=labby}"
 export PGHOST PGPORT PGDATABASE PGUSER
@@ -35,21 +39,24 @@ dump="$BACKUP_DIR/labby-$stamp.dump"
 partial="$dump.partial"
 
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) labby-backup: $*"; }
+trap 'rm -f "$partial"' EXIT
 
 log "dumping $PGDATABASE@$PGHOST:$PGPORT to $dump"
 # shellcheck disable=SC2086  # PG_DUMP may be a multi-word command (docker exec …)
 $PG_DUMP --format=custom --no-owner --dbname="$PGDATABASE" --username="$PGUSER" > "$partial"
-# A dump is only kept once pg_restore can read its table of contents.
-if ! pg_restore --list "$partial" > /dev/null 2>&1; then
-  if [ -n "${PG_RESTORE_CHECK:-}" ]; then
-    # shellcheck disable=SC2086
-    $PG_RESTORE_CHECK --list < "$partial" > /dev/null
-  else
-    log "WARNING: pg_restore not on PATH, archive not verified (set PG_RESTORE_CHECK)"
-  fi
+# A dump is only kept once pg_restore can read its table of contents; an unreadable archive fails
+# the run (set -e) and the trap deletes it.
+if [ -n "${PG_RESTORE_CHECK:-}" ]; then
+  # shellcheck disable=SC2086
+  $PG_RESTORE_CHECK --list < "$partial" > /dev/null
+elif command -v pg_restore > /dev/null; then
+  pg_restore --list "$partial" > /dev/null
+else
+  log "WARNING: pg_restore not on PATH, archive not verified (set PG_RESTORE_CHECK)"
 fi
 mv "$partial" "$dump"
-sha256sum "$dump" > "$dump.sha256"
+# Bare file name in the checksum, so the copy fetched from the off-server target verifies anywhere.
+(cd "$BACKUP_DIR" && sha256sum "labby-$stamp.dump" > "labby-$stamp.dump.sha256")
 log "wrote $(du -h "$dump" | cut -f1) ($(cut -c1-12 "$dump.sha256")…)"
 
 if [ -n "$BACKUP_OFFSITE_TARGET" ]; then

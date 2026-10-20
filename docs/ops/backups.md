@@ -3,7 +3,8 @@
 Targets: **nightly full backup, 30-day retention, RPO ≤ 24 h, RTO ≤ 4 h.**
 Scripts: [`ops/backup/labby-backup.sh`](../../ops/backup/labby-backup.sh) and
 [`ops/backup/labby-restore.sh`](../../ops/backup/labby-restore.sh). Last drill:
-[restore-drill-2026-10-20.md](restore-drill-2026-10-20.md) (pass, 23 s).
+[restore-drill-2026-10-20.md](restore-drill-2026-10-20.md) (pass; run B restored the off-server copy
+on a clean host in 18 s).
 
 ## What is backed up
 
@@ -37,9 +38,15 @@ database: set `BACKUP_FILES_DIR` and the script mirrors that directory to
 6. **Monitoring:** alert when no new `labby-*.dump` appeared in 26 h, or when the log contains
    `WARNING` or a non-zero exit.
 
-Each run writes `labby-<UTC stamp>.dump` + `.sha256`, verifies the archive is readable
-(`pg_restore --list`) before keeping it, copies both off-server, and deletes local dumps older
-than the retention.
+Each run writes `labby-<UTC stamp>.dump` + `.sha256` (the checksum names the bare file, so the
+copy verifies wherever it is fetched to), verifies the archive is readable (`pg_restore --list`;
+an unreadable archive fails the run and is deleted), copies both off-server, and deletes local
+dumps older than the retention. Files are created mode `600` (`umask 077`): a dump holds phone
+numbers and password hashes.
+
+**Protect the off-server copy like the database:** the target must be reachable only by the
+backup key, and its disk encrypted at rest (an encrypted volume, or the provider's server-side
+encryption) — the dumps themselves are not encrypted by the script.
 
 ## Restore (RTO ≤ 4 h)
 
@@ -56,7 +63,7 @@ than the retention.
    ```
    PGHOST=… PGDATABASE=labby PGUSER=… PGPASSWORD=… ops/backup/labby-restore.sh labby-<stamp>.dump
    ```
-   The script checks the checksum, refuses a non-empty database, restores with
+   The script refuses a missing or mismatching checksum, refuses a non-empty database, restores with
    `--exit-on-error`, then prints the latest Flyway migration (no failed rows) and the core table
    row counts.
 5. Point the backend at the restored database (`DB_URL`) and start it: Flyway must report
