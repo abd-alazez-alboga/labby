@@ -1,5 +1,6 @@
 import type { ApiClient } from './client';
 import type { GeoJsonPolygon } from './regions';
+import type { AdminTicket, TicketPriority } from './support';
 
 /**
  * Contract types and calls for the M10 comms & safety admin endpoints.
@@ -47,6 +48,8 @@ export interface AdminSosEvent {
   triggeredBy: SosTriggeredBy;
   rideState?: string;
   acknowledged: SosAcknowledged | null;
+  /** The linked support ticket (support-v1 ruling 9); null until an admin opens one. */
+  ticketId?: string | null;
 }
 
 export interface AdminSosEventPage {
@@ -98,6 +101,28 @@ export function acknowledgeSosEvent(
     `/api/v1/admin/sos-events/${sosEventId}/acknowledge`,
     note ? { note } : undefined,
   );
+}
+
+/** support-v1 SosTicketRequest — `priority` omitted = the category's default. */
+export interface SosTicketRequest {
+  categoryId: string;
+  description: string;
+  priority?: TicketPriority;
+}
+
+/**
+ * POST /admin/sos-events/{id}/ticket (support-v1, ruling 9) — opens the
+ * linked support ticket on behalf of the SOS caller, about the SOS ride; it
+ * starts in progress and assigned to the acting admin (support:handle;
+ * audited `sos.ticket`). 409 codes `ticket_already_linked` (one per event),
+ * `category_inactive`, `category_reserved`.
+ */
+export function openSosTicket(
+  client: ApiClient,
+  sosEventId: string,
+  body: SosTicketRequest,
+): Promise<AdminTicket> {
+  return client.post<AdminTicket>(`/api/v1/admin/sos-events/${sosEventId}/ticket`, body);
 }
 
 /* ---------- Live ops map feed (ADM-03, UC-A-19) ---------- */

@@ -40,6 +40,11 @@ export function ageParts(ageSeconds: number) {
   return { unit: 'days' as const, count: Math.floor(hours / 24) };
 }
 
+/** The short ticket reference the boards use, e.g. `T-3F9A21C0`. */
+export function ticketRef(ticketId: string): string {
+  return `T-${ticketId.slice(0, 8).toUpperCase()}`;
+}
+
 /** A LocalizedText in the UI language, falling back to the other one. */
 export function localizedName(name: LocalizedText, language: string): string {
   const preferred = language.startsWith('ar') ? name.ar : name.en;

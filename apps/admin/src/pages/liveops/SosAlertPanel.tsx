@@ -15,6 +15,7 @@ import { useSosAlerts } from '../../sos/SosAlertsProvider';
 import { FilterChips, Section, StatusChip } from '../../ui';
 import { rideRef } from '../rides/ride-format';
 import { formatSince } from '../surge';
+import { SosTicketControl } from './SosTicketControl';
 
 const PANEL_PAGE_SIZE = 20;
 const STATUS_FILTERS: readonly SosStatusFilter[] = ['open', 'acknowledged', 'all'];
@@ -32,6 +33,8 @@ const STATUS_FILTERS: readonly SosStatusFilter[] = ['open', 'acknowledged', 'all
  * poll of the app-wide SosAlertsProvider (its 30 s cadence, paused in a
  * hidden tab), plus on the manual Refresh. A 409 `already_acknowledged`
  * (another admin was faster) shows the server's stamp instead of a dead end.
+ * Each alert also carries its SOS-linked support ticket (V1 audit W16): the
+ * open form for `support:handle`, then a link to the ticket.
  */
 export function SosAlertPanel({
   regionId,
@@ -316,6 +319,8 @@ function SosAlertItem({
           {event.acknowledged!.note ? ` · “${event.acknowledged!.note}”` : null}
         </span>
       )}
+      {/* Keyed by the event, so a linked ticket survives background re-reads. */}
+      <SosTicketControl event={event} />
     </li>
   );
 }

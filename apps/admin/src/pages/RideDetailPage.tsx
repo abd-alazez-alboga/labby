@@ -15,6 +15,7 @@ import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { bdiMark, Section, StatusChip, withBdi, type ChipTone } from '../ui';
 import { formatMoment, formatMoney, formatNumber } from './money/money-format';
+import { SosTicketControl } from './liveops/SosTicketControl';
 import { ChatLogCard } from './rides/ChatLogCard';
 import {
   buildTimeline,
@@ -416,6 +417,8 @@ export default function RideDetailPage() {
                   {momentDetail(moment) ? (
                     <span className="timeline__detail">{momentDetail(moment)}</span>
                   ) : null}
+                  {/* The SOS block's linked support ticket (UC-A-20 step 3, V1 audit W16). */}
+                  {moment.sos ? <SosTicketControl event={moment.sos} emphasis="primary" /> : null}
                 </li>
               ))}
             </ol>

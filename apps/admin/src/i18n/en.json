@@ -1272,6 +1272,26 @@
       "refreshFailed": "Couldn't refresh the live snapshot — showing the last known positions. Retrying automatically.",
       "regionsForbidden": "The region list needs the View regions permission. Open the map from an SOS alert to see its region.",
       "regionsForbiddenLinked": "The region list needs the View regions permission — showing the region from the alert link."
+    },
+    "sosTicket": {
+      "open": "Open support ticket",
+      "forRider": "For rider {{name}}, about this ride. It starts In progress and assigned to you; {{name}} is notified.",
+      "forDriver": "For driver {{name}}, about this ride. It starts In progress and assigned to you; {{name}} is notified.",
+      "category": "Category",
+      "priority": "Priority",
+      "priorityDefault": "{{priority}} · category default",
+      "description": "Description · required",
+      "submit": "Open ticket",
+      "opening": "Opening…",
+      "ticket": "Ticket",
+      "view": "View ticket",
+      "alreadyLinked": "Another admin already opened a ticket for this SOS. Your description was not sent.",
+      "errors": {
+        "categoryUnavailable": "That category can't be used for tickets any more. Pick another one.",
+        "descriptionRequired": "Describe what happened — the description is required.",
+        "failed": "Couldn't open the ticket. Try again.",
+        "categoriesFailed": "Couldn't load the ticket categories."
+      }
     }
   },
   "rides": {

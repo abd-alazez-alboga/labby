@@ -2667,6 +2667,90 @@ input[type='radio'] {
   color: var(--labby-text-muted);
 }
 
+/* The SOS-linked support ticket (V1 audit W16, board V1FAdminSosTicket). */
+
+.sos-ticket {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--labby-space-2);
+}
+
+.timeline__item .sos-ticket {
+  align-items: flex-start;
+  margin-block-start: var(--labby-space-2);
+}
+
+.sos-ticket--form {
+  gap: 10px;
+  padding-block-start: var(--labby-space-3);
+  border-block-start: 1px solid var(--labby-sos-ring);
+}
+
+.timeline__item .sos-ticket--form {
+  align-items: stretch;
+}
+
+.sos-ticket__title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.sos-ticket__hint {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--labby-text-secondary);
+}
+
+.sos-ticket__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--labby-text-secondary);
+}
+
+.sos-ticket__field select,
+.sos-ticket__field textarea {
+  min-block-size: 42px;
+  padding: 0 10px;
+  border: 1.5px solid var(--labby-grab-handle);
+  border-radius: var(--labby-radius-button-lg);
+  background: var(--labby-surface);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--labby-text);
+}
+
+.sos-ticket__field textarea {
+  padding: 10px var(--labby-space-3);
+  border-radius: var(--labby-radius-control);
+  font-weight: 400;
+  resize: vertical;
+}
+
+.sos-ticket__actions {
+  display: flex;
+  gap: var(--labby-space-2);
+}
+
+.sos-ticket__submit {
+  flex: 1;
+}
+
+.sos-ticket__row {
+  display: flex;
+  align-items: center;
+  gap: var(--labby-space-2);
+  font-size: 13px;
+}
+
+.sos-ticket__ref {
+  font-weight: 800;
+}
+
 .sidenav__alert-badge {
   min-inline-size: 20px;
   block-size: 20px;
