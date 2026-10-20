@@ -16,17 +16,24 @@ const KNOWN_CODES = [
   "illegal_state",
 ] as const;
 
+/** The `SuspensionReason` values that have a localized label. */
+const SUSPENSION_REASONS = ["low_rating", "document_expired", "manual"] as const;
+
 /**
  * User copy for a failed booking / estimate / retry / route change: the
- * contract `code` decides the message; a suspension shows its reason
- * (UC-R-04 E3); anything else is the generic network or server message.
+ * contract `code` decides the message; a suspension shows its reason as a
+ * localized label (UC-R-04 E3) — never the raw enum, so an unknown reason
+ * shows the plain message; anything else is the generic network or server
+ * message.
  */
 export function rideErrorMessage(error: unknown, t: T): string {
   const code = rideErrorCode(error);
   if (code === "rider_suspended") {
     const reason = rideErrorDetail(error, "suspensionReason");
-    return reason
-      ? t("booking.errors.rider_suspended_reason", { reason })
+    return reason && (SUSPENSION_REASONS as readonly string[]).includes(reason)
+      ? t("booking.errors.rider_suspended_reason", {
+          reason: t(`booking.errors.suspensionReasons.${reason}`),
+        })
       : t("booking.errors.rider_suspended");
   }
   if (code && (KNOWN_CODES as readonly string[]).includes(code)) {

@@ -282,10 +282,25 @@ describe("booking (UC-R-04)", () => {
           status: 403,
           message: "x",
           code: "rider_suspended",
+          details: { suspensionReason: "low_rating" },
+        },
+      },
+      // W39: the reason as a localized label, never the raw enum.
+      "Your rider account is suspended (low rating).",
+    ],
+    [
+      "rider_suspended with an unknown reason (403)",
+      "book",
+      {
+        status: 403,
+        body: {
+          status: 403,
+          message: "x",
+          code: "rider_suspended",
           details: { suspensionReason: "unpaid_balance" },
         },
       },
-      "Your rider account is suspended (unpaid_balance).",
+      "Your rider account is suspended.",
     ],
     [
       "payment_method_unavailable",

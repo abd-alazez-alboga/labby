@@ -86,6 +86,11 @@ export const rideEn = {
       rider_suspended: "Your rider account is suspended.",
       rider_suspended_reason:
         "Your rider account is suspended ({{reason}}).",
+      suspensionReasons: {
+        low_rating: "low rating",
+        document_expired: "expired document",
+        manual: "Labby team review",
+      },
       payment_method_unavailable: "Only cash is available right now.",
       illegal_state: "This ride can't be changed any more.",
       generic: "Something went wrong. Please try again.",
@@ -365,6 +370,11 @@ export const rideAr = {
       rider_suspended: "حسابك كراكب موقوف.",
       rider_suspended_reason:
         "حسابك كراكب موقوف ({{reason}}).",
+      suspensionReasons: {
+        low_rating: "تقييم منخفض",
+        document_expired: "وثيقة منتهية الصلاحية",
+        manual: "مراجعة من فريق لبي",
+      },
       payment_method_unavailable: "الدفع نقدًا هو الخيار المتاح حاليًا.",
       illegal_state: "لم يعد بالإمكان تعديل هذه الرحلة.",
       generic: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
