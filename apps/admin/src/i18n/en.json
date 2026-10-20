@@ -1337,7 +1337,8 @@
       "paid_cash": "Paid in cash",
       "paid_wallet": "Paid from the wallet",
       "paid_mixed": "Paid wallet + cash",
-      "unpaid": "Marked unpaid"
+      "unpaid": "Marked unpaid",
+      "split": "Paid per member"
     },
     "traceLabel": "GPS trace",
     "traceCaption": "GPS trace — dashed to pickup, solid in ride.",

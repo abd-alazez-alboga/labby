@@ -142,7 +142,21 @@ export interface FinalFare {
   components: FareComponents;
 }
 
-export type PaymentStatus = 'pending' | 'paid_cash' | 'paid_wallet' | 'paid_mixed' | 'unpaid';
+/**
+ * Every wire value of the backend `PaymentStatus` enum; `split` (M12) marks a
+ * completed shared ride paid per member. Each value has a
+ * `rideDetail.paymentStatus.*` label (guarded by payment-status-labels.test).
+ */
+export const PAYMENT_STATUSES = [
+  'pending',
+  'paid_cash',
+  'paid_wallet',
+  'paid_mixed',
+  'unpaid',
+  'split',
+] as const;
+
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 /** The slice of the contract's Ride the admin detail page reads. */
 export interface AdminRide {
