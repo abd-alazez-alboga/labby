@@ -90,6 +90,8 @@ export type RideNotice =
   | "scheduledLive"
   /** M12 push `scheduled.released`: a claim was given back (e.g. unavailable at conversion). */
   | "scheduledReleased"
+  /** W22 push `scheduled.claim_lost`: the active vehicle no longer serves the ride. */
+  | "scheduledClaimLost"
   /** M12 push `scheduled.cancelled_rider_busy`: the rider was on another ride. */
   | "scheduledRiderBusy";
 
@@ -108,6 +110,13 @@ export interface RideNoticeDetail {
   riderName?: string | null;
   /** "HH:mm" the ride went live when the claim was released at conversion. */
   liveAt?: string | null;
+  /**
+   * Why the system released the claim (scheduled-shared-v1): `unavailable`
+   * | `account_suspended` | `balance_below_floor` | `vehicle_changed`.
+   */
+  reason?: string | null;
+  /** The pushed `countsAsRelease` ("true" / "false"); null when absent. */
+  countsAsRelease?: boolean | null;
 }
 
 export type RideAction =

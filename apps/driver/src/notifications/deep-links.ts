@@ -147,19 +147,24 @@ export function isBalanceEvent(event: string | null | undefined): boolean {
 /**
  * M12: scheduled-ride pushes the home sheet answers with a notice
  * (`scheduled.released` — a claim given back by the system;
+ * `scheduled.claim_lost` — the vehicle changed, W22;
  * `scheduled.cancelled_rider_busy`) or a resync (`scheduled.converted`).
  */
 export function scheduledNoticeFor(
   event: string | null | undefined,
-): "scheduledReleased" | "scheduledRiderBusy" | null {
+): "scheduledReleased" | "scheduledClaimLost" | "scheduledRiderBusy" | null {
   if (event === "scheduled.released") return "scheduledReleased";
+  if (event === "scheduled.claim_lost") return "scheduledClaimLost";
   if (event === "scheduled.cancelled_rider_busy") return "scheduledRiderBusy";
   return null;
 }
 
 /**
  * W22: the time / rider a scheduled push may carry in its link params —
- * tolerant of payloads that only name the ride.
+ * tolerant of payloads that only name the ride. The contract
+ * (scheduled-shared-v1) sends `rideId`, `pickupDate` (yyyy-MM-dd),
+ * `pickupTime` (HH:mm), `riderFirstName` and, on a system release,
+ * `reason` and `countsAsRelease` ("true" only for `unavailable`).
  */
 export function scheduledNoticeDetail(
   params: Record<string, string> | null | undefined,
@@ -177,9 +182,18 @@ export function scheduledNoticeDetail(
     scheduledAt: pick("scheduledAt"),
     pickupDate: pick("pickupDate"),
     pickupTime: pick("pickupTime"),
-    riderName: pick("riderName", "riderFirstName"),
+    riderName: pick("riderFirstName", "riderName"),
     liveAt: pick("liveAt", "liveTime", "wentLiveAt"),
+    reason: pick("reason"),
+    countsAsRelease: flag(pick("countsAsRelease")),
   };
+}
+
+/** A pushed "true" / "false" string; anything else is unknown (null). */
+function flag(value: string | null): boolean | null {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
 }
 
 export function isScheduledConversion(event: string | null | undefined): boolean {

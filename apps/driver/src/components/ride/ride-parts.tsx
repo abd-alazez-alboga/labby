@@ -350,6 +350,7 @@ const NOTICE_TONES: Record<RideNotice, "neutral" | "success" | "warning"> = {
   paymentSettled: "neutral",
   scheduledLive: "success",
   scheduledReleased: "warning",
+  scheduledClaimLost: "warning",
   scheduledRiderBusy: "neutral",
 };
 
@@ -397,6 +398,7 @@ function scheduledTitle(
 ): string | null {
   if (
     notice !== "scheduledReleased" &&
+    notice !== "scheduledClaimLost" &&
     notice !== "scheduledRiderBusy" &&
     notice !== "scheduledLive"
   )
@@ -417,6 +419,13 @@ function scheduledTitle(
         })
       : t("ride.notice.scheduledReleasedTitleGeneric");
   }
+  if (notice === "scheduledClaimLost") {
+    return time
+      ? t("ride.notice.scheduledClaimLostTitle", {
+          time: isolateDigits(time, language),
+        })
+      : t("ride.notice.scheduledClaimLostTitleGeneric");
+  }
   const name = detail?.riderName?.trim();
   if (name && when) {
     return t("ride.notice.scheduledRiderBusyTitle", {
@@ -431,6 +440,52 @@ function scheduledTitle(
     : t("ride.notice.scheduledRiderBusyTitleGeneric");
 }
 
+/**
+ * W22: why a claim was released (the pushed `reason`) and what it costs —
+ * "It counts as a release" only when `countsAsRelease` is "true", "It
+ * doesn't count against you" when "false", nothing when it is absent.
+ */
+function scheduledReleaseMessage(
+  t: TFunction,
+  notice: RideNotice,
+  detail: RideNoticeDetail | null,
+  language: string,
+): string | null {
+  if (notice !== "scheduledReleased" && notice !== "scheduledClaimLost")
+    return null;
+  const reason =
+    detail?.reason?.trim() ||
+    (notice === "scheduledClaimLost" ? "vehicle_changed" : null);
+  const liveAt = detail?.liveAt?.trim();
+  const unavailableAt = liveAt
+    ? t("ride.notice.scheduledReleasedLive", {
+        liveAt: isolateDigits(liveAt, language),
+      })
+    : null;
+  let cause: string;
+  switch (reason) {
+    case "unavailable":
+      cause = unavailableAt ?? t("ride.notice.scheduledReleasedUnavailable");
+      break;
+    case "account_suspended":
+      cause = t("ride.notice.scheduledReleasedSuspended");
+      break;
+    case "balance_below_floor":
+      cause = t("ride.notice.scheduledReleasedBelowFloor");
+      break;
+    case "vehicle_changed":
+      cause = t("ride.notice.scheduledClaimLost");
+      break;
+    default:
+      cause = unavailableAt ?? t("ride.notice.scheduledReleased");
+  }
+  const counts = detail?.countsAsRelease;
+  if (counts === true) return `${cause} ${t("ride.notice.releaseCounts")}`;
+  if (counts === false)
+    return `${cause} ${t("ride.notice.releaseDoesNotCount")}`;
+  return cause;
+}
+
 /** The short notice after an offer / ride went away. */
 export function RideNoticeBanner({
   notice,
@@ -443,18 +498,13 @@ export function RideNoticeBanner({
 }) {
   const { t } = useTranslation();
   const { language } = useDirection();
-  const liveAt =
-    notice === "scheduledReleased" ? detail?.liveAt?.trim() : null;
   return (
     <Banner
       tone={NOTICE_TONES[notice]}
       title={scheduledTitle(t, notice, detail, language) ?? undefined}
       message={
-        liveAt
-          ? t("ride.notice.scheduledReleasedLive", {
-              liveAt: isolateDigits(liveAt, language),
-            })
-          : t(`ride.notice.${notice}`)
+        scheduledReleaseMessage(t, notice, detail, language) ??
+        t(`ride.notice.${notice}`)
       }
       messageTestID="ride-notice-text"
       testID={`ride-notice-${notice}`}

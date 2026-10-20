@@ -11,7 +11,10 @@ import { clearSession } from "../auth/session";
 import { RideNoticeBanner } from "../components/ride/ride-parts";
 import { initI18n, setAppLanguage } from "../i18n";
 import { LocaleProvider } from "../i18n/LocaleProvider";
-import { scheduledNoticeDetail } from "../notifications/deep-links";
+import {
+  scheduledNoticeDetail,
+  scheduledNoticeFor,
+} from "../notifications/deep-links";
 import type { MockResponse } from "../test-utils/contract";
 import { MockSocket } from "../test-utils/realtime";
 import { mockLocationGranted, renderDriverApp } from "../test-utils/ride-harness";
@@ -27,7 +30,7 @@ const ok = (body: unknown): MockResponse => ({ status: 200, body });
 const LTR = (text: string) => `⁦${text}⁩`;
 
 function banner(
-  notice: "scheduledReleased" | "scheduledRiderBusy",
+  notice: "scheduledReleased" | "scheduledClaimLost" | "scheduledRiderBusy",
   detail: Parameters<typeof RideNoticeBanner>[0]["detail"],
   language: "en" | "ar" = "en",
 ) {
@@ -59,13 +62,19 @@ describe("scheduled notices (W22)", () => {
       pickupTime: "09:00",
       riderName: "Omar",
       liveAt: null,
+      reason: null,
+      countsAsRelease: null,
     });
     expect(scheduledNoticeDetail({ rideId: "r-1" })?.pickupTime).toBeNull();
     expect(scheduledNoticeDetail(null)).toBeNull();
   });
 
   it("titles a release with its time and states that it counts", () => {
-    banner("scheduledReleased", { pickupTime: "09:00", liveAt: "08:45" });
+    banner("scheduledReleased", {
+      pickupTime: "09:00",
+      liveAt: "08:45",
+      countsAsRelease: true,
+    });
     expect(screen.getByText("Your 09:00 claim was released")).toBeTruthy();
     expect(
       screen.getByText(
@@ -74,12 +83,107 @@ describe("scheduled notices (W22)", () => {
     ).toBeTruthy();
   });
 
-  it("falls back to a generic title, still with the consequence", () => {
+  it("falls back to a generic title; without countsAsRelease it claims no consequence", () => {
     banner("scheduledReleased", null);
     expect(screen.getByText("Your scheduled ride claim was released")).toBeTruthy();
     expect(
+      screen.getByText("It went back to the board or to live dispatch."),
+    ).toBeTruthy();
+  });
+
+  it("reads the contract params: riderFirstName, pickupDate + pickupTime, reason, countsAsRelease", () => {
+    expect(
+      scheduledNoticeDetail({
+        rideId: "r-1",
+        pickupDate: "2026-10-17",
+        pickupTime: "09:00",
+        riderFirstName: "Rana",
+        reason: "unavailable",
+        countsAsRelease: "true",
+      }),
+    ).toEqual({
+      rideId: "r-1",
+      scheduledAt: null,
+      pickupDate: "2026-10-17",
+      pickupTime: "09:00",
+      riderName: "Rana",
+      liveAt: null,
+      reason: "unavailable",
+      countsAsRelease: true,
+    });
+    expect(scheduledNoticeDetail({ countsAsRelease: "false" })?.countsAsRelease).toBe(false);
+    expect(scheduledNoticeDetail({ countsAsRelease: "yes" })?.countsAsRelease).toBeNull();
+    expect(scheduledNoticeFor("scheduled.claim_lost")).toBe("scheduledClaimLost");
+  });
+
+  it("an 'unavailable' release counts as a release", () => {
+    banner("scheduledReleased", {
+      pickupTime: "09:00",
+      reason: "unavailable",
+      countsAsRelease: true,
+    });
+    expect(screen.getByText("Your 09:00 claim was released")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "You were offline or on another ride when it went live, so it went to live dispatch. It counts as a release.",
+    );
+  });
+
+  it("a balance-floor release says why and does not count", () => {
+    banner("scheduledReleased", {
+      pickupTime: "09:00",
+      reason: "balance_below_floor",
+      countsAsRelease: false,
+    });
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "Your balance is below the limit, so it went to live dispatch. Settle your balance to claim scheduled rides again. It doesn't count against you.",
+    );
+    expect(screen.getByTestId("ride-notice-text")).not.toHaveTextContent(
+      /counts as a release/,
+    );
+  });
+
+  it("a suspension release says why and does not count", () => {
+    banner("scheduledReleased", {
+      reason: "account_suspended",
+      countsAsRelease: false,
+    });
+    expect(screen.getByText("Your scheduled ride claim was released")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "Your driver account was suspended, so it went to live dispatch. It doesn't count against you.",
+    );
+  });
+
+  it("a lost claim (vehicle changed) explains it and does not count", () => {
+    banner("scheduledClaimLost", {
+      pickupTime: "07:30",
+      reason: "vehicle_changed",
+      countsAsRelease: false,
+    });
+    expect(screen.getByTestId("ride-notice-scheduledClaimLost")).toBeTruthy();
+    expect(screen.getByText("You lost your 07:30 claim")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "Your active vehicle no longer offers this ride's service, so it went to live dispatch. It doesn't count against you.",
+    );
+  });
+
+  it("a lost claim with no params keeps a generic title and the vehicle reason", () => {
+    banner("scheduledClaimLost", null);
+    expect(screen.getByText("You lost a scheduled ride claim")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "Your active vehicle no longer offers this ride's service, so it went to live dispatch.",
+    );
+  });
+
+  it("Arabic: a balance-floor release says why and does not count", async () => {
+    await setAppLanguage("ar");
+    banner(
+      "scheduledReleased",
+      { reason: "balance_below_floor", countsAsRelease: false },
+      "ar",
+    );
+    expect(
       screen.getByText(
-        "It went back to the board or to live dispatch. It counts as a release.",
+        "رصيدك تحت الحد، فذهبت إلى التوزيع الفوري. سوِّ رصيدك لتعود إلى حجز الرحلات المجدولة. لا يُحتسب ذلك عليك.",
       ),
     ).toBeTruthy();
   });
@@ -100,7 +204,7 @@ describe("scheduled notices (W22)", () => {
 
   it("Arabic: the time sits in an LTR isolate", async () => {
     await setAppLanguage("ar");
-    banner("scheduledReleased", { pickupTime: "09:00" }, "ar");
+    banner("scheduledReleased", { pickupTime: "09:00", countsAsRelease: true }, "ar");
     expect(
       screen.getByText(`تم التخلي عن حجزك لرحلة الساعة ${LTR("09:00")}`),
     ).toBeTruthy();
@@ -125,6 +229,90 @@ describe("scheduled notice from a foreground push (W22)", () => {
 
   afterEach(() => {
     globalThis.WebSocket = originalWebSocket;
+  });
+
+  it("a scheduled.released push with the contract params titles and explains it, no ride read", async () => {
+    let received: ((notification: Notifications.Notification) => void) | null =
+      null;
+    jest
+      .mocked(Notifications.addNotificationReceivedListener)
+      .mockImplementation((listener) => {
+        received = listener;
+        return { remove: jest.fn() } as unknown as Notifications.EventSubscription;
+      });
+    const contract = await renderDriverApp();
+    await waitFor(() => expect(received).not.toBeNull());
+
+    await act(async () => {
+      received?.({
+        request: {
+          content: {
+            data: {
+              event: "scheduled.released",
+              category: "scheduled",
+              screen: "ride",
+              params: JSON.stringify({
+                rideId: RIDE_ID,
+                pickupDate: "2026-10-17",
+                pickupTime: "09:00",
+                riderFirstName: "Rana",
+                reason: "unavailable",
+                countsAsRelease: "true",
+              }),
+            },
+          },
+        },
+      } as unknown as Notifications.Notification);
+    });
+
+    expect(await screen.findByText("Your 09:00 claim was released")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "You were offline or on another ride when it went live, so it went to live dispatch. It counts as a release.",
+    );
+    expect(
+      contract.requestsTo(`GET /api/v1/driver/rides/${RIDE_ID}`),
+    ).toHaveLength(0);
+  });
+
+  it("a scheduled.claim_lost push shows the vehicle-changed notice", async () => {
+    let received: ((notification: Notifications.Notification) => void) | null =
+      null;
+    jest
+      .mocked(Notifications.addNotificationReceivedListener)
+      .mockImplementation((listener) => {
+        received = listener;
+        return { remove: jest.fn() } as unknown as Notifications.EventSubscription;
+      });
+    await renderDriverApp();
+    await waitFor(() => expect(received).not.toBeNull());
+
+    await act(async () => {
+      received?.({
+        request: {
+          content: {
+            data: {
+              event: "scheduled.claim_lost",
+              category: "scheduled",
+              screen: "ride",
+              params: JSON.stringify({
+                rideId: RIDE_ID,
+                pickupDate: "2026-10-17",
+                pickupTime: "07:30",
+                riderFirstName: "Omar",
+                reason: "vehicle_changed",
+                countsAsRelease: "false",
+              }),
+            },
+          },
+        },
+      } as unknown as Notifications.Notification);
+    });
+
+    expect(await screen.findByTestId("ride-notice-scheduledClaimLost")).toBeTruthy();
+    expect(screen.getByText("You lost your 07:30 claim")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "Your active vehicle no longer offers this ride's service, so it went to live dispatch. It doesn't count against you.",
+    );
   });
 
   it("a push naming only the ride fills the title from the ride read", async () => {
