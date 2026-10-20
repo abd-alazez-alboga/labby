@@ -48,7 +48,7 @@ import { colors, radius, spacing } from "../../theme/tokens";
 import { PromoRow, promoErrorMessage } from "../growth/promo-row";
 import { type PlannedRoute, RoutePlanner } from "../ride/route-planner";
 import { earliestSlot, WhenPicker } from "../scheduled/when-picker";
-import { Stepper } from "./shared-parts";
+import { departureWhen, Stepper } from "./shared-parts";
 
 /** A fresh shared ride leaves at least this far ahead by default. */
 const DEFAULT_DEPARTURE_LEAD_MIN = 30;
@@ -291,9 +291,16 @@ export default function SharedCreateScreen() {
               </AppText>
             </Pressable>
           ) : null}
-          <AppText variant="caption" weight={400} tone="muted">
+          <AppText
+            variant="caption"
+            weight={400}
+            tone="muted"
+            testID="shared-create-depart-note"
+          >
             {mode === "at_time"
-              ? t("shared.departAtNote", { time: when })
+              ? t("shared.departAtNote", {
+                  time: departureWhen(departAt.toISOString(), locale, t),
+                })
               : t("shared.whenFullNote")}
           </AppText>
         </View>

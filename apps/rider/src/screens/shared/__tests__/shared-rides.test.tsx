@@ -445,6 +445,14 @@ describe("create a shared ride (UC-R-12)", () => {
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
     });
     expect(Date.parse(estimateBody.scheduledAt ?? "")).toBeGreaterThan(Date.now());
+    // V1 audit I50: the note says "Leaves at 17:30" (or "Tomorrow · 17:30"),
+    // never "Leaves at Today · 17:30".
+    expect(screen.getByTestId("shared-create-depart-note")).toHaveTextContent(
+      /^Leaves at \S.* with whoever has joined\./,
+    );
+    expect(screen.getByTestId("shared-create-depart-note")).not.toHaveTextContent(
+      /Leaves at Today/,
+    );
     await fireEvent.press(screen.getByTestId("shared-create-mode-when_full"));
     expect(
       screen.getByText(
