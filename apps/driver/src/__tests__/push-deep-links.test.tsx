@@ -15,6 +15,7 @@ import { Platform, Pressable, Text, View } from "react-native";
 
 import { AuthProvider, useAuth } from "../auth/AuthProvider";
 import { clearSession } from "../auth/session";
+import { initI18n, setAppLanguage } from "../i18n";
 import { hrefForLink, parsePushPayload } from "../notifications/deep-links";
 import {
   ANDROID_CHANNEL_ID,
@@ -282,6 +283,8 @@ describe("push registration + taps (UC-S-25)", () => {
     try {
       mockPush({ permission: "undetermined" });
       await seedSession(driverUser());
+      await initI18n();
+      await setAppLanguage("en");
       installContractFetch({ "PUT /api/v1/devices": { status: 204 } });
 
       await expect(registerThisDevice()).resolves.toBe(true);
@@ -294,6 +297,10 @@ describe("push registration + taps (UC-S-25)", () => {
         }),
       );
       expect(ANDROID_CHANNEL_ID).toBe("default");
+      // I94: the channel name is the localized app name.
+      expect(
+        notificationsMock.setNotificationChannelAsync.mock.calls[0][1],
+      ).toMatchObject({ name: "Labby Driver" });
       expect(
         notificationsMock.setNotificationChannelAsync.mock
           .invocationCallOrder[0],

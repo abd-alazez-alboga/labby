@@ -5,6 +5,7 @@ import { AppState, Platform } from "react-native";
 
 import { registerDevice, unregisterDevice } from "../api/notifications";
 import type { DevicePlatform } from "../api/realtime-types";
+import i18n from "../i18n";
 import { runExclusive } from "../permissions/permission-queue";
 import { parsePushPayload } from "./deep-links";
 import { openChatThread } from "./open-chat";
@@ -111,7 +112,9 @@ async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== "android" || !pushSupported()) return;
   try {
     await notifications().setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-      name: "Labby",
+      // I94: the channel name shows in Android's app settings — localized
+      // (set in the language active when the device registers).
+      name: i18n.isInitialized ? i18n.t("app.name") : "Labby",
       importance: notifications().AndroidImportance.HIGH,
     });
   } catch {
