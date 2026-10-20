@@ -4,8 +4,9 @@
  * account is suspended. The reason card carries the admin's note ("from
  * the Labby team", manual suspensions and whole-account suspensions) or the
  * rating rule (`low_rating`); without a known reason the card is left out.
- * No "Contact support" action (support arrives in M14). The menu button
- * keeps Settings (language, log out) reachable.
+ * No "Contact support" action: the approved board has none (an appeal /
+ * contact entry is Phase B, not V1). The menu button keeps Settings
+ * (language, log out) reachable.
  *
  * SOS and finishing a ride already in flight stay available (owner ruling
  * 2026-10-15): home shows that ride, not this screen, while it lasts.
