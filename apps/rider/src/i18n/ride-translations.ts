@@ -114,6 +114,9 @@ export const rideEn = {
       "Your driver cancelled. You won't be charged — we're asking other drivers now.",
     freeToCancel: "Free to cancel now",
     cancelRequest: "Cancel request",
+    // Each place in a first-strong isolate so the arrow keeps pointing at
+    // the drop-off whatever script the labels are in.
+    tripLine: "\u2068{{from}}\u2069 → \u2068{{to}}\u2069",
     noDriverTitle: "No driver available",
     noDriverBody:
       "All nearby drivers are busy right now. You were not charged.",
@@ -399,6 +402,7 @@ export const rideAr = {
     redispatchBody: "ألغى سائقك الرحلة. لن تُحاسَب — نسأل سائقين آخرين الآن.",
     freeToCancel: "الإلغاء مجاني الآن",
     cancelRequest: "إلغاء الطلب",
+    tripLine: "\u2068{{from}}\u2069 ← \u2068{{to}}\u2069",
     noDriverTitle: "لا يوجد سائق متاح",
     noDriverBody: "جميع السائقين القريبين مشغولون حاليًا. لم تُحاسَب.",
     distantHint: "قبول السائقين البعيدين قد يجد لك رحلة أسرع.",

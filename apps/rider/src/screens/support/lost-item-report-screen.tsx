@@ -176,9 +176,17 @@ export default function LostItemReportScreen({ rideId }: { rideId: string }) {
           <Ionicons name="car-outline" size={18} color={colors.accent} />
         </View>
         <View style={styles.flex}>
-          <AppText variant="secondary" weight={700} numberOfLines={1}>
+          <AppText
+            variant="secondary"
+            weight={700}
+            numberOfLines={1}
+            testID="lost-report-trip"
+          >
             {ride.pickup.label && ride.destination.label
-              ? `${ride.pickup.label} → ${ride.destination.label}`
+              ? t("ride.tripLine", {
+                  from: ride.pickup.label,
+                  to: ride.destination.label,
+                })
               : (ride.destination.label ?? "")}
           </AppText>
           <AppText variant="caption" tone="muted" weight={400}>

@@ -595,8 +595,11 @@ export function RideView({
           </AppText>
         </View>
         <View style={styles.tripBox}>
-          <AppText variant="bodyStrong" weight={800}>
-            {`${placeLabel(ride.pickup)} → ${placeLabel(ride.destination)}`}
+          <AppText variant="bodyStrong" weight={800} testID="ride-trip-line">
+            {t("ride.tripLine", {
+              from: placeLabel(ride.pickup),
+              to: placeLabel(ride.destination),
+            })}
           </AppText>
           <AppText variant="caption" tone="secondary" weight={400}>
             {`${ridePaymentLine(ride, locale, t)} · ${t(

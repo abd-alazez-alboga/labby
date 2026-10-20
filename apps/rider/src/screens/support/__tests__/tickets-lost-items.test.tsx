@@ -17,7 +17,10 @@ import {
 import React from "react";
 import * as mockReact from "react";
 
-import { LocaleProvider } from "../../../i18n/locale-context";
+import {
+  LANGUAGE_STORAGE_KEY,
+  LocaleProvider,
+} from "../../../i18n/locale-context";
 import { mockApi, seedSignedInSession } from "../../../test-utils/mock-api";
 import { RIDE_ID } from "../../../test-utils/ride-fixtures";
 import { completedRide } from "../../../test-utils/trust-fixtures";
@@ -606,6 +609,29 @@ describe("lost items (UC-R-20, LOST-01/02)", () => {
     expect(
       api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/lost-item`)[0]?.body,
     ).toEqual({ description: "Black backpack", photoFileIds: [] });
+  });
+
+  it("points the ride arrow at the drop-off in both languages (V1 audit I53)", async () => {
+    mockApi({ [RIDE]: { status: 200, body: completedRide() } });
+    const view = await render(
+      <LocaleProvider>
+        <LostItemReportScreen rideId={RIDE_ID} />
+      </LocaleProvider>,
+    );
+    expect(await screen.findByTestId("lost-report-trip")).toHaveTextContent(
+      "\u2068Mazzeh Autostrad\u2069 → \u2068Umayyad Square\u2069",
+    );
+    await view.unmount();
+
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    await render(
+      <LocaleProvider>
+        <LostItemReportScreen rideId={RIDE_ID} />
+      </LocaleProvider>,
+    );
+    expect(await screen.findByTestId("lost-report-trip")).toHaveTextContent(
+      "\u2068Mazzeh Autostrad\u2069 ← \u2068Umayyad Square\u2069",
+    );
   });
 
   it("explains an already-open case (409, one per rider per ride)", async () => {

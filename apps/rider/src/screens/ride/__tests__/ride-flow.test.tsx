@@ -18,7 +18,10 @@ import {
 } from "@testing-library/react-native";
 import React from "react";
 
-import { LocaleProvider } from "../../../i18n/locale-context";
+import {
+  LANGUAGE_STORAGE_KEY,
+  LocaleProvider,
+} from "../../../i18n/locale-context";
 import { RideProvider } from "../../../ride/ride-context";
 import { mockApi, seedSignedInSession } from "../../../test-utils/mock-api";
 import {
@@ -455,6 +458,17 @@ describe("ride flow (UC-R-05…07)", () => {
       expect(screen.queryByTestId("ride-retry-error")).toBeNull();
       expect(retryBodies(api)).toEqual([1.5]);
     });
+  });
+
+  it("points the trip arrow at the drop-off in Arabic too (V1 audit I42)", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    mockApi({
+      [ACTIVE]: { status: 200, body: ride({ state: "no_driver_found" }) },
+    });
+    await renderHome();
+    expect(await screen.findByTestId("ride-trip-line")).toHaveTextContent(
+      "\u2068Mazzeh Autostrad\u2069 ← \u2068Umayyad Square\u2069",
+    );
   });
 
   it("closes a no-driver ride back to Where to?", async () => {
