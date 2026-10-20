@@ -30,6 +30,8 @@ info:
     and suspension events), `safety`. Muting a category stops PUSH only; the center still records
     it (UC-S-25 A1). `ride` and `safety` are ride-critical/safety and can never be muted (UC-S-12
     E1 — the API returns them with `locked: true` and refuses to disable them: 400).
+    The catalog is fixed (DB CHECK) — not admin-editable in V1 (SRS ADM-05 clarification,
+    2026-10-20).
 
 
     **Audience.** Each notification targets the client it belongs to — `rider`, `driver`,

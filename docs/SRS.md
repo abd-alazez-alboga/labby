@@ -230,7 +230,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | ADM-02 | Analytics dashboard with date-range + region filters: Rides (volume, completion vs cancellation, by region/service, over time) · Revenue (gross fares, commission, by region) · Users (signups, active riders/drivers, drivers online now) · Ops (avg pickup ETA, acceptance rate, active surge zones). | V1 |
 | ADM-03 | **Live operations map** per region: online driver dots (idle/on-ride), active ride routes, surge overlay, red SOS pins; click-through to detail. | V1 |
 | ADM-04 | Work queues (permission-gated): driver applications, reports, tickets, lost items, settlements, flagged accounts. | V1 |
-| ADM-05 | Entity management: users (search, full history, suspend/reactivate, wallet grants), rides (search, detail + GPS trace + chat log), vehicles, promos, challenges, help-center CMS, notification categories. | V1 |
+| ADM-05 | Entity management: users (search, full history, suspend/reactivate, wallet grants), rides (search, detail + GPS trace + chat log), vehicles, promos, challenges, help-center CMS, notification categories. *Clarified 2026-10-20 (M15 final audit, owner standing approval — to be confirmed):* notification categories are the fixed NTF-01 catalog (`ride`, `chat`, `scheduled`, `promotions`, `account`, `safety`; `ride` + `safety` locked); admins see them on every notification record, but V1 has no screen to add, rename or delete them. | V1 |
 | ADM-06 | CSV export on key lists (rides, users, drivers, transactions, tickets), respecting filters; exports audit-logged. | V1 |
 
 ---
