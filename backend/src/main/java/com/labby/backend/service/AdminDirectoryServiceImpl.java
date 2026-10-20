@@ -1,5 +1,6 @@
 package com.labby.backend.service;
 
+import com.labby.backend.config.AnalyticsProperties;
 import com.labby.backend.dto.AdminDriverDto;
 import com.labby.backend.dto.AdminDriverPageDto;
 import com.labby.backend.dto.AdminTransactionDto;
@@ -16,6 +17,7 @@ import com.labby.backend.repository.AdminDirectoryRepository;
 import com.labby.backend.repository.AdminDirectoryRepository.DriverRow;
 import com.labby.backend.repository.AdminDirectoryRepository.TransactionRow;
 import com.labby.backend.repository.AdminDirectoryRepository.UserRow;
+import com.labby.backend.repository.AnalyticsRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,18 +26,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Read-only; the page and the export share the repository's one where-clause per list. */
+/**
+ * Read-only; the page and the export share the repository's one where-clause per list. A page runs
+ * its count and rows under the analytics {@code statement_timeout} (503 {@code query_timeout}),
+ * exactly as the export does; the offset is computed as a long, so a page past the end is empty.
+ */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AdminDirectoryServiceImpl implements AdminDirectoryService {
 
   private final AdminDirectoryRepository repository;
+  private final AnalyticsRepository analyticsRepository;
+  private final AnalyticsProperties analyticsProperties;
 
   @Override
   public AdminUserPageDto users(UserFilter filter, int page, int size) {
+    limit();
     long total = repository.countUsers(role(filter), filter.from(), filter.to());
-    return new AdminUserPageDto(userRows(filter, size, page * size), page, size, total);
+    return new AdminUserPageDto(userRows(filter, size, offset(page, size)), page, size, total);
   }
 
   @Override
@@ -44,7 +53,7 @@ public class AdminDirectoryServiceImpl implements AdminDirectoryService {
     return userRows(filter, maxRows, 0);
   }
 
-  private List<AdminUserDto> userRows(UserFilter filter, int limit, int offset) {
+  private List<AdminUserDto> userRows(UserFilter filter, int limit, long offset) {
     List<UserRow> rows = repository.users(role(filter), filter.from(), filter.to(), limit, offset);
     Map<UUID, List<RoleDto>> roles =
         repository.roles(rows.stream().map(UserRow::userId).toList()).stream()
@@ -69,14 +78,23 @@ public class AdminDirectoryServiceImpl implements AdminDirectoryService {
         .toList();
   }
 
+  private void limit() {
+    analyticsRepository.limitStatementTime(analyticsProperties.statementTimeout());
+  }
+
+  private static long offset(int page, int size) {
+    return (long) page * size;
+  }
+
   private static String role(UserFilter filter) {
     return filter.role() == null ? null : filter.role().getValue();
   }
 
   @Override
   public AdminDriverPageDto drivers(DriverFilter filter, int page, int size) {
+    limit();
     long total = countDrivers(filter);
-    return new AdminDriverPageDto(driverRows(filter, size, page * size), page, size, total);
+    return new AdminDriverPageDto(driverRows(filter, size, offset(page, size)), page, size, total);
   }
 
   @Override
@@ -89,7 +107,7 @@ public class AdminDirectoryServiceImpl implements AdminDirectoryService {
     return repository.countDrivers(filter.regionId(), status(filter), filter.online());
   }
 
-  private List<AdminDriverDto> driverRows(DriverFilter filter, int limit, int offset) {
+  private List<AdminDriverDto> driverRows(DriverFilter filter, int limit, long offset) {
     return repository
         .drivers(filter.regionId(), status(filter), filter.online(), limit, offset)
         .stream()
@@ -116,9 +134,10 @@ public class AdminDirectoryServiceImpl implements AdminDirectoryService {
 
   @Override
   public AdminTransactionPageDto transactions(TransactionFilter filter, int page, int size) {
+    limit();
     long total = countTransactions(filter);
     return new AdminTransactionPageDto(
-        transactionRows(filter, size, page * size), page, size, total);
+        transactionRows(filter, size, offset(page, size)), page, size, total);
   }
 
   @Override
@@ -138,7 +157,7 @@ public class AdminDirectoryServiceImpl implements AdminDirectoryService {
   }
 
   private List<AdminTransactionDto> transactionRows(
-      TransactionFilter filter, int limit, int offset) {
+      TransactionFilter filter, int limit, long offset) {
     return repository
         .transactions(
             source(filter),

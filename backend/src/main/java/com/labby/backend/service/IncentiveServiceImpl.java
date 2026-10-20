@@ -55,6 +55,9 @@ public class IncentiveServiceImpl implements IncentiveService {
 
   private static final int RECENT_AWARDS = 8;
 
+  /** The exactly-once key (V31): its violation is a concurrent run that paid first. */
+  private static final String WEEK_KEY = "uq_incentive_awards_week";
+
   private final RegionRepository regionRepository;
   private final IncentiveStatsRepository statsRepository;
   private final IncentiveAwardRepository awardRepository;
@@ -112,20 +115,49 @@ public class IncentiveServiceImpl implements IncentiveService {
       BigDecimal avgRating,
       BigDecimal amount) {}
 
+  /**
+   * Each region pays its own last finished week; a region or an award that fails is logged and
+   * skipped so the rest of the run still pays (the next run retries it — awards are exactly-once).
+   */
   @Override
   public int evaluatePreviousWeek(Instant now) {
     int paid = 0;
     for (Region region : regionRepository.findAll()) {
-      IncentiveValuesDto config = config(region);
-      if (config == null) {
+      try {
+        paid += evaluateRegion(region, now);
+      } catch (RuntimeException failed) {
+        log.error("Incentive evaluation of region {} failed", region.getId(), failed);
+      }
+    }
+    return paid;
+  }
+
+  private int evaluateRegion(Region region, Instant now) {
+    IncentiveValuesDto config = config(region);
+    if (config == null) {
+      return 0;
+    }
+    ZoneId zone = ZoneId.of(region.getTimeZone());
+    Week week = Week.containing(now, zone).previous(zone);
+    int paid = 0;
+    for (Award award : awards(region, config, zone, week)) {
+      if (IncentivePolicy.money(award.amount()).signum() <= 0) {
+        // A positive amount below half a cent rounds to 0.00, which the award CHECK refuses.
+        log.debug(
+            "Incentive {} for {} rounds to 0.00; not paid", award.kind(), award.driverUserId());
         continue;
       }
-      ZoneId zone = ZoneId.of(region.getTimeZone());
-      Week week = Week.containing(now, zone).previous(zone);
-      for (Award award : awards(region, config, zone, week)) {
+      try {
         if (pay(region, week, award)) {
           paid++;
         }
+      } catch (RuntimeException failed) {
+        log.error(
+            "Incentive {} for {} in region {} failed",
+            award.kind(),
+            award.driverUserId(),
+            region.getId(),
+            failed);
       }
     }
     return paid;
@@ -142,7 +174,7 @@ public class IncentiveServiceImpl implements IncentiveService {
     List<PeakWindowDto> windows = IncentivePolicy.windows(config);
     Map<UUID, Long> peakByDriver =
         trips.stream()
-            .filter(t -> IncentivePolicy.coveringWindow(windows, t.requestedAt(), zone).isPresent())
+            .filter(t -> IncentivePolicy.coveringWindow(windows, t.pricedAt(), zone).isPresent())
             .collect(Collectors.groupingBy(CompletedTrip::driverUserId, Collectors.counting()));
     Map<UUID, RatingStats> ratings =
         statsRepository.ratingStats(region.getId(), week.from(), week.to(), null).stream()
@@ -193,7 +225,10 @@ public class IncentiveServiceImpl implements IncentiveService {
     return awards;
   }
 
-  /** Pays one award in its own transaction; false when it was already paid. */
+  /**
+   * Pays one award in its own transaction; false when it was already paid. Any other failure
+   * propagates (rolled back) to the caller, which logs it and moves on.
+   */
   private boolean pay(Region region, Week week, Award award) {
     try {
       return Boolean.TRUE.equals(
@@ -246,6 +281,9 @@ public class IncentiveServiceImpl implements IncentiveService {
                 return true;
               }));
     } catch (DataIntegrityViolationException raced) {
+      if (!String.valueOf(raced.getMostSpecificCause().getMessage()).contains(WEEK_KEY)) {
+        throw raced;
+      }
       // A concurrent run paid it first; the unique key rolled this one back.
       log.info("Incentive {} for {} already paid", award.kind(), award.driverUserId());
       return false;
@@ -305,7 +343,7 @@ public class IncentiveServiceImpl implements IncentiveService {
         (int)
             trips.stream()
                 .filter(
-                    t -> IncentivePolicy.coveringWindow(windows, t.requestedAt(), zone).isPresent())
+                    t -> IncentivePolicy.coveringWindow(windows, t.pricedAt(), zone).isPresent())
                 .count();
     RatingStats stats =
         statsRepository.ratingStats(regionId, week.from(), week.to(), driverUserId).stream()

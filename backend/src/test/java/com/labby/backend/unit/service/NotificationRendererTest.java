@@ -136,6 +136,39 @@ class NotificationRendererTest {
   }
 
   @Test
+  @DisplayName("M15 incentive awards: English singular/plural and Arabic number agreement of trips")
+  void shouldAgreeTripCounts() {
+    // trips → English body fragment / Arabic body fragment (after «عن», Western digits).
+    Map<Integer, String[]> peak =
+        Map.of(
+            1, new String[] {"for 1 peak-hour trip last week", "عن رحلة واحدة في"},
+            2, new String[] {"for 2 peak-hour trips last week", "عن رحلتين في"},
+            3, new String[] {"for 3 peak-hour trips last week", "عن 3 رحلات في"},
+            10, new String[] {"for 10 peak-hour trips last week", "عن 10 رحلات في"},
+            11, new String[] {"for 11 peak-hour trips last week", "عن 11 رحلة في"});
+    peak.forEach(
+        (trips, expected) -> {
+          Rendered rendered = incentive("peak_hours", trips);
+          assertThat(rendered.bodyEn()).as("%d trips", trips).contains(expected[0]);
+          assertThat(rendered.bodyAr()).as("%d trips", trips).contains(expected[1]);
+        });
+    Rendered one = incentive("weekly_trips", 1);
+    assertThat(one.bodyEn()).contains("for 1 trip last week");
+    assertThat(one.bodyAr()).contains("عن رحلة واحدة الأسبوع");
+    Rendered many = incentive("weekly_trips", 40);
+    assertThat(many.bodyEn()).contains("for 40 trips last week");
+    assertThat(many.bodyAr()).contains("عن 40 رحلة الأسبوع");
+  }
+
+  private Rendered incentive(String kind, Object trips) {
+    return renderer
+        .render(
+            NotificationEvent.INCENTIVE_AWARDED.getValue(),
+            Map.of("kind", kind, "amount", "5", "currency", "SYP", "trips", trips))
+        .orElseThrow();
+  }
+
+  @Test
   @DisplayName("M7 ride events: bilingual, category ride, the right audience and deep link")
   void shouldRenderRideEvents() {
     Map<String, Object> rideParams =

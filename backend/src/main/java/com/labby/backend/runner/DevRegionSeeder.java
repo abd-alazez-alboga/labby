@@ -15,10 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Dev-profile demo region per backend/docs/SEEDING.md (M4-T5): Damascus — the launch market is
  * Syria, so the demo region is a realistic Syrian city, ACTIVE with a full ADM-01 bundle, three
- * service types (AR-first names), a Sun–Thu morning-rush surcharge (Syrian work week) and three
- * surge zones. Idempotent: skipped entirely once a region named Damascus exists, so admin edits
- * survive restarts. Fare values are demo-realistic SYP figures, tunable in the admin UI. Uses
- * JdbcTemplate like {@link DevDataSeeder} (runner layer stays repository-free per ArchUnit).
+ * service types (AR-first names), a Sun–Thu morning-rush surcharge (Syrian work week), the
+ * A15RegionIncentives board's peak windows (Mon–Thu 07:00–09:30, Fri–Sat 22:00–02:00 — a peak bonus
+ * above 0 needs one, so an admin save of the region validates) and three surge zones. Idempotent:
+ * skipped entirely once a region named Damascus exists, so admin edits survive restarts. Fare
+ * values are demo-realistic SYP figures, tunable in the admin UI. Uses JdbcTemplate like {@link
+ * DevDataSeeder} (runner layer stays repository-free per ArchUnit).
  */
 @Slf4j
 @Component
@@ -46,6 +48,9 @@ public class DevRegionSeeder implements ApplicationRunner {
   private static final String INCENTIVE_VALUES =
       "{\"weeklyTripBonuses\":[{\"trips\":40,\"amount\":50000},{\"trips\":60,\"amount\":100000}],"
           + "\"peakHourBonusPerTrip\":1000,"
+          + "\"peakWindows\":[{\"daysOfWeek\":[1,2,3,4],\"startsAt\":\"07:00:00\","
+          + "\"endsAt\":\"09:30:00\"},{\"daysOfWeek\":[5,6],\"startsAt\":\"22:00:00\","
+          + "\"endsAt\":\"02:00:00\"}],"
           + "\"ratingReward\":{\"amount\":20000,\"minAvgRating\":4.8,\"minWeeklyTrips\":30}}";
   private static final String SUSPENSION_THRESHOLDS =
       "{\"driver\":{\"minAvgRating\":3.0,\"minRatedRides\":20},"

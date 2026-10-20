@@ -1158,6 +1158,28 @@ public class NotificationRenderer {
     return days + " يوماً";
   }
 
+  /** "1 trip" / "40 trips", the noun given in the singular. */
+  private static String tripsEn(int trips, String noun) {
+    return trips + " " + noun + (trips == 1 ? "" : "s");
+  }
+
+  /**
+   * Arabic number–noun agreement for trips, as the object of «عن» (hence the genitive dual
+   * «رحلتين»): 1 رحلة واحدة, 2 رحلتين, 3–10 رحلات, 11+ رحلة.
+   */
+  static String tripsAr(int trips) {
+    if (trips == 1) {
+      return "رحلة واحدة";
+    }
+    if (trips == 2) {
+      return "رحلتين";
+    }
+    if (trips >= 3 && trips <= 10) {
+      return trips + " رحلات";
+    }
+    return trips + " رحلة";
+  }
+
   /**
    * M13 growth notice (category promotions, mutable). Audience from {@code as} — {@code driver} for
    * a driver badge/challenge, else the rider app. No deep link: a tap opens the notification
@@ -1168,7 +1190,7 @@ public class NotificationRenderer {
   private static Rendered incentiveAwarded(NotificationEvent event, Map<String, Object> params) {
     String amountEn = moneyEn(params, "amount");
     String amountAr = moneyAr(params, "amount");
-    String trips = text(params.get("trips"));
+    int trips = number(params.get("trips"));
     String titleEn;
     String bodyEn;
     String titleAr;
@@ -1177,11 +1199,12 @@ public class NotificationRenderer {
       case "peak_hours" -> {
         titleEn = "Peak-hour bonus paid";
         bodyEn =
-            "%s for %s peak-hour trips last week is in your balance.".formatted(amountEn, trips);
+            "%s for %s last week is in your balance."
+                .formatted(amountEn, tripsEn(trips, "peak-hour trip"));
         titleAr = "تمت إضافة مكافأة ساعات الذروة";
         bodyAr =
-            "أُضيف %s إلى رصيدك عن %s رحلة في ساعات الذروة الأسبوع الماضي."
-                .formatted(amountAr, trips);
+            "أُضيف %s إلى رصيدك عن %s في ساعات الذروة الأسبوع الماضي."
+                .formatted(amountAr, tripsAr(trips));
       }
       case "rating" -> {
         String rating = text(params.get("avgRating"));
@@ -1196,9 +1219,10 @@ public class NotificationRenderer {
       }
       default -> {
         titleEn = "Weekly trip bonus paid";
-        bodyEn = "%s for %s trips last week is in your balance.".formatted(amountEn, trips);
+        bodyEn =
+            "%s for %s last week is in your balance.".formatted(amountEn, tripsEn(trips, "trip"));
         titleAr = "تمت إضافة مكافأة الرحلات الأسبوعية";
-        bodyAr = "أُضيف %s إلى رصيدك عن %s رحلة الأسبوع الماضي.".formatted(amountAr, trips);
+        bodyAr = "أُضيف %s إلى رصيدك عن %s الأسبوع الماضي.".formatted(amountAr, tripsAr(trips));
       }
     }
     return new Rendered(

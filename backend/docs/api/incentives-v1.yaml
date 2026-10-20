@@ -5,7 +5,7 @@ info:
   description: >
     Contract-first spec for M15-T3, the incentives engine (DRV-08, COM-01; UC-D-17, UC-A-29):
     weekly trip bonuses, the peak-hour bonus and the weekly rating reward, per region, evaluated
-    by a weekly job and credited to the driver ledger as `bonus` entries with a notification. The
+    by a scheduled job and credited to the driver ledger as `bonus` entries with a notification. The
     driver app (incentives screen) and the admin region form (peak-hour windows) build against
     this document; on conflict after the backend lands, the implementation is the truth and this
     file is amended. Schema: migration V31. Approved boards: D15Incentives (EN/AR/Empty),
@@ -20,13 +20,19 @@ info:
     early-morning part belongs to the window that started the day before). `startsAt` must
     differ from `endsAt`. A completed trip earns the peak bonus when it was REQUESTED inside a
     window (the moment surcharge pricing uses). A peak bonus above 0 needs at least one window.
+    Applied to scheduled rides (review W2): their surcharge is priced at the pickup time, so a
+    scheduled ride counts at its `scheduledAt`, not at the moment it was booked.
 
     (Q2) Weekly trip tiers are NOT cumulative: the highest tier reached pays (40+ → 50, 60+ →
     100; a driver with 60 trips gets 100).
 
-    (Q3) All three incentives are paid by the weekly job: Mondays (default 00:30, operating
-    zone `labby.incentives.cron`), for the previous Monday–Sunday week in each region's time
-    zone — the commission week (COM-02). The driver screen shows peak earnings accruing live.
+    (Q3) All three incentives are paid by the evaluation job for the previous Monday–Sunday week
+    in each region's time zone — the commission week (COM-02). The driver screen shows peak
+    earnings accruing live. Amended by review W1 (2026-10-20): the job ticks hourly
+    (`labby.incentives.cron`, operating zone) and every tick pays each region's last FINISHED
+    week in that region's own zone, so a region is paid within the first hour of its own Monday
+    and a missed tick is caught up by the next one. One award or region that fails is logged
+    and retried on the next tick; it never stops the others.
 
     (Q4) The weekly rating is the average of the ratings drivers received on rides COMPLETED
     that week; the reward needs at least `minWeeklyTrips` completed trips that week and an

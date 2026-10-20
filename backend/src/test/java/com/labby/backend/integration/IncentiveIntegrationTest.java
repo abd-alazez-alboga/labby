@@ -3,11 +3,13 @@ package com.labby.backend.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.labby.backend.service.IncentiveJob;
 import com.labby.backend.service.IncentiveService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,6 +24,7 @@ import org.springframework.http.HttpStatus;
  * is Mon 12 – Sun 18 Oct 2026 in Asia/Damascus (UTC+3); the job runs Mon 19 Oct 00:30 local. Region
  * config: 50 @ 40+, 100 @ 60+ (not cumulative, Q2); peak 1.00 per trip requested Mon–Thu
  * 07:00–09:30 or Fri–Sat 22:00–02:00 (overnight, Q1); rating 20 @ avg ≥ 4.8 with ≥ 30 trips (Q4).
+ * The job ticks hourly (review W1): each tick pays every region's last finished week in its zone.
  */
 class IncentiveIntegrationTest extends AbstractTrustIntegrationTest {
 
@@ -29,6 +32,7 @@ class IncentiveIntegrationTest extends AbstractTrustIntegrationTest {
   private static final Instant EVALUATION = local(2026, 10, 19, 0, 30);
 
   @Autowired private IncentiveService incentiveService;
+  @Autowired private IncentiveJob incentiveJob;
 
   private Account rider;
 
@@ -291,5 +295,184 @@ class IncentiveIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(progress.get("weeklyTrips").isNull()).isTrue();
     assertThat(get("/api/v1/driver/incentives?regionId=" + regionId, rider.token()).getStatusCode())
         .isEqualTo(HttpStatus.FORBIDDEN);
+  }
+
+  @Test
+  @DisplayName(
+      "W1: each region is paid its own finished week, a zone behind Damascus an hour later")
+  void shouldPayEachRegionItsOwnFinishedWeek() {
+    Account damascus = newDriver();
+    offPeakTrips(damascus, 40); // Tue 14 Oct: week of Mon 12 Oct (Damascus)
+    Account older = newDriver();
+    Instant weekBeforeLast = local(2026, 10, 7, 12, 0); // Wed 7 Oct: week of Mon 5 Oct
+    for (int i = 0; i < 40; i++) {
+      trip(older, weekBeforeLast.plusSeconds(60L * i));
+    }
+    UUID utcRegion =
+        region(
+            "UTC",
+            """
+            {"weeklyTripBonuses":[{"trips":1,"amount":10}],"peakHourBonusPerTrip":0,
+             "ratingReward":{"amount":0,"minAvgRating":4.8,"minWeeklyTrips":30}}
+            """);
+    Account western = newDriver();
+    // Completed Sun 18 Oct 21:30 UTC = Mon 19 Oct 00:30 Damascus: still the week of Mon 12 Oct in
+    // the UTC region's own zone.
+    Instant sundayNightUtc = LocalDateTime.of(2026, 10, 18, 21, 0).toInstant(ZoneOffset.UTC);
+    UUID westernTrip = tripCompletedAt(western, sundayNightUtc, sundayNightUtc.plusSeconds(1800));
+    jdbcTemplate.update("UPDATE rides SET region_id = ? WHERE ride_id = ?", utcRegion, westernTrip);
+
+    // Tick 1: Mon 19 Oct 01:00 Damascus = Sun 18 Oct 22:00 UTC — the UTC week is not over.
+    CLOCK.set(local(2026, 10, 19, 1, 0));
+    incentiveJob.run();
+    assertThat(amountOf(damascus, "weekly_trips")).isEqualByComparingTo("50.00");
+    assertThat(awards(western)).isEmpty();
+
+    // Tick 2: Mon 19 Oct 00:30 UTC (03:30 Damascus) — the UTC week is over: paid now.
+    CLOCK.set(LocalDateTime.of(2026, 10, 19, 0, 30).toInstant(ZoneOffset.UTC));
+    incentiveJob.run();
+    assertThat(amountOf(western, "weekly_trips")).isEqualByComparingTo("10.00");
+    assertThat(awards(damascus)).hasSize(1); // not paid twice
+
+    // Only the finished week was paid in both regions, never the week before last.
+    assertThat(awards(older)).isEmpty();
+    assertThat(
+            jdbcTemplate.queryForList(
+                "SELECT DISTINCT week_start::text FROM incentive_awards", String.class))
+        .containsExactly("2026-10-12");
+  }
+
+  @Test
+  @DisplayName("W1: a failing award or region is skipped and logged; the rest of the run pays")
+  void shouldKeepPayingPastAFailure() {
+    Account failing = newDriver();
+    offPeakTrips(failing, 40);
+    trip(failing, local(2026, 10, 13, 8, 0)); // Tue peak: a second award after the failing one
+    Account other = newDriver();
+    offPeakTrips(other, 40);
+    // A region whose zone no longer parses: its evaluation throws.
+    region(
+        "Not/AZone",
+        "{\"weeklyTripBonuses\":[],\"peakHourBonusPerTrip\":0,"
+            + "\"ratingReward\":{\"amount\":0,\"minAvgRating\":4.8,\"minWeeklyTrips\":30}}");
+    // The weekly award of one driver fails with a non-key integrity error (test-only trigger).
+    jdbcTemplate.execute(
+        ("CREATE FUNCTION test_fail_award() RETURNS trigger AS $$ BEGIN"
+                + " IF NEW.driver_user_id = '%s' AND NEW.kind = 'weekly_trips' THEN"
+                + " RAISE EXCEPTION 'test award failure' USING ERRCODE = 'check_violation';"
+                + " END IF; RETURN NEW; END $$ LANGUAGE plpgsql")
+            .formatted(failing.userId()));
+    jdbcTemplate.execute(
+        "CREATE TRIGGER test_fail_award BEFORE INSERT ON incentive_awards"
+            + " FOR EACH ROW EXECUTE FUNCTION test_fail_award()");
+    CLOCK.set(EVALUATION);
+    try {
+      assertThat(incentiveService.evaluatePreviousWeek(EVALUATION)).isEqualTo(2);
+    } finally {
+      jdbcTemplate.execute("DROP TRIGGER IF EXISTS test_fail_award ON incentive_awards");
+      jdbcTemplate.execute("DROP FUNCTION IF EXISTS test_fail_award()");
+    }
+
+    assertThat(amountOf(failing, "weekly_trips")).isNull(); // rolled back with its ledger entry
+    assertThat(amountOf(failing, "peak_hours")).isEqualByComparingTo("1.00");
+    assertThat(driverLedger(failing.userId())).hasSize(1);
+    assertThat(amountOf(other, "weekly_trips")).isEqualByComparingTo("50.00");
+
+    // The next tick retries what failed.
+    assertThat(incentiveService.evaluatePreviousWeek(EVALUATION.plusSeconds(3600))).isEqualTo(1);
+    assertThat(amountOf(failing, "weekly_trips")).isEqualByComparingTo("50.00");
+    assertLedgerInvariants();
+  }
+
+  @Test
+  @DisplayName("I3: an amount that rounds to 0.00 is skipped, not posted")
+  void shouldSkipAmountsRoundingToZero() {
+    jdbcTemplate.update(
+        "UPDATE regions SET incentive_values = jsonb_set(incentive_values,"
+            + " '{peakHourBonusPerTrip}', '0.004') WHERE region_id = ?",
+        regionId);
+    Account driver = newDriver();
+    offPeakTrips(driver, 40);
+    trip(driver, local(2026, 10, 13, 8, 0)); // 1 peak trip × 0.004 = 0.004 → 0.00
+    CLOCK.set(EVALUATION);
+
+    assertThat(incentiveService.evaluatePreviousWeek(EVALUATION)).isEqualTo(1);
+
+    assertThat(amountOf(driver, "weekly_trips")).isEqualByComparingTo("50.00");
+    assertThat(amountOf(driver, "peak_hours")).isNull();
+    assertThat(driverLedger(driver.userId())).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("W2: a scheduled ride counts as peak at its pickup time, not its booking time")
+  void shouldCountScheduledRidesAtTheirPickupTime() {
+    Account peakPickup = newDriver();
+    // Booked Tue 14 Oct 12:00 (off-peak) for a Thu 15 Oct 08:00 pickup (Mon–Thu window): peak.
+    scheduledTrip(peakPickup, local(2026, 10, 14, 12, 0), local(2026, 10, 15, 8, 0));
+    Account peakBooking = newDriver();
+    // Booked Mon 12 Oct 08:00 (inside a window) for a Wed 14 Oct 13:00 pickup: not peak.
+    scheduledTrip(peakBooking, local(2026, 10, 12, 8, 0), local(2026, 10, 14, 13, 0));
+    CLOCK.set(EVALUATION);
+
+    incentiveService.evaluatePreviousWeek(EVALUATION);
+
+    assertThat(amountOf(peakPickup, "peak_hours")).isEqualByComparingTo("1.00");
+    assertThat(awards(peakPickup).get(0).get("trips")).isEqualTo(1);
+    assertThat(awards(peakBooking)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Q5: a driver suspended at evaluation time is still paid for the week")
+  void shouldPaySuspendedDrivers() {
+    Account roleSuspended = newDriver();
+    offPeakTrips(roleSuspended, 40);
+    jdbcTemplate.update(
+        "UPDATE role_assignments SET state = 'suspended', suspension_reason = 'low_rating'"
+            + " WHERE user_id = ? AND role = 'driver'",
+        roleSuspended.userId());
+    Account accountSuspended = newDriver();
+    offPeakTrips(accountSuspended, 40);
+    jdbcTemplate.update(
+        "UPDATE users SET state = 'suspended' WHERE user_id = ?", accountSuspended.userId());
+    CLOCK.set(EVALUATION);
+
+    assertThat(incentiveService.evaluatePreviousWeek(EVALUATION)).isEqualTo(2);
+
+    assertThat(amountOf(roleSuspended, "weekly_trips")).isEqualByComparingTo("50.00");
+    assertThat(amountOf(accountSuspended, "weekly_trips")).isEqualByComparingTo("50.00");
+  }
+
+  /** An active region in {@code zone} with these incentive values (Aleppo-like boundary). */
+  private UUID region(String zone, String incentiveValues) {
+    return jdbcTemplate.queryForObject(
+        "INSERT INTO regions (name, state, currency, emergency_number, time_zone, incentive_values,"
+            + " boundary) VALUES (?, 'active', 'SYP', '112', ?, ?::jsonb,"
+            + " ST_GeomFromText('POLYGON((37.0 36.0, 37.3 36.0, 37.3 36.3, 37.0 36.3, 37.0 36.0))',"
+            + " 4326)) RETURNING region_id",
+        UUID.class,
+        "Incentive " + zone,
+        zone,
+        incentiveValues);
+  }
+
+  /**
+   * A claimed scheduled ride booked at {@code bookedAt}, converted and completed 40 min after its
+   * {@code pickupAt} — {@code requested_at} keeps the booking moment, as for a claimed ride.
+   */
+  private void scheduledTrip(Account driver, Instant bookedAt, Instant pickupAt) {
+    UUID rideId = tripCompletedAt(driver, pickupAt, pickupAt.plusSeconds(2400));
+    jdbcTemplate.update(
+        "UPDATE rides SET kind = 'scheduled', requested_at = ? WHERE ride_id = ?",
+        ts(bookedAt),
+        rideId);
+    jdbcTemplate.update(
+        "INSERT INTO scheduled_rides (ride_id, scheduled_at, claimed_driver_user_id,"
+            + " claimed_vehicle_id, claimed_at, converted_at) VALUES (?, ?, ?, ?, ?, ?)",
+        rideId,
+        ts(pickupAt),
+        driver.userId(),
+        vehicleOf(driver.userId()),
+        ts(bookedAt.plusSeconds(600)),
+        ts(pickupAt.minusSeconds(900)));
   }
 }

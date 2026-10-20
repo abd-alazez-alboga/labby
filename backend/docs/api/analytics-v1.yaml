@@ -37,8 +37,8 @@ info:
     **Common rules.** Ride metrics select rides by `requested_at` in `[from, to)` — the same
     instant filter as the rides list. Money is reported per currency and never summed across
     currencies. A driver's region is the region of the service types of their ACTIVE vehicle
-    (drivers carry no region column). Every analytics and export SQL statement runs under a
-    PostgreSQL `statement_timeout` (`labby.analytics.statement-timeout`, default 10 s); a statement
+    (drivers carry no region column). Every analytics, directory-list (users / drivers /
+    transactions) and export SQL statement runs under a PostgreSQL `statement_timeout` (`labby.analytics.statement-timeout`, default 10 s); a statement
     that hits it answers 503 `query_timeout`. `from` / `to` may span at most 366 days.
     Errors use the global ErrorResponse shape (status, message, code?, details?).
 servers:
@@ -84,6 +84,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AdminUserPage' }
         '403': { description: Missing `users:view` }
+        '503': { description: '`query_timeout`' }
 
   /api/v1/admin/drivers:
     get:
@@ -103,6 +104,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AdminDriverPage' }
         '403': { description: Missing `users:view` }
+        '503': { description: '`query_timeout`' }
 
   /api/v1/admin/transactions:
     get:
@@ -125,6 +127,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AdminTransactionPage' }
         '403': { description: Missing a permission }
+        '503': { description: '`query_timeout`' }
 
   /api/v1/admin/exports/rides:
     get:
@@ -183,7 +186,7 @@ components:
   parameters:
     From: { name: from, in: query, required: true, schema: { type: string, format: date-time }, description: Inclusive }
     To: { name: to, in: query, required: true, schema: { type: string, format: date-time }, description: Exclusive }
-    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 }, description: A page past the last row is empty }
     Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
   responses:
     Csv:

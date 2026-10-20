@@ -57,6 +57,8 @@ class DevRegionSeederIntegrationTest extends AbstractIntegrationTest {
     assertThat(damascus.getEmergencyNumber()).isEqualTo("112");
     assertThat(damascus.getCommissionTiers()).hasSize(3);
     assertThat(damascus.getIncentiveValues()).containsKey("ratingReward");
+    // A peak bonus above 0 needs a window (incentives-v1 Q1): the A15 board's two windows.
+    assertThat((List<?>) damascus.getIncentiveValues().get("peakWindows")).hasSize(2);
     assertThat(damascus.getSuspensionThresholds()).containsKeys("driver", "rider");
     assertThat(damascus.getSurgeCap()).isEqualByComparingTo("2.00");
   }

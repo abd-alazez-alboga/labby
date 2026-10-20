@@ -521,8 +521,8 @@ components:
           description: >
             M15-T3 amendment (incentives-v1.yaml, ruling Q1): the windows the peak-hour bonus pays
             in — ISO days + region-local start/end (end before start = past midnight; start must
-            differ from end). Optional (absent = none); a peakHourBonusPerTrip above 0 needs at
-            least one window (400 `peak_windows_required`).
+            differ from end, else 400 `peak_window_invalid`). Optional (absent = none); a
+            peakHourBonusPerTrip above 0 needs at least one window (400 `peak_windows_required`).
           items:
             type: object
             required: [daysOfWeek, startsAt, endsAt]

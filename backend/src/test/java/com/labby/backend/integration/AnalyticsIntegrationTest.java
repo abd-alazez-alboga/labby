@@ -8,6 +8,7 @@ import com.labby.backend.repository.AnalyticsRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -258,6 +259,42 @@ class AnalyticsIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(aleppo.get("ops").get("offersAnswered").asLong()).isZero();
     assertThat(aleppo.get("ops").get("acceptanceRate").isNull()).isTrue();
     assertThat(aleppo.get("ops").get("activeSurgeZones").asLong()).isZero();
+  }
+
+  @Test
+  @DisplayName("ADM-02 daily buckets are region-local days, not UTC days")
+  void shouldBucketDaysInTheRegionZone() {
+    // A future region-local day D in Asia/Damascus (UTC+3, the test region's zone).
+    ZonedDateTime day = ZonedDateTime.now(OPERATING_ZONE).truncatedTo(ChronoUnit.DAYS).plusDays(2);
+    Instant halfPastMidnight = day.withMinute(30).toInstant(); // D 00:30 local = D-1 21:30 UTC
+    Instant ten = day.withHour(10).toInstant(); // D 10:00 local = D 07:00 UTC
+    assertThat(LocalDate.ofInstant(halfPastMidnight, ZoneOffset.UTC))
+        .isEqualTo(day.toLocalDate().minusDays(1));
+    CLOCK.set(halfPastMidnight);
+    Account rider = newRider();
+    // ride() stamps requested_at at the clock minus 60 s when nothing was accepted.
+    CLOCK.set(halfPastMidnight.plusSeconds(60));
+    ride(rider.userId(), null, "no_driver_found", null, null, null, null);
+    CLOCK.set(ten.plusSeconds(60));
+    ride(rider.userId(), null, "no_driver_found", null, null, null, null);
+
+    JsonNode daily =
+        ok(
+                get(
+                    "/api/v1/admin/analytics?from="
+                        + day.toInstant()
+                        + "&to="
+                        + day.plusDays(1).toInstant()
+                        + "&regionId="
+                        + regionId,
+                    admin),
+                HttpStatus.OK)
+            .get("rides")
+            .get("daily");
+    // Both rides on local day D (a UTC bucket would split them over D-1 and D).
+    assertThat(daily).hasSize(1);
+    assertThat(daily.get(0).get("date").asText()).isEqualTo(day.toLocalDate().toString());
+    assertThat(daily.get(0).get("total").asLong()).isEqualTo(2);
   }
 
   @Test

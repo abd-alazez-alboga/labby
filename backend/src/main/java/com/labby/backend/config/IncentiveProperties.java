@@ -5,8 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * The M15 incentives engine (incentives-v1.yaml; DRV-08).
  *
- * @param cron the weekly evaluation tick (operating zone; default Monday 00:30; "-" disables) —
- *     each run pays the previous Monday–Sunday week in every region's own time zone
+ * @param cron the evaluation tick (operating zone; default hourly; "-" disables) — each run pays
+ *     every region's last finished Monday–Sunday week in that region's own time zone, so a region
+ *     is paid within an hour of its own Monday and a missed run is caught up by the next
  */
 @ConfigurationProperties(prefix = "labby.incentives")
 public record IncentiveProperties(String cron) {}

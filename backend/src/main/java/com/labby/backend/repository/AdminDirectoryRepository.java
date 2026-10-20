@@ -69,7 +69,7 @@ public class AdminDirectoryRepository {
    * @param offset rows skipped
    * @return the rows
    */
-  public List<UserRow> users(String role, Instant from, Instant to, int limit, int offset) {
+  public List<UserRow> users(String role, Instant from, Instant to, int limit, long offset) {
     MapSqlParameterSource params = new MapSqlParameterSource();
     return namedJdbcTemplate.query(
         "SELECT u.user_id, u.name, u.phone, u.state, u.created_at FROM users u"
@@ -144,7 +144,7 @@ public class AdminDirectoryRepository {
    * @return the rows
    */
   public List<DriverRow> drivers(
-      UUID regionId, String status, Boolean online, int limit, int offset) {
+      UUID regionId, String status, Boolean online, int limit, long offset) {
     MapSqlParameterSource params = new MapSqlParameterSource();
     return namedJdbcTemplate.query(
         """
@@ -236,7 +236,7 @@ public class AdminDirectoryRepository {
       Instant from,
       Instant to,
       int limit,
-      int offset) {
+      long offset) {
     MapSqlParameterSource params = new MapSqlParameterSource();
     return namedJdbcTemplate.query(
         "SELECT x.*, u.name AS user_name FROM ("
@@ -347,7 +347,7 @@ public class AdminDirectoryRepository {
     }
   }
 
-  private static String page(int limit, int offset, MapSqlParameterSource params) {
+  private static String page(int limit, long offset, MapSqlParameterSource params) {
     params.addValue("limit", limit).addValue("offset", offset);
     return " LIMIT :limit OFFSET :offset";
   }

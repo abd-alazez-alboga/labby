@@ -147,6 +147,18 @@ class AdminExportsIntegrationTest extends AbstractSupportIntegrationTest {
     assertThat(page.get("items").get(0).get("phone").isNull()).isTrue();
     List<String[]> users = csv(export("users?role=driver", admin));
     assertThat(users).allSatisfy(row -> assertThat(row[4]).isEqualTo("driver;rider"));
+
+    // page × size beyond int range: an empty page, not a negative OFFSET (500).
+    for (String list : List.of("users", "drivers", "transactions")) {
+      JsonNode last =
+          ok(get("/api/v1/admin/" + list + "?page=2147483647&size=100", admin), HttpStatus.OK);
+      assertThat(last.get("items")).as(list).isEmpty();
+    }
+    assertThat(
+            ok(get("/api/v1/admin/users?page=2147483647&size=100", admin), HttpStatus.OK)
+                .get("totalItems")
+                .asLong())
+        .isPositive();
   }
 
   @Test

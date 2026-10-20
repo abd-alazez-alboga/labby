@@ -14,7 +14,9 @@ import org.springframework.stereotype.Repository;
 /**
  * The DRV-08 week figures (incentives-v1 rulings Q1/Q4/Q5): completed rides the driver drove in a
  * region, by completion time in {@code [from, to)}; ratings on those rides. An optional driver
- * narrows to one driver (the live progress), otherwise every driver of the region (the job).
+ * narrows to one driver (the live progress), otherwise every driver of the region (the job). A
+ * trip's peak moment is the one surcharge pricing used (Q1): a scheduled ride's pickup time ({@code
+ * scheduled_rides.scheduled_at}), otherwise {@code requested_at}.
  */
 @Repository
 @RequiredArgsConstructor
@@ -26,8 +28,11 @@ public class IncentiveStatsRepository {
 
   private final NamedParameterJdbcTemplate namedJdbcTemplate;
 
-  /** One completed trip: its driver and request time (peak windows use the request, Q1). */
-  public record CompletedTrip(UUID driverUserId, Instant requestedAt) {}
+  /**
+   * One completed trip: its driver and the moment its surcharge was priced at (peak windows use it,
+   * Q1) — the pickup time of a scheduled ride, the request time otherwise.
+   */
+  public record CompletedTrip(UUID driverUserId, Instant pricedAt) {}
 
   /** A driver's week ratings: the exact average and how many. */
   public record RatingStats(UUID driverUserId, BigDecimal average, long count) {}
@@ -45,14 +50,15 @@ public class IncentiveStatsRepository {
       UUID regionId, Instant from, Instant to, UUID driverUserId) {
     MapSqlParameterSource params = params(regionId, from, to, driverUserId);
     return namedJdbcTemplate.query(
-        "SELECT r.driver_user_id, r.requested_at FROM rides r"
+        "SELECT r.driver_user_id, COALESCE(sr.scheduled_at, r.requested_at) AS priced_at"
+            + " FROM rides r LEFT JOIN scheduled_rides sr ON sr.ride_id = r.ride_id"
             + WEEK_RIDES
             + driverClause(driverUserId),
         params,
         (rs, i) ->
             new CompletedTrip(
                 rs.getObject("driver_user_id", UUID.class),
-                rs.getObject("requested_at", OffsetDateTime.class).toInstant()));
+                rs.getObject("priced_at", OffsetDateTime.class).toInstant()));
   }
 
   /**

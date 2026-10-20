@@ -7,8 +7,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * The weekly DRV-08 evaluation (incentives-v1 ruling Q3): Mondays, paying the previous week in
- * every region's own zone. Re-runs are harmless (exactly-once awards).
+ * The DRV-08 evaluation (incentives-v1 ruling Q3, amended by review W1): every tick (default
+ * hourly) pays each region's last finished week in its own zone. Re-runs are harmless (exactly-once
+ * awards), so a region is paid in the first tick after its own Monday starts and a missed tick is
+ * caught up by the next.
  */
 @Slf4j
 @Component
