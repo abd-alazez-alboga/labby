@@ -242,7 +242,12 @@ export type RideFrame =
       type: "offer.withdrawn";
       offerId: string;
       rideId: string;
-      reason: "timeout" | "ride_ended" | string;
+      reason:
+        | "timeout"
+        | "ride_ended"
+        | "driver_offline"
+        | "scheduled_converted"
+        | string;
     }
   | { type: "ride.state"; ride: Ride }
   | {

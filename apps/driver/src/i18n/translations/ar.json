@@ -647,6 +647,7 @@
     "notice": {
       "offerExpired": "انتهت مهلة العرض.",
       "offerCancelled": "ألغى الراكب الرحلة.",
+      "offerWithdrawnOffline": "سُحب العرض — أنت غير متصل أو لا يمكنك استقبال رحلات حالياً.",
       "offerClosed": "هذا العرض لم يعد متاحاً.",
       "offerGone": "هذا العرض لم يعد متاحاً.",
       "riderCancelled": "ألغى الراكب الرحلة.",

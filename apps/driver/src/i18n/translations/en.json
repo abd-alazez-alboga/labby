@@ -647,6 +647,7 @@
     "notice": {
       "offerExpired": "Offer expired.",
       "offerCancelled": "Ride was cancelled by the rider.",
+      "offerWithdrawnOffline": "Offer withdrawn — you're offline or can't take rides right now.",
       "offerClosed": "This offer is no longer available.",
       "offerGone": "This offer is no longer available.",
       "riderCancelled": "The rider cancelled the ride.",

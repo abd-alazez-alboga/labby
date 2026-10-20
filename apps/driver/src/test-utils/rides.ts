@@ -176,7 +176,9 @@ export function offerNewFrame(offer: RideOffer, as: "driver" | "rider" = "driver
   return { type: "offer.new", as, offer };
 }
 
-export function offerWithdrawnFrame(reason: "timeout" | "ride_ended") {
+export function offerWithdrawnFrame(
+  reason: "timeout" | "ride_ended" | "driver_offline",
+) {
   return {
     type: "offer.withdrawn",
     as: "driver",

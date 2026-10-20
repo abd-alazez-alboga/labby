@@ -181,6 +181,23 @@ describe("ride offers (UC-D-06)", () => {
     expect(screen.queryByTestId("ride-notice-offerCancelled")).toBeNull();
   });
 
+  it("offer.withdrawn driver_offline → an offline notice, never 'cancelled by the rider' (W26)", async () => {
+    const contract = await renderDriverApp();
+    const socket = await goLive();
+    await waitForResync(contract);
+
+    receive(socket, offerNewFrame(offerFixture()));
+    expect(await screen.findByTestId("offer-card")).toBeTruthy();
+    receive(socket, offerWithdrawnFrame("driver_offline"));
+    expect(await screen.findByTestId("ride-notice-offerWithdrawnOffline")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-text")).toHaveTextContent(
+      "Offer withdrawn — you're offline or can't take rides right now.",
+    );
+    expect(screen.getByTestId("ride-notice-text")).not.toHaveTextContent(/rider/);
+    expect(screen.queryByTestId("ride-notice-offerCancelled")).toBeNull();
+    expect(screen.queryByTestId("offer-card")).toBeNull();
+  });
+
   it("accept answered 409 offer_closed → dismissed with a notice", async () => {
     const contract = await renderDriverApp({
       [ACCEPT]: {

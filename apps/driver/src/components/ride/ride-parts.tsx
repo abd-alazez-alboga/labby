@@ -341,6 +341,7 @@ export function StreamLostBanner() {
 const NOTICE_TONES: Record<RideNotice, "neutral" | "success" | "warning"> = {
   offerExpired: "neutral",
   offerCancelled: "warning",
+  offerWithdrawnOffline: "neutral",
   offerClosed: "neutral",
   offerGone: "neutral",
   riderCancelled: "warning",

@@ -74,6 +74,8 @@ export type RideNotice =
   | "offerExpired"
   /** `offer.withdrawn` ride_ended — the rider cancelled (UC-D-06 E1). */
   | "offerCancelled"
+  /** `offer.withdrawn` driver_offline — the driver went offline or was suspended (W26). */
+  | "offerWithdrawnOffline"
   /** Accept answered 409 `offer_closed`. */
   | "offerClosed"
   /** A `ride_offer` push was tapped but the offer is gone. */
@@ -469,12 +471,15 @@ export function DriverRideProvider({
             setError(null);
             // M12 review H1: an offer withdrawn because the driver's scheduled
             // claim just went live needs no notice — the converted ride shows.
+            // W26: driver_offline is about the driver, never "rider cancelled".
             setNotice(
               frame.reason === "scheduled_converted"
                 ? null
                 : frame.reason === "ride_ended"
                   ? "offerCancelled"
-                  : "offerExpired",
+                  : frame.reason === "driver_offline"
+                    ? "offerWithdrawnOffline"
+                    : "offerExpired",
             );
           }
           return;
