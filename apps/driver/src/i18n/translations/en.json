@@ -1274,7 +1274,8 @@
         "other": "{{value}} more trips"
       },
       "forAmount": "for {{amount}}",
-      "topReached": "Top tier reached · {{amount}}"
+      "topReached": "Top tier reached · {{amount}}",
+      "secured": "{{amount}} secured · paid Monday"
     },
     "peak": {
       "title": "Peak hours",

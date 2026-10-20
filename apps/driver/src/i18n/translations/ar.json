@@ -1274,7 +1274,8 @@
         "other": "{{value}} رحلة إضافية"
       },
       "forAmount": "للحصول على {{amount}}",
-      "topReached": "وصلت إلى أعلى شريحة · {{amount}}"
+      "topReached": "وصلت إلى أعلى شريحة · {{amount}}",
+      "secured": "{{amount}} مضمونة · تُدفع يوم الاثنين"
     },
     "peak": {
       "title": "ساعات الذروة",

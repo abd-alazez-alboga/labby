@@ -48,14 +48,17 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The board's 10 px progress bar on the accent tint, with an optional
- * marker (the next tier) — both follow the reading direction.
+ * marker (the next tier) — both follow the reading direction. `label` is
+ * what a screen reader announces ("26 of 60 trips").
  */
 function TierBar({
   fraction,
+  label,
   marker,
   testID,
 }: {
   fraction: number;
+  label: string;
   marker?: number | null;
   testID?: string;
 }) {
@@ -68,6 +71,7 @@ function TierBar({
     <View
       style={[styles.bar, flipRows && styles.rowReverse]}
       accessibilityRole="progressbar"
+      accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: 100, now: percent }}
       testID={testID}
     >
@@ -126,7 +130,11 @@ function tripsCopy(t: Translate, count: number, language: string): string {
   return countCopy(t, "incentives.trips", count, language);
 }
 
-/** Weekly trip bonus — the highest tier reached pays (ruling Q2). */
+/**
+ * Weekly trip bonus — the highest tier reached pays (ruling Q2). Between
+ * tiers, the tier already secured shows under the next-tier progress (board
+ * "D15IncentivesSecured").
+ */
 function WeeklyCard({
   weekly,
   currency,
@@ -142,6 +150,8 @@ function WeeklyCard({
   // The labelled tier is the one being worked toward (or the top one once
   // every tier is reached), with the tier after it greyed beside it.
   const focus: IncentiveTier = next ?? reached ?? top;
+  // Reached but not the top tier: that amount pays even if no more trips come.
+  const secured = next && reached ? reached : null;
   const following =
     weekly.tiers.find((tier) => tier.trips > focus.trips) ?? null;
   const money = (amount: number) => formatMoney(amount, currency, language);
@@ -155,6 +165,10 @@ function WeeklyCard({
       />
       <TierBar
         fraction={top.trips > 0 ? weekly.trips / top.trips : 1}
+        label={t("incentives.of", {
+          n: formatCount(weekly.trips, language),
+          d: tripsCopy(t, top.trips, language),
+        })}
         marker={next && next.trips < top.trips ? next.trips / top.trips : null}
         testID="incentives-weekly-progress"
       />
@@ -205,6 +219,23 @@ function WeeklyCard({
           t("incentives.weekly.topReached", { amount: money(focus.amount) })
         )}
       </AppText>
+      {secured ? (
+        <View
+          style={[styles.secured, flipRows && styles.rowReverse]}
+          testID="incentives-weekly-secured"
+        >
+          <Icon name="checkmark" size={14} color={colors.success} />
+          <AppText
+            variant="caption"
+            weight="800"
+            color={colors.success}
+            style={styles.grow}
+            testID="incentives-weekly-secured-text"
+          >
+            {t("incentives.weekly.secured", { amount: money(secured.amount) })}
+          </AppText>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -323,19 +354,25 @@ function RatingCard({
         fraction={
           rating.minWeeklyTrips > 0 ? rating.trips / rating.minWeeklyTrips : 1
         }
+        label={t("incentives.of", {
+          n: formatCount(rating.trips, language),
+          d: tripsCopy(t, rating.minWeeklyTrips, language),
+        })}
         testID="incentives-rating-progress"
       />
     </View>
   );
 }
 
-/** The latest paid award: "Last week · weekly trip bonus", "+SYP 50,000". */
+/** One paid award: "Last week · weekly trip bonus", "+SYP 50,000". */
 function AwardRow({
   award,
   progress,
+  testID,
 }: {
   award: IncentiveAward;
   progress: IncentiveProgress;
+  testID: string;
 }) {
   const { t } = useTranslation();
   const { language, flipRows } = useDirection();
@@ -348,20 +385,20 @@ function AwardRow({
   return (
     <View
       style={[styles.award, flipRows && styles.rowReverse]}
-      testID="incentives-award"
+      testID={testID}
     >
       <View style={styles.checkWell}>
         <Icon name="checkmark" size={16} color={colors.success} />
       </View>
       <View style={styles.grow}>
-        <AppText variant="label" weight="800" testID="incentives-award-title">
+        <AppText variant="label" weight="800" testID={`${testID}-title`}>
           {`${week} · ${t(`incentives.award.kind.${award.kind}`)}`}
         </AppText>
         <AppText
           variant="caption"
           weight="400"
           color={colors.textMuted}
-          testID="incentives-award-paid"
+          testID={`${testID}-paid`}
         >
           {t("incentives.award.paid", {
             trips: tripsCopy(t, award.trips, language),
@@ -377,7 +414,7 @@ function AwardRow({
         variant="label"
         weight="800"
         color={colors.success}
-        testID="incentives-award-amount"
+        testID={`${testID}-amount`}
       >
         {formatSignedMoney(award.amount, award.currency, language, {
           alwaysSign: true,
@@ -432,7 +469,12 @@ function Loaded({
   if (!progress.configured || (!weekly && !peak && !rating)) {
     return <EmptyState regionName={progress.regionName} />;
   }
-  const latest = progress.recentAwards[0] ?? null;
+  // Every award of the most recent paid week (a week can pay its tier, peak
+  // and rating awards together); `recentAwards` is newest week first.
+  const latestWeek = progress.recentAwards[0]?.weekStart ?? null;
+  const latestAwards = progress.recentAwards.filter(
+    (award) => award.weekStart === latestWeek,
+  );
   return (
     <>
       <AppText
@@ -449,7 +491,14 @@ function Loaded({
       {weekly ? <WeeklyCard weekly={weekly} currency={currency} /> : null}
       {peak ? <PeakCard peak={peak} currency={currency} /> : null}
       {rating ? <RatingCard rating={rating} currency={currency} /> : null}
-      {latest ? <AwardRow award={latest} progress={progress} /> : null}
+      {latestAwards.map((award, index) => (
+        <AwardRow
+          key={`${award.weekStart}-${award.kind}`}
+          award={award}
+          progress={progress}
+          testID={`incentives-award-${index}`}
+        />
+      ))}
       <View style={[styles.note, flipRows && styles.rowReverse]}>
         <Icon
           name="information-circle-outline"
@@ -473,9 +522,10 @@ function Loaded({
 /**
  * DRV-08 (UC-D-17) — the driver's incentives this week (boards
  * "D15Incentives" / "D15IncentivesAr" / "D15IncentivesEmpty", owner-approved
- * M15-T3): the weekly trip tier progress, peak-hour windows and earnings,
- * the rating reward, the latest award and the Monday payout note. The region
- * is the resolved operating region (the challenges pattern).
+ * M15-T3, plus "D15IncentivesSecured" / "D15IncentivesSecuredAr" from the M15
+ * review): the weekly trip tier progress, peak-hour windows and earnings,
+ * the rating reward, the latest paid week's awards and the Monday payout
+ * note. The region is the resolved operating region (the challenges pattern).
  */
 export function IncentivesScreen() {
   const { t } = useTranslation();
@@ -584,6 +634,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.online,
   },
+  secured: { flexDirection: "row", alignItems: "center", gap: 6 },
   windows: { gap: 6 },
   windowRow: {
     flexDirection: "row",

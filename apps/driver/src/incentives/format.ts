@@ -118,22 +118,34 @@ export function weekRange(
   });
 }
 
-/** The calendar date (`YYYY-MM-DD`) of an instant in the region's zone. */
+/**
+ * The calendar date (`YYYY-MM-DD`) of an instant in the region's zone. Built
+ * from the year/month/day parts, never from a locale's whole-date pattern,
+ * which depends on the device's ICU data (M15 review W9).
+ */
 export function dateInZone(iso: string, timeZone: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso.slice(0, 10);
+  const pad = (value: number) => String(value).padStart(2, "0");
   try {
-    // en-CA formats as YYYY-MM-DD.
-    return new Intl.DateTimeFormat("en-CA", {
+    const parts = new Intl.DateTimeFormat("en-US-u-nu-latn", {
       timeZone,
       year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(date);
+      month: "numeric",
+      day: "numeric",
+    }).formatToParts(date);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      Number(parts.find((entry) => entry.type === type)?.value);
+    const year = part("year");
+    const month = part("month");
+    const day = part("day");
+    if ([year, month, day].every(Number.isInteger)) {
+      return `${year}-${pad(month)}-${pad(day)}`;
+    }
   } catch {
-    const pad = (value: number) => String(value).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    // An unknown zone falls through to the device's own calendar date.
   }
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 /** `YYYY-MM-DD` plus `days` calendar days. */
