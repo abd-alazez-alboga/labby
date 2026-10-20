@@ -233,6 +233,75 @@ describe("scheduled rides (UC-D-05, UC-D-11, UC-D-12)", () => {
     );
   });
 
+  it("below the balance floor the board is closed: settle state + See my balance (H7)", async () => {
+    await renderDriverApp(
+      {
+        [BOARD]: ok({ ...boardPage([]), blockedReason: "balance_below_floor" }),
+        [WINDOWS_GET]: ok(WINDOWS),
+        [CLAIMS]: ok([]),
+      },
+      { initialUrl: "/scheduled-rides" },
+    );
+    expect(await screen.findByTestId("board-floor-blocked-title")).toHaveTextContent(
+      "Settle your balance to see scheduled rides",
+    );
+    expect(screen.getByTestId("board-floor-blocked-body")).toHaveTextContent(
+      /board is closed and you can't claim scheduled rides/,
+    );
+    expect(screen.getByTestId("board-floor-blocked-steps")).toHaveTextContent(
+      /How to get back on the road/,
+    );
+    // Not the generic empty states.
+    expect(screen.queryByTestId("board-empty")).toBeNull();
+    expect(screen.queryByTestId("board-no-windows")).toBeNull();
+    fireEvent.press(screen.getByTestId("board-floor-blocked-see-balance"));
+    expect(await screen.findByTestId("balance-route")).toBeTruthy();
+  });
+
+  it("a claim refused at the floor (422 balance_below_floor) shows the settle state (H7)", async () => {
+    const contract = await renderDriverApp(
+      {
+        [BOARD]: [
+          ok(boardPage([boardEntry()])),
+          ok({ ...boardPage([]), blockedReason: "balance_below_floor" }),
+        ],
+        [WINDOWS_GET]: ok(WINDOWS),
+        [CLAIMS]: ok([]),
+        [claimRoute(SCHEDULED_ID)]: coded(422, "not_eligible", {
+          rule: "balance_below_floor",
+        }),
+      },
+      { initialUrl: "/scheduled-rides" },
+    );
+    fireEvent.press(await screen.findByTestId(`board-${SCHEDULED_ID}-claim`));
+    expect(await screen.findByTestId("board-floor-blocked-title")).toHaveTextContent(
+      "Settle your balance to see scheduled rides",
+    );
+    expect(screen.queryByTestId(`board-${SCHEDULED_ID}`)).toBeNull();
+    // Not the generic "doesn't match your account" refusal.
+    expect(screen.queryByTestId("scheduled-notice-notEligible")).toBeNull();
+    await waitFor(() => expect(contract.requestsTo(BOARD).length).toBe(2));
+    expect(screen.getByTestId("board-floor-blocked")).toBeTruthy();
+  });
+
+  it("Arabic: the floor-closed board reads in Arabic (H7)", async () => {
+    await setAppLanguage("ar");
+    await renderDriverApp(
+      {
+        [BOARD]: ok({ ...boardPage([]), blockedReason: "balance_below_floor" }),
+        [WINDOWS_GET]: ok(WINDOWS),
+        [CLAIMS]: ok([]),
+      },
+      { initialUrl: "/scheduled-rides", language: "ar" },
+    );
+    expect(await screen.findByTestId("board-floor-blocked-title")).toHaveTextContent(
+      "سوِّ رصيدك لترى الرحلات المجدولة",
+    );
+    expect(screen.getByTestId("board-floor-blocked-see-balance")).toHaveTextContent(
+      "عرض رصيدي",
+    );
+  });
+
   // ------------------------------------------------------------- my rides
 
   it("My rides shows the exact pickup and rider; Release needs a reason (other + note)", async () => {

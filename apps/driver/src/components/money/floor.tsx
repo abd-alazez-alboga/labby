@@ -158,6 +158,55 @@ export function FloorBlockedCard({
   );
 }
 
+/**
+ * V1 audit H7 (owner ruling 2026-10-20): the scheduled claim board while
+ * the debt is at/below the floor — the "Driver Blocked" red card worded for
+ * the board, the settle steps and "See my balance". The board answers
+ * `blockedReason: balance_below_floor` with no amounts, so none are named.
+ */
+export function FloorBoardBlocked({
+  onSeeBalance,
+  testID = "board-floor-blocked",
+}: {
+  onSeeBalance: () => void;
+  testID?: string;
+}) {
+  const { t } = useTranslation();
+  const { flipRows } = useDirection();
+  return (
+    <View style={styles.blockedGroup} testID={testID}>
+      <View style={styles.blockedCard}>
+        <View style={[styles.titleRow, flipRows && styles.rowReverse]}>
+          <Icon name="ban-outline" size={24} color={colors.danger} />
+          <AppText
+            variant="heading"
+            color={colors.danger}
+            style={styles.stepText}
+            testID={`${testID}-title`}
+          >
+            {t("floor.boardBlockedTitle")}
+          </AppText>
+        </View>
+        <AppText
+          variant="secondary"
+          color={colors.danger}
+          testID={`${testID}-body`}
+        >
+          {t("floor.boardBlockedBody")}
+        </AppText>
+      </View>
+
+      <SettleSteps testID={`${testID}-steps`} />
+
+      <PrimaryButton
+        title={t("floor.seeBalance")}
+        onPress={onSeeBalance}
+        testID={`${testID}-see-balance`}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   rowReverse: { flexDirection: "row-reverse" },
   titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },

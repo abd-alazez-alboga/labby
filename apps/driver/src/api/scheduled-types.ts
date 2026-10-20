@@ -49,11 +49,20 @@ export interface ClaimBoardEntry {
   estimateDurationSeconds?: number;
 }
 
+/**
+ * Why the board is empty for this driver (V1 audit H7, owner ruling
+ * 2026-10-20): at/below the COM-03 balance floor the board, claims and
+ * conversion are closed.
+ */
+export type ClaimBoardBlockedReason = "balance_below_floor";
+
 export interface ClaimBoardPage {
   items: ClaimBoardEntry[];
   page: number;
   size: number;
   totalItems: number;
+  /** Set → `items` is empty; null when the board is open to the driver. */
+  blockedReason: ClaimBoardBlockedReason | null;
 }
 
 export type ClaimReleaseReason = "vehicle_issue" | "unsafe_pickup" | "other";

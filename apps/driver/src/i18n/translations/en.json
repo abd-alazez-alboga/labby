@@ -786,7 +786,9 @@
     "step1": "Visit the Labby office — Baghdad Street, Sat–Thu 9:00–17:00 — and hand in your settlement.",
     "step2": "An admin records it on the spot — no paperwork for you.",
     "step3": "Offers resume automatically the moment your balance is back above the limit. We'll notify you.",
-    "seeBalance": "See my balance"
+    "seeBalance": "See my balance",
+    "boardBlockedTitle": "Settle your balance to see scheduled rides",
+    "boardBlockedBody": "Your debt is past the limit, so the board is closed and you can't claim scheduled rides. It reopens the moment your balance is back above the limit."
   },
   "tripEarnings": {
     "title": "Trip earnings",

@@ -65,7 +65,7 @@ export function boardPage(
   items: ClaimBoardEntry[],
   totalItems = items.length,
 ): ClaimBoardPage {
-  return { items, page: 0, size: 20, totalItems };
+  return { items, page: 0, size: 20, totalItems, blockedReason: null };
 }
 
 /** A claimed scheduled ride, not yet live (driver view, exact pickup). */

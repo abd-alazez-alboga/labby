@@ -122,7 +122,7 @@ export function baseRoutes(): Record<string, MockResponse | MockResponse[]> {
     [CLAIMED_RIDES]: { status: 200, body: [] },
     [CLAIM_BOARD_SUMMARY]: {
       status: 200,
-      body: { items: [], page: 0, size: 1, totalItems: 0 },
+      body: { items: [], page: 0, size: 1, totalItems: 0, blockedReason: null },
     },
   };
 }

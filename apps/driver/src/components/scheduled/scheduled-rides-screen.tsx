@@ -14,6 +14,7 @@ import {
   releaseScheduledRide,
 } from "../../api/scheduled";
 import type {
+  ClaimBoardBlockedReason,
   ClaimBoardEntry,
   ClaimReleaseReason,
 } from "../../api/scheduled-types";
@@ -38,6 +39,7 @@ import {
   TextButton,
   useDirection,
 } from "../ui";
+import { FloorBoardBlocked } from "../money/floor";
 import { RouteSteps } from "../ride/ride-parts";
 import { ReleaseSheet } from "./release-sheet";
 
@@ -53,6 +55,8 @@ type BoardLoad =
       page: number;
       totalItems: number;
       hasWindows: boolean;
+      /** H7: at/below the balance floor the board is closed (items empty). */
+      blockedReason: ClaimBoardBlockedReason | null;
     }
   | { status: "error"; kind: FailureKind };
 
@@ -413,6 +417,10 @@ function NoticeBanner({
  *   windows; Claim locks one (`POST …/claim`). A lost race (409
  *   `already_claimed` / `claim_closed`) or a 422 `not_eligible` says so and
  *   refreshes the board (E1). No windows → "Set your availability first".
+ *   At/below the COM-03 balance floor (H7) the board answers
+ *   `blockedReason: balance_below_floor` — "Settle your balance to see
+ *   scheduled rides" with "See my balance"; a claim refused 422
+ *   `not_eligible` / `balance_below_floor` lands on the same state.
  * - My rides (`GET /driver/scheduled-rides`): claims not yet live with the
  *   exact pickup, the rider and a Release (`POST …/release`, reason sheet).
  * Every claim goes live by itself shortly before pickup (the T−15 conversion
@@ -465,6 +473,7 @@ export function ScheduledRidesScreen({
         hasWindows: windows
           ? windows.windows.length > 0
           : previous.status === "loaded" && previous.hasWindows,
+        blockedReason: result.blockedReason ?? null,
       }));
     } catch (caught) {
       if (mounted.current)
@@ -516,6 +525,22 @@ export function ScheduledRidesScreen({
         setNotice({
           kind: coded.code === "already_claimed" ? "alreadyClaimed" : "claimClosed",
         });
+        void fetchBoard(0);
+      } else if (
+        coded?.status === 422 &&
+        coded.details.rule === "balance_below_floor"
+      ) {
+        // H7: the floor closed the board meanwhile — show its blocked state.
+        setBoard((previous) =>
+          previous.status === "loaded"
+            ? {
+                ...previous,
+                items: [],
+                totalItems: 0,
+                blockedReason: "balance_below_floor",
+              }
+            : previous,
+        );
         void fetchBoard(0);
       } else if (coded?.status === 422) {
         const rule = coded.details.rule;
@@ -605,7 +630,12 @@ export function ScheduledRidesScreen({
                 testID="board-error"
               />
             ) : null}
-            {board.status === "loaded" && board.items.length === 0 ? (
+            {board.status === "loaded" && board.blockedReason ? (
+              <FloorBoardBlocked onSeeBalance={() => router.push("/balance")} />
+            ) : null}
+            {board.status === "loaded" &&
+            !board.blockedReason &&
+            board.items.length === 0 ? (
               board.hasWindows ? (
                 <AppText
                   color={colors.textSecondary}
@@ -634,7 +664,9 @@ export function ScheduledRidesScreen({
                 </View>
               )
             ) : null}
-            {board.status === "loaded" && board.items.length > 0 ? (
+            {board.status === "loaded" &&
+            !board.blockedReason &&
+            board.items.length > 0 ? (
               <>
                 <AppText
                   variant="caption"
