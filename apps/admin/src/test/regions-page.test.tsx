@@ -84,6 +84,71 @@ describe('regions page', () => {
     expect(await screen.findByRole('heading', { name: 'Damascus' })).toBeInTheDocument();
   });
 
+  it('offers the SRS §9 defaults in the bundle right after creating (I24, I26–I28)', async () => {
+    seedStoredSession(sessionFor(EDITOR));
+    stubRegionRoutes(EDITOR, DRAFT_REGION, (method, path) =>
+      method === 'POST' && path === '/api/v1/admin/regions'
+        ? jsonResponse(201, DRAFT_REGION)
+        : null,
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(await screen.findByRole('button', { name: 'New region' }));
+    await user.type(screen.getByLabelText('Region name'), 'Damascus');
+    await user.click(screen.getByRole('button', { name: 'Create region' }));
+
+    await screen.findByRole('heading', { name: 'Damascus' });
+    expect(screen.getByText(/New region: unset values start at the SRS defaults/)).toBeVisible();
+    const expected: [string, number][] = [
+      ['Cancellation grace (min)', 2],
+      ['Cancellation fee', 2],
+      ['Wait grace (min)', 5],
+      ['Wait rate (per min)', 0.25],
+      ['Pickup-fee threshold (km)', 10],
+      ['Pickup fee (per km)', 0.5],
+      ['Rating reward amount', 20],
+      ['Rating reward: min average rating', 4.8],
+      ['Rating reward: min weekly trips', 30],
+      ['Driver: min average rating', 3],
+      ['Driver: min rated rides', 20],
+      ['Rider: min average rating', 2.5],
+      ['Rider: min rated rides', 10],
+      ['Warn when acceptance below (%)', 50],
+      ['Warn when cancellation above (%)', 15],
+      ['Minimum sample', 20],
+    ];
+    for (const [label, value] of expected) {
+      expect(screen.getByLabelText(label), label).toHaveValue(value);
+    }
+    expect(
+      screen
+        .getAllByLabelText('Weekly trips above')
+        .map((input) => (input as HTMLInputElement).value),
+    ).toEqual(['0', '100', '200']);
+    expect(
+      screen.getAllByLabelText('Commission (%)').map((input) => (input as HTMLInputElement).value),
+    ).toEqual(['25', '20', '15']);
+    expect(
+      screen.getAllByLabelText('Trips per week').map((input) => (input as HTMLInputElement).value),
+    ).toEqual(['40', '60']);
+    expect(
+      screen.getAllByLabelText('Bonus amount').map((input) => (input as HTMLInputElement).value),
+    ).toEqual(['50', '100']);
+  });
+
+  it('never prefills an existing region opened from the list', async () => {
+    seedStoredSession(sessionFor(EDITOR));
+    stubRegionRoutes(EDITOR, DRAFT_REGION);
+    window.history.pushState({}, '', '/regions/region-1');
+    renderShell();
+
+    await screen.findByRole('heading', { name: 'Damascus' });
+    expect(screen.getByLabelText('Cancellation fee')).toHaveValue(null);
+    expect(screen.queryByText(/New region: unset values start/)).toBeNull();
+    expect(screen.queryAllByLabelText('Weekly trips above')).toHaveLength(0);
+  });
+
   it('surfaces the duplicate-name conflict on create', async () => {
     seedStoredSession(sessionFor(EDITOR));
     stubRegionRoutes(EDITOR, DRAFT_REGION, (method, path) =>

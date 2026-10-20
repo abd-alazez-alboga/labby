@@ -90,6 +90,9 @@ describe('region pricing editors', () => {
     await user.type(within(section).getByLabelText('Base fare'), '3');
     await user.type(within(section).getByLabelText('Per-km rate'), '0.8');
     await user.type(within(section).getByLabelText('Per-minute rate'), '0.3');
+    // I24: a new service type starts at the SRS §9 minimum fare, editable.
+    expect(within(section).getByLabelText('Minimum fare')).toHaveValue(1.5);
+    await user.clear(within(section).getByLabelText('Minimum fare'));
     await user.type(within(section).getByLabelText('Minimum fare'), '5');
     await user.click(within(section).getByRole('button', { name: 'Save service type' }));
 

@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { PeakHourBonusSection, type PeakWindowRow } from './PeakHourBonusSection';
 import { PolygonMapEditor } from './PolygonMapEditor';
+import { withSrsDefaults } from './srs-defaults';
 import { toContractTime, toTimeInput } from './timeWindows';
 
 interface TierRow {
@@ -59,19 +60,26 @@ function mapSaveError(error: unknown): string {
  * contract) — edits apply to NEW rides only, the backend's rule. The
  * boundary is part of the bundle and is drawn on the map section. Editing
  * needs regions:edit; without it everything renders disabled and the Save
- * button is hidden.
+ * button is hidden. Right after the region is created (`prefillDefaults`),
+ * every unset value starts at its SRS §9 default — editable, saved only with
+ * the bundle; an existing region always shows what is stored.
  */
 export function BundleForm({
   region,
   canEdit,
   onSaved,
+  prefillDefaults = false,
 }: {
   region: Region;
   canEdit: boolean;
   onSaved: (region: Region) => void;
+  /** The region was just created: offer the SRS §9 defaults (I24, I26–I28). */
+  prefillDefaults?: boolean;
 }) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
+  const prefilled = prefillDefaults && canEdit;
+  const initial = prefilled ? withSrsDefaults(region) : region;
 
   const [name, setName] = useState(region.name);
   const [currency, setCurrency] = useState(region.currency ?? '');
@@ -79,82 +87,82 @@ export function BundleForm({
   const [boundary, setBoundary] = useState<GeoJsonPolygon | null>(region.boundary ?? null);
 
   const [cancellationGraceMin, setCancellationGraceMin] = useState(
-    toInput(region.cancellationGraceMin),
+    toInput(initial.cancellationGraceMin),
   );
-  const [cancellationFee, setCancellationFee] = useState(toInput(region.cancellationFee));
-  const [waitGraceMin, setWaitGraceMin] = useState(toInput(region.waitGraceMin));
-  const [waitPerMinRate, setWaitPerMinRate] = useState(toInput(region.waitPerMinRate));
+  const [cancellationFee, setCancellationFee] = useState(toInput(initial.cancellationFee));
+  const [waitGraceMin, setWaitGraceMin] = useState(toInput(initial.waitGraceMin));
+  const [waitPerMinRate, setWaitPerMinRate] = useState(toInput(initial.waitPerMinRate));
   const [pickupFeeThresholdKm, setPickupFeeThresholdKm] = useState(
-    toInput(region.pickupFeeThresholdKm),
+    toInput(initial.pickupFeeThresholdKm),
   );
-  const [pickupFeePerKm, setPickupFeePerKm] = useState(toInput(region.pickupFeePerKm));
-  const [surgeCap, setSurgeCap] = useState(toInput(region.surgeCap));
+  const [pickupFeePerKm, setPickupFeePerKm] = useState(toInput(initial.pickupFeePerKm));
+  const [surgeCap, setSurgeCap] = useState(toInput(initial.surgeCap));
 
   const [tiers, setTiers] = useState<TierRow[]>(
-    (region.commissionTiers ?? []).map((tier) => ({
+    (initial.commissionTiers ?? []).map((tier) => ({
       weeklyTripsAbove: String(tier.weeklyTripsAbove),
       percent: String(tier.percent),
     })),
   );
 
   const [bonuses, setBonuses] = useState<BonusRow[]>(
-    (region.incentiveValues?.weeklyTripBonuses ?? []).map((bonus) => ({
+    (initial.incentiveValues?.weeklyTripBonuses ?? []).map((bonus) => ({
       trips: String(bonus.trips),
       amount: String(bonus.amount),
     })),
   );
   const [peakHourBonus, setPeakHourBonus] = useState(
-    toInput(region.incentiveValues?.peakHourBonusPerTrip ?? null),
+    toInput(initial.incentiveValues?.peakHourBonusPerTrip ?? null),
   );
   const [peakWindows, setPeakWindows] = useState<PeakWindowRow[]>(
-    (region.incentiveValues?.peakWindows ?? []).map((window) => ({
+    (initial.incentiveValues?.peakWindows ?? []).map((window) => ({
       days: [...window.daysOfWeek],
       startsAt: toTimeInput(window.startsAt),
       endsAt: toTimeInput(window.endsAt),
     })),
   );
   const [rewardAmount, setRewardAmount] = useState(
-    toInput(region.incentiveValues?.ratingReward.amount ?? null),
+    toInput(initial.incentiveValues?.ratingReward.amount ?? null),
   );
   const [rewardMinAvgRating, setRewardMinAvgRating] = useState(
-    toInput(region.incentiveValues?.ratingReward.minAvgRating ?? null),
+    toInput(initial.incentiveValues?.ratingReward.minAvgRating ?? null),
   );
   const [rewardMinWeeklyTrips, setRewardMinWeeklyTrips] = useState(
-    toInput(region.incentiveValues?.ratingReward.minWeeklyTrips ?? null),
+    toInput(initial.incentiveValues?.ratingReward.minWeeklyTrips ?? null),
   );
 
   const [driverMinAvgRating, setDriverMinAvgRating] = useState(
-    toInput(region.suspensionThresholds?.driver.minAvgRating ?? null),
+    toInput(initial.suspensionThresholds?.driver.minAvgRating ?? null),
   );
   const [driverMinRatedRides, setDriverMinRatedRides] = useState(
-    toInput(region.suspensionThresholds?.driver.minRatedRides ?? null),
+    toInput(initial.suspensionThresholds?.driver.minRatedRides ?? null),
   );
   const [riderMinAvgRating, setRiderMinAvgRating] = useState(
-    toInput(region.suspensionThresholds?.rider.minAvgRating ?? null),
+    toInput(initial.suspensionThresholds?.rider.minAvgRating ?? null),
   );
   const [riderMinRatedRides, setRiderMinRatedRides] = useState(
-    toInput(region.suspensionThresholds?.rider.minRatedRides ?? null),
+    toInput(initial.suspensionThresholds?.rider.minRatedRides ?? null),
   );
   // RATE-03 flag levels (M11) — optional inside the thresholds group.
   const [driverWarnAvgRating, setDriverWarnAvgRating] = useState(
-    toInput(region.suspensionThresholds?.driver.warnAvgRating ?? null),
+    toInput(initial.suspensionThresholds?.driver.warnAvgRating ?? null),
   );
   const [riderWarnAvgRating, setRiderWarnAvgRating] = useState(
-    toInput(region.suspensionThresholds?.rider.warnAvgRating ?? null),
+    toInput(initial.suspensionThresholds?.rider.warnAvgRating ?? null),
   );
 
   // DRV-07 metric warnings (M11) — all four or none.
   const [minAcceptancePercent, setMinAcceptancePercent] = useState(
-    toInput(region.metricWarnings?.minAcceptancePercent ?? null),
+    toInput(initial.metricWarnings?.minAcceptancePercent ?? null),
   );
   const [maxCancellationPercent, setMaxCancellationPercent] = useState(
-    toInput(region.metricWarnings?.maxCancellationPercent ?? null),
+    toInput(initial.metricWarnings?.maxCancellationPercent ?? null),
   );
   const [metricWindowDays, setMetricWindowDays] = useState(
-    toInput(region.metricWarnings?.windowDays ?? null),
+    toInput(initial.metricWarnings?.windowDays ?? null),
   );
   const [metricMinSample, setMetricMinSample] = useState(
-    toInput(region.metricWarnings?.minSample ?? null),
+    toInput(initial.metricWarnings?.minSample ?? null),
   );
 
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -380,6 +388,8 @@ export function BundleForm({
         <p className="banner banner--info" role="status">
           {t('regionDetail.savedNotice')}
         </p>
+      ) : prefilled ? (
+        <p className="banner banner--info">{t('regionDetail.defaultsNotice')}</p>
       ) : null}
 
       <fieldset className="bundle__fieldset" disabled={!canEdit || submitting}>

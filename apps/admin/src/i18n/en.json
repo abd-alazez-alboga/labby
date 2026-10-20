@@ -381,7 +381,8 @@
     },
     "warnHint": "Flag levels (optional): below this live average an account is flagged for review — never suspended. Must be above the suspension level; blank = suspension level + 0.5.",
     "metricWarningsTitle": "Driver metric warnings",
-    "metricWarningsHint": "Warn only, never suspend. Blank fields keep the region's saved values; a region that never set them uses the defaults (acceptance below 50%, cancellation above 15%, over 30 days, at least 20 offers or rides)."
+    "metricWarningsHint": "Warn only, never suspend. Blank fields keep the region's saved values; a region that never set them uses the defaults (acceptance below 50%, cancellation above 15%, over 30 days, at least 20 offers or rides).",
+    "defaultsNotice": "New region: unset values start at the SRS defaults. Amounts are in currency units — scale them to the region's currency. A peak bonus needs a peak window (or clear the bonus) before saving."
   },
   "serviceTypes": {
     "title": "Service types",

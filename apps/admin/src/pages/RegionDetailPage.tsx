@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import { ApiError } from '../api/client';
 import {
@@ -34,6 +34,8 @@ import { SurgeZonesSection } from './regions/SurgeZonesSection';
 export default function RegionDetailPage() {
   const { t } = useTranslation();
   const { regionId } = useParams<{ regionId: string }>();
+  // Arriving straight from "Create region": the bundle offers the SRS §9 defaults.
+  const justCreated = (useLocation().state as { created?: boolean } | null)?.created === true;
   const { apiClient } = useAuth();
   const { can } = usePermissions();
   const canEditRegion = can('regions:edit');
@@ -145,7 +147,13 @@ export default function RegionDetailPage() {
           </div>
         }
       >
-        <BundleForm key={region.id} region={region} canEdit={canEditRegion} onSaved={setRegion} />
+        <BundleForm
+          key={region.id}
+          region={region}
+          canEdit={canEditRegion}
+          onSaved={setRegion}
+          prefillDefaults={justCreated}
+        />
 
         {canViewPricing ? (
           pricingLoadFailed ? (

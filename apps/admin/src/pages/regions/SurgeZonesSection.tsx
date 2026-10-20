@@ -13,6 +13,7 @@ import {
 } from '../../api/regions';
 import { useAuth } from '../../auth/AuthContext';
 import { PolygonMapEditor, type MapOverlay } from './PolygonMapEditor';
+import { SRS_SURGE_STEPS } from './srs-defaults';
 
 interface StepRow {
   ratio: string;
@@ -74,7 +75,13 @@ export function SurgeZonesSection({
     if (next.mode === 'create') {
       setName('');
       setPolygon(null);
-      setSteps([{ ratio: '', multiplier: '' }]);
+      // SRS §9 example steps for a new zone (I24) — editable.
+      setSteps(
+        SRS_SURGE_STEPS.map((step) => ({
+          ratio: String(step.ratio),
+          multiplier: String(step.multiplier),
+        })),
+      );
       setMultiplierCap('');
     } else if (next.mode === 'edit') {
       setName(next.item.name);

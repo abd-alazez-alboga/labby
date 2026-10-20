@@ -104,13 +104,16 @@ describe('surge zones editor', () => {
     await user.click(within(section).getByRole('button', { name: 'Add surge zone' }));
     await user.type(within(section).getByLabelText('Zone name'), 'Airport');
     await user.click(within(section).getByRole('button', { name: 'draw:Surge zone map' }));
-    await user.type(within(section).getByLabelText('Demand/supply ratio ≥'), '2');
-    await user.type(within(section).getByLabelText('Multiplier'), '1.2');
-    await user.click(within(section).getByRole('button', { name: 'Add step' }));
+    // I24: a new zone starts with the SRS §9 example steps (≥2→1.2, ≥3→1.5, ≥5→2.0), editable.
     const ratioInputs = within(section).getAllByLabelText('Demand/supply ratio ≥');
     const multiplierInputs = within(section).getAllByLabelText('Multiplier');
-    await user.type(ratioInputs[1], '3');
-    await user.type(multiplierInputs[1], '1.5');
+    expect(ratioInputs.map((input) => (input as HTMLInputElement).value)).toEqual(['2', '3', '5']);
+    expect(multiplierInputs.map((input) => (input as HTMLInputElement).value)).toEqual([
+      '1.2',
+      '1.5',
+      '2',
+    ]);
+    await user.click(within(section).getAllByRole('button', { name: 'Remove step' })[2]);
     await user.click(within(section).getByRole('button', { name: 'Save zone' }));
 
     expect(await within(section).findByText('Airport')).toBeInTheDocument();
@@ -172,8 +175,6 @@ describe('surge zones editor', () => {
     const section = await zonesSection();
     await user.click(within(section).getByRole('button', { name: 'Add surge zone' }));
     await user.type(within(section).getByLabelText('Zone name'), 'Airport');
-    await user.type(within(section).getByLabelText('Demand/supply ratio ≥'), '2');
-    await user.type(within(section).getByLabelText('Multiplier'), '1.2');
     await user.click(within(section).getByRole('button', { name: 'Save zone' }));
 
     expect(
@@ -197,8 +198,6 @@ describe('surge zones editor', () => {
     await user.click(within(section).getByRole('button', { name: 'Add surge zone' }));
     await user.type(within(section).getByLabelText('Zone name'), 'Airport');
     await user.click(within(section).getByRole('button', { name: 'draw:Surge zone map' }));
-    await user.type(within(section).getByLabelText('Demand/supply ratio ≥'), '2');
-    await user.type(within(section).getByLabelText('Multiplier'), '1.2');
     await user.click(within(section).getByRole('button', { name: 'Save zone' }));
 
     expect(

@@ -9,6 +9,7 @@ import {
   type ServiceTypeUpsertRequest,
 } from '../../api/regions';
 import { useAuth } from '../../auth/AuthContext';
+import { SRS_MINIMUM_FARE } from './srs-defaults';
 
 type EditorState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; item: ServiceType };
 
@@ -66,7 +67,8 @@ export function ServiceTypesSection({
       setBaseFare('');
       setPerKmRate('');
       setPerMinRate('');
-      setMinimumFare('');
+      // SRS §9 default for a new service type (I24) — editable.
+      setMinimumFare(String(SRS_MINIMUM_FARE));
     } else if (next.mode === 'edit') {
       setNameEn(next.item.nameEn);
       setNameAr(next.item.nameAr);

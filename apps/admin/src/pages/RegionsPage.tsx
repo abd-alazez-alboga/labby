@@ -67,7 +67,7 @@ export default function RegionsPage() {
     try {
       const created = await createRegion(apiClient, { name: name.trim() });
       // Straight into the bundle (UC-A-05 steps 1-4 live on the detail page).
-      navigate(`/regions/${created.id}`);
+      navigate(`/regions/${created.id}`, { state: { created: true } });
     } catch (error) {
       setCreateError(mapRegionError(error));
     } finally {
