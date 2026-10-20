@@ -33,9 +33,7 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
   @Override
   @Transactional(readOnly = true)
   public List<TicketCategoryDto> userList() {
-    return ticketCategoryRepository
-        .findByActiveTrueAndSystemCodeIsNullOrderBySortOrderAscNameEnAsc()
-        .stream()
+    return ticketCategoryRepository.findUserPickable(TicketCategoryCodes.USER_PICKABLE).stream()
         .map(SupportAssembler::category)
         .toList();
   }
@@ -156,7 +154,7 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
 
   private static ConflictException systemCategory() {
     return (ConflictException)
-        new ConflictException("The system lost-item category stays active and permanent")
+        new ConflictException("System ticket categories stay active and permanent")
             .withCode("system_category");
   }
 

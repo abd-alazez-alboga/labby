@@ -434,6 +434,7 @@ public class SupportAssembler {
   public static TicketCategoryDto category(TicketCategory category) {
     return new TicketCategoryDto(
         category.getId(),
+        category.getSystemCode(),
         new LocalizedTextDto(category.getNameEn(), category.getNameAr()),
         category.getDefaultPriority(),
         category.getSortOrder());

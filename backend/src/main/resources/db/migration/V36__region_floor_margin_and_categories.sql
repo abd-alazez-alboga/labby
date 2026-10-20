@@ -6,3 +6,13 @@ ALTER TABLE regions
     ADD COLUMN floor_warning_margin NUMERIC(10, 2),
     ADD CONSTRAINT ck_regions_floor_warning_margin
         CHECK (floor_warning_margin IS NULL OR floor_warning_margin > 0);
+
+-- Review V1 W39 (UC-R-04 E3: a suspended rider gets appeal info): the suspended screens' "Contact
+-- support" opens a ticket pre-filled in this category, which the apps find by system_code in
+-- GET /support/ticket-categories. Unlike lost_item (system-opened only), users may pick it. Being
+-- a system row it is protected by the V26 trigger: never deactivated, never deleted. Idempotent.
+INSERT INTO ticket_categories (ticket_category_id, system_code, name_en, name_ar, default_priority,
+                               active)
+VALUES ('00000000-0000-0000-0000-000000001403', 'account_suspend', 'Account & suspension',
+        'الحساب والإيقاف', 'normal', TRUE)
+ON CONFLICT DO NOTHING;

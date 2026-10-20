@@ -245,7 +245,14 @@ paths:
     get:
       tags: [Tickets]
       summary: Active ticket categories a user may pick (SUP-01)
-      description: The system lost-item category is never listed here (ruling 3).
+      description: >
+        The system lost-item category is never listed here (ruling 3). The user-pickable system
+        category `account_suspend` ("Account & suspension" / "الحساب والإيقاف", V36, review V1 W39)
+        IS listed: the apps find it by `systemCode` to pre-select it from the suspended screens'
+        "Contact support". Ticket creation, attachments, reading and replying are not behind the
+        suspension gate: a rider or driver whose ROLE or whole ACCOUNT is suspended can still open
+        and follow tickets (the appeal path of UC-R-04 E3; the gate covers ride / money / trust
+        feature paths only).
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -1113,9 +1120,14 @@ components:
     # ── ticket categories ──
     TicketCategory:
       type: object
-      required: [ticketCategoryId, name, defaultPriority, sortOrder]
+      required: [ticketCategoryId, systemCode, name, defaultPriority, sortOrder]
       properties:
         ticketCategoryId: { type: string, format: uuid }
+        systemCode:
+          type: [string, 'null']
+          description: >
+            A seeded system category's code (`account_suspend` in the picker; `lost_item` on a
+            lost-item ticket's category); null for admin-made categories (review V1 W39)
         name: { $ref: '#/components/schemas/LocalizedText' }
         defaultPriority: { $ref: '#/components/schemas/TicketPriority' }
         sortOrder: { type: integer }
@@ -1124,7 +1136,7 @@ components:
       required: [ticketCategoryId, systemCode, nameEn, nameAr, defaultPriority, sortOrder, active, ticketCount, createdAt, updatedAt]
       properties:
         ticketCategoryId: { type: string, format: uuid }
-        systemCode: { type: [string, 'null'], description: '`lost_item` / `unpaid_ride` (V1 audit W30) on the protected system rows' }
+        systemCode: { type: [string, 'null'], description: '`lost_item` / `unpaid_ride` (V1 audit W30) / `account_suspend` (V36) on the protected system rows' }
         nameEn: { type: string }
         nameAr: { type: string }
         defaultPriority: { $ref: '#/components/schemas/TicketPriority' }

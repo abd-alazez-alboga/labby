@@ -19,7 +19,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * USR-06 whole-account suspension (M11, trust-v1.yaml): every rider/driver feature answers 403
  * {@code account_suspended} while the account is suspended — one central gate on the feature paths
  * ({@link #FEATURE_PATHS}) instead of a check per service. Login, the profile, notifications and
- * devices stay reachable so the apps can show the suspended screen with the admin's note.
+ * devices stay reachable so the apps can show the suspended screen with the admin's note. So does
+ * support (ticket categories, ticket files, opening / reading / replying to tickets): it is the
+ * appeal path of UC-R-04 E3 (review V1 W39), deliberately outside {@link #FEATURE_PATHS}.
  *
  * <p>Owner ruling 2026-10-15, "SOS + finish the ride": a suspended account may still
  *
