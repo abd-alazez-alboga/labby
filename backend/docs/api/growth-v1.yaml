@@ -37,7 +37,14 @@ info:
     5-star week = at least 3 ratings within any rolling 7 days, all of them 5★ (owner-confirmed
     at T2 sign-off, 2026-10-18) — checked at each 5★ over the ratings of the last 7 days after
     the latest non-5★ one, so an earlier lower rating no longer hides a later qualifying window
-    (V1 audit I22).
+    (V1 audit I22). **Evaluated nightly (V1 conformance H5, owner ruling 2026-10-20):** the 5-star
+    week badge and `five_star_ratings` challenge progress never move when a rating is stored; the
+    daily trust pass (`labby.trust.rating-snapshot-cron`, the RATE-02 snapshot job) evaluates
+    every 5★ rating stored since the previous pass, exactly once (`rating_growth_evaluations`,
+    V37): the badge as of that rating's moment, and +1 on each `five_star_ratings` challenge of
+    the rated role that was running in the ride's region at that moment (so a rating given before
+    a challenge's end still counts after it). A completion and its notification carry the pass
+    moment, never the rating's. Suspension (ruling 6) is checked at the pass.
 
     (6) A referral reward pays at most **once per referee account AND once per phone number,
     ever** (DB-unique; a deleted then reactivated account never retriggers). Self-referral is

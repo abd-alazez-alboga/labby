@@ -3,6 +3,8 @@ package com.labby.backend.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.labby.backend.service.RatingSnapshotJob;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -11,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -21,6 +24,8 @@ import org.springframework.http.ResponseEntity;
  * trips + challenge points).
  */
 class GrowthGamificationIntegrationTest extends AbstractRideIntegrationTest {
+
+  @Autowired private RatingSnapshotJob ratingSnapshotJob;
 
   @Test
   @DisplayName("GAME-01: the 10th ride awards ride_10 to rider and driver, exactly once")
@@ -61,6 +66,9 @@ class GrowthGamificationIntegrationTest extends AbstractRideIntegrationTest {
       UUID rideId = finish(starred, book(rider));
       rate(rider, rideId, score);
     }
+    // V1 conformance H5: the badge waits for the nightly pass, never the rating itself.
+    assertThat(hasBadge(starred.userId(), "five_star_week")).isFalse();
+    ratingSnapshotJob.run();
     assertThat(hasBadge(starred.userId(), "five_star_week")).isTrue();
 
     // The starred driver goes offline so the mixed one gets the next offers.
@@ -70,7 +78,58 @@ class GrowthGamificationIntegrationTest extends AbstractRideIntegrationTest {
       UUID rideId = finish(mixed, book(rider));
       rate(rider, rideId, score);
     }
+    ratingSnapshotJob.run();
     assertThat(hasBadge(mixed.userId(), "five_star_week")).isFalse();
+  }
+
+  @Test
+  @DisplayName(
+      "H5: a 5-star rating moves no badge or rating challenge until the nightly pass, once only")
+  void shouldEvaluateFiveStarGrowthNightly() {
+    Account rider = rider();
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    Instant start = CLOCK.instant().minus(Duration.ofMinutes(1));
+    UUID challengeId =
+        adminChallenge("driver", "five_star_ratings", 2, 40, start, start.plus(Duration.ofDays(1)));
+    UUID first = finish(driver, book(rider));
+    UUID second = finish(driver, book(rider));
+    rate(rider, first, 5);
+    rate(rider, second, 5);
+    assertThat(progressOf(challengeId, driver.userId())).isNull();
+    assertThat(
+            ok(
+                    get("/api/v1/challenges?regionId=" + regionId + "&as=driver", driver.token()),
+                    HttpStatus.OK)
+                .get(0)
+                .get("myProgress")
+                .asInt())
+        .isZero();
+
+    // The nightly pass, after the challenge ended: the ratings were given while it ran, so they
+    // count; the completion carries the pass moment, not a rating's.
+    Instant night = start.plus(Duration.ofDays(1)).plusSeconds(60);
+    CLOCK.set(night);
+    ratingSnapshotJob.run();
+    assertThat(progressOf(challengeId, driver.userId())).isEqualTo(2);
+    assertThat(challengePoints(driver.userId())).isEqualTo(40);
+    assertThat(
+            jdbcTemplate
+                .queryForObject(
+                    "SELECT completed_at FROM challenge_progress WHERE challenge_id = ?"
+                        + " AND user_id = ?",
+                    Timestamp.class,
+                    challengeId,
+                    driver.userId())
+                .toInstant())
+        .isEqualTo(night);
+
+    // A second pass evaluates nothing again.
+    ratingSnapshotJob.run();
+    assertThat(progressOf(challengeId, driver.userId())).isEqualTo(2);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM rating_growth_evaluations", Integer.class))
+        .isEqualTo(2);
   }
 
   @Test

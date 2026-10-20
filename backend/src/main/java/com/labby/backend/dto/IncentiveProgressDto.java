@@ -1,14 +1,15 @@
 package com.labby.backend.dto;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * A driver's live incentive progress in one region this week (incentives-v1 {@code
- * IncentiveProgress}, UC-D-17). The three blocks are null when the region has no incentive values.
+ * A driver's incentive progress in one region this week (incentives-v1 {@code IncentiveProgress},
+ * UC-D-17). The three blocks are null when the region has no incentive values.
  */
 public record IncentiveProgressDto(
     UUID regionId,
@@ -39,13 +40,18 @@ public record IncentiveProgressDto(
       int trips,
       BigDecimal earned) {}
 
-  /** Weekly rating reward progress (ruling Q4). */
+  /**
+   * Weekly rating reward progress (ruling Q4). V1 conformance H5 (owner ruling 2026-10-20): {@code
+   * average} is the nightly snapshot of this week's ratings (null until a nightly pass saw at least
+   * 5), {@code averageAsOf} when that pass computed it; no rating count is ever exposed. {@code
+   * qualifies} compares that average with the live trips — it never moves right after a rating.
+   */
   public record RatingDto(
       BigDecimal amount,
       BigDecimal minAvgRating,
       int minWeeklyTrips,
       BigDecimal average,
-      long ratingCount,
+      Instant averageAsOf,
       int trips,
       boolean qualifies) {}
 }

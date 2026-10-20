@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -311,6 +312,78 @@ class IncentiveIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(next.get("peak").get("activeUntil").asText()).isEqualTo("09:30:00");
     assertThat(next.get("recentAwards")).hasSize(2);
     assertThat(next.get("recentAwards").get(0).get("weekStart").asText()).isEqualTo("2026-10-12");
+  }
+
+  @Test
+  @DisplayName(
+      "H5: the rating block shows the nightly average only — a stored rating never moves it, no"
+          + " count is exposed")
+  void shouldShowOnlyTheNightlyRatingAverage() {
+    Account driver = newDriver();
+    Instant start = local(2026, 10, 14, 12, 0);
+    List<UUID> trips = new ArrayList<>();
+    for (int i = 0; i < 30; i++) {
+      trips.add(trip(driver, start.plusSeconds(60L * i)));
+    }
+    CLOCK.set(local(2026, 10, 14, 20, 0));
+    for (int i = 0; i < 4; i++) {
+      fixtureRating(trips.get(i), rider.userId(), "rider", driver.userId(), "driver", 5);
+    }
+    JsonNode rating = ratingBlock(driver);
+    assertThat(rating.has("ratingCount")).isFalse();
+    assertThat(rating.get("average").isNull()).isTrue();
+    assertThat(rating.get("averageAsOf").isNull()).isTrue();
+    assertThat(rating.get("minAvgRating").decimalValue()).isEqualByComparingTo("4.8");
+    assertThat(rating.get("trips").asInt()).isEqualTo(30);
+    assertThat(rating.get("qualifies").asBoolean()).isFalse();
+
+    // Night 1: four ratings are below the RATE-02 exposure minimum (5) — still no average.
+    CLOCK.set(local(2026, 10, 15, 0, 20));
+    ratingSnapshotJob.run();
+    assertThat(ratingBlock(driver).get("average").isNull()).isTrue();
+
+    // A fifth rating (4★) is stored: nothing moves until the next night.
+    CLOCK.set(local(2026, 10, 15, 9, 0));
+    fixtureRating(trips.get(4), rider.userId(), "rider", driver.userId(), "driver", 4);
+    assertThat(ratingBlock(driver).get("average").isNull()).isTrue();
+    Instant night2 = local(2026, 10, 16, 0, 20);
+    CLOCK.set(night2);
+    ratingSnapshotJob.run();
+    rating = ratingBlock(driver);
+    assertThat(rating.get("average").decimalValue()).isEqualByComparingTo("4.80");
+    assertThat(Instant.parse(rating.get("averageAsOf").asText())).isEqualTo(night2);
+    assertThat(rating.get("qualifies").asBoolean()).isTrue();
+    assertThat(rating.has("ratingCount")).isFalse();
+
+    // A 1★ the next morning: the screen and the qualification stay as of last night...
+    CLOCK.set(local(2026, 10, 16, 10, 0));
+    fixtureRating(trips.get(5), rider.userId(), "rider", driver.userId(), "driver", 1);
+    rating = ratingBlock(driver);
+    assertThat(rating.get("average").decimalValue()).isEqualByComparingTo("4.80");
+    assertThat(rating.get("qualifies").asBoolean()).isTrue();
+    // ...and one new rating is below the rewrite minimum (3): the next night keeps it too.
+    CLOCK.set(local(2026, 10, 17, 0, 20));
+    ratingSnapshotJob.run();
+    rating = ratingBlock(driver);
+    assertThat(rating.get("average").decimalValue()).isEqualByComparingTo("4.80");
+    assertThat(Instant.parse(rating.get("averageAsOf").asText())).isEqualTo(night2);
+
+    // Three new ratings since the stored snapshot: the night rewrites it (27 / 8 = 3.375 → 3.37).
+    CLOCK.set(local(2026, 10, 17, 10, 0));
+    fixtureRating(trips.get(6), rider.userId(), "rider", driver.userId(), "driver", 1);
+    fixtureRating(trips.get(7), rider.userId(), "rider", driver.userId(), "driver", 1);
+    Instant night4 = local(2026, 10, 18, 0, 20);
+    CLOCK.set(night4);
+    ratingSnapshotJob.run();
+    rating = ratingBlock(driver);
+    assertThat(rating.get("average").decimalValue()).isEqualByComparingTo("3.37");
+    assertThat(Instant.parse(rating.get("averageAsOf").asText())).isEqualTo(night4);
+    assertThat(rating.get("qualifies").asBoolean()).isFalse();
+  }
+
+  private JsonNode ratingBlock(Account driver) {
+    return ok(get("/api/v1/driver/incentives?regionId=" + regionId, driver.token()), HttpStatus.OK)
+        .get("rating");
   }
 
   @Test

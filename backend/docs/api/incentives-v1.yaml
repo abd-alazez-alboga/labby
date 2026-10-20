@@ -129,15 +129,23 @@ components:
             earned: { $ref: '#/components/schemas/Money', description: trips × bonusPerTrip so far (paid Monday) }
         rating:
           type: [object, 'null']
-          required: [amount, minAvgRating, minWeeklyTrips, ratingCount, trips, qualifies]
+          description: >
+            V1 conformance H5 (owner ruling 2026-10-20): the screen shows the NIGHTLY average only
+            and never a rating count, so no single rating can be attributed to a ride. The daily
+            trust pass (`labby.trust.rating-snapshot-cron`, the RATE-02 snapshot job) snapshots
+            each driver's current-week average per region (`incentive_rating_snapshots`, V37)
+            under the trust-v1 rule: written when none exists, rewritten only after ≥ 3 new
+            ratings or on the first exposure; exposed from 5 ratings on. The payout job (Q4) keeps
+            using the live ratings of the closed week.
+          required: [amount, minAvgRating, minWeeklyTrips, average, averageAsOf, trips, qualifies]
           properties:
             amount: { $ref: '#/components/schemas/Money' }
-            minAvgRating: { type: number }
+            minAvgRating: { type: number, description: The target (e.g. 4.8) }
             minWeeklyTrips: { type: integer }
-            average: { type: [number, 'null'], description: Average of the ratings on this week's completed rides, 2 decimals; null without ratings }
-            ratingCount: { type: integer }
-            trips: { type: integer }
-            qualifies: { type: boolean, description: Would pay if the week ended now }
+            average: { type: [number, 'null'], description: "The nightly snapshot of the average of the ratings on this week's completed rides, 2 decimals rounded down; null until a nightly pass saw at least 5 of them" }
+            averageAsOf: { type: [string, 'null'], format: date-time, description: When the nightly pass computed `average` (null with it) }
+            trips: { type: integer, description: Completed trips so far this week (live) }
+            qualifies: { type: boolean, description: "Qualifies so far: the nightly `average` ≥ minAvgRating and the live trips ≥ minWeeklyTrips — never moves right after a rating" }
         recentAwards:
           type: array
           description: The driver's last 8 awards in this region, newest week first

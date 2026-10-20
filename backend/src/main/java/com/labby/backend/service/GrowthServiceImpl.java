@@ -16,6 +16,7 @@ import com.labby.backend.model.ChallengeProgress;
 import com.labby.backend.model.Fare;
 import com.labby.backend.model.PointsAccount;
 import com.labby.backend.model.PointsTransaction;
+import com.labby.backend.model.Rating;
 import com.labby.backend.model.Referral;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * GRW-03/04, GAME-01..03 (owner rulings 2026-10-18). Everything here is exactly-once by
@@ -91,23 +93,39 @@ public class GrowthServiceImpl implements GrowthService {
   }
 
   @Override
-  public void onRatingSubmitted(
-      Ride ride, UUID ratedUserId, RideParty ratedRole, int score, Instant now) {
-    if (score != 5 || suspended(ratedUserId, roleOf(ratedRole))) {
+  @Transactional(readOnly = true)
+  public List<UUID> pendingRatingEvaluations() {
+    return ratingRepository.findGrowthPending();
+  }
+
+  @Override
+  @Transactional
+  public void evaluateRating(UUID ratingId, Instant now) {
+    if (ratingRepository.claimGrowthEvaluation(ratingId, now) == 0) {
+      return; // an earlier or concurrent pass evaluated it
+    }
+    Rating rating = ratingRepository.findById(ratingId).orElseThrow();
+    UUID ratedUserId = rating.getRatedUserId();
+    RideParty ratedRole = rating.getRatedRole();
+    if (rating.getScore() != 5 || suspended(ratedUserId, roleOf(ratedRole))) {
       return;
     }
+    Instant ratedAt = rating.getCreatedAt();
     // V1 audit I22 (ruling: "at least 3 ratings within ANY rolling 7 days, all 5★"): the ratings
-    // of the last 7 days after the latest non-5★ one form a window that ends now and holds only
-    // 5★ ratings — any qualifying window ending at this rating is found this way.
-    List<Short> scores = ratingRepository.scoresSince(ratedUserId, now.minus(WEEK));
+    // of the 7 days up to this rating after the latest non-5★ one form a window ending at it that
+    // holds only 5★ ratings — any qualifying window ending at a 5★ rating is found this way.
     int fiveStarRun = 0;
-    for (Short value : scores) {
-      fiveStarRun = value == 5 ? fiveStarRun + 1 : 0;
+    for (Rating received :
+        ratingRepository.receivedUpTo(ratedUserId, ratedAt.minus(WEEK), ratedAt, ratingId)) {
+      fiveStarRun = received.getScore() == 5 ? fiveStarRun + 1 : 0;
     }
     if (fiveStarRun >= FIVE_STAR_WEEK_MIN_RATINGS) {
       award(ratedUserId, BadgeCode.FIVE_STAR_WEEK, ratedRole);
     }
-    for (Challenge challenge : challengeRepository.runningAt(ride.getRegionId(), ratedRole, now)) {
+    UUID regionId = rideRepository.findById(rating.getRideId()).orElseThrow().getRegionId();
+    // A challenge counts the rating when it ran at the rating's moment; its completion carries
+    // the pass moment, so nothing dates the rating.
+    for (Challenge challenge : challengeRepository.runningAt(regionId, ratedRole, ratedAt)) {
       if (challenge.getGoalType() == ChallengeGoalType.FIVE_STAR_RATINGS) {
         bump(challenge, ratedUserId, ratedRole, now);
       }

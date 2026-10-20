@@ -23,13 +23,65 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
   List<Rating> findByRideIdAndRaterUserId(UUID rideId, UUID raterUserId);
 
   /**
-   * The scores a user received since a moment, any role, oldest first (M13 five-star week; V1 audit
-   * I22 reads the rolling window in order).
+   * The ratings a user received from a moment up to and including one rating, any role, oldest
+   * first (M13 five-star week; V1 audit I22 reads the rolling window in order; V1 conformance H5
+   * evaluates it nightly as of each 5-star rating).
+   *
+   * @param userId the rated user
+   * @param from the window start (inclusive)
+   * @param upToAt the last rating's moment
+   * @param upToId the last rating (ties at the same moment order by id)
+   * @return the ratings, oldest first
    */
   @Query(
-      "SELECT r.score FROM Rating r WHERE r.ratedUserId = :userId AND r.createdAt >= :from"
-          + " ORDER BY r.createdAt ASC, r.id ASC")
-  List<Short> scoresSince(@Param("userId") UUID userId, @Param("from") Instant from);
+      value =
+          """
+          SELECT * FROM ratings
+          WHERE rated_user_id = :userId AND created_at >= :from
+            AND (created_at, rating_id) <= (:upToAt, :upToId)
+          ORDER BY created_at ASC, rating_id ASC
+          """,
+      nativeQuery = true)
+  List<Rating> receivedUpTo(
+      @Param("userId") UUID userId,
+      @Param("from") Instant from,
+      @Param("upToAt") Instant upToAt,
+      @Param("upToId") UUID upToId);
+
+  /**
+   * The 5-star ratings the nightly growth pass has not evaluated yet, oldest first (V1 conformance
+   * H5, owner ruling 2026-10-20: badges and rating challenges never move when a rating is stored).
+   *
+   * @return the rating ids
+   */
+  @Query(
+      value =
+          """
+          SELECT g.rating_id FROM ratings g
+          WHERE g.score = 5
+            AND NOT EXISTS (SELECT 1 FROM rating_growth_evaluations e
+                            WHERE e.rating_id = g.rating_id)
+          ORDER BY g.created_at ASC, g.rating_id ASC
+          """,
+      nativeQuery = true)
+  List<UUID> findGrowthPending();
+
+  /**
+   * Claims a rating for the nightly growth pass — exactly once by the primary key.
+   *
+   * @param ratingId the rating
+   * @param at the pass moment
+   * @return 1 when claimed now, 0 when an earlier (or concurrent) pass already did
+   */
+  @Modifying
+  @Query(
+      value =
+          """
+          INSERT INTO rating_growth_evaluations (rating_id, evaluated_at) VALUES (:ratingId, :at)
+          ON CONFLICT (rating_id) DO NOTHING
+          """,
+      nativeQuery = true)
+  int claimGrowthEvaluation(@Param("ratingId") UUID ratingId, @Param("at") Instant at);
 
   /** The ratings one user gave on a page of rides (history {@code myRating}, one query). */
   List<Rating> findByRideIdInAndRaterUserId(Collection<UUID> rideIds, UUID raterUserId);

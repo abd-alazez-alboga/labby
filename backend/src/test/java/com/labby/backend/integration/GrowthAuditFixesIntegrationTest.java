@@ -3,6 +3,7 @@ package com.labby.backend.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.labby.backend.service.RatingSnapshotJob;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -19,6 +21,8 @@ import org.springframework.http.ResponseEntity;
  * freezes on a ROLE suspension too) and I22 (the five-star week is any rolling 7 days).
  */
 class GrowthAuditFixesIntegrationTest extends AbstractRideIntegrationTest {
+
+  @Autowired private RatingSnapshotJob ratingSnapshotJob;
 
   @Test
   @DisplayName("I19: a retry drops the promo when another rider took the freed cap meanwhile")
@@ -132,7 +136,8 @@ class GrowthAuditFixesIntegrationTest extends AbstractRideIntegrationTest {
       position(driver, PICKUP_LAT, PICKUP_LNG); // a fresh fix for the next dispatch
     }
     // The 7 days ending at the last rating hold the 4★, but the window from the first 5★ on
-    // holds three 5★ ratings only.
+    // holds three 5★ ratings only. V1 conformance H5: the nightly pass evaluates it.
+    ratingSnapshotJob.run();
     assertThat(
             jdbcTemplate.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM user_badges WHERE user_id = ? AND badge_code ="

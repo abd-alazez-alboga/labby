@@ -21,6 +21,7 @@ import com.labby.backend.repository.IncentiveAwardRepository;
 import com.labby.backend.repository.IncentiveStatsRepository;
 import com.labby.backend.repository.IncentiveStatsRepository.CompletedTrip;
 import com.labby.backend.repository.IncentiveStatsRepository.RatingStats;
+import com.labby.backend.repository.IncentiveStatsRepository.WeekRatingSnapshot;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.service.DriverLedgerService.LedgerPosting;
 import java.math.BigDecimal;
@@ -302,6 +303,31 @@ public class IncentiveServiceImpl implements IncentiveService {
   }
 
   @Override
+  public int refreshRatingSnapshots(Instant now) {
+    int written = 0;
+    for (Region region : regionRepository.findAll()) {
+      if (config(region) == null) {
+        continue;
+      }
+      try {
+        Week week = Week.containing(now, ZoneId.of(region.getTimeZone()));
+        written +=
+            statsRepository.rewriteWeekSnapshots(
+                region.getId(),
+                week.start(),
+                week.from(),
+                week.to(),
+                now,
+                TrustRules.MIN_NEW_FOR_SNAPSHOT,
+                TrustRules.MIN_EXPOSED_RATINGS);
+      } catch (RuntimeException failed) {
+        log.error("Weekly rating snapshots of region {} failed", region.getId(), failed);
+      }
+    }
+    return written;
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public IncentiveProgressDto progress(UUID driverUserId, UUID regionId) {
     rideAccess.requireDriver(driverUserId);
@@ -356,11 +382,14 @@ public class IncentiveServiceImpl implements IncentiveService {
                 .filter(
                     t -> IncentivePolicy.coveringWindow(windows, t.pricedAt(), zone).isPresent())
                 .count();
-    RatingStats stats =
-        statsRepository.ratingStats(regionId, week.from(), week.to(), driverUserId).stream()
-            .findFirst()
+    // V1 conformance H5 (owner ruling 2026-10-20): the average is the nightly snapshot's, exposed
+    // from 5 ratings on as RATE-02 — never live, never with a count.
+    WeekRatingSnapshot snapshot =
+        statsRepository
+            .weekSnapshot(regionId, week.start(), driverUserId)
+            .filter(stored -> TrustRules.exposed(stored.average(), stored.count()) != null)
             .orElse(null);
-    BigDecimal average = stats == null ? null : stats.average();
+    BigDecimal average = snapshot == null ? null : snapshot.average();
     return new IncentiveProgressDto(
         region.getId(),
         region.getName(),
@@ -390,8 +419,8 @@ public class IncentiveServiceImpl implements IncentiveService {
             IncentivePolicy.money(config.ratingReward().amount()),
             config.ratingReward().minAvgRating(),
             config.ratingReward().minWeeklyTrips(),
-            IncentivePolicy.displayAverage(average),
-            stats == null ? 0 : stats.count(),
+            average,
+            snapshot == null ? null : snapshot.computedAt(),
             weekTrips,
             IncentivePolicy.ratingQualifies(config, average, weekTrips)),
         recent);

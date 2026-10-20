@@ -51,7 +51,6 @@ public class RatingServiceImpl implements RatingService {
 
   private static final Duration WINDOW = Duration.ofDays(TrustRules.RATING_WINDOW_DAYS);
 
-  private final GrowthService growthService;
   private final RatingRepository ratingRepository;
   private final RatingSnapshotRepository ratingSnapshotRepository;
   private final RideRepository rideRepository;
@@ -103,9 +102,8 @@ public class RatingServiceImpl implements RatingService {
       throw alreadyRated(); // a concurrent submission of the same pair won the unique constraint
     }
     // USR-05 / RATE-03 are NEVER evaluated here (review B-H1): a suspension right after a ride
-    // would identify its rater. The daily RatingSnapshotJob evaluates them.
-    // M13: a 5-star rating may finish a 5-star week and advances rating challenges.
-    growthService.onRatingSubmitted(ride, ratedUserId, ratedRole, request.score(), now);
+    // would identify its rater. The daily RatingSnapshotJob evaluates them — and, since V1
+    // conformance H5 (owner ruling 2026-10-20), the 5-star week badge and rating challenges too.
   }
 
   @Override

@@ -17,7 +17,19 @@ public interface IncentiveService {
   int evaluatePreviousWeek(Instant now);
 
   /**
-   * A driver's live progress this week in a region, plus recent awards.
+   * The nightly weekly rating pass (V1 conformance H5, owner ruling 2026-10-20): rewrites each
+   * configured region's current-week rating snapshots under the RATE-02 rule, so the driver screen
+   * never shows an average that moved right after a given ride. A region that fails is logged and
+   * skipped.
+   *
+   * @param now the pass moment (the nightly job's clock)
+   * @return the snapshot rows written
+   */
+  int refreshRatingSnapshots(Instant now);
+
+  /**
+   * A driver's progress this week in a region, plus recent awards: trips and peak trips live, the
+   * rating average from the nightly snapshot only (never a count).
    *
    * @param driverUserId the approved driver
    * @param regionId the region the app is in
