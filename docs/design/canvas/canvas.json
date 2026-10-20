@@ -1474,6 +1474,248 @@
    "w": 1440,
    "x": 1520,
    "y": 6250
+  },
+  "V1FAdminSetPassword.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1600,
+   "title": "Admin · Sign in link + set or reset password: phone → code → new password (H2, UC-A-01)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminAccessDeactivated.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "Admin · Your admin access is deactivated (W5, I31)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminUsersSearch.dc.html": {
+   "x": 0,
+   "y": 1760,
+   "w": 1440,
+   "h": 1150,
+   "title": "Admin · Users · search by name or phone, no-match state (H8, ADM-05, UC-A-13)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminUserReportsLedger.dc.html": {
+   "x": 1520,
+   "y": 1760,
+   "w": 1440,
+   "h": 950,
+   "title": "Admin · User profile · Reports made + Driver ledger (W4, UC-A-13)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminRidesKind.dc.html": {
+   "x": 0,
+   "y": 3070,
+   "w": 1440,
+   "h": 800,
+   "title": "Admin · Rides · Kind filter (W15, UC-A-18)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminRideRelated.dc.html": {
+   "x": 1520,
+   "y": 3070,
+   "w": 1440,
+   "h": 1250,
+   "title": "Admin · Ride detail · Related reports, tickets, lost items (W15)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminSosTicket.dc.html": {
+   "x": 3040,
+   "y": 3070,
+   "w": 1440,
+   "h": 1450,
+   "title": "Admin · SOS alert · open / view support ticket, 409 (W16, UC-A-20)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminRideRefund.dc.html": {
+   "x": 4560,
+   "y": 3070,
+   "w": 1440,
+   "h": 1250,
+   "title": "Admin · Ride detail · Refund rider (W28, PAY-03)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FAdminRideRefundWallet.dc.html": {
+   "x": 6080,
+   "y": 3070,
+   "w": 1440,
+   "h": 950,
+   "title": "Admin · Wallet · refund pre-filled from the ride (W28)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FRegionFloorSettings.dc.html": {
+   "x": 0,
+   "y": 4680,
+   "w": 1440,
+   "h": 1200,
+   "title": "Admin · Region · debt floor + warning, time zone, scheduled rides (W3, I23, I18)",
+   "page": "v1fix",
+   "expand": "fill"
+  },
+  "V1FD15IncentivesNightly.dc.html": {
+   "x": 0,
+   "y": 6040,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Incentives · rating reward not yet, nightly average (amends D15Incentives)",
+   "page": "v1fix"
+  },
+  "V1FD15IncentivesNightlyAr.dc.html": {
+   "x": 470,
+   "y": 6040,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Incentives · rating reward qualifies (AR, RTL)",
+   "page": "v1fix"
+  },
+  "V1FDriverSignedOutLanguage.dc.html": {
+   "x": 0,
+   "y": 7044,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Welcome · language switch (W7)",
+   "page": "v1fix"
+  },
+  "V1FDriverSignedOutLanguageAr.dc.html": {
+   "x": 470,
+   "y": 7044,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Welcome · language switch (AR, RTL)",
+   "page": "v1fix"
+  },
+  "V1FDriverApplicantLanguage.dc.html": {
+   "x": 940,
+   "y": 7044,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Applicant gate · language switch (W7)",
+   "page": "v1fix"
+  },
+  "V1FDriverSuspendedLanguageAr.dc.html": {
+   "x": 1410,
+   "y": 7044,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Suspended gate · language switch (AR, RTL)",
+   "page": "v1fix"
+  },
+  "V1FDriverEarningsTrips.dc.html": {
+   "x": 0,
+   "y": 8048,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Earnings · every trip opens its detail",
+   "page": "v1fix"
+  },
+  "V1FDriverTripDetail.dc.html": {
+   "x": 470,
+   "y": 8048,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Trip detail · Report rider",
+   "page": "v1fix"
+  },
+  "V1FDriverTripDetailCancelled.dc.html": {
+   "x": 940,
+   "y": 8048,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Trip detail · cancelled after accept, already reported",
+   "page": "v1fix"
+  },
+  "V1FDriverReportPastTrip.dc.html": {
+   "x": 1410,
+   "y": 8048,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Report rider from a past trip (reuses DriverReportRider)",
+   "page": "v1fix"
+  },
+  "V1FRiderDriverCardPhoto.dc.html": {
+   "x": 0,
+   "y": 9052,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Driver on the way · vehicle photo (W32, DRV-03, UC-R-05)",
+   "page": "v1fix"
+  },
+  "V1FRiderSuspendedAppeal.dc.html": {
+   "x": 470,
+   "y": 9052,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Suspended · reason + Contact support (W39)",
+   "page": "v1fix"
+  },
+  "V1FRiderSuspendedAppealAr.dc.html": {
+   "x": 940,
+   "y": 9052,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Suspended · low rating + Contact support (AR, RTL)",
+   "page": "v1fix"
+  },
+  "V1FRiderBookingRefused.dc.html": {
+   "x": 1410,
+   "y": 9052,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Booking refused while suspended · plain reason (W39)",
+   "page": "v1fix"
+  },
+  "V1FRiderSuspendedTicket.dc.html": {
+   "x": 1880,
+   "y": 9052,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Suspension ticket · pre-filled (W39)",
+   "page": "v1fix"
+  },
+  "V1FRiderHistoryFilters.dc.html": {
+   "x": 0,
+   "y": 10056,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Your rides · filter chips + dates (W41)",
+   "page": "v1fix"
+  },
+  "V1FRiderHistoryFiltersAr.dc.html": {
+   "x": 470,
+   "y": 10056,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Your rides · filters (AR, RTL)",
+   "page": "v1fix"
+  },
+  "V1FRiderHistoryDates.dc.html": {
+   "x": 940,
+   "y": 10056,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Your rides · date range sheet",
+   "page": "v1fix"
+  },
+  "V1FRiderHistoryEmpty.dc.html": {
+   "x": 1410,
+   "y": 10056,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Your rides · no match",
+   "page": "v1fix"
   }
  },
  "createdOnFiles": {
@@ -1771,6 +2013,78 @@
    "x": 0,
    "y": 4940,
    "page": "m15"
+  },
+  "v1fAdminAuthTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Admin · set or reset password, deactivated access (H2, W5)",
+   "x": 0,
+   "y": -50,
+   "page": "v1fix"
+  },
+  "v1fAdminUsersTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Admin · find any user, reports made + driver ledger on the profile (H8, W4)",
+   "x": 0,
+   "y": 1710,
+   "page": "v1fix"
+  },
+  "v1fAdminRidesTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Admin · rides kind filter, related items, SOS ticket, refund from a ride (W15, W16, W28)",
+   "x": 0,
+   "y": 3020,
+   "page": "v1fix"
+  },
+  "v1fRegionTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Admin · region bundle: debt floor, time zone, scheduled-ride timing (W3, I23, I18)",
+   "x": 0,
+   "y": 4630,
+   "page": "v1fix"
+  },
+  "v1fIncentivesTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Driver · incentives rating reward, nightly average, no rating count (H5, owner ruling 2026-10-20)",
+   "x": 0,
+   "y": 5990,
+   "page": "v1fix"
+  },
+  "v1fDriverLangTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Driver · language switch before sign-in and on the gates (W7)",
+   "x": 0,
+   "y": 6994,
+   "page": "v1fix"
+  },
+  "v1fDriverReportTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Driver · report a rider from a past trip (W43, REP-01, UC-S-18)",
+   "x": 0,
+   "y": 7998,
+   "page": "v1fix"
+  },
+  "v1fRiderTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Rider · vehicle photo on the driver card, suspended appeal (W32, W39)",
+   "x": 0,
+   "y": 9002,
+   "page": "v1fix"
+  },
+  "v1fHistoryTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Rider · ride history filters and dates (W41, UC-R-16)",
+   "x": 0,
+   "y": 10006,
+   "page": "v1fix"
   }
  },
  "order": [
@@ -1951,7 +2265,36 @@
   "D15IncentivesSecured.dc.html",
   "D15IncentivesSecuredAr.dc.html",
   "A15UserHistory.dc.html",
-  "A15UserHistoryAr.dc.html"
+  "A15UserHistoryAr.dc.html",
+  "V1FAdminSetPassword.dc.html",
+  "V1FAdminAccessDeactivated.dc.html",
+  "V1FAdminUsersSearch.dc.html",
+  "V1FAdminUserReportsLedger.dc.html",
+  "V1FAdminRidesKind.dc.html",
+  "V1FAdminRideRelated.dc.html",
+  "V1FAdminSosTicket.dc.html",
+  "V1FAdminRideRefund.dc.html",
+  "V1FAdminRideRefundWallet.dc.html",
+  "V1FRegionFloorSettings.dc.html",
+  "V1FD15IncentivesNightly.dc.html",
+  "V1FD15IncentivesNightlyAr.dc.html",
+  "V1FDriverSignedOutLanguage.dc.html",
+  "V1FDriverSignedOutLanguageAr.dc.html",
+  "V1FDriverApplicantLanguage.dc.html",
+  "V1FDriverSuspendedLanguageAr.dc.html",
+  "V1FDriverEarningsTrips.dc.html",
+  "V1FDriverTripDetail.dc.html",
+  "V1FDriverTripDetailCancelled.dc.html",
+  "V1FDriverReportPastTrip.dc.html",
+  "V1FRiderDriverCardPhoto.dc.html",
+  "V1FRiderSuspendedAppeal.dc.html",
+  "V1FRiderSuspendedAppealAr.dc.html",
+  "V1FRiderBookingRefused.dc.html",
+  "V1FRiderSuspendedTicket.dc.html",
+  "V1FRiderHistoryFilters.dc.html",
+  "V1FRiderHistoryFiltersAr.dc.html",
+  "V1FRiderHistoryDates.dc.html",
+  "V1FRiderHistoryEmpty.dc.html"
  ],
  "pages": [
   {
@@ -2001,6 +2344,10 @@
   {
    "id": "m15",
    "name": "M15 · Analytics"
+  },
+  {
+   "id": "v1fix",
+   "name": "V1 audit fixes"
   }
  ],
  "title": "Labby UI Redesign"

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>User wallet · refund from ride</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 950px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;"><span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span><span style="font-size: 18px; font-weight: 800;">Labby Admin</span></div>
+    <a href="A15Dashboard.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a><a href="AdminLiveOps.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live map</a><a href="A15RidesExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a><a href="A15Users.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Users</a><a href="A15Drivers.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Drivers</a><a href="A15Transactions.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Transactions</a><a href="A15TicketsExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Support</a><a href="AdminDriverLedger.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Driver ledgers</a><a href="AdminSurgeZones.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <a href="V1FAdminRideRefund.dc.html" style="font-size: 13px; font-weight: 700; color: #6E6780; text-decoration: none;">← Ride <span dir="ltr">R-41C0D7E2</span></a>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Rana Khoury</h1>
+        <span style="font-size: 13px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px; white-space: nowrap;">Rider · active</span>
+        <span style="font-size: 15px; color: #6E6780;" dir="ltr">+963 944 120 551</span>
+      </div>
+      <div role="tablist" aria-label="Profile sections" style="display: flex; gap: 4px; padding-top: 10px; border-bottom: 1px solid #ECEAF0;">
+        <a href="#" role="tab" aria-selected="false" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #463C58; font-size: 15px; font-weight: 700;">Ratings, reports &amp; flags</a>
+        <a href="#" role="tab" aria-selected="true" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #59128A; font-size: 15px; font-weight: 800; box-shadow: inset 0 -3px 0 #59128A;">Wallet</a>
+        <a href="A15UserHistory.dc.html" role="tab" aria-selected="false" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #463C58; font-size: 15px; font-weight: 700;">History</a>
+      </div>
+    </div>
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+      <div style="flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+          <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 700; color: #6E6780;">Wallet balance · SYP</span><span style="font-size: 34px; font-weight: 800;">2,750</span></div>
+          <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 700; color: #6E6780;">Pending due</span><span style="font-size: 34px; font-weight: 800;">0</span></div>
+        </div>
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+          <div style="padding: 18px 24px;"><h2 style="margin: 0; font-size: 18px; font-weight: 800;">Wallet activity</h2></div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 15px; min-width: 560px;">
+            <thead><tr style="color: #6E6780; font-size: 13px;"><th style="padding: 12px 24px; font-weight: 700; text-align: start;">Entry</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">Linked to</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">When</th><th style="padding: 12px; font-weight: 700; text-align: end;">Amount</th><th style="padding: 12px 24px; font-weight: 700; text-align: end;">Balance after</th></tr></thead>
+            <tbody>
+              <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 14px 24px; font-weight: 800;">Fare payment <div style="font-size: 12px; font-weight: 600; color: #6E6780;">wallet</div></td><td style="padding: 14px 12px;"><a href="#" style="font-weight: 700;">Ride 19 Oct 21:42</a></td><td style="padding: 14px 12px; color: #6E6780;">19 Oct</td><td style="padding: 14px 12px; text-align: end; font-weight: 800;" dir="ltr">−27,250</td><td style="padding: 14px 24px; text-align: end; color: #6E6780;" dir="ltr">2,750</td></tr>
+              <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 14px 24px; font-weight: 800;">Top-up <div style="font-size: 12px; font-weight: 600; color: #6E6780;">cash at office</div></td><td style="padding: 14px 12px;"><a href="#" style="font-weight: 700;">—</a></td><td style="padding: 14px 12px; color: #6E6780;">15 Oct</td><td style="padding: 14px 12px; text-align: end; font-weight: 800;" dir="ltr">+30,000</td><td style="padding: 14px 24px; text-align: end; color: #6E6780;" dir="ltr">30,000</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+      <aside style="flex: 0 1 380px; min-width: 300px; background: #FFFFFF; border: 2px solid #59128A; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; justify-content: space-between;"><h2 style="margin: 0; font-size: 18px; font-weight: 800;">Grant credit / refund</h2><span style="font-size: 11px; font-weight: 800; color: #59128A; border: 1px solid #D8C4EA; border-radius: 8px; padding: 1px 6px; white-space: nowrap;">From ride</span></div>
+        <div style="display: flex; gap: 8px; align-items: flex-start; background: #F1EAF8; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #3D0B57; font-weight: 700; line-height: 1.45;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#59128A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="13"></line><line x1="12" y1="16" x2="12" y2="16"></line></svg><span>Opened from ride <span dir="ltr">R-41C0D7E2</span>. Refund and the ride are already selected.</span></div>
+        <div role="group" aria-label="Type" style="display: flex; background: #F2F0F5; border-radius: 12px; padding: 4px;">
+          <button aria-pressed="false" style="flex: 1; height: 38px; border-radius: 9px; border: none; background: transparent; font-family: inherit; font-weight: 700; color: #463C58;">Grant</button>
+          <button aria-pressed="true" style="flex: 1; height: 38px; border-radius: 9px; border: none; background: #FFFFFF; font-family: inherit; font-weight: 800; box-shadow: 0 1px 3px rgba(20,16,24,0.12);">Refund</button>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Amount · SYP<input placeholder="0" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 12px; font-family: inherit; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF; box-sizing: border-box; border: 2px solid #59128A; box-shadow: 0 0 0 3px #F1EAF8; font-size: 15px;"><span style="font-size: 12.5px; color: #6E6780; line-height: 1.5; font-weight: 500;">Ride total SYP 27,250, paid from the wallet.</span></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Linked ride · required for refunds<select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 12px; font-family: inherit; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF; box-sizing: border-box; padding: 0 10px; font-size: 15px;"><option>Ride 19 Oct 21:42 · Umayyad Square · SYP 27,250</option><option>Ride 12 Oct 08:10 · Mazzeh · SYP 18,000</option></select></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Reason · required, shown to the user<textarea rows="3" placeholder="Why is this refund given?" style="border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 14px; color: #141018; resize: vertical;"></textarea></label>
+        <button disabled style="height: 48px; border-radius: 12px; border: none; background: #59128A; opacity: 0.4; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 800;">Credit refund</button>
+        <span style="font-size: 12.5px; color: #6E6780; line-height: 1.5;">Enabled once amount and reason are filled. Credited instantly, the user is notified, and the action lands in the audit log under your name.</span>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":950}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

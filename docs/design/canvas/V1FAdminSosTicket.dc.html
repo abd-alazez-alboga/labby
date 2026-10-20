@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live map · SOS support ticket</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 1450px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;"><span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span><span style="font-size: 18px; font-weight: 800;">Labby Admin</span></div>
+    <a href="A15Dashboard.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a><a href="AdminLiveOps.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Live map</a><a href="A15RidesExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a><a href="A15Users.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Users</a><a href="A15Drivers.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Drivers</a><a href="A15Transactions.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Transactions</a><a href="A15TicketsExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Support</a><a href="AdminDriverLedger.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Driver ledgers</a><a href="AdminSurgeZones.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Regions</a>
+  </nav>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Live map</h1>
+      <select aria-label="Region" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 12px; font-family: inherit; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF; box-sizing: border-box; padding: 0 10px;"><option>Damascus</option></select>
+      <span style="font-size: 13px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px; white-space: nowrap;">Live · every 5 s</span>
+    </div>
+    <div role="alert" style="display: flex; align-items: center; gap: 14px; background: #FEF3F2; border: 1.5px solid #D92D20; border-radius: 14px; padding: 14px 18px;">
+      <span style="width: 40px; height: 40px; border-radius: 50%; background: #D92D20; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg></span>
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 16px; font-weight: 800; color: #B42318;">SOS — ride <span dir="ltr">R-5D3B7E12</span> · rider Lina Kanaan · 12:40</span><span style="font-size: 13px; color: #7A271A;">In progress near Umayyad Square · driver Samer Haddad · Economy</span></span>
+      <button style="height: 44px; padding: 0 18px; border-radius: 12px; border: none; background: #D92D20; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 800;">Focus on map</button>
+    </div>
+    <div style="display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap;">
+      <section aria-label="Map" style="flex: 1 1 560px; min-width: 0; min-height: 640px; position: relative; overflow: hidden; background: #ECE9F0; border: 1px solid #ECEAF0; border-radius: 16px;">
+        <div style="position: absolute; left: -60px; top: 190px; width: 800px; height: 18px; background: #FFFFFF; transform: rotate(-7deg);"></div>
+        <div style="position: absolute; left: 330px; top: -40px; width: 14px; height: 720px; background: #FFFFFF; transform: rotate(12deg);"></div>
+        <div style="position: absolute; left: -40px; top: 430px; width: 760px; height: 12px; background: #FFFFFF; transform: rotate(14deg);"></div>
+        <span style="position: absolute; left: 300px; top: 220px; width: 36px; height: 36px; border-radius: 50% 50% 50% 4px; transform: rotate(-45deg); background: #D92D20; box-shadow: 0 0 0 10px rgba(217,45,32,0.18);"></span>
+        <span style="position: absolute; left: 150px; top: 330px; width: 22px; height: 22px; border-radius: 50%; background: #141018; border: 3px solid #FFFFFF;"></span>
+        <span style="position: absolute; left: 460px; top: 120px; width: 22px; height: 22px; border-radius: 50%; background: #141018; border: 3px solid #FFFFFF;"></span>
+        <span style="position: absolute; left: 280px; top: 268px; background: #141018; color: #FFFFFF; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 8px;">R-5D3B7E12 · SOS</span>
+      </section>
+      <aside style="flex: 0 1 380px; min-width: 300px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box;">
+        <section style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800;">SOS alerts</h2>
+          <div style="border: 1.5px solid #D92D20; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FEF9F9;">
+            <span style="display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 15px; font-weight: 800; color: #B42318;" dir="ltr">R-5D3B7E12 · 12:40</span><span style="font-size: 12px; font-weight: 800; color: #FFFFFF; background: #D92D20; padding: 3px 8px; border-radius: 10px;">OPEN</span></span>
+            <span style="font-size: 13px; color: #463C58; line-height: 1.5;">Rider Lina Kanaan triggered SOS on the ride. Driver Samer Haddad · <a href="V1FAdminRideRelated.dc.html">open ride</a></span>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Stand-down note<input placeholder="What happened, actions taken…" style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 12px; font-family: inherit; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF; box-sizing: border-box; height: 42px; font-weight: 500;"></label>
+            <button style="height: 44px; border-radius: 12px; border: none; background: #141018; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 800;">Acknowledge</button>
+            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #F3D3D0; padding-top: 12px;">
+              <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800;">Open support ticket <span style="font-size: 11px; font-weight: 800; color: #59128A; border: 1px solid #D8C4EA; border-radius: 8px; padding: 1px 6px; white-space: nowrap;">New</span></span>
+              <span style="font-size: 12.5px; color: #463C58; line-height: 1.45;">For rider Lina Kanaan, about this ride. It starts In progress and assigned to you; Lina is notified.</span>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Category<select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 12px; font-family: inherit; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF; box-sizing: border-box; padding: 0 10px; height: 42px;"><option>Safety</option><option>Driver behaviour</option><option>Payments</option><option>App issue</option></select></label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Priority<select style="height: 44px; border: 1.5px solid #D9D5DF; border-radius: 12px; padding: 0 12px; font-family: inherit; font-size: 14px; font-weight: 700; color: #141018; background: #FFFFFF; box-sizing: border-box; padding: 0 10px; height: 42px;"><option>Urgent</option><option>High · category default</option><option>Normal</option><option>Low</option></select></label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #463C58;">Description · required<textarea rows="4" style="border: 1.5px solid #D9D5DF; border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 14px; color: #141018; resize: vertical;">Rider pressed SOS at 12:40 near Umayyad Square. Called her at 12:42: she is safe; the driver took an unfamiliar route. Following up on the route and the driver.</textarea></label>
+              
+              <div style="display: flex; gap: 8px;"><button style="height: 44px; padding: 0 18px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; flex: 1;">Open ticket</button><button style="height: 44px; padding: 0 16px; border-radius: 12px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: inherit; font-size: 14px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">Cancel</button></div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+    <div style="align-self: stretch; border-top: 2px dashed #DCD8E2; padding-top: 16px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #6E6780;">States</div>
+    <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start;">
+      <div style="flex: 1 1 360px; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #6E6780;">Live map · ticket linked</span>
+        <div style="border: 1px solid #ECEAF0; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 14px; font-weight: 800; color: #463C58;" dir="ltr">R-5D3B7E12 · 12:40</span><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px; white-space: nowrap;">Acknowledged</span></span>
+          <span style="font-size: 12px; color: #6E6780;">Stood down by Lina Saleh · “Rider safe, route follow-up in ticket”</span>
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px;"><span style="font-weight: 800;">Ticket <span dir="ltr">T-3F9A21C0</span></span><span style="font-size: 12px; font-weight: 800; color: #3D0B57; background: #F1EAF8; padding: 4px 10px; border-radius: 12px; white-space: nowrap;">In progress</span></span>
+          <a href="A14TicketDetail.dc.html" style="height: 44px; padding: 0 16px; border-radius: 12px; border: 1.5px solid #D9D5DF; background: #FFFFFF; color: #141018; font-family: inherit; font-size: 14px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">View ticket <span dir="ltr">T-3F9A21C0</span></a>
+        </div>
+        <span style="font-size: 12.5px; color: #6E6780; line-height: 1.5;">Once linked, the open form is replaced by this link (one ticket per SOS).</span>
+      </div>
+      <div style="flex: 1 1 360px; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #6E6780;">409 · already linked</span>
+        <span role="alert" style="display: flex; gap: 8px; align-items: flex-start; background: #FEF3F2; color: #B42318; border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 700; line-height: 1.45;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="13"></line><line x1="12" y1="16" x2="12" y2="16"></line></svg>Another admin already opened a ticket for this SOS. Your description was not sent.</span>
+        <a href="A14TicketDetail.dc.html" style="height: 44px; padding: 0 18px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">View ticket <span dir="ltr">T-3F9A21C0</span></a>
+        <span style="font-size: 12.5px; color: #6E6780; line-height: 1.5;">Inactive or reserved category (other 409s): “That category can't be used for tickets any more. Pick another one.” The form stays open.</span>
+      </div>
+      <div style="flex: 1 1 420px; background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #6E6780;">Ride detail · SOS block</span>
+        <div style="border: 1.5px solid #F3D3D0; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 15px; font-weight: 800; color: #B42318;">SOS by rider · 12:40:51</span><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px; white-space: nowrap;">Acknowledged 12:44 · Lina Saleh</span></span>
+          <span style="font-size: 13px; color: #463C58;">Near Umayyad Square · the event is permanent</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;"><button style="height: 44px; padding: 0 18px; border-radius: 12px; border: none; background: #59128A; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">Open support ticket</button></div>
+          <span style="font-size: 12.5px; color: #6E6780; line-height: 1.5;">Opens the same form inline. After linking the button becomes “View ticket T-3F9A21C0”. Needs Handle support.</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1450}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
