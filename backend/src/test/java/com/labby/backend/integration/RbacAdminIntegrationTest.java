@@ -2,6 +2,8 @@ package com.labby.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labby.backend.dto.AuthTokensResponseDto;
 import com.labby.backend.enums.ClientType;
 import com.labby.backend.util.RbacIds;
@@ -11,6 +13,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +28,8 @@ import org.springframework.http.ResponseEntity;
  * (UC-A-04).
  */
 class RbacAdminIntegrationTest extends AbstractAuthIntegrationTest {
+
+  @Autowired private ObjectMapper objectMapper;
 
   private static final String PASSWORD = "Secret123!";
 
@@ -402,6 +407,79 @@ class RbacAdminIntegrationTest extends AbstractAuthIntegrationTest {
                     token)
                 .getStatusCode())
         .isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
+  @DisplayName(
+      "W5/I31: a deactivated admin signs in and reads the note and date; reactivation clears")
+  void shouldShowTheDeactivationOnTheProfile() throws Exception {
+    AuthTokensResponseDto superAdmin = registerAdmin("+963933000071", RbacIds.SUPER_ADMIN_ROLE_ID);
+    AuthTokensResponseDto support = registerAdmin("+963933000072", RbacIds.SUPPORT_ROLE_ID);
+    UUID supportId = support.user().id();
+    assertThat(
+            send(
+                    "/api/v1/admin/admins/" + supportId + "/deactivate",
+                    HttpMethod.POST,
+                    Map.of("note", "Support contract ended on 15 Oct."),
+                    superAdmin.accessToken())
+                .getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+
+    // The deactivated admin still signs in to the admin client and reads why and since when.
+    AuthTokensResponseDto again = login("+963933000072", PASSWORD, ClientType.ADMIN);
+    JsonNode me = objectMapper.readTree(get("/api/v1/users/me", again.accessToken()).getBody());
+    JsonNode admin = assignment(me, "admin");
+    assertThat(admin.get("state").asText()).isEqualTo("suspended");
+    assertThat(admin.get("suspensionReason").asText()).isEqualTo("manual");
+    assertThat(admin.get("suspensionNote").asText()).isEqualTo("Support contract ended on 15 Oct.");
+    assertThat(admin.get("suspendedAt").asText()).isNotBlank();
+    assertThat(assignment(me, "rider").has("suspendedAt")).isFalse(); // other roles untouched
+    assertThat(me.get("state").asText()).isEqualTo("active");
+    assertThat(me.get("suspendedAt").isNull()).isTrue();
+
+    // Reactivated, then deactivated without a note: the date only.
+    send(
+        "/api/v1/admin/admins/" + supportId + "/reactivate",
+        HttpMethod.POST,
+        null,
+        superAdmin.accessToken());
+    JsonNode active =
+        assignment(
+            objectMapper.readTree(get("/api/v1/users/me", again.accessToken()).getBody()), "admin");
+    assertThat(active.get("state").asText()).isEqualTo("active");
+    assertThat(active.has("suspensionNote")).isFalse();
+    assertThat(active.has("suspendedAt")).isFalse();
+    send(
+        "/api/v1/admin/admins/" + supportId + "/deactivate",
+        HttpMethod.POST,
+        null,
+        superAdmin.accessToken());
+    JsonNode bare =
+        assignment(
+            objectMapper.readTree(get("/api/v1/users/me", again.accessToken()).getBody()), "admin");
+    assertThat(bare.get("state").asText()).isEqualTo("suspended");
+    assertThat(bare.has("suspensionNote")).isFalse();
+    assertThat(bare.get("suspendedAt").asText()).isNotBlank();
+
+    // A whole-account suspension (USR-06) carries its note and date on the profile itself.
+    jdbcTemplate.update(
+        "UPDATE users SET state = 'suspended', suspension_reason = 'manual',"
+            + " suspension_note = 'Repeated abuse', suspended_at = now() WHERE user_id = ?",
+        supportId);
+    JsonNode suspended =
+        objectMapper.readTree(get("/api/v1/users/me", again.accessToken()).getBody());
+    assertThat(suspended.get("state").asText()).isEqualTo("suspended");
+    assertThat(suspended.get("suspensionNote").asText()).isEqualTo("Repeated abuse");
+    assertThat(suspended.get("suspendedAt").asText()).isNotBlank();
+  }
+
+  private static JsonNode assignment(JsonNode profile, String role) {
+    for (JsonNode assignment : profile.get("roles")) {
+      if (role.equals(assignment.get("role").asText())) {
+        return assignment;
+      }
+    }
+    throw new AssertionError("No " + role + " assignment");
   }
 
   @Test

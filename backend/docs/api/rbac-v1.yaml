@@ -128,7 +128,12 @@ paths:
                 note:
                   type: [string, 'null']
                   maxLength: 500
-                  description: Optional reason, shown to the admin in the notification (V1 audit W10)
+                  description: >
+                    Optional reason, shown to the admin in the notification (V1 audit W10) and —
+                    kept on the admin role assignment (V1 conformance W5 / I31) — on their
+                    "access deactivated" screen: auth-v1 `RoleAssignment.suspensionNote` (reason
+                    `manual`) with `suspendedAt` the deactivation moment. Without a note only
+                    `suspendedAt` is kept. Reactivation clears all three.
       responses:
         '200':
           description: Updated admin account

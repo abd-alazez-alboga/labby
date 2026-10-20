@@ -496,7 +496,17 @@ components:
             existed.
         suspensionNote:
           type: [string, 'null']
-          description: The admin's reason, shown to the user — `manual` suspensions only (M11)
+          description: >
+            The admin's reason, shown to the user — `manual` suspensions only (M11). On a
+            deactivated `admin` assignment (V1 conformance W5 / I31): the Super Admin's optional
+            deactivation note (rbac-v1 POST /admin/admins/{userId}/deactivate), with reason
+            `manual`; absent (no reason, no note) when the admin was deactivated without one.
+        suspendedAt:
+          type: [string, 'null']
+          format: date-time
+          description: >
+            When the role was suspended, present only while it is (V1 conformance W5 / I31: the
+            admin dashboard's "access deactivated" screen shows it as the deactivation date).
         rbacRole:
           type: [object, 'null']
           required: [id, name]
@@ -524,6 +534,10 @@ components:
         suspensionNote:
           type: [string, 'null']
           description: The admin's reason for a whole-account suspension, shown to the user (M11)
+        suspendedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the whole account was suspended; null while it is not (V1 conformance W5)
         roles:
           type: array
           items: { $ref: '#/components/schemas/RoleAssignment' }

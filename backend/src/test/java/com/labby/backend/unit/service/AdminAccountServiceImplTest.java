@@ -21,6 +21,7 @@ import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
+import com.labby.backend.enums.SuspensionReason;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
@@ -37,7 +38,9 @@ import com.labby.backend.service.NotificationService;
 import com.labby.backend.service.OtpService;
 import com.labby.backend.service.SuperAdminGuard;
 import com.labby.backend.util.RbacIds;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +57,7 @@ class AdminAccountServiceImplTest {
 
   private static final UUID ACTOR = UUID.randomUUID();
   private static final String PHONE = "+963955500001";
+  private static final Instant NOW = Instant.parse("2026-10-16T09:00:00Z");
 
   @Mock private UserRepository userRepository;
   @Mock private RoleAssignmentRepository roleAssignmentRepository;
@@ -76,7 +80,8 @@ class AdminAccountServiceImplTest {
             otpService,
             passwordEncoder,
             new SuperAdminGuard(roleAssignmentRepository),
-            notificationService);
+            notificationService,
+            Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   private static RbacRole role(UUID id, String name) {
@@ -299,6 +304,36 @@ class AdminAccountServiceImplTest {
     verify(auditService)
         .record(
             eq(ACTOR), eq("admin.reactivate"), eq("admin"), eq(userId.toString()), any(), any());
+  }
+
+  @Test
+  @DisplayName("W5/I31: deactivation keeps its note and moment; reactivation clears them")
+  void shouldKeepTheDeactivationNoteAndMoment() {
+    UUID userId = UUID.randomUUID();
+    RoleAssignment assignment = adminAssignment(userId, RbacIds.SUPPORT_ROLE_ID, RoleState.ACTIVE);
+    when(roleAssignmentRepository.findByUserIdAndRole(userId, Role.ADMIN))
+        .thenReturn(Optional.of(assignment));
+    when(rbacRoleRepository.findById(RbacIds.SUPPORT_ROLE_ID))
+        .thenReturn(Optional.of(role(RbacIds.SUPPORT_ROLE_ID, "Support")));
+    when(userRepository.findById(userId))
+        .thenReturn(Optional.of(user(userId, AccountState.ACTIVE)));
+    stubAssignmentSave();
+
+    service.deactivate(ACTOR, userId, "  Support contract ended  ");
+    assertThat(assignment.getSuspensionReason()).isEqualTo(SuspensionReason.MANUAL);
+    assertThat(assignment.getSuspensionNote()).isEqualTo("Support contract ended");
+    assertThat(assignment.getSuspendedAt()).isEqualTo(NOW);
+
+    service.reactivate(ACTOR, userId, null);
+    assertThat(assignment.getSuspensionReason()).isNull();
+    assertThat(assignment.getSuspensionNote()).isNull();
+    assertThat(assignment.getSuspendedAt()).isNull();
+
+    // Without a note: the moment only (the V17 check pairs a note with reason manual).
+    service.deactivate(ACTOR, userId, " ");
+    assertThat(assignment.getSuspensionReason()).isNull();
+    assertThat(assignment.getSuspensionNote()).isNull();
+    assertThat(assignment.getSuspendedAt()).isEqualTo(NOW);
   }
 
   @Test

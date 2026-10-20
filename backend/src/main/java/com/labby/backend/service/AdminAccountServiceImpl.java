@@ -12,6 +12,7 @@ import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.enums.Role;
 import com.labby.backend.enums.RoleState;
+import com.labby.backend.enums.SuspensionReason;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
@@ -23,6 +24,7 @@ import com.labby.backend.repository.RbacRoleRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.util.RbacIds;
+import java.time.Clock;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,6 +57,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
   private final PasswordEncoder passwordEncoder;
   private final SuperAdminGuard superAdminGuard;
   private final NotificationService notificationService;
+  private final Clock clock;
 
   @Override
   @Transactional(readOnly = true)
@@ -144,13 +147,26 @@ public class AdminAccountServiceImpl implements AdminAccountService {
   @Override
   @Transactional
   public AdminAccountDto deactivate(UUID actorUserId, UUID userId) {
+    return deactivateRole(actorUserId, userId, null);
+  }
+
+  /**
+   * Suspends the admin role. V1 conformance W5 / I31: the deactivation moment and the optional note
+   * are kept on the assignment (reason {@code manual} with the note; no reason without one — the
+   * V17 check pairs a note with {@code manual}), so the deactivated admin's profile can show them.
+   */
+  private AdminAccountDto deactivateRole(UUID actorUserId, UUID userId, String note) {
     RoleAssignment assignment = requireAdminAssignment(userId);
     RbacRole role = rbacRoleRepository.findById(assignment.getAdminRoleId()).orElse(null);
     if (assignment.getState() == RoleState.ACTIVE) {
       requireNotLastActiveSuperAdmin(
           assignment, "The last active Super Admin cannot be deactivated");
       Map<String, Object> before = stateSnapshot(assignment, role);
+      String kept = note == null || note.isBlank() ? null : note.trim();
       assignment.setState(RoleState.SUSPENDED);
+      assignment.setSuspensionReason(kept == null ? null : SuspensionReason.MANUAL);
+      assignment.setSuspensionNote(kept);
+      assignment.setSuspendedAt(clock.instant());
       roleAssignmentRepository.save(assignment);
       auditService.record(
           actorUserId,
@@ -171,6 +187,10 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     if (assignment.getState() == RoleState.SUSPENDED) {
       Map<String, Object> before = stateSnapshot(assignment, role);
       assignment.setState(RoleState.ACTIVE);
+      assignment.setSuspensionReason(null);
+      assignment.setSuspensionNote(null);
+      assignment.setSuspendedAt(null);
+      assignment.setReactivatedAt(clock.instant());
       roleAssignmentRepository.save(assignment);
       auditService.record(
           actorUserId,
@@ -187,7 +207,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
   @Transactional
   public AdminAccountDto deactivate(UUID actorUserId, UUID userId, String note) {
     boolean wasActive = requireAdminAssignment(userId).getState() == RoleState.ACTIVE;
-    AdminAccountDto result = deactivate(actorUserId, userId);
+    AdminAccountDto result = deactivateRole(actorUserId, userId, note);
     if (wasActive) {
       notifyAdminRoleState(userId, NotificationEvent.ROLE_SUSPENDED, note);
     }
