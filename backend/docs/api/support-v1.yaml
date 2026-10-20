@@ -25,6 +25,16 @@ info:
     ticket). **One open case per rider per ride**; a report is accepted any time after the ride
     completed (no cutoff).
 
+    (3b) **Unpaid rides (V1 audit W30, owner ruling 2026-10-20, PAY-02).** A driver's
+    mark-unpaid — of a ride (`POST /driver/rides/{id}/mark-unpaid`) or of one shared-ride member
+    — opens a ticket automatically in the second seeded system category **Unpaid ride / رحلة غير
+    مدفوعة** (`systemCode: unpaid_ride`, default priority `normal`, protected like `lost_item`,
+    never pickable): `kind: ticket`, status `open`, `submittedAs: driver`, owned and opened by the
+    driver, linked to the ride (`rideId`), the description stating the unpaid amount (fare or
+    share plus carried cash dues), the member's first name on a shared ride, and the driver's note
+    — written in the driver's language. It lands in the support queue like any ticket; the driver
+    gets `support.ticket_created`.
+
     (4) `waiting_on_user`: ONE reminder notification after **48 h** without a user reply
     (`labby.support.waiting-reminder-hours`, job `labby.support.reminder-cron`). `resolved ->
     closed` is an admin action; nothing auto-closes.
@@ -297,7 +307,7 @@ paths:
         '400': { description: 'Description blank/too long, more than 5 attachments, or a file id not uploaded by the caller as `ticket_attachment` / already used' }
         '403': { description: 'Not a party to the linked ride, or the caller has no `submittedAs` role' }
         '404': { description: Unknown category or ride }
-        '409': { description: '`category_inactive` or `category_reserved` (the system lost-item category)' }
+        '409': { description: '`category_inactive` or `category_reserved` (a system category: lost-item or unpaid-ride)' }
     get:
       tags: [Tickets]
       summary: My tickets, both kinds (UC-S-20)
@@ -1114,7 +1124,7 @@ components:
       required: [ticketCategoryId, systemCode, nameEn, nameAr, defaultPriority, sortOrder, active, ticketCount, createdAt, updatedAt]
       properties:
         ticketCategoryId: { type: string, format: uuid }
-        systemCode: { type: [string, 'null'], description: '`lost_item` on the protected system row' }
+        systemCode: { type: [string, 'null'], description: '`lost_item` / `unpaid_ride` (V1 audit W30) on the protected system rows' }
         nameEn: { type: string }
         nameAr: { type: string }
         defaultPriority: { $ref: '#/components/schemas/TicketPriority' }

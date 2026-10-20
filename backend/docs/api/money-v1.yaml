@@ -70,7 +70,9 @@ info:
     cash-confirms: that driver gets a `due_collection` debit (they pocketed the extra cash,
     `ride_id` = the carrying ride, `rider_due_id` = the due) and the cancelled ride's driver the
     `cancellation_fee` credit. Mark-unpaid releases the earmark (no ledger lines) — the due is
-    pending again and the rider's next same-currency ride carries it. The driver is credited
+    pending again and the rider's next same-currency ride carries it. Every mark-unpaid (ride or
+    shared member) also opens an `unpaid_ride` support ticket for the ride on the driver's behalf
+    (V1 audit W30, owner ruling 2026-10-20; support-v1.yaml (3b)). The driver is credited
     ONCE, when the fee is fully collected. Fees recorded during M7 were backfilled as pending
     dues (V12) and collect the same way.
 

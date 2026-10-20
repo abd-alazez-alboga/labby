@@ -32,11 +32,13 @@ import com.labby.backend.model.RiderPreference;
 import com.labby.backend.model.ServiceType;
 import com.labby.backend.model.SharedRide;
 import com.labby.backend.model.SharedRideMember;
+import com.labby.backend.model.User;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RiderPreferenceRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.SharedRideRepository;
+import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.RideAssembler.Audience;
 import com.labby.backend.util.GeoPoints;
 import java.math.BigDecimal;
@@ -91,6 +93,8 @@ public class SharedRideServiceImpl implements SharedRideService {
   private final ScheduledRideSupport scheduledRideSupport;
   private final ChatService chatService;
   private final RideMoneyService rideMoneyService;
+  private final SupportTicketService supportTicketService;
+  private final UserRepository userRepository;
   private final RideRepository rideRepository;
   private final SharedRideRepository sharedRideRepository;
   private final SharedRideMemberRepository sharedRideMemberRepository;
@@ -496,7 +500,20 @@ public class SharedRideServiceImpl implements SharedRideService {
     if (status == null) {
       status = rideMoneyService.confirmMemberCash(ride, member);
     } else {
+      // V1 audit W30 (owner ruling 2026-10-20): the member's unpaid amount (share + carried cash
+      // dues, read before the release) goes to support as an automatic payment ticket.
+      BigDecimal cashDue = rideMoneyService.memberMoney(ride, member).cashDue();
       rideMoneyService.releaseMemberCarriedDues(ride, member);
+      supportTicketService.openUnpaidRideTicket(
+          driverUserId,
+          ride,
+          cashDue == null ? member.getShareAmount() : cashDue,
+          userRepository
+              .findById(member.getRiderUserId())
+              .map(User::getName)
+              .map(RideAssembler::firstName)
+              .orElse(""),
+          null);
     }
     Instant now = clock.instant();
     member.setPaymentStatus(status);

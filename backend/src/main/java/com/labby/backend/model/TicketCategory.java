@@ -38,6 +38,13 @@ public class TicketCategory {
   public static final UUID LOST_ITEM_CATEGORY_ID =
       UUID.fromString("00000000-0000-0000-0000-000000001401");
 
+  /**
+   * The seeded system category of the ticket a driver's mark-unpaid opens (V34, V1 audit W30, owner
+   * ruling 2026-10-20).
+   */
+  public static final UUID UNPAID_RIDE_CATEGORY_ID =
+      UUID.fromString("00000000-0000-0000-0000-000000001402");
+
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "ticket_category_id")

@@ -173,7 +173,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | PRC-03 | Extras in the same engine: wait-time (grace 5 min, then per-minute, default 0.25), pickup-distance fee (default threshold 10 km, 0.50/km, gated by rider toggles), cancellation fees — all per region. | V1 |
 | PRC-04 | Every fare stores its full component breakdown (base, distance, time, surcharge, surge, wait, pickup fee, discounts, tip); receipts/history render from stored components, never recomputed. | V1 |
 | PAY-01 | One wallet per account with **per-currency balances**; credits spendable only in matching-currency regions (no conversion in V1). Sources: referral, promo, loyalty redemption, refunds, admin grants. Never negative; **no top-ups**. | V1 |
-| PAY-02 | Payment at completion: `cash` (driver confirms collection) or `wallet`; insufficient wallet → wallet pays what it can, **remainder due in cash**, shown to both. | V1 |
+| PAY-02 | Payment at completion: `cash` (driver confirms collection) or `wallet`; insufficient wallet → wallet pays what it can, **remainder due in cash**, shown to both. (owner ruling 2026-10-20: a driver's mark-unpaid automatically opens a payment support ticket linked to the ride) | V1 |
 | PAY-03 | Refunds = admin-issued wallet credits (permission-gated, audit-logged, linked to ride/ticket). | V1 |
 | PAY-04 | Tips: in-app from wallet during ride or ≤ 24 h after, suggested amounts; **100% to driver, commission-free**. Cash tips happen outside the app. | V1 |
 | COM-01 | Driver earnings ledger per ride: wallet-paid → fare − commission credited; cash-paid → commission **debited** (driver keeps cash). Tips/bonuses credit. Every entry itemized. | V1 |

@@ -13,6 +13,8 @@ import com.labby.backend.dto.UploadedFileDto;
 import com.labby.backend.enums.TicketKind;
 import com.labby.backend.enums.TicketPriority;
 import com.labby.backend.enums.TicketStatus;
+import com.labby.backend.model.Ride;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
@@ -144,6 +146,20 @@ public interface SupportTicketService {
    * @return the ticket
    */
   AdminTicketDto assign(UUID adminUserId, UUID ticketId, UUID assigneeUserId);
+
+  /**
+   * V1 audit W30 (owner ruling 2026-10-20, PAY-02): a driver's mark-unpaid opens a payment support
+   * ticket automatically — category {@code unpaid_ride} (system), on the driver's behalf, linked to
+   * the ride, {@code open} in the support queue; the driver is notified like any new ticket.
+   *
+   * @param driverUserId the driver who marked the ride (or member) unpaid
+   * @param ride the completed ride
+   * @param amountDue what was left unpaid (the fare / share plus carried cash dues)
+   * @param memberFirstName the shared-ride member's first name, or null on a non-shared ride
+   * @param note the driver's note, or null
+   */
+  void openUnpaidRideTicket(
+      UUID driverUserId, Ride ride, BigDecimal amountDue, String memberFirstName, String note);
 
   /**
    * Opens the one linked ticket of an SOS event on the caller's behalf (audited {@code

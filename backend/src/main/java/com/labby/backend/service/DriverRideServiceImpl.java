@@ -86,6 +86,7 @@ public class DriverRideServiceImpl implements DriverRideService {
   private final RideExtrasCalculator rideExtrasCalculator;
   private final RideMoneyService rideMoneyService;
   private final SharedRideService sharedRideService;
+  private final SupportTicketService supportTicketService;
   private final RideRepository rideRepository;
   private final RegionRepository regionRepository;
   private final RideOfferRepository rideOfferRepository;
@@ -527,8 +528,13 @@ public class DriverRideServiceImpl implements DriverRideService {
       // The cash arrived: the dues this ride carries in cash are collected now (M8 audit H3).
       status = rideMoneyService.confirmCash(ride);
     } else {
+      // V1 audit W30 (owner ruling 2026-10-20): the unpaid amount — the fare plus the cash dues
+      // it carried — goes to support as an automatic payment ticket. Read before the release.
+      BigDecimal cashDue = rideMoneyService.rideMoney(ride, fareTotal(ride)).cashDue();
       // Nothing was paid: the carried cash dues go back to pending, no money moved.
       rideMoneyService.releaseCarriedDues(ride);
+      supportTicketService.openUnpaidRideTicket(
+          userId, ride, cashDue == null ? fareTotal(ride) : cashDue, null, note);
     }
     ride.setPaymentStatus(status);
     ride.setPaymentConfirmedAt(clock.instant());
@@ -536,6 +542,10 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.updated(ride, reason);
     return rideAssembler.view(ride, Audience.DRIVER);
+  }
+
+  private BigDecimal fareTotal(Ride ride) {
+    return fareRepository.findById(ride.getId()).map(Fare::getTotal).orElse(BigDecimal.ZERO);
   }
 
   private Ride lockOffersRide(UUID userId, UUID offerId) {

@@ -10,6 +10,7 @@ import com.labby.backend.dto.TicketDto;
 import com.labby.backend.dto.TicketMessageDto;
 import com.labby.backend.dto.TicketPageDto;
 import com.labby.backend.dto.UploadedFileDto;
+import com.labby.backend.enums.Language;
 import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.Permission;
 import com.labby.backend.enums.RideParty;
@@ -42,7 +43,9 @@ import com.labby.backend.repository.TicketCategoryRepository;
 import com.labby.backend.repository.TicketEventRepository;
 import com.labby.backend.repository.TicketMessageRepository;
 import com.labby.backend.repository.UserRepository;
+import com.labby.backend.util.MoneyFormat;
 import jakarta.persistence.criteria.Predicate;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -150,7 +153,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
             .findById(categoryId)
             .orElseThrow(() -> new ResourceNotFoundException("Ticket category not found"));
     if (category.isSystem()) {
-      throw conflict("This category is reserved for lost-item cases", "category_reserved");
+      throw conflict("This category is reserved for system-opened cases", "category_reserved");
     }
     if (!category.isActive()) {
       throw conflict("This category is no longer available", "category_inactive");
@@ -428,6 +431,63 @@ public class SupportTicketServiceImpl implements SupportTicketService {
     return rbacPermissionRepository
         .findCodesForActiveAdmin(userId)
         .contains(Permission.SUPPORT_HANDLE.getValue());
+  }
+
+  @Override
+  public void openUnpaidRideTicket(
+      UUID driverUserId, Ride ride, BigDecimal amountDue, String memberFirstName, String note) {
+    TicketCategory category =
+        ticketCategoryRepository.findById(TicketCategory.UNPAID_RIDE_CATEGORY_ID).orElseThrow();
+    boolean arabic =
+        userRepository
+            .findById(driverUserId)
+            .map(user -> user.getLanguage() == Language.AR)
+            .orElse(false);
+    String amount =
+        arabic
+            ? MoneyFormat.ar(amountDue, ride.getCurrency())
+            : MoneyFormat.en(amountDue, ride.getCurrency());
+    StringBuilder description = new StringBuilder();
+    if (arabic) {
+      description.append(
+          memberFirstName == null
+              ? "سجّل السائق أن الراكب لم يدفع أجرة هذه الرحلة (%s).".formatted(amount)
+              : "سجّل السائق أن الراكب %s لم يدفع حصته من هذه الرحلة المشتركة (%s)."
+                  .formatted(memberFirstName, amount));
+      if (note != null) {
+        description.append(" ملاحظة السائق: ").append(note);
+      }
+    } else {
+      description.append(
+          memberFirstName == null
+              ? "The driver marked this ride unpaid (%s left unpaid).".formatted(amount)
+              : "The driver marked %s unpaid on this shared ride (%s left unpaid)."
+                  .formatted(memberFirstName, amount));
+      if (note != null) {
+        description.append(" Driver's note: ").append(note);
+      }
+    }
+    Instant now = clock.instant();
+    SupportTicket ticket =
+        supportTicketRepository.saveAndFlush(
+            SupportTicket.builder()
+                .userId(driverUserId)
+                .kind(TicketKind.TICKET)
+                .ticketCategoryId(category.getId())
+                .priority(category.getDefaultPriority())
+                .status(TicketStatus.OPEN)
+                .description(description.toString())
+                .rideId(ride.getId())
+                .submittedAs(RideParty.DRIVER)
+                .openedByUserId(driverUserId)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
+    history.record(ticket, TicketEventType.CREATED, TicketSide.USER, driverUserId, null, null, now);
+    notificationService.queue(
+        driverUserId,
+        NotificationEvent.SUPPORT_TICKET_CREATED,
+        Map.of("ticketId", ticket.getId().toString(), "kind", TicketKind.TICKET.getValue()));
   }
 
   @Override
