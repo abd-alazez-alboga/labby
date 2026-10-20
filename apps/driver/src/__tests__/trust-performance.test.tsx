@@ -251,6 +251,12 @@ describe("performance dashboard (UC-D-20)", () => {
     expect(screen.getByTestId("performance-standing-marker").props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ left: "59.5%" })]),
     );
+    // I65 (board DriverRatingWarning): no window toggle, two compact tiles.
+    expect(screen.queryByTestId("performance-window-7")).toBeNull();
+    expect(screen.getByTestId("tile-acceptance")).toBeTruthy();
+    expect(screen.queryByTestId("tile-acceptance-detail")).toBeNull();
+    expect(screen.queryByTestId("tile-on-time")).toBeNull();
+    expect(screen.queryByTestId("tile-trips")).toBeNull();
   });
 
   it("403 (not an approved driver) explains instead of failing", async () => {

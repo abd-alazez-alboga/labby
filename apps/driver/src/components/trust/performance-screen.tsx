@@ -180,9 +180,12 @@ function Tile({
 function Tiles({
   window,
   warnings,
+  compact = false,
 }: {
   window: MetricWindow;
   warnings: MetricWarning[];
+  /** I65 (board DriverRatingWarning): two compact tiles, no detail lines. */
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const { language, flipRows } = useDirection();
@@ -198,30 +201,34 @@ function Tiles({
       <View style={[styles.gridRow, flipRows && styles.rowReverse]}>
         <Tile
           label={t("trust.performance.acceptance")}
-          {...acceptance}
+          big={acceptance.big}
+          small={compact ? null : acceptance.small}
           warned={warned.has("acceptance")}
           testID="tile-acceptance"
         />
         <Tile
           label={t("trust.performance.cancellation")}
-          {...cancellation}
+          big={cancellation.big}
+          small={compact ? null : cancellation.small}
           warned={warned.has("cancellation")}
           testID="tile-cancellation"
         />
       </View>
-      <View style={[styles.gridRow, flipRows && styles.rowReverse]}>
-        <Tile label={t("trust.performance.onTime")} {...onTime} testID="tile-on-time" />
-        <Tile
-          label={t("trust.performance.trips")}
-          big={formatCount(window.trips, language)}
-          small={
-            earned
-              ? t("trust.performance.earned", { amount: earned })
-              : t("trust.performance.noEarnings")
-          }
-          testID="tile-trips"
-        />
-      </View>
+      {compact ? null : (
+        <View style={[styles.gridRow, flipRows && styles.rowReverse]}>
+          <Tile label={t("trust.performance.onTime")} {...onTime} testID="tile-on-time" />
+          <Tile
+            label={t("trust.performance.trips")}
+            big={formatCount(window.trips, language)}
+            small={
+              earned
+                ? t("trust.performance.earned", { amount: earned })
+                : t("trust.performance.noEarnings")
+            }
+            testID="tile-trips"
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -371,7 +378,8 @@ function Dashboard({ data }: { data: DriverPerformance }) {
         <AppText variant="display" accessibilityRole="header" testID="performance-title">
           {t("trust.performance.title")}
         </AppText>
-        <WindowToggle value={days} onChange={setDays} />
+        {/* I65: the rating-warning variant drops the window toggle. */}
+        {nearLimit ? null : <WindowToggle value={days} onChange={setDays} />}
       </View>
 
       {nearLimit && data.ratingRule ? (
@@ -386,7 +394,9 @@ function Dashboard({ data }: { data: DriverPerformance }) {
         <WarningCard key={warning.metric} warning={warning} />
       ))}
 
-      {window ? <Tiles window={window} warnings={data.warnings} /> : null}
+      {window ? (
+        <Tiles window={window} warnings={data.warnings} compact={!!nearLimit} />
+      ) : null}
 
       {nearLimit ? null : <RatingCard rating={data.rating} />}
 
