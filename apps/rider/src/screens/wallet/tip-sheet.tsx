@@ -24,7 +24,13 @@ import {
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
-import { formatDateTime, formatMoney } from "../../ride/ride-format";
+import type { Place } from "../../api/rides";
+import {
+  formatDateTime,
+  formatDayDate,
+  formatMoney,
+  placeLabel,
+} from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 
 /**
@@ -37,6 +43,32 @@ export const SUGGESTED_TIPS: Readonly<Record<string, readonly number[]>> = {
 };
 
 /** The suggested chips for a currency (empty when it has none). */
+/**
+ * The tip sheet's ride line, the same from every entry point (approved
+ * artboard RiderTip): "Wed 8 Oct · Umayyad Square · SYP 27,250" — the
+ * total is left out while the ride is still running.
+ */
+export function tipRideLine(
+  ride: {
+    at: string;
+    destination: Place;
+    total?: number | null;
+    currency: string;
+  },
+  locale: "en" | "ar",
+  t: (key: string, options?: object) => string,
+): string {
+  return [
+    formatDayDate(ride.at, locale),
+    placeLabel(ride.destination),
+    ride.total != null
+      ? formatMoney(ride.total, ride.currency, locale, t)
+      : null,
+  ]
+    .filter((part): part is string => !!part)
+    .join(" · ");
+}
+
 export function suggestedTips(currency: string): readonly number[] {
   return SUGGESTED_TIPS[currency] ?? [];
 }

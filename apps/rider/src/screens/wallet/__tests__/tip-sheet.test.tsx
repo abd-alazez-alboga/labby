@@ -7,6 +7,7 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { I18n } from "i18n-js";
 import React from "react";
 import { StyleSheet } from "react-native";
 
@@ -15,9 +16,16 @@ import {
   LocaleProvider,
 } from "../../../i18n/locale-context";
 import { mockApi, seedSignedInSession } from "../../../test-utils/mock-api";
+import { translations } from "../../../i18n/translations";
+import { formatDayDate } from "../../../ride/ride-format";
 import { tipResponse, walletView } from "../../../test-utils/money-fixtures";
 import { RIDE_ID } from "../../../test-utils/ride-fixtures";
-import { parseTipAmount, suggestedTips, TipSheet } from "../tip-sheet";
+import {
+  parseTipAmount,
+  suggestedTips,
+  TipSheet,
+  tipRideLine,
+} from "../tip-sheet";
 
 // The real icon component re-renders after its async font load, which this
 // jest env cannot flush safely — icons render as their name instead (same
@@ -273,6 +281,34 @@ describe("parseTipAmount", () => {
     ["", null],
   ])("parses %p as %p", (text, expected) => {
     expect(parseTipAmount(text)).toBe(expected);
+  });
+});
+
+describe("tipRideLine (RiderTip, V1 audit I44)", () => {
+  const i18n = new I18n(translations);
+  i18n.locale = "en";
+  const t = (key: string, options?: object) => i18n.t(key, options);
+  const destination = { lat: 33.5131, lng: 36.2913, label: "Umayyad Square" };
+
+  it("is date · place · total for an ended ride", () => {
+    const at = "2026-10-08T09:43:00Z";
+    const line = tipRideLine(
+      { at, destination, total: 27250, currency: "SYP" },
+      "en",
+      t,
+    );
+    expect(line).toBe(
+      `${formatDayDate(at, "en")} · Umayyad Square · SYP 27,250`,
+    );
+    expect(formatDayDate(at, "en")).toMatch(/8/);
+    expect(formatDayDate(at, "en")).toMatch(/Oct/);
+  });
+
+  it("drops the total while the ride runs", () => {
+    const at = "2026-10-08T09:31:00Z";
+    expect(
+      tipRideLine({ at, destination, currency: "SYP" }, "en", t),
+    ).toBe(`${formatDayDate(at, "en")} · Umayyad Square`);
   });
 });
 

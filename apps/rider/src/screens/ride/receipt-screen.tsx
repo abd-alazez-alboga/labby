@@ -42,7 +42,7 @@ import {
 import { colors, radius, spacing } from "../../theme/tokens";
 import { useAccountSuspended } from "../../trust/suspension";
 import { SharedSplit } from "../shared/shared-split";
-import { TipSheet } from "../wallet/tip-sheet";
+import { TipSheet, tipRideLine } from "../wallet/tip-sheet";
 import {
   FareBreakdown,
   paymentRowLabel,
@@ -326,7 +326,16 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
           currency={currency}
           driverName={receipt.driver.firstName}
           completedAt={completedAt ?? null}
-          rideLine={`${formatDateTime(startedAt ?? requestedAt, locale)} · ${money(total)}`}
+          rideLine={tipRideLine(
+            {
+              at: completedAt ?? startedAt ?? requestedAt,
+              destination: receipt.destination,
+              total,
+              currency,
+            },
+            locale,
+            t,
+          )}
           onTipped={setTipSent}
         />
       ) : null}

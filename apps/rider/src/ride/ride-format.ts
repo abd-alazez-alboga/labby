@@ -158,6 +158,21 @@ export function formatDate(iso: string, locale: AppLocale): string {
   }
 }
 
+/** Weekday + day + month ("Wed 8 Oct"), Western digits. */
+export function formatDayDate(iso: string, locale: AppLocale): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  try {
+    return new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(date);
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
 /** Day + time ("Wed 8 Oct · 12:29") for history and receipts. */
 export function formatDateTime(iso: string, locale: AppLocale): string {
   const date = new Date(iso);

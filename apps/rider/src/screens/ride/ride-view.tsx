@@ -71,7 +71,7 @@ import {
   serviceName,
 } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
-import { TipSheet } from "../wallet/tip-sheet";
+import { TipSheet, tipRideLine } from "../wallet/tip-sheet";
 import { SharedLeaveSheet } from "../shared/shared-leave-sheet";
 import { SharedSplit } from "../shared/shared-split";
 import { CancelSheet } from "./cancel-sheet";
@@ -440,11 +440,16 @@ export function RideView({
             currency={currency}
             driverName={driver?.firstName ?? null}
             completedAt={completedAt ?? null}
-            rideLine={
-              completedAt
-                ? `${placeLabel(ride.destination)} · ${formatMoney(total, currency, locale, t)}`
-                : null
-            }
+            rideLine={tipRideLine(
+              {
+                at: completedAt ?? ride.timeline.requestedAt,
+                destination: ride.destination,
+                total,
+                currency,
+              },
+              locale,
+              t,
+            )}
             onTipped={setTipSent}
           />
         ) : null}
@@ -1061,6 +1066,15 @@ export function RideView({
               currency={ride.estimate.components.currency}
               driverName={driver?.firstName ?? null}
               completedAt={null}
+              rideLine={tipRideLine(
+                {
+                  at: ride.timeline.startedAt ?? ride.timeline.requestedAt,
+                  destination: ride.destination,
+                  currency: ride.estimate.components.currency,
+                },
+                locale,
+                t,
+              )}
               onTipped={setTipSent}
               onAlreadyTipped={() => setAlreadyTipped(true)}
             />
