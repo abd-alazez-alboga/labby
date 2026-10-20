@@ -1,0 +1,160 @@
+{
+  "runId" : "xysjc",
+  "startedAt" : "2026-10-20T00:44:45.019875034Z",
+  "endedAt" : "2026-10-20T00:55:32.510824516Z",
+  "drivers" : 300,
+  "riders" : 700,
+  "concurrentUsers" : 1000,
+  "durationSeconds" : 647,
+  "ridesBooked" : 2671,
+  "ridesCompleted" : 2662,
+  "endpoints" : {
+    "GET /driver/offers/open" : {
+      "count" : 48508,
+      "p50Ms" : 9.736,
+      "p95Ms" : 15.777,
+      "p99Ms" : 23.896,
+      "maxMs" : 106.742,
+      "errors" : 0
+    },
+    "GET /regions/resolve" : {
+      "count" : 8310,
+      "p50Ms" : 7.333,
+      "p95Ms" : 10.808,
+      "p99Ms" : 17.496,
+      "maxMs" : 79.355,
+      "errors" : 0
+    },
+    "GET /rides" : {
+      "count" : 8310,
+      "p50Ms" : 17.527,
+      "p95Ms" : 24.101,
+      "p99Ms" : 33.314,
+      "maxMs" : 93.67,
+      "errors" : 0
+    },
+    "GET /rides/active" : {
+      "count" : 8310,
+      "p50Ms" : 10.958,
+      "p95Ms" : 16.266,
+      "p99Ms" : 26.36,
+      "maxMs" : 93.982,
+      "errors" : 0
+    },
+    "GET /rides/{id}" : {
+      "count" : 27511,
+      "p50Ms" : 22.343,
+      "p95Ms" : 29.911,
+      "p99Ms" : 40.067,
+      "maxMs" : 128.188,
+      "errors" : 0
+    },
+    "GET /wallet" : {
+      "count" : 8310,
+      "p50Ms" : 8.376,
+      "p95Ms" : 13.008,
+      "p99Ms" : 21.844,
+      "maxMs" : 93.197,
+      "errors" : 0
+    },
+    "POST /driver/locations" : {
+      "count" : 30594,
+      "p50Ms" : 13.716,
+      "p95Ms" : 19.941,
+      "p99Ms" : 29.799,
+      "maxMs" : 108.931,
+      "errors" : 0
+    },
+    "POST /driver/offers/{id}/accept" : {
+      "count" : 2662,
+      "p50Ms" : 48.667,
+      "p95Ms" : 60.028,
+      "p99Ms" : 75.391,
+      "maxMs" : 127.182,
+      "errors" : 0
+    },
+    "POST /driver/rides/{id}/arrive" : {
+      "count" : 2662,
+      "p50Ms" : 42.349,
+      "p95Ms" : 53.116,
+      "p99Ms" : 72.952,
+      "maxMs" : 136.327,
+      "errors" : 0
+    },
+    "POST /driver/rides/{id}/cash-confirm" : {
+      "count" : 2662,
+      "p50Ms" : 45.317,
+      "p95Ms" : 56.929,
+      "p99Ms" : 72.083,
+      "maxMs" : 118.523,
+      "errors" : 0
+    },
+    "POST /driver/rides/{id}/complete" : {
+      "count" : 2662,
+      "p50Ms" : 86.854,
+      "p95Ms" : 105.961,
+      "p99Ms" : 125.728,
+      "maxMs" : 209.646,
+      "errors" : 0
+    },
+    "POST /driver/rides/{id}/start" : {
+      "count" : 2662,
+      "p50Ms" : 41.022,
+      "p95Ms" : 51.658,
+      "p99Ms" : 68.161,
+      "maxMs" : 120.179,
+      "errors" : 0
+    },
+    "POST /rides" : {
+      "count" : 2671,
+      "p50Ms" : 55.707,
+      "p95Ms" : 69.349,
+      "p99Ms" : 83.999,
+      "maxMs" : 139.312,
+      "errors" : 0
+    },
+    "PUT /driver/availability" : {
+      "count" : 300,
+      "p50Ms" : 21.865,
+      "p95Ms" : 29.565,
+      "p99Ms" : 42.34,
+      "maxMs" : 78.661,
+      "errors" : 0
+    }
+  },
+  "statusCounts" : {
+    "GET /driver/offers/open 200" : 2662,
+    "GET /driver/offers/open 204" : 45846,
+    "GET /regions/resolve 200" : 8310,
+    "GET /rides 200" : 8310,
+    "GET /rides/active 204" : 8310,
+    "GET /rides/{id} 200" : 27511,
+    "GET /wallet 200" : 8310,
+    "POST /auth/login 200" : 1000,
+    "POST /driver/locations 202" : 30594,
+    "POST /driver/offers/{id}/accept 200" : 2662,
+    "POST /driver/rides/{id}/arrive 200" : 2662,
+    "POST /driver/rides/{id}/cash-confirm 200" : 2662,
+    "POST /driver/rides/{id}/complete 200" : 2662,
+    "POST /driver/rides/{id}/start 200" : 2662,
+    "POST /rides 201" : 2671,
+    "PUT /driver/availability 200" : 300
+  },
+  "firstOffer" : {
+    "ridesWithOffer" : 2671,
+    "p50Ms" : 714.027,
+    "p95Ms" : 1018.538,
+    "maxMs" : 1239.22,
+    "over3s" : 0,
+    "rideStates" : {
+      "completed" : 2662,
+      "offering" : 9
+    }
+  },
+  "ingestion" : {
+    "lastSampleReceiveLagP50Ms" : 5.7865,
+    "lastSampleReceiveLagP95Ms" : 8.5723,
+    "lastSampleReceiveLagMaxMs" : 19.912,
+    "driversWithPosition" : 300
+  }
+}
