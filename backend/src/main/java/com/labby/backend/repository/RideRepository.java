@@ -335,9 +335,9 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
    * accepted offer's quoted pickup ETA + 5 min after acceptance), and rides completed in the window
    * (by {@code completed_at}). M12 (UC-D-12 E1): a released scheduled-ride claim (by {@code
    * released_at}) counts as one more driver cancellation AND one more base ride, except the
-   * system's {@code account_suspended} / {@code vehicle_changed} releases. A converted scheduled
-   * ride (no live offer) is on time when the driver arrived by its pickup time + 5 min (M12 review
-   * W2).
+   * system's {@code account_suspended} / {@code vehicle_changed} / {@code balance_below_floor}
+   * releases. A converted scheduled ride (no live offer) is on time when the driver arrived by its
+   * pickup time + 5 min (M12 review W2).
    */
   @Query(
       value =
@@ -349,14 +349,14 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
                              AND r.cancellation_reason <> 'rider_no_show')
               + (SELECT COUNT(*) FROM scheduled_claim_releases s
                  WHERE s.driver_user_id = :driverUserId
-                   AND s.reason NOT IN ('account_suspended', 'vehicle_changed')
+                   AND s.reason NOT IN ('account_suspended', 'vehicle_changed', 'balance_below_floor')
                    AND s.released_at BETWEEN :from AND :to) AS cancelledByDriver,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND (r.state <> 'cancelled_by_driver'
                                   OR r.cancellation_reason <> 'rider_no_show'))
               + (SELECT COUNT(*) FROM scheduled_claim_releases s
                  WHERE s.driver_user_id = :driverUserId
-                   AND s.reason NOT IN ('account_suspended', 'vehicle_changed')
+                   AND s.reason NOT IN ('account_suspended', 'vehicle_changed', 'balance_below_floor')
                    AND s.released_at BETWEEN :from AND :to) AS cancellationBase,
             COUNT(*) FILTER (WHERE r.accepted_at BETWEEN :from AND :to
                              AND r.driver_arrived_at IS NOT NULL) AS arrived,

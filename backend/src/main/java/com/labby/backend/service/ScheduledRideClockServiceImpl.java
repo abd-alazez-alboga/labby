@@ -13,6 +13,7 @@ import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.ScheduledRide;
+import com.labby.backend.model.User;
 import com.labby.backend.model.Vehicle;
 import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.RideOfferRepository;
@@ -163,12 +164,23 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
     // at this moment is either seen here or waits (review re-audit N4).
     rideRepository.lockRider(ride.getRiderUserId());
     if (riderBusy(ride.getRiderUserId())) {
-      cancelRiderBusy(ride, scheduled, now);
+      cancelRiderBusy(ride, scheduled, region, now);
       return true;
     }
     if (scheduled.isClaimed()) {
       UUID driver = scheduled.getClaimedDriverUserId();
-      if (driverAvailable(driver)) {
+      String floorBlocked =
+          driverAvailable(driver)
+              ? driverDutyGates.offersBlockedReason(driver, ride.getRegionId())
+              : null;
+      if (floorBlocked != null) {
+        // V1 audit H7 (owner ruling 2026-10-20): the COM-03 floor blocks conversion too — the
+        // system releases the claim (not a metric event), the driver is told, the ride falls back.
+        Map<String, Object> params = driverNoticeParams(ride, scheduled, region);
+        scheduledRideSupport.release(
+            ride, scheduled, ClaimReleaseReason.BALANCE_BELOW_FLOOR, null, now);
+        pushDriverRelease(driver, params, floorBlocked, false);
+      } else if (driverAvailable(driver)) {
         Optional<UUID> vehicle = conversionVehicle(ride, scheduled);
         if (vehicle.isPresent()) {
           // Review H1 (owner ruling 2026-10-17, "the claim wins"): the claimer's open live offer
@@ -181,7 +193,9 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
         }
         // Review W3 (owner ruling 2026-10-17): the current vehicle no longer serves the ride —
         // the system releases the claim, not a cancellation-metric event, the driver is told.
-        Map<String, Object> params = scheduledRideSupport.pickupParams(ride, scheduled, region);
+        Map<String, Object> params = driverNoticeParams(ride, scheduled, region);
+        params.put("reason", ClaimReleaseReason.VEHICLE_CHANGED.getValue());
+        params.put("countsAsRelease", "false");
         scheduledRideSupport.release(
             ride, scheduled, ClaimReleaseReason.VEHICLE_CHANGED, null, now);
         rideEvents.push(driver, NotificationEvent.SCHEDULED_CLAIM_LOST, params);
@@ -189,12 +203,20 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
         // Ruling 2026-10-16: an offline / busy / suspended claimer loses the claim; the ride takes
         // the fallback. A suspension is not a metric event, offline/busy counts like a release.
         boolean suspended = suspended(driver);
+        Map<String, Object> params = driverNoticeParams(ride, scheduled, region);
         scheduledRideSupport.release(
             ride,
             scheduled,
             suspended ? ClaimReleaseReason.ACCOUNT_SUSPENDED : ClaimReleaseReason.OTHER,
             suspended ? null : "unavailable_at_conversion",
             now);
+        // V1 audit W42: the claimer is told the system released the claim (and whether it
+        // counts as a release in their cancellation metric, W22).
+        pushDriverRelease(
+            driver,
+            params,
+            suspended ? ClaimReleaseReason.ACCOUNT_SUSPENDED.getValue() : "unavailable",
+            !suspended);
       }
     }
     fallBack(ride, scheduled, region, now);
@@ -265,7 +287,7 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
     ride.setDriverUserId(scheduled.getClaimedDriverUserId());
     ride.setVehicleId(vehicleId);
     // Free until live (ruling 2026-10-16); from here RIDE-07 applies with its grace.
-    ride.setCancellationGraceEndsAt(rideLifecycle.cancellationGraceEnd(ride.getRegionId(), now));
+    ride.setCancellationGraceEndsAt(rideLifecycle.cancellationGraceEnd(ride, now));
     ride = rideRepository.saveAndFlush(ride);
     scheduled.setConvertedAt(now);
     scheduledRideRepository.saveAndFlush(scheduled);
@@ -294,8 +316,36 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
     rideEvents.stateChanged(ride);
   }
 
+  /**
+   * The params of a driver-audience scheduled notice (V1 audit W22): the ride, its pickup date and
+   * time in the region's zone and the rider's first name, so the app can title the notice.
+   */
+  private Map<String, Object> driverNoticeParams(
+      Ride ride, ScheduledRide scheduled, Region region) {
+    Map<String, Object> params = scheduledRideSupport.pickupParams(ride, scheduled, region);
+    params.put("riderFirstName", riderFirstName(ride.getRiderUserId()));
+    params.put("as", "driver");
+    return params;
+  }
+
+  /** V1 audit W42: the driver-audience {@code scheduled.released} of a system release. */
+  private void pushDriverRelease(
+      UUID driverUserId, Map<String, Object> params, String reason, boolean countsAsRelease) {
+    params.put("reason", reason);
+    params.put("countsAsRelease", String.valueOf(countsAsRelease));
+    rideEvents.push(driverUserId, NotificationEvent.SCHEDULED_RELEASED, params);
+  }
+
+  private String riderFirstName(UUID riderUserId) {
+    return userRepository
+        .findById(riderUserId)
+        .map(User::getName)
+        .map(RideAssembler::firstName)
+        .orElse("");
+  }
+
   /** Ruling 2026-10-16: the rider is on another live ride — cancelled free, both told. */
-  private void cancelRiderBusy(Ride ride, ScheduledRide scheduled, Instant now) {
+  private void cancelRiderBusy(Ride ride, ScheduledRide scheduled, Region region, Instant now) {
     ride.setState(RideState.CANCELLED_BY_RIDER);
     ride.setCancelledAt(now);
     ride.setCancellationReason(CancellationReason.RIDER_BUSY);
@@ -307,10 +357,11 @@ public class ScheduledRideClockServiceImpl implements ScheduledRideClockService 
         NotificationEvent.SCHEDULED_CANCELLED_RIDER_BUSY,
         Map.of("rideId", ride.getId().toString(), "as", "rider"));
     if (scheduled.isClaimed()) {
+      // V1 audit W22: the driver's notice names the pickup time and the rider.
       rideEvents.push(
           scheduled.getClaimedDriverUserId(),
           NotificationEvent.SCHEDULED_CANCELLED_RIDER_BUSY,
-          Map.of("rideId", ride.getId().toString(), "as", "driver"));
+          driverNoticeParams(ride, scheduled, region));
     }
   }
 

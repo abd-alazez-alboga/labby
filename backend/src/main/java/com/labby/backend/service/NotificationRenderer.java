@@ -8,6 +8,8 @@ import com.labby.backend.enums.SuspensionReason;
 import com.labby.backend.util.MoneyFormat;
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -385,22 +387,23 @@ public class NotificationRenderer {
                       text(params.get("pickupDate")),
                       text(params.get("pickupTime"))));
       case SCHEDULED_RELEASED ->
-          scheduled(
-              event,
-              NotificationAudience.RIDER,
-              params,
-              NotificationCategory.SCHEDULED,
-              "Your scheduled ride needs a new driver",
-              ("Your driver can no longer make your ride on %s at %s. It stays open for other"
-                      + " drivers.")
-                  .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))),
-              "رحلتك المجدولة بحاجة إلى سائق جديد",
-              "لم يعد بإمكان سائقك القيام برحلتك يوم %s الساعة %s. ستبقى الرحلة متاحة لسائقين آخرين."
-                  .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))));
+          isDriver(params)
+              ? scheduledReleasedToDriver(event, params)
+              : scheduled(
+                  event,
+                  NotificationAudience.RIDER,
+                  params,
+                  NotificationCategory.SCHEDULED,
+                  "Your scheduled ride needs a new driver",
+                  ("Your driver can no longer make your ride on %s at %s. It stays open for other"
+                          + " drivers.")
+                      .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))),
+                  "رحلتك المجدولة بحاجة إلى سائق جديد",
+                  "لم يعد بإمكان سائقك القيام برحلتك يوم %s الساعة %s. ستبقى الرحلة متاحة لسائقين آخرين."
+                      .formatted(text(params.get("pickupDate")), text(params.get("pickupTime"))));
       case SCHEDULED_CLAIM_LOST ->
-          scheduled(
+          scheduledToDriver(
               event,
-              NotificationAudience.DRIVER,
               params,
               NotificationCategory.SCHEDULED,
               "Scheduled ride back on the board",
@@ -524,15 +527,28 @@ public class NotificationRenderer {
                   "بدأت رحلتك المجدولة — سائقك في طريقه إلى نقطة الانطلاق.");
       case SCHEDULED_CANCELLED_RIDER_BUSY ->
           isDriver(params)
-              ? scheduled(
+              ? scheduledToDriver(
                   event,
-                  NotificationAudience.DRIVER,
                   params,
                   NotificationCategory.RIDE,
                   "Scheduled ride cancelled",
-                  "The rider of your scheduled ride is on another trip, so the ride was cancelled.",
+                  text(params.get("pickupTime")).isEmpty()
+                      ? "The rider of your scheduled ride is on another trip, so the ride was"
+                          + " cancelled."
+                      : ("%s is on another trip, so your scheduled ride on %s at %s was cancelled."
+                              + " This doesn't count against you.")
+                          .formatted(
+                              riderName(params, "The rider"),
+                              text(params.get("pickupDate")),
+                              text(params.get("pickupTime"))),
                   "أُلغيت الرحلة المجدولة",
-                  "راكب رحلتك المجدولة في رحلة أخرى، لذلك أُلغيت الرحلة.")
+                  text(params.get("pickupTime")).isEmpty()
+                      ? "راكب رحلتك المجدولة في رحلة أخرى، لذلك أُلغيت الرحلة."
+                      : "%s في رحلة أخرى، لذلك أُلغيت رحلتك المجدولة يوم %s الساعة %s. لا يُحتسب ذلك عليك."
+                          .formatted(
+                              riderName(params, "الراكب"),
+                              text(params.get("pickupDate")),
+                              text(params.get("pickupTime"))))
               : scheduled(
                   event,
                   NotificationAudience.RIDER,
@@ -718,6 +734,95 @@ public class NotificationRenderer {
         bodyAr,
         SCREEN_RIDE,
         Map.of("rideId", text(params.get("rideId"))));
+  }
+
+  /** The keys a driver-audience scheduled notice carries in its deep link (V1 audit W22). */
+  private static final List<String> DRIVER_NOTICE_KEYS =
+      List.of("pickupDate", "pickupTime", "riderFirstName", "reason", "countsAsRelease");
+
+  /**
+   * A driver-audience scheduled notice (V1 audit W22): the ride deep link plus the pickup date and
+   * time, the rider's first name and — for a system release — its {@code reason} and whether it
+   * {@code countsAsRelease} in the cancellation metric, so the app renders a titled notice.
+   */
+  private static Rendered scheduledToDriver(
+      NotificationEvent event,
+      Map<String, Object> params,
+      NotificationCategory category,
+      String titleEn,
+      String bodyEn,
+      String titleAr,
+      String bodyAr) {
+    Map<String, String> link = new LinkedHashMap<>();
+    link.put("rideId", text(params.get("rideId")));
+    for (String key : DRIVER_NOTICE_KEYS) {
+      String value = text(params.get(key));
+      if (!value.isEmpty()) {
+        link.put(key, value);
+      }
+    }
+    return new Rendered(
+        category,
+        NotificationAudience.DRIVER,
+        event.getValue(),
+        titleEn,
+        bodyEn,
+        titleAr,
+        bodyAr,
+        SCREEN_RIDE,
+        link);
+  }
+
+  /**
+   * V1 audit W42: the system released the driver's claim at conversion — offline or on another ride
+   * (counts as a release), below the balance floor (COM-03, owner ruling 2026-10-20) or suspended
+   * (neither counts).
+   */
+  private static Rendered scheduledReleasedToDriver(
+      NotificationEvent event, Map<String, Object> params) {
+    String date = text(params.get("pickupDate"));
+    String time = text(params.get("pickupTime"));
+    String titleEn = "Your %s claim was released".formatted(time);
+    String titleAr = "أُلغي حجزك لرحلة الساعة %s".formatted(time);
+    String bodyEn;
+    String bodyAr;
+    switch (text(params.get("reason"))) {
+      case "balance_below_floor" -> {
+        bodyEn =
+            ("Your balance is at or below the minimum, so the ride on %s at %s went to other"
+                    + " drivers. Settle your balance to claim rides again. This doesn't count as a"
+                    + " release.")
+                .formatted(date, time);
+        bodyAr =
+            ("رصيدك عند الحد الأدنى أو دونه، لذلك ذهبت الرحلة يوم %s الساعة %s لسائقين آخرين. سوِّ"
+                    + " رصيدك لتتمكن من حجز الرحلات مجدداً. لا يُحتسب ذلك تخلّياً عن الرحلة.")
+                .formatted(date, time);
+      }
+      case "account_suspended" -> {
+        bodyEn =
+            "Your account is suspended, so the ride on %s at %s went to other drivers."
+                .formatted(date, time);
+        bodyAr =
+            "حسابك موقوف، لذلك ذهبت الرحلة يوم %s الساعة %s لسائقين آخرين.".formatted(date, time);
+      }
+      default -> {
+        bodyEn =
+            ("You were offline or on another ride when the ride on %s at %s was due, so it went"
+                    + " to other drivers. It counts as a release.")
+                .formatted(date, time);
+        bodyAr =
+            ("كنت غير متصل أو في رحلة أخرى عند موعد الرحلة يوم %s الساعة %s، لذلك ذهبت لسائقين"
+                    + " آخرين. يُحتسب ذلك تخلّياً عن الرحلة.")
+                .formatted(date, time);
+      }
+    }
+    return scheduledToDriver(
+        event, params, NotificationCategory.SCHEDULED, titleEn, bodyEn, titleAr, bodyAr);
+  }
+
+  private static String riderName(Map<String, Object> params, String fallback) {
+    String name = text(params.get("riderFirstName"));
+    return name.isEmpty() ? fallback : name;
   }
 
   /**

@@ -178,7 +178,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 | PAY-04 | Tips: in-app from wallet during ride or ≤ 24 h after, suggested amounts; **100% to driver, commission-free**. Cash tips happen outside the app. | V1 |
 | COM-01 | Driver earnings ledger per ride: wallet-paid → fare − commission credited; cash-paid → commission **debited** (driver keeps cash). Tips/bonuses credit. Every entry itemized. | V1 |
 | COM-02 | Tiered commission (defaults 25% / 20% > 100 / 15% > 200 weekly trips; per region): each driver's rate recalculated weekly from the previous week's completed trips. | V1 |
-| COM-03 | Driver balance below floor (default **−50**) → no new offers until settled; driver warned before and at blocking. | V1 |
+| COM-03 | Driver balance below floor (default **−50**) → no new offers until settled; driver warned before and at blocking. (owner ruling 2026-10-20: also blocks the scheduled claim board, claims and conversion) | V1 |
 | COM-04 | Admin settlement screen records off-app money movement: driver pay-ins (cash commission debt) and payouts of positive balances. V1 moves no real money; it records the truth. | V1 |
 | GRW-01 | Promo codes (admin): % or fixed discount, max-discount cap, validity window, total + per-user usage limits, region/service restriction, first-ride-only flag. Applied at booking, itemized in breakdown. | V1 |
 | GRW-02 | First-ride discount = a promo with the first-ride flag (no separate machinery). | V1 |

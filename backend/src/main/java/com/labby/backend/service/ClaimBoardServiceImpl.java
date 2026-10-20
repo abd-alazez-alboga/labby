@@ -67,6 +67,7 @@ public class ClaimBoardServiceImpl implements ClaimBoardService {
   private static final String NOT_FOUND = "Scheduled ride not found";
 
   private final RideAccess rideAccess;
+  private final DriverDutyGates driverDutyGates;
   private final RideAssembler rideAssembler;
   private final RideEvents rideEvents;
   private final RideLifecycle rideLifecycle;
@@ -84,7 +85,12 @@ public class ClaimBoardServiceImpl implements ClaimBoardService {
   public ClaimBoardPageDto board(UUID driverUserId, int page, int size) {
     rideAccess.requireDriver(driverUserId);
     if (!dutyAllowed(driverUserId)) {
-      return new ClaimBoardPageDto(List.of(), page, size, 0);
+      return new ClaimBoardPageDto(List.of(), page, size, 0, null);
+    }
+    // V1 audit H7 (owner ruling 2026-10-20): the COM-03 floor blocks the claim board too.
+    String blocked = driverDutyGates.offersBlockedReason(driverUserId);
+    if (blocked != null) {
+      return new ClaimBoardPageDto(List.of(), page, size, 0, blocked);
     }
     Page<UUID> ids =
         scheduledRideRepository.findBoard(
@@ -97,7 +103,7 @@ public class ClaimBoardServiceImpl implements ClaimBoardService {
             .collect(Collectors.toMap(ScheduledRide::getRideId, Function.identity()));
     List<ClaimBoardEntryDto> items =
         ids.getContent().stream().map(id -> entry(rides.get(id), scheduled.get(id))).toList();
-    return new ClaimBoardPageDto(items, page, size, ids.getTotalElements());
+    return new ClaimBoardPageDto(items, page, size, ids.getTotalElements(), null);
   }
 
   @Override
@@ -124,6 +130,12 @@ public class ClaimBoardServiceImpl implements ClaimBoardService {
     }
     if (!dutyAllowed(driverUserId) || ride.getRiderUserId().equals(driverUserId)) {
       throw notEligible("driver");
+    }
+    // V1 audit H7 (owner ruling 2026-10-20): a driver at/below the floor in the ride's region
+    // cannot claim (COM-03 — scheduled cash rides would grow the debt).
+    String blocked = driverDutyGates.offersBlockedReason(driverUserId, ride.getRegionId());
+    if (blocked != null) {
+      throw notEligible(blocked);
     }
     Vehicle vehicle =
         vehicleRepository

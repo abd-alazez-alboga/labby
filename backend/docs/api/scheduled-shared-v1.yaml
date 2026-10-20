@@ -116,8 +116,13 @@ info:
     rounded to 3 decimals, ≈ 100 m), destination, service type, estimate (flagged
     `pricedAtRideTime`) and payment method; the exact pickup and the rider summary appear once
     claimed. Claim re-checks every board rule under the ride lock (422 `not_eligible` with
-    `details.rule` = `window` | `service_type` | `driver`); the rider is notified. A driver may
-    hold several claims; overlapping claims are not checked in V1.
+    `details.rule` = `window` | `service_type` | `driver` | `balance_below_floor`); the rider is
+    notified. A driver may hold several claims; overlapping claims are not checked in V1.
+    **COM-03 floor (V1 audit H7, owner ruling 2026-10-20).** A driver at/below the balance floor
+    (DriverDutyGates, the same rule that stops live offers) gets an EMPTY board whose
+    `blockedReason` is `balance_below_floor` (null when the board is open), and a claim is
+    refused 422 `not_eligible` with `details.rule = balance_below_floor` (the floor of the ride's
+    region). Settling above the floor reopens both.
 
 
     **Release (UC-D-12 E1).** Before conversion the claiming driver may release with a reason
@@ -159,9 +164,20 @@ info:
     driver's CURRENT active vehicle when it still serves the service type; otherwise the system
     releases the claim with reason `vehicle_changed` (no metric event) and tells the driver
     (`scheduled.claim_lost`, category `scheduled`). A converted ride is on time for DRV-06 when
-    the driver arrived by `scheduledAt` + 5 min. A RIDER who holds another live ride at that moment →
+    the driver arrived by `scheduledAt` + 5 min. **COM-03 (V1 audit H7, owner ruling
+    2026-10-20):** a claimer at/below the balance floor of the ride's region is not converted —
+    the system releases the claim with reason `balance_below_floor` (no metric event, not a
+    cancellation) and the ride takes S4. **Driver notices (V1 audit W42 / W22):** every system
+    release at conversion tells the claimer — `scheduled.released` with `as: driver` (offline /
+    busy, suspended, below the floor) or `scheduled.claim_lost` (vehicle). Their push deep link
+    (`screen: ride`, realtime-v1 push payload `params`) carries `rideId`, `pickupDate`
+    (yyyy-MM-dd) and `pickupTime` (HH:mm) in the region's zone, `riderFirstName`, `reason`
+    (`unavailable` | `account_suspended` | `balance_below_floor` | `vehicle_changed`) and
+    `countsAsRelease` (`"true"` only for `unavailable` — it counts in the DRV-06 cancellation
+    metric like the driver's own release). A RIDER who holds another live ride at that moment →
     the scheduled ride is cancelled by the system, free, reason `rider_busy`; rider and claiming
-    driver notified (`scheduled.cancelled_rider_busy`), no metric event for the driver
+    driver notified (`scheduled.cancelled_rider_busy`; the driver's deep link carries `rideId`,
+    `pickupDate`, `pickupTime` and `riderFirstName`, V1 audit W22), no metric event for the driver
     **(ruling 2026-10-16)**. Otherwise unclaimed → S4 fallback (rider sees "finding your
     driver", UC-R-11 A1). Overdue rows (the job was down) are processed on the next tick while `scheduledAt` is
     still ahead; once `scheduledAt` itself has passed the ride still converts / falls back
@@ -426,7 +442,7 @@ paths:
               schema: { $ref: '#/components/schemas/RideWithExtensions' }
         '404': { description: Unknown ride or not a scheduled ride }
         '409': { description: '`already_claimed` | `claim_closed` (cancelled, converted or within the fallback lead)' }
-        '422': { description: '`not_eligible` (details.rule = window | service_type | driver)' }
+        '422': { description: '`not_eligible` (details.rule = window | service_type | driver | balance_below_floor — the COM-03 floor, V1 audit H7)' }
 
   /api/v1/driver/scheduled-rides/{rideId}/release:
     parameters:
@@ -824,7 +840,7 @@ components:
         estimateDurationSeconds: { type: integer }
     ClaimBoardPage:
       type: object
-      required: [items, page, size, totalItems]
+      required: [items, page, size, totalItems, blockedReason]
       properties:
         items:
           type: array
@@ -832,6 +848,12 @@ components:
         page: { type: integer }
         size: { type: integer }
         totalItems: { type: integer }
+        blockedReason:
+          type: [string, 'null']
+          enum: [balance_below_floor, null]
+          description: >
+            V1 audit H7 (owner ruling 2026-10-20): why the board is empty for this driver —
+            `balance_below_floor` (COM-03); null when the board is open to them.
     ClaimReleaseRequest:
       type: object
       required: [reason]

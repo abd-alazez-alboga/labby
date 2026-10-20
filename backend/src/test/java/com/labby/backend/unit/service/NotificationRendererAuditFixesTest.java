@@ -2,6 +2,7 @@ package com.labby.backend.unit.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.labby.backend.enums.NotificationAudience;
 import com.labby.backend.service.NotificationRenderer;
 import com.labby.backend.service.NotificationRenderer.Rendered;
 import java.util.Map;
@@ -38,5 +39,49 @@ class NotificationRendererAuditFixesTest {
                     "carriedCash", "2.00"))
             .orElseThrow();
     assertThat(withDue.bodyEn()).contains("in cash");
+  }
+
+  @Test
+  @DisplayName("W42/W22: a system release tells the driver the time, rider and the consequence")
+  void shouldRenderDriverReleaseNotices() {
+    Map<String, Object> params =
+        new java.util.HashMap<>(
+            Map.of(
+                "rideId", "r-1",
+                "pickupDate", "2026-10-21",
+                "pickupTime", "09:00",
+                "riderFirstName", "Rana",
+                "as", "driver",
+                "reason", "unavailable",
+                "countsAsRelease", "true"));
+    Rendered unavailable = renderer.render("scheduled.released", params).orElseThrow();
+    assertThat(unavailable.audience()).isEqualTo(NotificationAudience.DRIVER);
+    assertThat(unavailable.titleEn()).isEqualTo("Your 09:00 claim was released");
+    assertThat(unavailable.bodyEn()).contains("2026-10-21", "It counts as a release");
+    assertThat(unavailable.bodyAr()).contains("09:00", "يُحتسب");
+    assertThat(unavailable.linkParams())
+        .containsEntry("rideId", "r-1")
+        .containsEntry("pickupTime", "09:00")
+        .containsEntry("riderFirstName", "Rana")
+        .containsEntry("countsAsRelease", "true");
+
+    params.put("reason", "balance_below_floor");
+    params.put("countsAsRelease", "false");
+    Rendered floor = renderer.render("scheduled.released", params).orElseThrow();
+    assertThat(floor.bodyEn()).contains("balance", "doesn't count");
+    assertThat(floor.linkParams()).containsEntry("reason", "balance_below_floor");
+
+    // The rider's copy is unchanged (no `as`).
+    Rendered rider =
+        renderer
+            .render(
+                "scheduled.released",
+                Map.of("rideId", "r-1", "pickupDate", "2026-10-21", "pickupTime", "09:00"))
+            .orElseThrow();
+    assertThat(rider.audience()).isEqualTo(NotificationAudience.RIDER);
+
+    Rendered busy = renderer.render("scheduled.cancelled_rider_busy", params).orElseThrow();
+    assertThat(busy.bodyEn()).contains("Rana", "09:00");
+    assertThat(busy.bodyAr()).contains("Rana", "09:00");
   }
 }
