@@ -33,6 +33,7 @@ import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.AdminAccountServiceImpl;
 import com.labby.backend.service.AuditService;
 import com.labby.backend.service.OtpService;
+import com.labby.backend.service.SuperAdminGuard;
 import com.labby.backend.util.RbacIds;
 import java.time.Instant;
 import java.util.Optional;
@@ -70,7 +71,8 @@ class AdminAccountServiceImplTest {
             rbacRoleRepository,
             auditService,
             otpService,
-            passwordEncoder);
+            passwordEncoder,
+            new SuperAdminGuard(roleAssignmentRepository));
   }
 
   private static RbacRole role(UUID id, String name) {
@@ -220,9 +222,9 @@ class AdminAccountServiceImplTest {
         .thenReturn(Optional.of(role(RbacIds.SUPER_ADMIN_ROLE_ID, "Super Admin")));
     when(rbacRoleRepository.findById(RbacIds.SUPPORT_ROLE_ID))
         .thenReturn(Optional.of(role(RbacIds.SUPPORT_ROLE_ID, "Support")));
-    when(roleAssignmentRepository.countByRoleAndAdminRoleIdAndState(
-            Role.ADMIN, RbacIds.SUPER_ADMIN_ROLE_ID, RoleState.ACTIVE))
-        .thenReturn(1L);
+    when(roleAssignmentRepository.isActiveHolder(userId, RbacIds.SUPER_ADMIN_ROLE_ID))
+        .thenReturn(true);
+    when(roleAssignmentRepository.countActiveHolders(RbacIds.SUPER_ADMIN_ROLE_ID)).thenReturn(1L);
 
     assertThatThrownBy(
             () ->
@@ -245,9 +247,9 @@ class AdminAccountServiceImplTest {
         .thenReturn(Optional.of(role(RbacIds.SUPER_ADMIN_ROLE_ID, "Super Admin")));
     when(rbacRoleRepository.findById(RbacIds.SUPPORT_ROLE_ID))
         .thenReturn(Optional.of(role(RbacIds.SUPPORT_ROLE_ID, "Support")));
-    when(roleAssignmentRepository.countByRoleAndAdminRoleIdAndState(
-            Role.ADMIN, RbacIds.SUPER_ADMIN_ROLE_ID, RoleState.ACTIVE))
-        .thenReturn(2L);
+    when(roleAssignmentRepository.isActiveHolder(userId, RbacIds.SUPER_ADMIN_ROLE_ID))
+        .thenReturn(true);
+    when(roleAssignmentRepository.countActiveHolders(RbacIds.SUPER_ADMIN_ROLE_ID)).thenReturn(2L);
     stubAssignmentSave();
     when(userRepository.findById(userId))
         .thenReturn(Optional.of(user(userId, AccountState.ACTIVE)));

@@ -1,7 +1,6 @@
 package com.labby.backend.repository;
 
 import com.labby.backend.enums.Role;
-import com.labby.backend.enums.RoleState;
 import com.labby.backend.model.RoleAssignment;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -35,6 +34,49 @@ public interface RoleAssignmentRepository extends JpaRepository<RoleAssignment, 
 
   long countByAdminRoleId(UUID adminRoleId);
 
-  /** Active holders of an RBAC role — the last-Super-Admin guard (RBAC-01, UC-A-02 E1). */
-  long countByRoleAndAdminRoleIdAndState(Role role, UUID adminRoleId, RoleState state);
+  /**
+   * Locks every admin assignment of an RBAC role FOR UPDATE (review V1 W9): the last-Super-Admin
+   * guard takes it before counting, so two demotions / deactivations / deletions of Super Admins
+   * run one after the other and the second counts what the first committed.
+   *
+   * @param adminRoleId the RBAC role
+   * @return the locked assignment ids
+   */
+  @Query(
+      value =
+          "SELECT role_assignment_id FROM role_assignments WHERE role = 'admin'"
+              + " AND admin_role_id = :adminRoleId ORDER BY role_assignment_id FOR UPDATE",
+      nativeQuery = true)
+  List<UUID> lockAdminAssignments(@Param("adminRoleId") UUID adminRoleId);
+
+  /**
+   * Holders of an RBAC role whose assignment AND account are both active (review V1 W9): a deleted
+   * account's lingering assignment protects nothing.
+   *
+   * @param adminRoleId the RBAC role
+   * @return the count
+   */
+  @Query(
+      value =
+          "SELECT count(*) FROM role_assignments ra JOIN users u ON u.user_id = ra.user_id"
+              + " WHERE ra.role = 'admin' AND ra.admin_role_id = :adminRoleId"
+              + " AND ra.state = 'active' AND u.state = 'active'",
+      nativeQuery = true)
+  long countActiveHolders(@Param("adminRoleId") UUID adminRoleId);
+
+  /**
+   * Whether the account actively holds an RBAC role (assignment and account both active).
+   *
+   * @param userId the account
+   * @param adminRoleId the RBAC role
+   * @return true when it does
+   */
+  @Query(
+      value =
+          "SELECT EXISTS (SELECT 1 FROM role_assignments ra JOIN users u ON u.user_id = ra.user_id"
+              + " WHERE ra.user_id = :userId AND ra.role = 'admin'"
+              + " AND ra.admin_role_id = :adminRoleId AND ra.state = 'active'"
+              + " AND u.state = 'active')",
+      nativeQuery = true)
+  boolean isActiveHolder(@Param("userId") UUID userId, @Param("adminRoleId") UUID adminRoleId);
 }

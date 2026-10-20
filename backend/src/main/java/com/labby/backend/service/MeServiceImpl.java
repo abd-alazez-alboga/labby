@@ -62,6 +62,7 @@ public class MeServiceImpl implements MeService {
   private final DeviceTokenService deviceTokenService;
   private final DriverApplicationService driverApplicationService;
   private final PhoneChangeSessionRepository phoneChangeSessionRepository;
+  private final AccountDeletionGates accountDeletionGates;
 
   @Override
   @Transactional(readOnly = true)
@@ -151,7 +152,8 @@ public class MeServiceImpl implements MeService {
       // unique-constraint violation (race-safe uniqueness).
       userRepository.saveAndFlush(user);
     } catch (DataIntegrityViolationException ex) {
-      throw new ResourceAlreadyExistsException("Phone is already registered");
+      throw new ResourceAlreadyExistsException("Phone is already registered")
+          .withCode("phone_in_use");
     }
     phoneChangeSessionRepository.deleteForUser(userId);
     return toProfile(user);
@@ -160,15 +162,17 @@ public class MeServiceImpl implements MeService {
   @Override
   public void deleteAccount(UUID userId, DeleteAccountRequestDto request) {
     User user = loadUsableUser(userId);
+    // UC-S-07 E1/E2 and the last Super Admin (review V1 H1, W9): refused before the code is used.
+    accountDeletionGates.requireDeletable(userId);
     validateTwoFactor(user.getPhone(), request.otpCode());
 
-    // No precondition checks in M2 — active-ride / driver-debt gates arrive with their
-    // milestones (contract 409 reserved for them).
     // An open driver application leaves the review queue (owner decision 2026-10-07).
     driverApplicationService.withdrawForDeletedAccount(userId);
     user.setState(AccountState.DELETED);
     user.setDeletedAt(Instant.now());
     userRepository.save(user);
+    // Pending activity ends as on a suspension (review V1 W13).
+    accountDeletionGates.cleanUp(userId);
     refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
     deviceTokenService.removeAllForUser(userId);
     phoneChangeSessionRepository.deleteForUser(userId);
@@ -229,13 +233,24 @@ public class MeServiceImpl implements MeService {
     }
   }
 
+  /**
+   * The new phone must be held by no account at all (checked before any SMS is sent): {@code
+   * phone_in_use} for a usable account, {@code phone_held_by_deleted_account} for a deleted one — a
+   * deleted account keeps its phone for USR-07 reactivation and {@code uq_users_phone} covers it,
+   * so the change could never complete (review V1 W12).
+   */
   private void assertPhoneFree(String phone) {
     userRepository
         .findByPhone(phone)
-        .filter(existing -> existing.getState() != AccountState.DELETED)
         .ifPresent(
             existing -> {
-              throw new ResourceAlreadyExistsException("Phone is already registered");
+              if (existing.getState() == AccountState.DELETED) {
+                throw new ResourceAlreadyExistsException(
+                        "Phone belongs to a deleted account and cannot be taken over")
+                    .withCode("phone_held_by_deleted_account");
+              }
+              throw new ResourceAlreadyExistsException("Phone is already registered")
+                  .withCode("phone_in_use");
             });
   }
 

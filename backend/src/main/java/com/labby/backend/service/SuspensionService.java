@@ -110,4 +110,14 @@ public interface SuspensionService {
    * @return true when cash-confirm / mark-unpaid is still due
    */
   boolean isAwaitingPayment(UUID driverUserId, UUID rideId);
+
+  /**
+   * Account deletion side effects (UC-S-07, review V1 W13), the same as a whole-account
+   * suspension's: the driver goes offline, the pre-acceptance request is system-cancelled with its
+   * offer withdrawn, scheduled rides as rider are cancelled and claims as driver released, and
+   * shared memberships before acceptance end. The deletion gates already refused a live ride.
+   *
+   * @param userId the deleted account
+   */
+  void onAccountDeleted(UUID userId);
 }

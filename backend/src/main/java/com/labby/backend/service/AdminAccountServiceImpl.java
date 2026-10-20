@@ -51,6 +51,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
   private final AuditService auditService;
   private final OtpService otpService;
   private final PasswordEncoder passwordEncoder;
+  private final SuperAdminGuard superAdminGuard;
 
   @Override
   @Transactional(readOnly = true)
@@ -244,15 +245,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
   }
 
   private void requireNotLastActiveSuperAdmin(RoleAssignment assignment, String message) {
-    boolean activeSuperAdmin =
-        RbacIds.SUPER_ADMIN_ROLE_ID.equals(assignment.getAdminRoleId())
-            && assignment.getState() == RoleState.ACTIVE;
-    if (activeSuperAdmin
-        && roleAssignmentRepository.countByRoleAndAdminRoleIdAndState(
-                Role.ADMIN, RbacIds.SUPER_ADMIN_ROLE_ID, RoleState.ACTIVE)
-            <= 1) {
-      throw new ConflictException(message);
-    }
+    superAdminGuard.requireNotLast(assignment.getUserId(), message);
   }
 
   private Map<String, Object> stateSnapshot(RoleAssignment assignment, RbacRole role) {

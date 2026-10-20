@@ -248,6 +248,15 @@ public class SuspensionServiceImpl implements SuspensionService {
         .isPresent();
   }
 
+  @Override
+  public void onAccountDeleted(UUID userId) {
+    Instant now = calendar.now();
+    forceOfflineUnlessOnRide(userId, now);
+    cancelPendingRequests(userId, now);
+    scheduledRideService.onAccountSuspended(userId, now);
+    sharedRideService.onAccountSuspended(userId, now);
+  }
+
   /**
    * Review B-W5 (owner ruling 2026-10-16): the account's pre-acceptance request (requested /
    * offering, as rider) is system-cancelled — {@code cancelled_by_rider} with reason {@code

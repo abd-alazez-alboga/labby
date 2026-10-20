@@ -98,8 +98,8 @@ paths:
         '404': { description: No admin account for userId }
         '409':
           description: >-
-            Would demote the last active Super Admin, or a non-Super-Admin actor tried to
-            grant the Super Admin role
+            `last_super_admin` — would demote the last active Super Admin, or a
+            non-Super-Admin actor tried to grant the Super Admin role
 
   /api/v1/admin/admins/{userId}/deactivate:
     post:
@@ -109,7 +109,10 @@ paths:
       description: >
         Suspends the admin ROLE assignment (state -> `suspended`): admin API access is cut,
         any other roles the account holds (e.g. rider) are untouched. Deactivating the last
-        active Super Admin -> 409.
+        active Super Admin -> 409 `last_super_admin`. Review V1 W9: the guard locks the Super
+        Admin assignments before counting (concurrent demotions / deactivations / deletions run
+        one after the other) and counts only assignments of ACTIVE accounts; the same guard
+        refuses the last active Super Admin's own account deletion (auth-v1 DELETE /users/me).
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -120,7 +123,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AdminAccount' }
         '404': { description: No admin account for userId }
-        '409': { description: Would deactivate the last active Super Admin }
+        '409': { description: '`last_super_admin` — would deactivate the last active Super Admin' }
 
   /api/v1/admin/admins/{userId}/reactivate:
     post:
@@ -256,7 +259,18 @@ components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
-    Phone: { type: string, pattern: '^\+?[0-9]{8,15}$', examples: ['+963900000005'] }
+    Phone:
+      type: string
+      pattern: '^\+[1-9][0-9]{7,14}$'
+      description: A stored phone, always E.164 (owner ruling 2026-10-20, auth-v1 Phone)
+      examples: ['+963900000005']
+    PhoneInput:
+      type: string
+      description: >
+        A typed phone, canonicalized to E.164 by the server before lookup and storage — the
+        rules of auth-v1 PhoneInput (`0…` -> `+963…`, `963…` -> `+963…`, `00…` -> `+…`, spaces
+        and dashes stripped; owner ruling 2026-10-20). Invalid after that -> 400.
+      examples: ['0933000005', '+963933000005']
     PermissionCode:
       type: string
       description: '`domain:action` authority string, shared verbatim with the frontend'
@@ -350,7 +364,7 @@ components:
       type: object
       required: [phone, name, roleId]
       properties:
-        phone: { $ref: '#/components/schemas/Phone' }
+        phone: { $ref: '#/components/schemas/PhoneInput' }
         name: { type: string, maxLength: 100, description: Ignored in `granted_existing` mode (account keeps its name) }
         roleId: { type: string, format: uuid }
 

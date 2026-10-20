@@ -21,6 +21,7 @@ import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.Language;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.enums.PhoneChangeStage;
+import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.GoneException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceAlreadyExistsException;
@@ -31,6 +32,7 @@ import com.labby.backend.repository.RbacRoleRepository;
 import com.labby.backend.repository.RefreshTokenRepository;
 import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
+import com.labby.backend.service.AccountDeletionGates;
 import com.labby.backend.service.DeviceTokenService;
 import com.labby.backend.service.DriverApplicationService;
 import com.labby.backend.service.MeServiceImpl;
@@ -70,6 +72,7 @@ class MeServiceImplTest {
   @Mock private DeviceTokenService deviceTokenService;
   @Mock private DriverApplicationService driverApplicationService;
   @Mock private PhoneChangeSessionRepository phoneChangeSessionRepository;
+  @Mock private AccountDeletionGates accountDeletionGates;
 
   /** The phone_change_sessions table behind the repository mock (one row per account). */
   private final Map<UUID, PhoneChangeSession> phoneChanges = new HashMap<>();
@@ -97,7 +100,8 @@ class MeServiceImplTest {
             new ProfileServiceImpl(userMapper, rbacRoleRepository),
             deviceTokenService,
             driverApplicationService,
-            phoneChangeSessionRepository);
+            phoneChangeSessionRepository,
+            accountDeletionGates);
     userId = UUID.randomUUID();
     user =
         User.builder()
@@ -142,6 +146,24 @@ class MeServiceImplTest {
             () -> meService.phoneChangeStart(userId, new PhoneChangeStartRequestDto(NEW_PHONE)))
         .isInstanceOf(ResourceAlreadyExistsException.class);
     verify(otpService, never()).issue(anyString(), any(), any());
+  }
+
+  @Test
+  @DisplayName(
+      "review V1 W12: a phone held by a deleted account is refused at start with its own code")
+  void shouldRejectStartWhenNewPhoneHeldByDeletedAccount() {
+    User deleted = User.builder().phone(NEW_PHONE).passwordHash("x").name("Gone").build();
+    deleted.setId(UUID.randomUUID());
+    deleted.setState(AccountState.DELETED);
+    when(userRepository.findByPhone(NEW_PHONE)).thenReturn(Optional.of(deleted));
+
+    assertThatThrownBy(
+            () -> meService.phoneChangeStart(userId, new PhoneChangeStartRequestDto(NEW_PHONE)))
+        .isInstanceOf(ResourceAlreadyExistsException.class)
+        .extracting("code")
+        .isEqualTo("phone_held_by_deleted_account");
+    verify(otpService, never()).issue(anyString(), any(), any());
+    assertThat(phoneChanges).isEmpty();
   }
 
   @Test
@@ -322,5 +344,24 @@ class MeServiceImplTest {
     verify(deviceTokenService).removeAllForUser(userId);
     // An open driver application is withdrawn with the account (owner decision 2026-10-07).
     verify(driverApplicationService).withdrawForDeletedAccount(userId);
+    // Review V1 H1 / W13: the gates ran, and pending activity ended with the account.
+    verify(accountDeletionGates).requireDeletable(userId);
+    verify(accountDeletionGates).cleanUp(userId);
+  }
+
+  @Test
+  @DisplayName("review V1 H1: a blocked deletion keeps the 2FA code and changes nothing")
+  void shouldKeepCodeWhenDeletionBlocked() {
+    doThrow(new ConflictException("Finish the active ride first").withCode("active_ride"))
+        .when(accountDeletionGates)
+        .requireDeletable(userId);
+
+    assertThatThrownBy(() -> meService.deleteAccount(userId, new DeleteAccountRequestDto("111111")))
+        .isInstanceOf(ConflictException.class)
+        .extracting("code")
+        .isEqualTo("active_ride");
+    verify(otpService, never()).validateAndConsume(anyString(), any(), anyString());
+    verify(accountDeletionGates, never()).cleanUp(any());
+    assertThat(user.getState()).isEqualTo(AccountState.ACTIVE);
   }
 }
