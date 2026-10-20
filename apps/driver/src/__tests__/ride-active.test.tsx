@@ -369,6 +369,28 @@ describe("active ride (UC-D-07..10)", () => {
     expect(screen.getByTestId("availability-online")).toBeTruthy();
   });
 
+  it("the in-ride sheet header follows board DriverSafetyActions (I64)", async () => {
+    await withActiveRide(inProgressRide());
+    expect(await screen.findByTestId("in-ride-sheet")).toBeTruthy();
+
+    expect(screen.getByTestId("in-ride-title")).toHaveTextContent("To drop-off");
+    expect(screen.getByTestId("in-ride-eta")).toHaveTextContent("7 min");
+    expect(screen.getByTestId("in-ride-subtitle")).toHaveTextContent(
+      "Umayyad Square · Rana",
+    );
+    expect(screen.getByTestId("in-ride-fare")).toHaveTextContent(
+      "Economy · Cash · fare is metered",
+      { exact: false },
+    );
+    expect(screen.getByTestId("in-ride-estimate")).toHaveTextContent(
+      /^SYP 22,000 est\.$/,
+    );
+    // The superseded DriverInRide header (rider's name + elapsed clock) is gone.
+    expect(screen.queryByText("Rana's ride")).toBeNull();
+    expect(screen.queryByTestId("ride-elapsed")).toBeNull();
+    expect(screen.getByTestId("ride-end")).toBeTruthy();
+  });
+
   it("ride.connection lost / ok toggles the connection-lost banner (UC-D-08 E1)", async () => {
     const { socket } = await withActiveRide(inProgressRide());
     expect(await screen.findByTestId("in-ride-sheet")).toBeTruthy();

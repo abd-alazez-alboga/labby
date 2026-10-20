@@ -381,43 +381,58 @@ export function AtPickupSheet({
 // ---------------------------------------------------------------- in ride
 
 /**
- * UC-D-08 — the rider's ride with an elapsed timer, the stops + drop-off
- * ("route updated by rider" after a `ride.updated` route_changed), and the
- * big near-black End ride. Fare is metered — no amount is shown here.
+ * UC-D-08 — the in-ride sheet. Header per board DriverSafetyActions (I64,
+ * owner ruling 2026-10-20: it supersedes DriverInRide): "To drop-off" with
+ * the ETA, the drop-off and rider below; then the stops + drop-off ("route
+ * updated by rider" after a `ride.updated` route_changed), Chat / Call /
+ * Share, the service + payment with the estimated fare (the final fare is
+ * metered) and the big near-black End ride.
  */
 export function InRideSheet({
   ctx,
   ride,
+  etaSeconds,
 }: {
   ctx: DriverRideContextValue;
   ride: Ride;
+  /** Time to the drop-off: the server ETA, else the drawn route's. */
+  etaSeconds: number | null;
 }) {
   const { t } = useTranslation();
   const { language, flipRows } = useDirection();
-  const now = useNow(true, 1000);
-  const name = riderName(t, ride);
-  const startedAt = ride.timeline.startedAt
-    ? Date.parse(ride.timeline.startedAt)
-    : null;
+  const name =
+    ride.kind === "shared" ? t("ride.shared.inRideTitle") : riderName(t, ride);
   const error = ctx.error?.action === "complete" ? ctx.error : null;
 
   return (
     <View style={styles.group} testID="in-ride-sheet">
-      <View style={[styles.row, styles.between, flipRows && styles.rowReverse]}>
-        <AppText variant="heading" style={styles.grow}>
-          {ride.kind === "shared"
-            ? t("ride.shared.inRideTitle")
-            : t("ride.inRide.title", { name })}
-        </AppText>
-        {startedAt !== null ? (
-          <AppText
-            variant="heading"
-            color={colors.accent}
-            testID="ride-elapsed"
-          >
-            {formatClock(now - startedAt, language)}
+      <View>
+        <View
+          style={[styles.row, styles.between, flipRows && styles.rowReverse]}
+        >
+          <AppText variant="heading" style={styles.grow} testID="in-ride-title">
+            {t("ride.inRide.toDropOff")}
           </AppText>
-        ) : null}
+          {etaSeconds !== null ? (
+            <AppText
+              variant="heading"
+              color={colors.accent}
+              testID="in-ride-eta"
+            >
+              {formatMinutes(t, etaSeconds, language)}
+            </AppText>
+          ) : null}
+        </View>
+        <AppText
+          variant="secondary"
+          color={colors.textSecondary}
+          testID="in-ride-subtitle"
+        >
+          {t("ride.inRide.subtitle", {
+            place: placeLabel(t, ride.destination),
+            name,
+          })}
+        </AppText>
       </View>
 
       <RouteSteps
@@ -452,11 +467,23 @@ export function InRideSheet({
       {/* M10 (UC-S-13..15): Chat / Call / Share trip. */}
       <SafetyRow ride={ride} />
 
-      <AppText variant="secondary" color={colors.textSecondary}>
-        {t("ride.inRide.metered", {
-          payment: t(`ride.payment.${ride.paymentMethod}`),
-        })}
-      </AppText>
+      <View style={styles.fareBlock} testID="in-ride-fare">
+        <AppText variant="caption" weight="400" color={colors.textMuted}>
+          {t("ride.inRide.fareCaption", {
+            service: serviceName(ride, language),
+            payment: t(`ride.payment.${ride.paymentMethod}`),
+          })}
+        </AppText>
+        <AppText variant="bodyStrong" weight="800" testID="in-ride-estimate">
+          {t("ride.inRide.estimate", {
+            fare: formatMoney(
+              ride.estimate.components.total,
+              ride.estimate.components.currency,
+              language,
+            ),
+          })}
+        </AppText>
+      </View>
 
       {ride.driverStream === "lost" ? <StreamLostBanner /> : null}
       <ActionError error={error} />
@@ -486,6 +513,12 @@ const styles = StyleSheet.create({
     fontSize: 40,
     lineHeight: 48,
     fontWeight: "800",
+  },
+  fareBlock: {
+    gap: 2,
+    paddingTop: spacing.ms,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
   },
   pickupCard: {
     flexDirection: "row",

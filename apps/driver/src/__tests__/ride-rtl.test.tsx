@@ -84,7 +84,7 @@ describe("ride screens in Arabic (RTL)", () => {
     await waitForResync(contract);
 
     expect(await screen.findByTestId("in-ride-sheet")).toBeTruthy();
-    expect(screen.getByText("رحلة Rana")).toHaveStyle({ textAlign: "right" });
+    expect(screen.getByText("إلى الوجهة")).toHaveStyle({ textAlign: "right" });
     expect(screen.getByText("أنهِ الرحلة")).toBeTruthy();
     expect(screen.getByTestId("ride-destination")).toHaveTextContent(
       "الوجهة",

@@ -258,7 +258,13 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
         testID="in-ride-instruction"
       />
     );
-    sheet = <InRideSheet ctx={ctx} ride={ride} />;
+    sheet = (
+      <InRideSheet
+        ctx={ctx}
+        ride={ride}
+        etaSeconds={ride.etaSeconds ?? route?.durationSeconds ?? null}
+      />
+    );
   } else if (ride.state === "in_progress") {
     const eta = ride.etaSeconds ?? route?.durationSeconds ?? null;
     top = (
@@ -276,7 +282,7 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
         testID="in-ride-instruction"
       />
     );
-    sheet = <InRideSheet ctx={ctx} ride={ride} />;
+    sheet = <InRideSheet ctx={ctx} ride={ride} etaSeconds={eta} />;
   }
 
   return (

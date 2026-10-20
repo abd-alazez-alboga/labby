@@ -572,13 +572,15 @@
       "noShowIn": "No-show in {{time}}"
     },
     "inRide": {
-      "title": "{{name}}'s ride",
+      "toDropOff": "To drop-off",
+      "subtitle": "{{place}} · {{name}}",
       "dropOffIn": "Drop-off · {{eta}}",
       "nextStop": "Next stop",
       "nextStopIn": "Next stop · {{distance}}",
       "dropOffUpdated": "Drop-off · route updated by rider",
       "routeChanged": "The rider changed the route.",
-      "metered": "{{payment}} · fare is metered from the trip",
+      "fareCaption": "{{service}} · {{payment}} · fare is metered",
+      "estimate": "{{fare}} est.",
       "end": "End ride"
     },
     "complete": {
