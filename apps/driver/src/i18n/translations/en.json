@@ -1433,8 +1433,7 @@
       "loadMoreFailed": "Couldn't load older tickets.",
       "retry": "Try again",
       "meta": "{{category}} · {{date}}",
-      "lostItem": "Lost item",
-      "lastSupport": "Support: {{body}}"
+      "lostItem": "Lost item"
     },
     "thread": {
       "opened": "Ticket opened · {{date}}",

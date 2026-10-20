@@ -1433,8 +1433,7 @@
       "loadMoreFailed": "تعذّر تحميل التذاكر الأقدم.",
       "retry": "حاول مجدداً",
       "meta": "{{category}} · {{date}}",
-      "lostItem": "غرض مفقود",
-      "lastSupport": "الدعم: {{body}}"
+      "lostItem": "غرض مفقود"
     },
     "thread": {
       "opened": "فُتحت التذكرة · {{date}}",
