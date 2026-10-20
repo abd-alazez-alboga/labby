@@ -20,7 +20,11 @@ export const SRS_REGION_DEFAULTS = {
     { weeklyTripsAbove: 100, percent: 20 },
     { weeklyTripsAbove: 200, percent: 15 },
   ],
-  /** DRV-08: 50 @ 40+, 100 @ 60+; peak +1.00 per trip; rating reward 20 @ ≥ 4.8 with ≥ 30 trips. */
+  /**
+   * DRV-08: 50 @ 40+, 100 @ 60+; peak +1.00 per trip; rating reward 20 @ ≥ 4.8 with ≥ 30 trips.
+   * The bundle form does NOT prefill the peak bonus (owner ruling 2026-10-20): the admin sets
+   * it together with its peak windows.
+   */
   incentiveValues: {
     weeklyTripBonuses: [
       { trips: 40, amount: 50 },

@@ -72,7 +72,8 @@ function mapSaveError(error: unknown, t: TFunction, language: string): UiMessage
  * needs regions:edit; without it everything renders disabled and the Save
  * button is hidden. Right after the region is created (`prefillDefaults`),
  * every unset value starts at its SRS §9 default — editable, saved only with
- * the bundle; an existing region always shows what is stored.
+ * the bundle — except the peak-hour bonus, which starts empty (owner ruling
+ * 2026-10-20); an existing region always shows what is stored.
  */
 export function BundleForm({
   region,
@@ -121,8 +122,10 @@ export function BundleForm({
       amount: String(bonus.amount),
     })),
   );
+  // Never prefilled (owner ruling 2026-10-20): the admin sets the peak bonus
+  // together with its peak windows, so only a stored value shows here.
   const [peakHourBonus, setPeakHourBonus] = useState(
-    toInput(initial.incentiveValues?.peakHourBonusPerTrip ?? null),
+    toInput(region.incentiveValues?.peakHourBonusPerTrip ?? null),
   );
   const [peakWindows, setPeakWindows] = useState<PeakWindowRow[]>(
     (initial.incentiveValues?.peakWindows ?? []).map((window) => ({

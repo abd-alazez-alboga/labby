@@ -135,6 +135,11 @@ describe('regions page', () => {
     expect(
       screen.getAllByLabelText('Bonus amount').map((input) => (input as HTMLInputElement).value),
     ).toEqual(['50', '100']);
+    // Owner ruling 2026-10-20: the peak-hour bonus is not prefilled — it is set with its windows.
+    expect(screen.getByLabelText(/^Bonus per trip/)).toHaveValue(null);
+    expect(
+      screen.getByText(/The peak-hour bonus starts empty: set it together with a peak window\./),
+    ).toBeVisible();
   });
 
   it('never prefills an existing region opened from the list', async () => {
