@@ -244,7 +244,7 @@ Tokens and rules live in [../design-system.md](../design-system.md); this folder
 - [Admin · User profile · History tab (M15 review H3)](A15UserHistory.dc.html)
 - [Admin · User profile · History tab (AR, RTL)](A15UserHistoryAr.dc.html)
 
-## V1 audit fixes (awaiting approval)
+## V1 audit fixes (owner-approved 2026-10-20)
 
 - [Admin · Sign in link + set or reset password: phone → code → new password (H2, UC-A-01)](V1FAdminSetPassword.dc.html)
 - [Admin · Your admin access is deactivated (W5, I31)](V1FAdminAccessDeactivated.dc.html)
