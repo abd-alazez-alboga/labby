@@ -149,7 +149,9 @@ export function RideView({
   const now = useNow(
     ride.state === "driver_arrived" || ride.state === "in_progress"
       ? 1000
-      : null,
+      : ride.state === "accepted"
+        ? 5000
+        : null,
   );
   const [cancelOpen, setCancelOpen] = useState(false);
   const [sosOpen, setSosOpen] = useState(false);
@@ -661,6 +663,19 @@ export function RideView({
       </BottomSheet>
     );
   } else if (ride.state === "accepted" && driver) {
+    // Elapsed since acceptance against elapsed + the live ETA, in percent.
+    const acceptedMs = ride.timeline.acceptedAt
+      ? Date.parse(ride.timeline.acceptedAt)
+      : Number.NaN;
+    const elapsed = Math.max(0, (now - acceptedMs) / 1000);
+    const approach =
+      facade.etaSeconds != null && !Number.isNaN(acceptedMs)
+        ? Math.round(
+            (elapsed + facade.etaSeconds > 0
+              ? elapsed / (elapsed + facade.etaSeconds)
+              : 1) * 100,
+          )
+        : null;
     sheet = (
       <BottomSheet testID="ride-accepted">
         <View style={[styles.headline, { flexDirection: row }]}>
@@ -673,6 +688,17 @@ export function RideView({
             </AppText>
           ) : null}
         </View>
+        {approach !== null ? (
+          // Approved artboard RiderDriverOnWay: how much of the approach is done.
+          <View
+            style={styles.approachTrack}
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: 100, now: approach }}
+            testID="ride-approach-progress"
+          >
+            <View style={[styles.approachFill, { width: `${approach}%` }]} />
+          </View>
+        ) : null}
         {sharedChip}
         <DriverCard driver={driver} />
         <SafetyActionsRow ride={ride} />
@@ -1180,6 +1206,16 @@ const styles = StyleSheet.create({
   waitBarFill: {
     height: "100%",
     backgroundColor: "#D97706",
+  },
+  approachTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    overflow: "hidden",
+  },
+  approachFill: {
+    height: 4,
+    backgroundColor: colors.accent,
   },
   splitRow: {
     alignItems: "center",

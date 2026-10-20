@@ -460,6 +460,26 @@ describe("ride flow (UC-R-05…07)", () => {
     });
   });
 
+  it("shows how much of the approach is done under Meet at pickup (V1 audit I43)", async () => {
+    mockApi({
+      [ACTIVE]: {
+        status: 200,
+        body: acceptedRide({
+          etaSeconds: 180,
+          timeline: {
+            requestedAt: new Date(Date.now() - 90_000).toISOString(),
+            acceptedAt: new Date(Date.now() - 60_000).toISOString(),
+          },
+        }),
+      },
+    });
+    await renderHome();
+    const bar = await screen.findByTestId("ride-approach-progress");
+    // 60 s elapsed of 60 s + a 3 min ETA → a quarter of the way.
+    expect(bar.props.accessibilityValue.now).toBeGreaterThanOrEqual(24);
+    expect(bar.props.accessibilityValue.now).toBeLessThanOrEqual(26);
+  });
+
   it("points the trip arrow at the drop-off in Arabic too (V1 audit I42)", async () => {
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
     mockApi({
