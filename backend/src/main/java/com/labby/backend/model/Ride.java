@@ -34,9 +34,10 @@ import org.locationtech.jts.geom.Point;
 
 /**
  * One ride (RIDE-01..08). State machine and its legal transitions: rides-v1.yaml. Every reached
- * state keeps its timestamp; pricing inputs (surge multiplier, surcharge %) are locked at request.
- * Stops are {@code [{"lat", "lng", "label"?}]}; the estimate components are the FareComponents
- * shape. {@code version} makes concurrent writers on the same ride lose with 409.
+ * state keeps its timestamp; pricing inputs (surge multiplier, surcharge %, and the V33 rate /
+ * extras / cancellation snapshot) are locked at request. Stops are {@code [{"lat", "lng",
+ * "label"?}]}; the estimate components are the FareComponents shape. {@code version} makes
+ * concurrent writers on the same ride lose with 409.
  */
 @Entity
 @Table(name = "rides")
@@ -122,6 +123,13 @@ public class Ride {
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "estimate_components", nullable = false)
   private Map<String, Object> estimateComponents;
+
+  /**
+   * V33 (V1 audit H4): the locked pricing inputs; null on rides created before it (live config).
+   */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "pricing_snapshot")
+  private PricingSnapshot pricingSnapshot;
 
   @Column(name = "retry_of_ride_id")
   private UUID retryOfRideId;

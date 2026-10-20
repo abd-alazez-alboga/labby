@@ -158,7 +158,7 @@ public class RideTrackingServiceImpl implements RideTrackingService {
       return;
     }
     Region region = regionRepository.findById(ride.getRegionId()).orElseThrow();
-    BigDecimal rate = rideExtrasCalculator.waitPerMinRate(region);
+    BigDecimal rate = rideExtrasCalculator.waitPerMinRate(ride, region);
     if (rate.signum() <= 0
         || now.isBefore(rideExtrasCalculator.waitChargeStartsAt(ride, region))
         || notificationOutboxRepository.existsByEventAndRideId(

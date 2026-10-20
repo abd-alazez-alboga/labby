@@ -1,6 +1,7 @@
 package com.labby.backend.service;
 
 import com.labby.backend.dto.FareComponentsDto;
+import com.labby.backend.model.PricingSnapshot;
 import com.labby.backend.model.ServiceType;
 import com.labby.backend.model.SurchargeWindow;
 import com.labby.backend.util.TimeWindows;
@@ -90,11 +91,74 @@ public class FareCalculator {
       BigDecimal surgeMultiplier,
       BigDecimal waitFare,
       BigDecimal pickupFee) {
+    return price(
+        serviceType.getBaseFare(),
+        serviceType.getPerKmRate(),
+        serviceType.getPerMinRate(),
+        serviceType.getMinimumFare(),
+        currency,
+        distanceMeters,
+        durationSeconds,
+        surchargePercent,
+        surgeMultiplier,
+        waitFare,
+        pickupFee);
+  }
+
+  /**
+   * Prices a ride's final fare from the rates LOCKED on it at request (V33, V1 audit H4), with the
+   * PRC-03 extras — an admin edit of the service type after the request never reaches it.
+   *
+   * @param snapshot the ride's pricing snapshot
+   * @param currency the ride currency
+   * @param distanceMeters metered distance
+   * @param durationSeconds actual duration
+   * @param surchargePercent the locked surcharge
+   * @param surgeMultiplier the locked surge multiplier
+   * @param waitFare the computed wait charge (0 = none)
+   * @param pickupFee the computed pickup-distance fee (0 = none)
+   * @return every component and the total
+   */
+  public FareComponentsDto price(
+      PricingSnapshot snapshot,
+      String currency,
+      long distanceMeters,
+      long durationSeconds,
+      BigDecimal surchargePercent,
+      BigDecimal surgeMultiplier,
+      BigDecimal waitFare,
+      BigDecimal pickupFee) {
+    return price(
+        snapshot.baseFare(),
+        snapshot.perKmRate(),
+        snapshot.perMinRate(),
+        snapshot.minimumFare(),
+        currency,
+        distanceMeters,
+        durationSeconds,
+        surchargePercent,
+        surgeMultiplier,
+        waitFare,
+        pickupFee);
+  }
+
+  private static FareComponentsDto price(
+      BigDecimal baseFare,
+      BigDecimal perKmRate,
+      BigDecimal perMinRate,
+      BigDecimal minimumFare,
+      String currency,
+      long distanceMeters,
+      long durationSeconds,
+      BigDecimal surchargePercent,
+      BigDecimal surgeMultiplier,
+      BigDecimal waitFare,
+      BigDecimal pickupFee) {
     BigDecimal km = BigDecimal.valueOf(distanceMeters).divide(THOUSAND);
     BigDecimal minutes = BigDecimal.valueOf(durationSeconds).divide(SIXTY, 6, RoundingMode.HALF_UP);
-    BigDecimal base = money(serviceType.getBaseFare());
-    BigDecimal distanceFare = money(serviceType.getPerKmRate().multiply(km));
-    BigDecimal timeFare = money(serviceType.getPerMinRate().multiply(minutes));
+    BigDecimal base = money(baseFare);
+    BigDecimal distanceFare = money(perKmRate.multiply(km));
+    BigDecimal timeFare = money(perMinRate.multiply(minutes));
     BigDecimal subtotal = base.add(distanceFare).add(timeFare);
     BigDecimal surcharge = money(subtotal.multiply(surchargePercent).divide(HUNDRED));
     BigDecimal surge =
@@ -103,7 +167,7 @@ public class FareCalculator {
     BigDecimal wait = money(waitFare);
     BigDecimal pickup = money(pickupFee);
     BigDecimal beforeFloor = subtotal.add(surcharge).add(surge).add(wait).add(pickup);
-    BigDecimal minimum = money(serviceType.getMinimumFare());
+    BigDecimal minimum = money(minimumFare);
     BigDecimal topUp = beforeFloor.compareTo(minimum) < 0 ? minimum.subtract(beforeFloor) : zero;
     return new FareComponentsDto(
         currency,

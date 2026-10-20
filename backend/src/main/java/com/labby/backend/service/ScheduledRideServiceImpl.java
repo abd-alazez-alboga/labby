@@ -110,6 +110,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
             .currency(region.getCurrency())
             .surgeMultiplier(surge)
             .surchargePercent(surcharge)
+            .pricingSnapshot(RidePricing.snapshot(serviceType, region))
             .requestedAt(now)
             .build();
     scheduledRideSupport.applyEstimate(ride, estimate);

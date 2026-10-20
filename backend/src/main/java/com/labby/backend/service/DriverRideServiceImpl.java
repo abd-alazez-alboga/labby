@@ -24,7 +24,6 @@ import com.labby.backend.model.Fare;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
-import com.labby.backend.model.ServiceType;
 import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.User;
 import com.labby.backend.repository.FareRepository;
@@ -129,7 +128,7 @@ public class DriverRideServiceImpl implements DriverRideService {
     ride.setAcceptedAt(now);
     ride.setDriverUserId(userId);
     ride.setVehicleId(offer.getVehicleId());
-    ride.setCancellationGraceEndsAt(rideLifecycle.cancellationGraceEnd(ride.getRegionId(), now));
+    ride.setCancellationGraceEndsAt(rideLifecycle.cancellationGraceEnd(ride, now));
     ride.setEtaSeconds(offer.getPickupEtaS());
     ride.setEtaRefreshedAt(now);
     ride = rideRepository.saveAndFlush(ride);
@@ -248,18 +247,31 @@ public class DriverRideServiceImpl implements DriverRideService {
     Instant now = clock.instant();
     long distanceMeters = Math.round(rideTraceRepository.meteredDistanceMeters(rideId));
     long durationSeconds = Math.max(0, Duration.between(ride.getStartedAt(), now).toSeconds());
-    ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
     Region region = regionRepository.findById(ride.getRegionId()).orElseThrow();
+    BigDecimal waitFare = rideExtrasCalculator.waitFare(ride, region);
+    BigDecimal pickupFee = rideExtrasCalculator.pickupFee(ride, region);
+    // V1 audit H4 (UC-A-06): the rates locked at request; only a ride from before the V33
+    // snapshot reads the live service type.
     FareComponentsDto components =
-        fareCalculator.price(
-            serviceType,
-            ride.getCurrency(),
-            distanceMeters,
-            durationSeconds,
-            ride.getSurchargePercent(),
-            ride.getSurgeMultiplier(),
-            rideExtrasCalculator.waitFare(ride, region),
-            rideExtrasCalculator.pickupFee(ride, region));
+        ride.getPricingSnapshot() != null
+            ? fareCalculator.price(
+                ride.getPricingSnapshot(),
+                ride.getCurrency(),
+                distanceMeters,
+                durationSeconds,
+                ride.getSurchargePercent(),
+                ride.getSurgeMultiplier(),
+                waitFare,
+                pickupFee)
+            : fareCalculator.price(
+                serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow(),
+                ride.getCurrency(),
+                distanceMeters,
+                durationSeconds,
+                ride.getSurchargePercent(),
+                ride.getSurgeMultiplier(),
+                waitFare,
+                pickupFee);
     // GRW-02: the promo discounts the final metered total, last, floor at zero (ruling 1-3). A
     // shared ride's discount applies to the redeeming member's own SHARE instead (below).
     if (ride.getKind() != RideKind.SHARED) {
@@ -400,15 +412,14 @@ public class DriverRideServiceImpl implements DriverRideService {
       Instant waitedUntil =
           ride.getDriverArrivedAt() == null
               ? null
-              : ride.getDriverArrivedAt()
-                  .plusSeconds(60L * rideAssembler.waitGraceMinutes(ride.getRegionId()));
+              : ride.getDriverArrivedAt().plusSeconds(60L * rideAssembler.waitGraceMinutes(ride));
       if (waitedUntil == null || now.isBefore(waitedUntil)) {
         throw new BusinessRuleViolationException(
                 "You can cancel for a no-show once the rider's wait time is over")
             .withCode("no_show_too_early")
             .withDetail("availableAt", waitedUntil == null ? null : waitedUntil.toString());
       }
-      ride.setCancellationFee(rideLifecycle.regionFee(ride.getRegionId()));
+      ride.setCancellationFee(rideLifecycle.cancellationFee(ride));
     }
     ride.setState(RideState.CANCELLED_BY_DRIVER);
     ride.setCancelledAt(now);
@@ -481,6 +492,7 @@ public class DriverRideServiceImpl implements DriverRideService {
             .estimateDurationS(cancelled.getEstimateDurationS())
             .estimateApproximate(cancelled.isEstimateApproximate())
             .estimateComponents(new HashMap<>(cancelled.getEstimateComponents()))
+            .pricingSnapshot(cancelled.getPricingSnapshot())
             .redispatchOfRideId(cancelled.getId())
             .requestedAt(now)
             .build());

@@ -114,7 +114,7 @@ info:
     The cancelled ride ends `cancelled_by_driver` (terminal, feeds the driver's cancellation
     metric) and, in the same transaction, a NEW ride is created for the rider with the same
     pickup/destination/stops/service type/payment method, the SAME locked surge multiplier,
-    surcharge % and estimate, and `redispatchOfRideId` set; it starts at `requested` and
+    surcharge %, estimate and pricing snapshot (V33 rates / extras / cancellation values), and `redispatchOfRideId` set; it starts at `requested` and
     dispatch excludes the driver who cancelled. Both rides appear in history. Exception: a
     `rider_no_show` cancellation (allowed only from `driver_arrived` after the region's wait
     grace, UC-D-07 E2) does NOT re-dispatch and records the region's cancellation fee on the

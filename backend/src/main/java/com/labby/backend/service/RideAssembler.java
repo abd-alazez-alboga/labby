@@ -571,18 +571,22 @@ public class RideAssembler {
     if (ride.getDriverArrivedAt() == null) {
       return null;
     }
-    return ride.getDriverArrivedAt().plusSeconds(60L * waitGraceMinutes(ride.getRegionId()));
+    return ride.getDriverArrivedAt().plusSeconds(60L * waitGraceMinutes(ride));
   }
 
   /**
-   * The region's wait grace in minutes (SRS default 5).
+   * A ride's wait grace in minutes: the one locked on it at request (V33, V1 audit H4), else — a
+   * ride from before the snapshot — the region's (SRS default 5).
    *
-   * @param regionId the region
+   * @param ride the ride
    * @return minutes
    */
-  public int waitGraceMinutes(UUID regionId) {
+  public int waitGraceMinutes(Ride ride) {
+    if (ride.getPricingSnapshot() != null && ride.getPricingSnapshot().waitGraceMin() != null) {
+      return ride.getPricingSnapshot().waitGraceMin();
+    }
     return regionRepository
-        .findById(regionId)
+        .findById(ride.getRegionId())
         .map(Region::getWaitGraceMin)
         .orElse(DEFAULT_WAIT_GRACE_MIN);
   }

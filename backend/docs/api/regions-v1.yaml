@@ -11,7 +11,10 @@ info:
     GeoJSON (lng,lat coordinate order, SRID 4326) and are stored in PostGIS. A region is a
     DRAFT until its mandatory bundle is complete; activation with missing config -> 409
     (UC-A-05 E1). Config edits apply to NEW rides only (UC-A-06) — nothing here mutates
-    in-flight rides. Admin endpoints enforce `x-required-permission` server-side (RBAC-03):
+    in-flight rides: every ride locks its service type's rates (base, per-km, per-min, minimum)
+    and the region's wait grace/rate, pickup-fee threshold/rate and cancellation grace/fee at
+    request (a scheduled / shared ride when it goes live, with its surge), and its completion,
+    extras and cancellation fee are priced from that snapshot (V33, V1 audit H4). Admin endpoints enforce `x-required-permission` server-side (RBAC-03):
     the region bundle under `regions:*`, pricing-flavored children (service types, surcharge
     windows, surge zones) under `pricing:*`. Every mutating admin call is audit-logged
     (RBAC-05, actions `region.*`, `service_type.*`, `surcharge_window.*`, `surge_zone.*`).

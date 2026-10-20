@@ -6,6 +6,7 @@ import com.labby.backend.dto.LatLngDto;
 import com.labby.backend.dto.PlaceDto;
 import com.labby.backend.dto.RouteDto;
 import com.labby.backend.exception.BusinessRuleViolationException;
+import com.labby.backend.model.PricingSnapshot;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.ServiceType;
 import com.labby.backend.model.SurgeZone;
@@ -173,6 +174,34 @@ public class RidePricing {
             surgeMultiplier);
     return new EstimateDto(
         route.distanceMeters(), route.durationSeconds(), route.approximate(), components);
+  }
+
+  /**
+   * The pricing inputs to lock on a ride requested now (V33, V1 audit H4): the service type's rates
+   * and the region's extras and cancellation values, the SRS defaults applied to unset values.
+   *
+   * @param serviceType the ride's service type
+   * @param region the ride's region
+   * @return the snapshot
+   */
+  public static PricingSnapshot snapshot(ServiceType serviceType, Region region) {
+    BigDecimal fee = region.getCancellationFee();
+    return new PricingSnapshot(
+        serviceType.getBaseFare(),
+        serviceType.getPerKmRate(),
+        serviceType.getPerMinRate(),
+        serviceType.getMinimumFare(),
+        orDefault(region.getWaitGraceMin(), RideExtrasCalculator.DEFAULT_WAIT_GRACE_MIN),
+        orDefault(region.getWaitPerMinRate(), RideExtrasCalculator.DEFAULT_WAIT_PER_MIN_RATE),
+        orDefault(
+            region.getPickupFeeThresholdKm(), RideExtrasCalculator.DEFAULT_PICKUP_FEE_THRESHOLD_KM),
+        orDefault(region.getPickupFeePerKm(), RideExtrasCalculator.DEFAULT_PICKUP_FEE_PER_KM),
+        orDefault(region.getCancellationGraceMin(), RideLifecycle.DEFAULT_CANCELLATION_GRACE_MIN),
+        fee == null || fee.signum() <= 0 ? null : fee);
+  }
+
+  private static <T> T orDefault(T value, T fallback) {
+    return value == null ? fallback : value;
   }
 
   /**

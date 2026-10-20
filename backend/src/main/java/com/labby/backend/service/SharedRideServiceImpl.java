@@ -158,6 +158,7 @@ public class SharedRideServiceImpl implements SharedRideService {
             .currency(region.getCurrency())
             .surgeMultiplier(surge)
             .surchargePercent(surcharge)
+            .pricingSnapshot(RidePricing.snapshot(serviceType, region))
             .requestedAt(now)
             .build();
     scheduledRideSupport.applyEstimate(ride, estimate);
@@ -428,8 +429,7 @@ public class SharedRideServiceImpl implements SharedRideService {
     }
     Instant now = clock.instant();
     Instant waitGraceEndsAt =
-        ride.getDriverArrivedAt()
-            .plusSeconds(60L * rideAssembler.waitGraceMinutes(ride.getRegionId()));
+        ride.getDriverArrivedAt().plusSeconds(60L * rideAssembler.waitGraceMinutes(ride));
     if (now.isBefore(waitGraceEndsAt)) {
       throw (ConflictException)
           new ConflictException("Wait until the member's wait time is over")
@@ -438,7 +438,7 @@ public class SharedRideServiceImpl implements SharedRideService {
     }
     member.setStatus(SharedMemberStatus.NO_SHOW);
     member.setNoShowAt(now);
-    member.setCancellationFee(rideLifecycle.regionFee(ride.getRegionId()));
+    member.setCancellationFee(rideLifecycle.cancellationFee(ride));
     sharedRideMemberRepository.saveAndFlush(member);
     promoService.releaseMember(ride, member.getRiderUserId());
     if (member.getCancellationFee() != null) {

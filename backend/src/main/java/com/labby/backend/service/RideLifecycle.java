@@ -160,6 +160,21 @@ public class RideLifecycle {
         && now.isBefore(ride.getCancellationGraceEndsAt())) {
       return null;
     }
+    return cancellationFee(ride);
+  }
+
+  /**
+   * A ride's cancellation fee: the one locked on it at request (V33, V1 audit H4), else — a ride
+   * from before the snapshot — the region's live fee; null when it charges nothing.
+   *
+   * @param ride the ride
+   * @return the fee or null
+   */
+  public BigDecimal cancellationFee(Ride ride) {
+    if (ride.getPricingSnapshot() != null) {
+      BigDecimal fee = ride.getPricingSnapshot().cancellationFee();
+      return fee == null || fee.signum() <= 0 ? null : fee;
+    }
     return regionFee(ride.getRegionId());
   }
 
@@ -189,6 +204,22 @@ public class RideLifecycle {
             .map(Region::getCancellationGraceMin)
             .orElse(DEFAULT_CANCELLATION_GRACE_MIN);
     return acceptedAt.plusSeconds(60L * minutes);
+  }
+
+  /**
+   * When free cancellation ends for a ride accepted now: accepted + the grace locked on the ride at
+   * request (V33, V1 audit H4), else — a ride from before the snapshot — the region's.
+   *
+   * @param ride the ride
+   * @param acceptedAt the acceptance
+   * @return the grace end
+   */
+  public Instant cancellationGraceEnd(Ride ride, Instant acceptedAt) {
+    if (ride.getPricingSnapshot() != null
+        && ride.getPricingSnapshot().cancellationGraceMin() != null) {
+      return acceptedAt.plusSeconds(60L * ride.getPricingSnapshot().cancellationGraceMin());
+    }
+    return cancellationGraceEnd(ride.getRegionId(), acceptedAt);
   }
 
   /**

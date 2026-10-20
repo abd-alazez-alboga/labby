@@ -94,8 +94,8 @@ public class ScheduledRideSupport {
 
   /**
    * Re-prices a ride entering live (S3 conversion / S4 fallback, scheduled-shared-v1): the pickup
-   * zone's surge NOW is locked, the surcharge stays the one of the pickup time's window, and the
-   * estimate is recomputed.
+   * zone's surge NOW is locked, the surcharge stays the one of the pickup time's window, the rates
+   * and region values are locked (V33 snapshot), and the estimate is recomputed.
    *
    * @param ride the ride (locked)
    * @param region its region
@@ -112,6 +112,8 @@ public class ScheduledRideSupport {
         ridePricing.estimate(serviceType, ride.getCurrency(), route, surcharge, surge);
     ride.setSurgeMultiplier(surge);
     ride.setSurchargePercent(surcharge);
+    // V1 audit H4: the rates and region values are locked when the ride goes live, with the surge.
+    ride.setPricingSnapshot(RidePricing.snapshot(serviceType, region));
     applyEstimate(ride, estimate);
   }
 

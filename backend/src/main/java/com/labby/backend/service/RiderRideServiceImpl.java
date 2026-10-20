@@ -406,6 +406,7 @@ public class RiderRideServiceImpl implements RiderRideService {
             .currency(region.getCurrency())
             .surgeMultiplier(surge)
             .surchargePercent(surcharge)
+            .pricingSnapshot(RidePricing.snapshot(serviceType, region))
             .retryOfRideId(retryOfRideId)
             .requestedAt(clock.instant())
             .build();

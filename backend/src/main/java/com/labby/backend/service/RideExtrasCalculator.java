@@ -2,6 +2,7 @@ package com.labby.backend.service;
 
 import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.enums.PickupDistanceMode;
+import com.labby.backend.model.PricingSnapshot;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
@@ -14,11 +15,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * The PRC-03 fare extras, per region config with the SRS defaults when a value is unset: the wait
- * charge bills the minutes beyond the wait grace between Arrived and the trip start, the
- * pickup-distance fee bills the accepted offer's pickup distance beyond the threshold — only for
- * {@code accept_distant_fee} riders (disclosed pre-booking, UC-R-04 A3). Amounts round HALF_UP to 2
- * decimals.
+ * The PRC-03 fare extras, per the values locked on the ride at request (V33, V1 audit H4) — or, for
+ * a ride from before that snapshot, the live region config — with the SRS defaults when a value is
+ * unset: the wait charge bills the minutes beyond the wait grace between Arrived and the trip
+ * start, the pickup-distance fee bills the accepted offer's pickup distance beyond the threshold —
+ * only for {@code accept_distant_fee} riders (disclosed pre-booking, UC-R-04 A3). Amounts round
+ * HALF_UP to 2 decimals.
  */
 @Component
 @RequiredArgsConstructor
@@ -54,7 +56,7 @@ public class RideExtrasCalculator {
       return BigDecimal.ZERO;
     }
     BigDecimal minutes = BigDecimal.valueOf(chargedSeconds).divide(SIXTY, 6, RoundingMode.HALF_UP);
-    return minutes.multiply(waitPerMinRate(region)).setScale(2, RoundingMode.HALF_UP);
+    return minutes.multiply(waitPerMinRate(ride, region)).setScale(2, RoundingMode.HALF_UP);
   }
 
   /**
@@ -65,18 +67,38 @@ public class RideExtrasCalculator {
    * @return {@code driverArrivedAt} + the region's wait grace
    */
   public Instant waitChargeStartsAt(Ride ride, Region region) {
-    int graceMinutes =
-        region.getWaitGraceMin() == null ? DEFAULT_WAIT_GRACE_MIN : region.getWaitGraceMin();
-    return ride.getDriverArrivedAt().plusSeconds(60L * graceMinutes);
+    return ride.getDriverArrivedAt().plusSeconds(60L * waitGraceMinutes(ride, region));
   }
 
   /**
-   * The region's wait per-minute rate (SRS default when unset).
+   * The wait grace of a ride: the one locked on it at request (V33, V1 audit H4), else — a ride
+   * from before the snapshot — the region's (SRS default when unset).
    *
-   * @param region the region
+   * @param ride the ride
+   * @param region its region
+   * @return minutes
+   */
+  public static int waitGraceMinutes(Ride ride, Region region) {
+    PricingSnapshot snapshot = ride.getPricingSnapshot();
+    if (snapshot != null && snapshot.waitGraceMin() != null) {
+      return snapshot.waitGraceMin();
+    }
+    return region.getWaitGraceMin() == null ? DEFAULT_WAIT_GRACE_MIN : region.getWaitGraceMin();
+  }
+
+  /**
+   * The wait per-minute rate of a ride: locked on it at request (V33), else the region's (SRS
+   * default when unset).
+   *
+   * @param ride the ride
+   * @param region its region
    * @return the rate
    */
-  public BigDecimal waitPerMinRate(Region region) {
+  public BigDecimal waitPerMinRate(Ride ride, Region region) {
+    PricingSnapshot snapshot = ride.getPricingSnapshot();
+    if (snapshot != null && snapshot.waitPerMinRate() != null) {
+      return snapshot.waitPerMinRate();
+    }
     return region.getWaitPerMinRate() == null
         ? DEFAULT_WAIT_PER_MIN_RATE
         : region.getWaitPerMinRate();
@@ -102,12 +124,23 @@ public class RideExtrasCalculator {
     if (distanceM == null) {
       return BigDecimal.ZERO;
     }
-    BigDecimal threshold =
-        region.getPickupFeeThresholdKm() == null
-            ? DEFAULT_PICKUP_FEE_THRESHOLD_KM
-            : region.getPickupFeeThresholdKm();
-    BigDecimal perKm =
-        region.getPickupFeePerKm() == null ? DEFAULT_PICKUP_FEE_PER_KM : region.getPickupFeePerKm();
+    PricingSnapshot snapshot = ride.getPricingSnapshot();
+    BigDecimal threshold;
+    BigDecimal perKm;
+    if (snapshot != null) {
+      // V1 audit H4: the values locked at request, never a later admin edit.
+      threshold = snapshot.pickupFeeThresholdKm();
+      perKm = snapshot.pickupFeePerKm();
+    } else {
+      threshold =
+          region.getPickupFeeThresholdKm() == null
+              ? DEFAULT_PICKUP_FEE_THRESHOLD_KM
+              : region.getPickupFeeThresholdKm();
+      perKm =
+          region.getPickupFeePerKm() == null
+              ? DEFAULT_PICKUP_FEE_PER_KM
+              : region.getPickupFeePerKm();
+    }
     BigDecimal overKm =
         BigDecimal.valueOf(distanceM).divide(THOUSAND, 6, RoundingMode.HALF_UP).subtract(threshold);
     if (overKm.signum() <= 0) {

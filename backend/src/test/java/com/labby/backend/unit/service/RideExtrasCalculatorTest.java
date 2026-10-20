@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.labby.backend.enums.OfferResponse;
 import com.labby.backend.enums.PickupDistanceMode;
+import com.labby.backend.model.PricingSnapshot;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
@@ -93,7 +94,7 @@ class RideExtrasCalculatorTest {
     Region unset = Region.builder().name("Unset").build();
     // 6 min after Arrived = 1 min past the default 5-min grace × 0.25.
     assertThat(calculator.waitFare(waited(ARRIVED, 360), unset)).isEqualByComparingTo("0.25");
-    assertThat(calculator.waitPerMinRate(unset)).isEqualByComparingTo("0.25");
+    assertThat(calculator.waitPerMinRate(waited(ARRIVED, 0), unset)).isEqualByComparingTo("0.25");
   }
 
   @Test
@@ -138,6 +139,38 @@ class RideExtrasCalculatorTest {
             ride.getId(), OfferResponse.ACCEPTED))
         .thenReturn(Optional.empty());
     assertThat(calculator.pickupFee(ride, region())).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("V1 audit H4: the values locked on the ride win over a later region edit")
+  void shouldPriceExtrasFromTheSnapshot() {
+    PricingSnapshot locked =
+        new PricingSnapshot(
+            new BigDecimal("1.00"),
+            new BigDecimal("0.50"),
+            new BigDecimal("0.10"),
+            new BigDecimal("1.50"),
+            5,
+            new BigDecimal("0.25"),
+            new BigDecimal("10"),
+            new BigDecimal("0.50"),
+            2,
+            new BigDecimal("2.00"));
+    Ride ride = waited(ARRIVED, 360);
+    ride.setPricingSnapshot(locked);
+    // The region now says grace 3 / 0.40 — the ride keeps grace 5 / 0.25: 1 min × 0.25.
+    assertThat(calculator.waitChargeStartsAt(ride, region())).isEqualTo(ARRIVED.plusSeconds(300));
+    assertThat(calculator.waitFare(ride, region())).isEqualByComparingTo("0.25");
+    assertThat(calculator.waitPerMinRate(ride, region())).isEqualByComparingTo("0.25");
+    Ride distant =
+        Ride.builder()
+            .id(UUID.randomUUID())
+            .pickupDistanceMode(PickupDistanceMode.ACCEPT_DISTANT_FEE)
+            .pricingSnapshot(locked)
+            .build();
+    // 12 km − the locked 10 km = 2 × the locked 0.50 (the region now says 4 km / 1.10).
+    accepted(distant, 12_000);
+    assertThat(calculator.pickupFee(distant, region())).isEqualByComparingTo("1.00");
   }
 
   private void accepted(Ride ride, int pickupDistanceM) {
