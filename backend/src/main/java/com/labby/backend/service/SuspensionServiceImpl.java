@@ -306,6 +306,8 @@ public class SuspensionServiceImpl implements SuspensionService {
     if (driverDutyGates.hasActiveRide(userId)) {
       return;
     }
+    // V1 audit W26: the suspended driver's open offer is withdrawn — dispatch moves on.
+    rideLifecycle.withdrawDriversOpenOffer(userId, now);
     driverProfileRepository
         .findByUserId(userId)
         .filter(DriverProfile::isOnline)

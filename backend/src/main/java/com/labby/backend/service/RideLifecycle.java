@@ -114,6 +114,36 @@ public class RideLifecycle {
   }
 
   /**
+   * V1 audit W26: a driver going offline (voluntarily or forced by a suspension) gives back their
+   * open offer — closed as {@code withdrawn} (not counted against them) with an {@code
+   * offer.withdrawn} frame (reason {@code driver_offline}), so the ride's dispatch moves on at its
+   * next step. The ride row is locked first (the order of accept and of the dispatch step).
+   *
+   * @param driverUserId the driver going offline
+   * @param now the moment
+   */
+  public void withdrawDriversOpenOffer(UUID driverUserId, Instant now) {
+    rideOfferRepository
+        .findFirstByDriverUserIdAndResponseIsNull(driverUserId)
+        .map(RideOffer::getRideId)
+        .ifPresent(
+            rideId -> {
+              lock(rideId);
+              // Re-read under the ride lock: only the driver's STILL-open offer is withdrawn.
+              rideOfferRepository
+                  .findFirstByRideIdAndResponseIsNull(rideId)
+                  .filter(offer -> driverUserId.equals(offer.getDriverUserId()))
+                  .ifPresent(
+                      offer -> {
+                        offer.setResponse(OfferResponse.WITHDRAWN);
+                        offer.setRespondedAt(now);
+                        rideOfferRepository.saveAndFlush(offer);
+                        rideEvents.offerWithdrawn(offer, "driver_offline");
+                      });
+            });
+  }
+
+  /**
    * After a ride ends for its driver: a driver whose role — or whole account (M11, USR-06) — was
    * suspended meanwhile goes offline (suspension forces offline; mid-ride it waits for the ride to
    * end).

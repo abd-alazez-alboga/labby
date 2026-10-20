@@ -16,21 +16,26 @@ import com.labby.backend.enums.PaymentStatus;
 import com.labby.backend.enums.RideKind;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
+import com.labby.backend.enums.Role;
+import com.labby.backend.enums.RoleState;
 import com.labby.backend.exception.BusinessRuleViolationException;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
+import com.labby.backend.model.DriverProfile;
 import com.labby.backend.model.Fare;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.RideOffer;
 import com.labby.backend.model.SharedRideMember;
 import com.labby.backend.model.User;
+import com.labby.backend.repository.DriverProfileRepository;
 import com.labby.backend.repository.FareRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideOfferRepository;
 import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RideTraceRepository;
+import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.RideAssembler.Audience;
@@ -88,6 +93,8 @@ public class DriverRideServiceImpl implements DriverRideService {
   private final FareRepository fareRepository;
   private final ServiceTypeRepository serviceTypeRepository;
   private final UserRepository userRepository;
+  private final RoleAssignmentRepository roleAssignmentRepository;
+  private final DriverProfileRepository driverProfileRepository;
   private final RideProperties rideProperties;
   private final TrackingProperties trackingProperties;
   private final Clock clock;
@@ -113,6 +120,11 @@ public class DriverRideServiceImpl implements DriverRideService {
     RideOffer offer = rideOfferRepository.findById(offerId).orElseThrow();
     Instant now = clock.instant();
     if (ride.getState() != RideState.OFFERING || !RideLifecycle.answerable(offer, now)) {
+      throw offerClosed();
+    }
+    // V1 audit W26: only an ACTIVE driver role that is online may take the offer (a suspension or
+    // going offline inside the offer window closes it).
+    if (!driverRoleActive(userId) || !driverOnline(userId)) {
       throw offerClosed();
     }
     // Review H1: a driver is bound to one live ride at a time (uq_rides_driver_assigned backs it).
@@ -549,6 +561,17 @@ public class DriverRideServiceImpl implements DriverRideService {
         .findById(rideId)
         .filter(ride -> userId.equals(ride.getDriverUserId()))
         .orElseThrow(() -> new ResourceNotFoundException(NOT_FOUND));
+  }
+
+  private boolean driverRoleActive(UUID userId) {
+    return roleAssignmentRepository
+        .findByUserIdAndRole(userId, Role.DRIVER)
+        .map(role -> role.getState() == RoleState.ACTIVE)
+        .orElse(false);
+  }
+
+  private boolean driverOnline(UUID userId) {
+    return driverProfileRepository.findByUserId(userId).map(DriverProfile::isOnline).orElse(false);
   }
 
   private String driverFirstName(UUID userId) {

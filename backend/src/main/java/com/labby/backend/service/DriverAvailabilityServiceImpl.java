@@ -35,6 +35,7 @@ public class DriverAvailabilityServiceImpl implements DriverAvailabilityService 
   private final VehicleRepository vehicleRepository;
   private final DriverLocationService driverLocationService;
   private final DriverDutyGates driverDutyGates;
+  private final RideLifecycle rideLifecycle;
   private final TrackingProperties trackingProperties;
   private final Clock clock;
 
@@ -56,6 +57,10 @@ public class DriverAvailabilityServiceImpl implements DriverAvailabilityService 
       throw new ConflictException("You can't go offline during an active ride");
     }
     if (profile.isOnline() != online) {
+      if (!online) {
+        // V1 audit W26: an offline driver keeps no open offer — dispatch moves on.
+        rideLifecycle.withdrawDriversOpenOffer(userId, clock.instant());
+      }
       profile.setOnline(online);
       profile.setOnlineChangedAt(clock.instant());
       profile = driverProfileRepository.saveAndFlush(profile);
