@@ -147,7 +147,15 @@ describe("scheduled notice from a foreground push (W22)", () => {
             claimState: "claimed",
             pricedAtRideTime: false,
           },
-          rider: { firstName: "Omar", rating: null, comfort: null },
+          rider: {
+            firstName: "Omar",
+            rating: null,
+            comfort: {
+              temperature: "no_preference",
+              conversation: "no_preference",
+              music: "no_preference",
+            },
+          },
         }),
       ),
     });
