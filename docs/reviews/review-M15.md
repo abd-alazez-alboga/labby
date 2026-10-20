@@ -330,3 +330,33 @@ Judgment calls for the owner (all under the standing approval):
 - Q1 and Q3 amendments recorded in the milestone file;
 - the History tab's ticket list reads the latest 50 and shows the newest 10;
 - the dashboard fetches each region's detail to learn its time zone.
+
+## Re-audit (`5bf88a7..6ba81f0`, 2026-10-20) → **Pass with comments**
+Three independent read-only agents: backend, client apps, ops/docs/tracker. Every original finding was verified **Resolved** against the full files. Each agent ran its own scoped tests:
+
+| Slice | Tests | Result |
+|---|---|---|
+| Backend | 16 suites | 117 tests green |
+| Admin | 10 files | 82 tests green, `tsc` clean |
+| Driver | — | 21 tests green |
+| Rider | — | 50 tests green |
+| Ops | — | scripts reproduced in scratch: good copy, tampered copy, missing checksum, non-empty database |
+| Docs | — | every load-test number cross-checked against `run3.json` |
+
+CI: 39355941216 (edd0f90) and 39357046332 (6ba81f0) green.
+
+The re-audit raised new comments, all resolved in 2c78b9d + e8d2feb:
+
+| Comment | Resolution |
+|---|---|
+| **N1 (Warning)** hourly ticks could pay last week from late ratings or a mid-week config edit | A finished week is evaluated only within 24 h of its end (`EVALUATION_WINDOW`), and only ratings given before the week ended count. Test: `shouldEvaluateAWeekOnlyInsideItsWindow`. Contract Q3/Q4 and milestone amendment updated. |
+| **N2 (Info)** `login_failures` never purged | `LoginFailurePurgeJob` runs daily (`LOGIN_FAILURE_PURGE_CRON`) with `LoginThrottle.purgeExpired`. Test: `shouldPurgeExpiredCounters`. |
+| **Apps N1 (Info)** History level cards without plural forms | EN/AR plural keys, split into separately pluralised pieces. Tested with EN 1 and AR 2/3. |
+| **Apps N2 (Info)** "Latest 10 of N" tickets wrong past 50 | The heading now says "Total: N" when the one page cannot hold the newest. Tested. |
+| **Tracker N1 (Warning)** Current state still said the fixes were uncommitted | Rewritten at the M15 close. |
+| **I-a…I-d** doc nits | Checklist row 13 now says ~3,050 accounts; `PG_RESTORE_CHECK` comment corrected; drill doc headlines run B; "java processes"; SRS NTF-01/02. |
+
+Left as noted, not changed:
+- The `fullyPaid` check still keys on `PaymentMethod.WALLET`, which is identical for V1; a V2 card gateway needs its own status mapping.
+- The race branch of the narrowed catch is reached only by a genuine concurrent run.
+- The dashboard makes one detail call per region to learn time zones.
