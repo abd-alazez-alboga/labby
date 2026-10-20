@@ -150,6 +150,16 @@ export function SupportHomeScreen() {
       ) : null}
       {load.status === "loaded" ? (
         <>
+          {load.categories.length === 0 ? (
+            // I99: no published help content yet — say so, not a bare heading.
+            <AppText
+              variant="secondary"
+              color={colors.textMuted}
+              testID="support-topics-empty"
+            >
+              {t("support.noTopics")}
+            </AppText>
+          ) : null}
           <View testID="support-topics">
             {load.categories.map((category, index) => (
               <ListRow

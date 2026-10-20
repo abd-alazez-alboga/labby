@@ -324,6 +324,10 @@ describe("driver chat (UC-S-13/14)", () => {
     expect(screen.getByTestId("chat-context")).toHaveTextContent(
       /نقطة الانطلاق/,
     );
+    // I97: the send arrow is mirrored in RTL.
+    expect(screen.getByTestId("chat-send-icon")).toHaveStyle({
+      transform: [{ scaleX: -1 }],
+    });
   });
 
   it("maps the chat push deep link (screen catalog)", () => {

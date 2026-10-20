@@ -98,6 +98,14 @@ describe("support home + help center (UC-S-19/21)", () => {
     expect(screen.queryByTestId("support-unread-badge")).toBeNull();
   });
 
+  it("with no published topics the section says so (I99)", async () => {
+    await renderSupportApp({ ...homeRoutes(), [HELP_CATEGORIES]: ok([]) });
+
+    expect(await screen.findByTestId("support-topics-empty")).toHaveTextContent(
+      "No help topics yet. You can still contact support below.",
+    );
+  });
+
   it("renders Arabic topic names in AR", async () => {
     await renderSupportApp(homeRoutes(), { language: "ar" });
 

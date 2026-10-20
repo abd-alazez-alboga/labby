@@ -1335,6 +1335,7 @@
     "title": "Support",
     "searchEntry": "Search help",
     "topics": "Help topics",
+    "noTopics": "No help topics yet. You can still contact support below.",
     "articleCount": {
       "zero": "{{value}} articles",
       "one": "{{value}} article",

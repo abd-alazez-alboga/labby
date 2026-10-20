@@ -120,7 +120,7 @@ function Bubble({
 
 export function ChatScreen() {
   const { t } = useTranslation();
-  const { language, flipRows } = useDirection();
+  const { language, flipRows, rtl } = useDirection();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ rideId?: string; memberId?: string }>();
@@ -415,7 +415,13 @@ export function ChatScreen() {
                 ]}
                 testID="chat-send"
               >
-                <Icon name="send" color={colors.onAccent} />
+                {/* I97: the send arrow points along the reading direction. */}
+                <View
+                  style={rtl ? styles.mirrored : undefined}
+                  testID="chat-send-icon"
+                >
+                  <Icon name="send" color={colors.onAccent} />
+                </View>
               </Pressable>
             </View>
           </View>
@@ -542,5 +548,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sendPressed: { backgroundColor: colors.accentPressed },
+  mirrored: { transform: [{ scaleX: -1 }] },
   sendDisabled: { opacity: 0.4 },
 });
