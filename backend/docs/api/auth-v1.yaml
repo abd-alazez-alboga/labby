@@ -229,8 +229,16 @@ paths:
       summary: Soft-delete the own account (2FA)
       description: >
         State -> `deleted`, data retained, sessions revoked; re-registering the phone
-        reactivates (USR-07). Blocked while preconditions fail (e.g. active ride, driver debt
-        below floor — enforced from the milestones that introduce them) -> 409.
+        reactivates (USR-07). Preconditions are checked BEFORE the OTP is used (a refused
+        request keeps the code; review V1 H1): 409 `active_ride` (UC-S-07 E1) while the account
+        is on a live ride — as rider its own ride `requested` .. `in_progress` or a live shared
+        membership; as driver an assigned ride, a completed one whose cash is still pending, or
+        an open offer; 409 `debt_below_floor` (E2, COM-03) while a driver balance is at or below
+        its region floor; 409 `last_super_admin` for the last active Super Admin (review V1
+        W9). On success pending activity ends as on an account suspension (review V1 W13): the
+        driver goes offline, scheduled rides as rider are cancelled and claims as driver
+        released (reason `account_suspended`), shared memberships before acceptance end (a
+        gathering ride the account created is cancelled for everyone).
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -240,7 +248,7 @@ paths:
       responses:
         '204': { description: Account soft-deleted }
         '400': { description: Wrong/expired OTP }
-        '409': { description: Deletion blocked by an active precondition }
+        '409': { description: '`active_ride` | `debt_below_floor` | `last_super_admin` — deletion blocked by a precondition' }
 
   /api/v1/users/me/password:
     put:
@@ -261,7 +269,12 @@ paths:
     post:
       tags: [Me]
       summary: 'Phone change step 1: declare the new phone'
-      description: New phone must not belong to an active/suspended account (409). Sends OTP to the CURRENT phone.
+      description: >
+        The new phone (canonicalized, see PhoneInput) must belong to no other account: 409
+        `phone_in_use` when an active/suspended account holds it, 409
+        `phone_held_by_deleted_account` when a deleted account holds it (it keeps the phone for
+        USR-07 reactivation, so the change could never complete; review V1 W12). Both are
+        refused before any SMS. Sends OTP to the CURRENT phone.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -270,7 +283,7 @@ paths:
             schema: { $ref: '#/components/schemas/PhoneChangeStartRequest' }
       responses:
         '204': { description: Code sent to the current phone }
-        '409': { description: New phone already in use }
+        '409': { description: '`phone_in_use` | `phone_held_by_deleted_account`' }
 
   /api/v1/users/me/phone-change/verify-current:
     post:
@@ -306,6 +319,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/UserProfile' }
         '400': { description: Wrong code }
+        '409': { description: '`phone_in_use` — another account took the number meanwhile (race)' }
         '410': { description: Expired / attempts exhausted — restart the flow }
 
   /api/v1/users/me/photo:
@@ -335,7 +349,23 @@ components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
-    Phone: { type: string, pattern: '^\+?[0-9]{8,15}$', examples: ['+963900000001'] }
+    Phone:
+      type: string
+      pattern: '^\+[1-9][0-9]{7,14}$'
+      description: >
+        A stored phone, always E.164 `+<country><number>` (owner ruling 2026-10-20, review V1
+        H3): one handset is one identity (USR-01).
+      examples: ['+963900000001']
+    PhoneInput:
+      type: string
+      description: >
+        A phone as the user types it; the server canonicalizes it to E.164 before anything else
+        (owner ruling 2026-10-20, review V1 H3), so every typed form of one handset is one
+        account. Rules, after stripping spaces and dashes: `+…` kept; `00…` -> `+…`; `0…`
+        (Syrian local, e.g. `0933000111`) -> `+963…` without the leading zero; `963…` ->
+        `+963…`. The result must match `^\+[1-9][0-9]{7,14}$` (8–15 digits), else 400
+        `invalid phone number` — a foreign number must be typed with `+` and its code.
+      examples: ['0933000111', '+963933000111', '963933000111']
     OtpCode: { type: string, pattern: '^[0-9]{6}$' }
     Password: { type: string, minLength: 8, maxLength: 72 }
 
@@ -343,12 +373,12 @@ components:
       type: object
       required: [phone]
       properties:
-        phone: { $ref: '#/components/schemas/Phone' }
+        phone: { $ref: '#/components/schemas/PhoneInput' }
     RegisterVerifyRequest:
       type: object
       required: [phone, code]
       properties:
-        phone: { $ref: '#/components/schemas/Phone' }
+        phone: { $ref: '#/components/schemas/PhoneInput' }
         code: { $ref: '#/components/schemas/OtpCode' }
     RegisterVerifyResponse:
       type: object
@@ -375,7 +405,7 @@ components:
       type: object
       required: [phone, password, client]
       properties:
-        phone: { $ref: '#/components/schemas/Phone' }
+        phone: { $ref: '#/components/schemas/PhoneInput' }
         password: { type: string }
         client: { type: string, enum: [rider, driver, admin] }
     RefreshRequest:
@@ -395,12 +425,12 @@ components:
       type: object
       required: [phone]
       properties:
-        phone: { $ref: '#/components/schemas/Phone' }
+        phone: { $ref: '#/components/schemas/PhoneInput' }
     PasswordResetVerifyRequest:
       type: object
       required: [phone, code]
       properties:
-        phone: { $ref: '#/components/schemas/Phone' }
+        phone: { $ref: '#/components/schemas/PhoneInput' }
         code: { $ref: '#/components/schemas/OtpCode' }
     PasswordResetVerifyResponse:
       type: object
@@ -424,7 +454,7 @@ components:
       type: object
       required: [newPhone]
       properties:
-        newPhone: { $ref: '#/components/schemas/Phone' }
+        newPhone: { $ref: '#/components/schemas/PhoneInput' }
     PhoneChangeVerifyRequest:
       type: object
       required: [code]

@@ -2,12 +2,15 @@ package com.labby.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.dto.AuthTokensResponseDto;
+import com.labby.backend.dto.RegisterVerifyResponseDto;
 import com.labby.backend.dto.UserProfileDto;
 import com.labby.backend.enums.ClientType;
 import com.labby.backend.enums.Language;
 import com.labby.backend.enums.OtpPurpose;
 import com.labby.backend.service.OtpService;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -173,6 +176,102 @@ class AccountManagementIntegrationTest extends AbstractAuthIntegrationTest {
 
     assertThat(start.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(smsCountFor(phoneA)).isEqualTo(sentBefore);
+  }
+
+  @Test
+  @DisplayName(
+      "review V1 W12: a phone held by a deleted account is refused at start (409"
+          + " phone_held_by_deleted_account), before any SMS")
+  void shouldRejectPhoneChangeWhenNewPhoneHeldByDeletedAccount() {
+    String deletedPhone = "+963911400013";
+    AuthTokensResponseDto gone = register(deletedPhone, "Secret123!", "Leaver");
+    ageOtpCodes(deletedPhone);
+    String otp = requestTwoFactorCode(gone.accessToken(), deletedPhone);
+    assertThat(
+            restTemplate
+                .exchange(
+                    "/api/v1/users/me",
+                    HttpMethod.DELETE,
+                    authorized(Map.of("otpCode", otp), gone.accessToken()),
+                    Void.class)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.NO_CONTENT);
+    String phone = "+963911400014";
+    AuthTokensResponseDto session = register(phone, "Secret123!", "Taker");
+    int sentBefore = smsCountFor(phone);
+
+    // Any typed form of the deleted account's number is the same number.
+    ResponseEntity<JsonNode> start =
+        restTemplate.postForEntity(
+            "/api/v1/users/me/phone-change/start",
+            authorized(Map.of("newPhone", "0911400013"), session.accessToken()),
+            JsonNode.class);
+
+    assertThat(start.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(start.getBody().path("code").asText()).isEqualTo("phone_held_by_deleted_account");
+    assertThat(smsCountFor(phone)).isEqualTo(sentBefore);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM phone_change_sessions", Integer.class))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "review V1 H3: 0933000111, +963933000111 and 963933000111 are one identity, stored E.164")
+  void shouldTreatEveryPhoneFormAsOneIdentity() {
+    // Registration started in the local form, verified in another: one number, one OTP.
+    assertThat(
+            restTemplate
+                .postForEntity(
+                    "/api/v1/auth/register/start", Map.of("phone", "0933000111"), Void.class)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.NO_CONTENT);
+    ResponseEntity<RegisterVerifyResponseDto> verify =
+        restTemplate.postForEntity(
+            "/api/v1/auth/register/verify",
+            Map.of("phone", "963933000111", "code", lastCodeFor("+963933000111")),
+            RegisterVerifyResponseDto.class);
+    assertThat(verify.getStatusCode()).isEqualTo(HttpStatus.OK);
+    ResponseEntity<AuthTokensResponseDto> complete =
+        restTemplate.postForEntity(
+            "/api/v1/auth/register/complete",
+            Map.of(
+                "registrationToken",
+                verify.getBody().registrationToken(),
+                "password",
+                "Secret123!",
+                "name",
+                "Local Typist",
+                "termsAccepted",
+                true),
+            AuthTokensResponseDto.class);
+    assertThat(complete.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    AuthTokensResponseDto session = complete.getBody();
+    assertThat(session.user().phone()).isEqualTo("+963933000111");
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT phone FROM users WHERE user_id = ?", String.class, session.user().id()))
+        .isEqualTo("+963933000111");
+
+    // The other forms find the same account: registering again is refused, login works.
+    for (String form : List.of("+963933000111", "963933000111", "0933 000 111")) {
+      ResponseEntity<JsonNode> again =
+          restTemplate.postForEntity(
+              "/api/v1/auth/register/start", Map.of("phone", form), JsonNode.class);
+      assertThat(again.getStatusCode()).as(form).isEqualTo(HttpStatus.CONFLICT);
+      ResponseEntity<AuthTokensResponseDto> login = tryLogin(form, "Secret123!", ClientType.RIDER);
+      assertThat(login.getStatusCode()).as(form).isEqualTo(HttpStatus.OK);
+      assertThat(login.getBody().user().id()).isEqualTo(session.user().id());
+    }
+    // A foreign number must carry its + and code: a bare one is invalid, not a new identity.
+    assertThat(
+            restTemplate
+                .postForEntity(
+                    "/api/v1/auth/register/start", Map.of("phone", "447700900123"), String.class)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(smsCountFor("447700900123")).isZero();
   }
 
   @Test

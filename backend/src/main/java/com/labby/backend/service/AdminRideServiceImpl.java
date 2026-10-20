@@ -19,6 +19,7 @@ import com.labby.backend.repository.RideTraceRepository;
 import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.RideAssembler.Audience;
+import com.labby.backend.util.PhoneNumbers;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -81,7 +82,11 @@ public class AdminRideServiceImpl implements AdminRideService {
   private Optional<Specification<Ride>> spec(Filter filter) {
     Optional<UUID> party = Optional.ofNullable(filter.userId());
     if (filter.phone() != null && !filter.phone().isBlank()) {
-      Optional<UUID> byPhone = userRepository.findByPhone(filter.phone().trim()).map(User::getId);
+      Optional<UUID> byPhone =
+          userRepository
+              // Any typed form finds the account (E.164 canonical storage, owner 2026-10-20).
+              .findByPhone(PhoneNumbers.normalize(filter.phone().trim()))
+              .map(User::getId);
       if (byPhone.isEmpty() || (party.isPresent() && !party.get().equals(byPhone.get()))) {
         return Optional.empty();
       }

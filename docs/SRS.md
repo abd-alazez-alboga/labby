@@ -78,7 +78,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 
 | ID | Requirement | Ver |
 |---|---|---|
-| AUTH-01 | Registration from either app: enter phone → receive SMS OTP → verify → set password + name. Rider app grants rider role immediately; Driver app additionally opens a driver application (DRV-01). AC: unverified phones cannot complete registration; duplicate phone → login/reactivation path. | V1 |
+| AUTH-01 | Registration from either app: enter phone → receive SMS OTP → verify → set password + name. Rider app grants rider role immediately; Driver app additionally opens a driver application (DRV-01). AC: unverified phones cannot complete registration; duplicate phone → login/reactivation path. (owner ruling 2026-10-20: phones stored as E.164; local 09… numbers default to +963) | V1 |
 | AUTH-02 | Login = phone + password from any app the account holds a role for. Token-based sessions; logout invalidates. AC: rider-only account cannot access Driver-app features. | V1 |
 | AUTH-03 | Password reset: phone → SMS OTP → new password. | V1 |
 | AUTH-04 | OTP policy (all flows): 6 digits · 5-min expiry · max 5 wrong attempts per code · 60 s resend cooldown · max 5 codes per phone per hour. Codes stored hashed, bound to a **purpose** (register / reset / 2FA) — a code is only valid for the operation it was issued for. | V1 |
@@ -90,7 +90,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 
 | ID | Requirement | Ver |
 |---|---|---|
-| USR-01 | One account per phone, holding one or both of rider/driver roles. A rider becomes a driver by applying in the Driver app with the same account; driver role activates on approval. | V1 |
+| USR-01 | One account per phone, holding one or both of rider/driver roles. A rider becomes a driver by applying in the Driver app with the same account; driver role activates on approval. (owner ruling 2026-10-20: phones stored as E.164; local 09… numbers default to +963) | V1 |
 | USR-02 | Ratings tracked **per role**; wallet **shared** across roles. | V1 |
 | USR-03 | Profile: name, photo, language (EN/AR). Rider extras: saved locations, comfort preferences, matching toggles. Driver extras: vehicle, availability. | V1 |
 | USR-04 | Account states `active / suspended / deleted`, with **role-level granularity** (driver role may be suspended while rider role stays active). Every state change notifies the user with the reason. | V1 |

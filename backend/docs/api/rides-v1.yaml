@@ -736,7 +736,7 @@ paths:
         - { name: state, in: query, schema: { $ref: '#/components/schemas/RideState' } }
         - { name: kind, in: query, schema: { type: string, enum: [on_demand, scheduled, shared] } }
         - { name: userId, in: query, description: Rider OR driver, schema: { type: string, format: uuid } }
-        - { name: phone, in: query, description: Rider or driver phone (exact, E.164), schema: { type: string } }
+        - { name: phone, in: query, description: 'Rider or driver phone, any typed form — canonicalized to E.164 like auth-v1 PhoneInput (owner ruling 2026-10-20), then matched exactly', schema: { type: string } }
         - { name: from, in: query, description: 'requestedAt ≥', schema: { type: string, format: date-time } }
         - { name: to, in: query, description: 'requestedAt <', schema: { type: string, format: date-time } }
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
