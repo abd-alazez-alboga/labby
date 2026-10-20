@@ -23,6 +23,15 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: VERSION matches pom.xml
+        working-directory: backend
+        run: |
+          pom_version="$(./mvnw -B -q help:evaluate -Dexpression=project.version -DforceStdout)"
+          file_version="$(tr -d '[:space:]' < VERSION)"
+          if [ "$pom_version" != "$file_version" ]; then
+            echo "backend/VERSION ($file_version) does not match pom.xml ($pom_version)"
+            exit 1
+          fi
       - name: Backend gate (format, checkstyle, unit + integration + ArchUnit)
         run: make -C backend check
 
