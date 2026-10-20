@@ -596,7 +596,11 @@
       "fareMissing": "The fare isn't available yet. Pull to refresh in a moment.",
       "walletApplied": "Paid from wallet",
       "carriedFee": "Carried fee from an earlier ride",
-      "cashToCollect": "Cash to collect"
+      "cashToCollect": "Cash to collect",
+      "settledLabel": "Already settled",
+      "nothingToCollect": "Nothing to collect",
+      "nothingToCollectBody": "A promo covered the whole fare — the rider pays nothing and there's no cash to confirm.",
+      "done": "Done"
     },
     "fare": {
       "base": "Base fare",
@@ -710,6 +714,8 @@
         "absentFee": "Owes the cancellation fee",
         "cancelledBody": "Left the ride",
         "didNotPay": "Didn't pay",
+        "nothingToPay": "Nothing to pay · covered in full",
+        "settled": "Settled",
         "hint": "Confirm each party's cash · Done unlocks once every payment is settled",
         "done": "Done"
       }

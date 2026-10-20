@@ -279,3 +279,33 @@ export function pendingMembers(ride: Ride): MemberView[] {
 function hasPendingMember(ride: Ride): boolean {
   return pendingMembers(ride).length > 0;
 }
+
+/**
+ * V1 audit W29 (money-v1 "Zero total"): a promo covered the whole fare and
+ * no due is carried in cash — the payment settled AT COMPLETION
+ * (`paid_cash` / `paid_wallet`), so there is nothing to collect.
+ */
+export function isZeroTotalSettled(ride: Ride): boolean {
+  return (
+    ride.state === "completed" &&
+    (ride.paymentStatus === "paid_cash" ||
+      ride.paymentStatus === "paid_wallet") &&
+    ride.fare?.components.total === 0 &&
+    !(typeof ride.cashDue === "number" && ride.cashDue > 0) &&
+    !(ride.carriedDues ?? []).some((due) => due.method === "cash")
+  );
+}
+
+/**
+ * W29 per member of a shared ride: a completed party whose share is 0 and
+ * who owes nothing in cash — settled at completion.
+ */
+export function isZeroShareSettled(member: MemberView): boolean {
+  return (
+    member.status === "completed" &&
+    (member.paymentStatus === "paid_cash" ||
+      member.paymentStatus === "paid_wallet") &&
+    member.shareAmount === 0 &&
+    !(typeof member.cashDue === "number" && member.cashDue > 0)
+  );
+}

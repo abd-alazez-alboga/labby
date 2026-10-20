@@ -268,6 +268,101 @@ export function CompleteScreen({
   );
 }
 
+/**
+ * V1 audit W29 (money-v1 "Zero total"): a promo covered the whole fare and
+ * nothing is carried in cash, so the payment settled at completion. In the
+ * "Driver complete" layout: "Nothing to collect" on the dark card, the
+ * stored fare's lines (the discount brings them to 0) and one Done — never
+ * "Collect SYP 0" or a cash-confirm.
+ */
+export function NothingToCollectScreen({
+  ride,
+  onDone,
+}: {
+  ride: Ride;
+  onDone: () => void;
+}) {
+  const { t } = useTranslation();
+  const { language } = useDirection();
+  const bottom = useSafeBottomBar();
+  const fare = ride.fare;
+  const name = ride.rider?.firstName?.trim() || t("ride.theRider");
+  const service =
+    language === "ar" ? ride.serviceTypeNameAr : ride.serviceTypeNameEn;
+  const meta = fare
+    ? [
+        formatDistance(t, fare.distanceMeters, language),
+        formatMinutes(t, fare.durationSeconds, language),
+        service,
+      ]
+    : [service];
+
+  return (
+    <View style={styles.screen} testID="nothing-to-collect-screen">
+      <SafeScrollView
+        safeTop
+        contentContainerStyle={styles.content}
+        bounces={false}
+      >
+        <AppText
+          variant="rowTitle"
+          color={colors.textSecondary}
+          testID="complete-title"
+        >
+          {t("ride.complete.title", { name })}
+        </AppText>
+
+        <View style={styles.cashCard} testID="nothing-to-collect-card">
+          <AppText variant="rowTitle" color={ON_DARK_MUTED}>
+            {t("ride.complete.settledLabel")}
+          </AppText>
+          <AppText
+            style={styles.nothing}
+            color={colors.onAccent}
+            testID="nothing-to-collect-title"
+          >
+            {t("ride.complete.nothingToCollect")}
+          </AppText>
+          <AppText variant="secondary" color={ON_DARK_MUTED}>
+            {meta.join(" · ")}
+          </AppText>
+        </View>
+
+        <AppText color={colors.textSecondary} testID="nothing-to-collect-body">
+          {t("ride.complete.nothingToCollectBody")}
+        </AppText>
+
+        {fare ? (
+          <View testID="fare-breakdown">
+            {fareLines(t, fare.components, ride, language).map((line) => (
+              <FareLine
+                key={line.key}
+                label={line.label}
+                value={formatSignedMoney(
+                  line.amount,
+                  fare.components.currency,
+                  language,
+                )}
+                testID={`fare-line-${line.key}`}
+              />
+            ))}
+          </View>
+        ) : null}
+      </SafeScrollView>
+
+      <View style={[styles.footer, { paddingBottom: bottom }]}>
+        <PrimaryButton
+          title={t("ride.complete.done")}
+          icon="checkmark"
+          size="hero"
+          onPress={onDone}
+          testID="nothing-to-collect-done"
+        />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   content: {
@@ -284,6 +379,11 @@ const styles = StyleSheet.create({
   total: {
     fontSize: 46,
     lineHeight: 54,
+    fontWeight: "800",
+  },
+  nothing: {
+    fontSize: 34,
+    lineHeight: 42,
     fontWeight: "800",
   },
   footer: {

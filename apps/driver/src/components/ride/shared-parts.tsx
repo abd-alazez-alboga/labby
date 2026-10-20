@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import type { Ride } from "../../api/ride-types";
-import { pendingMembers } from "../../api/ride-types";
+import { isZeroShareSettled, pendingMembers } from "../../api/ride-types";
 import type { MemberView } from "../../api/scheduled-types";
 import type { DriverRideContextValue } from "../../rides/DriverRideProvider";
 import {
@@ -418,7 +418,12 @@ function CollectRow({
   let chip: { tone: Tone; label: string } | null = null;
   if (member.status === "completed") {
     amount = pending ? (member.cashDue ?? member.shareAmount ?? null) : (member.shareAmount ?? null);
-    if (member.paymentStatus === "pending") {
+    if (isZeroShareSettled(member)) {
+      // W29: a 0 share with nothing due settled at completion — no amount.
+      amount = null;
+      subtitle = t("ride.shared.collect.nothingToPay");
+      chip = { tone: "success", label: t("ride.shared.collect.settled") };
+    } else if (member.paymentStatus === "pending") {
       subtitle = t("ride.shared.collect.cashShare", {
         party: t(
           member.partySize === 1 ? "ride.shared.partyOfOne" : "ride.shared.partyOf",

@@ -24,11 +24,13 @@ import { ScheduledEntry } from "./scheduled/scheduled-entry";
 import { NotificationsBell } from "./notifications/notifications-bell";
 import { BackgroundLocationBanner } from "./availability/background-location-banner";
 import { OnlinePill, RideNoticeBanner } from "./ride/ride-parts";
+import { NothingToCollectScreen } from "./ride/complete-screen";
 import { RideScreen } from "./ride/ride-screen";
 import { SharedCollectScreen } from "./ride/shared-parts";
 import { FloorBlockedCard, FloorWarningBanner } from "./money/floor";
 import { TripEarningsScreen } from "./money/trip-earnings-screen";
 import { RateRiderScreen, reportHrefFor } from "./trust/rate-rider-screen";
+import { isZeroTotalSettled } from "../api/ride-types";
 import { ratingKey } from "../api/trust-types";
 import type { BridgeZone } from "../map/leaflet-bridge";
 import { useOptionalHeatmap } from "../heatmap/HeatmapProvider";
@@ -240,6 +242,15 @@ export function HomeScreen() {
         ctx={rides}
         ride={rides.collected}
         onDone={rides.dismissCollected}
+      />
+    );
+  }
+  if (rides?.settled && isZeroTotalSettled(rides.settled)) {
+    // W29: a zero total settled at completion — nothing to collect.
+    return (
+      <NothingToCollectScreen
+        ride={rides.settled}
+        onDone={rides.dismissSettled}
       />
     );
   }
