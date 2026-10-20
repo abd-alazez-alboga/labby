@@ -4,8 +4,12 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import type { ComfortPreferences, Place } from "../../api/ride-types";
-import type { RideNotice } from "../../rides/DriverRideProvider";
-import { placeLabel } from "../../rides/format";
+import { isolateDigits } from "../../money/format";
+import type {
+  RideNotice,
+  RideNoticeDetail,
+} from "../../rides/DriverRideProvider";
+import { formatTime, placeLabel } from "../../rides/format";
 import { colors, shadows, spacing } from "../../theme/tokens";
 import { AppText, Banner, Icon, TextButton, useDirection } from "../ui";
 import type { IconName } from "../ui";
@@ -339,19 +343,97 @@ const NOTICE_TONES: Record<RideNotice, "neutral" | "success" | "warning"> = {
   scheduledRiderBusy: "neutral",
 };
 
+/** "Sat 07:30" (Western digits) — the scheduled pickup the notice names. */
+function pickupWhen(
+  detail: RideNoticeDetail,
+  language: string,
+): { time: string | null; when: string | null } {
+  const locale = language === "ar" ? "ar-u-nu-latn" : "en-GB";
+  const weekday = (date: Date) => {
+    try {
+      return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date);
+    } catch {
+      return null;
+    }
+  };
+  if (detail.scheduledAt) {
+    const date = new Date(detail.scheduledAt);
+    if (!Number.isNaN(date.getTime())) {
+      const time = formatTime(detail.scheduledAt, language);
+      const day = weekday(date);
+      return { time, when: day ? `${day} ${time}` : null };
+    }
+  }
+  const time = detail.pickupTime ?? null;
+  if (time && detail.pickupDate) {
+    const [year, month, day] = detail.pickupDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    const name = Number.isNaN(date.getTime()) ? null : weekday(date);
+    return { time, when: name ? `${name} ${time}` : null };
+  }
+  return { time, when: null };
+}
+
+/**
+ * W22 (board D12Notices): the scheduled notices are titled with the ride's
+ * time (and the rider's name) when known, and say what the event costs —
+ * a release counts, a rider-busy cancel does not.
+ */
+function scheduledTitle(
+  t: TFunction,
+  notice: RideNotice,
+  detail: RideNoticeDetail | null,
+  language: string,
+): string | null {
+  if (notice !== "scheduledReleased" && notice !== "scheduledRiderBusy")
+    return null;
+  const { time, when } = pickupWhen(detail ?? {}, language);
+  if (notice === "scheduledReleased") {
+    return time
+      ? t("ride.notice.scheduledReleasedTitle", {
+          time: isolateDigits(time, language),
+        })
+      : t("ride.notice.scheduledReleasedTitleGeneric");
+  }
+  const name = detail?.riderName?.trim();
+  if (name && when) {
+    return t("ride.notice.scheduledRiderBusyTitle", {
+      name,
+      when: isolateDigits(when, language),
+    });
+  }
+  return when
+    ? t("ride.notice.scheduledRiderBusyTitleWhen", {
+        when: isolateDigits(when, language),
+      })
+    : t("ride.notice.scheduledRiderBusyTitleGeneric");
+}
+
 /** The short notice after an offer / ride went away. */
 export function RideNoticeBanner({
   notice,
+  detail = null,
   onDismiss,
 }: {
   notice: RideNotice;
+  detail?: RideNoticeDetail | null;
   onDismiss: () => void;
 }) {
   const { t } = useTranslation();
+  const { language } = useDirection();
+  const liveAt =
+    notice === "scheduledReleased" ? detail?.liveAt?.trim() : null;
   return (
     <Banner
       tone={NOTICE_TONES[notice]}
-      message={t(`ride.notice.${notice}`)}
+      title={scheduledTitle(t, notice, detail, language) ?? undefined}
+      message={
+        liveAt
+          ? t("ride.notice.scheduledReleasedLive", {
+              liveAt: isolateDigits(liveAt, language),
+            })
+          : t(`ride.notice.${notice}`)
+      }
       messageTestID="ride-notice-text"
       testID={`ride-notice-${notice}`}
     >

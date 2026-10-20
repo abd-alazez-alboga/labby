@@ -641,8 +641,14 @@
       "markedUnpaid": "سُجّلت الرحلة كغير مدفوعة — أُغلقت الرحلة.",
       "paymentSettled": "سبق تسجيل الدفع لهذه الرحلة.",
       "scheduledLive": "بدأت رحلتك المجدولة — توجّه إلى نقطة الانطلاق الآن.",
-      "scheduledReleased": "تم التخلي عن حجز رحلة مجدولة. عادت إلى اللوحة أو إلى التوزيع الفوري.",
-      "scheduledRiderBusy": "أُلغيت رحلة مجدولة: كان الراكب لا يزال في رحلة أخرى. لا يُحتسب ذلك عليك."
+      "scheduledReleased": "عادت إلى اللوحة أو إلى التوزيع الفوري. يُحتسب ذلك ضمن مرات التخلي.",
+      "scheduledReleasedLive": "بدأت الساعة {{liveAt}} وأنت غير متاح، فذهبت إلى التوزيع الفوري. يُحتسب ذلك ضمن مرات التخلي.",
+      "scheduledReleasedTitle": "تم التخلي عن حجزك لرحلة الساعة {{time}}",
+      "scheduledReleasedTitleGeneric": "تم التخلي عن حجزك لرحلة مجدولة",
+      "scheduledRiderBusy": "كان الراكب لا يزال في رحلة أخرى. لا يُحتسب ذلك عليك.",
+      "scheduledRiderBusyTitle": "أُلغيت رحلة {{name}} يوم {{when}}",
+      "scheduledRiderBusyTitleWhen": "أُلغيت رحلتك المجدولة يوم {{when}}",
+      "scheduledRiderBusyTitleGeneric": "أُلغيت رحلة مجدولة"
     },
     "shared": {
       "group": "المجموعة",

@@ -304,6 +304,7 @@ export function HomeScreen() {
               {rides?.notice ? (
                 <RideNoticeBanner
                   notice={rides.notice}
+                  detail={rides.noticeDetail}
                   onDismiss={rides.dismissNotice}
                 />
               ) : null}

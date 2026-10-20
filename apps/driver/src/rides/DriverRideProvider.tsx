@@ -93,6 +93,23 @@ export type RideNotice =
   /** M12 push `scheduled.cancelled_rider_busy`: the rider was on another ride. */
   | "scheduledRiderBusy";
 
+/**
+ * W22 (board D12Notices): what a scheduled push may name. Every field is
+ * optional — payloads that carry only `rideId` still get a titled notice,
+ * and the ride read fills the time and the rider's name when it can.
+ */
+export interface RideNoticeDetail {
+  rideId?: string | null;
+  /** ISO pickup moment. */
+  scheduledAt?: string | null;
+  /** Region-local pickup date / time ("yyyy-MM-dd" / "HH:mm"), as pushed. */
+  pickupDate?: string | null;
+  pickupTime?: string | null;
+  riderName?: string | null;
+  /** "HH:mm" the ride went live when the claim was released at conversion. */
+  liveAt?: string | null;
+}
+
 export type RideAction =
   | "accept"
   | "decline"
@@ -149,6 +166,8 @@ export interface DriverRideContextValue {
   /** `ride.updated` route_changed arrived for the current ride. */
   routeChanged: boolean;
   notice: RideNotice | null;
+  /** W22: the scheduled notice's time / rider, when known. */
+  noticeDetail: RideNoticeDetail | null;
   pending: RideAction | null;
   error: RideActionError | null;
   accept: () => Promise<void>;
@@ -170,7 +189,7 @@ export interface DriverRideContextValue {
   clearError: () => void;
   dismissNotice: () => void;
   /** M12: a scheduled-ride push surfaces its notice on the home sheet. */
-  showNotice: (notice: RideNotice) => void;
+  showNotice: (notice: RideNotice, detail?: RideNoticeDetail | null) => void;
   resync: () => Promise<void>;
   /** Push / notification-center tap on a `ride_offer` or `ride` link. */
   openLink: (link: DeepLink | null) => void;
@@ -279,6 +298,11 @@ export function DriverRideProvider({
   const [collected, setCollected] = useState<Ride | null>(null);
   const [routeChangedFor, setRouteChangedFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<RideNotice | null>(null);
+  const [noticeDetail, setNoticeDetail] = useState<RideNoticeDetail | null>(
+    null,
+  );
+  /** Bumped by every pushed notice — a late ride read for an older one is dropped. */
+  const noticeSeq = useRef(0);
   const [pending, setPending] = useState<RideAction | null>(null);
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
   const [error, setError] = useState<RideActionError | null>(null);
@@ -806,8 +830,37 @@ export function DriverRideProvider({
   const markMemberUnpaid = useMemo(() => memberSettle("memberUnpaid"), [memberSettle]);
 
   const clearError = useCallback(() => setError(null), []);
-  const dismissNotice = useCallback(() => setNotice(null), []);
-  const showNotice = useCallback((next: RideNotice) => setNotice(next), []);
+  const dismissNotice = useCallback(() => {
+    setNotice(null);
+    setNoticeDetail(null);
+  }, []);
+  const showNotice = useCallback(
+    (next: RideNotice, detail?: RideNoticeDetail | null) => {
+      const seq = ++noticeSeq.current;
+      setNotice(next);
+      setNoticeDetail(detail ?? null);
+      const rideId = detail?.rideId;
+      const missing =
+        !detail?.riderName || !(detail.scheduledAt || detail.pickupTime);
+      if (!rideId || !missing) return;
+      // Best-effort: the ride names the pickup time and the rider.
+      getDriverRide(rideId)
+        .then((found) => {
+          if (!mounted.current || seq !== noticeSeq.current) return;
+          setNoticeDetail((current) => ({
+            ...current,
+            scheduledAt:
+              current?.scheduledAt ?? found.scheduled?.scheduledAt ?? null,
+            riderName:
+              current?.riderName ?? found.rider?.firstName?.trim() ?? null,
+          }));
+        })
+        .catch(() => {
+          // The generic titled notice stands.
+        });
+    },
+    [],
+  );
   const dismissSettled = useCallback(() => setSettled(null), []);
   const dismissCollected = useCallback(() => setCollected(null), []);
 
@@ -829,6 +882,7 @@ export function DriverRideProvider({
       dismissCollected,
       routeChanged: !!ride && routeChangedFor === ride.id,
       notice,
+      noticeDetail,
       pending,
       error,
       accept,
@@ -858,6 +912,7 @@ export function DriverRideProvider({
       dismissCollected,
       routeChangedFor,
       notice,
+      noticeDetail,
       pending,
       error,
       accept,

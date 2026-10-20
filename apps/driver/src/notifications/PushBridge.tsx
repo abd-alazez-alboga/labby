@@ -15,6 +15,7 @@ import {
   isRideLink,
   isScheduledConversion,
   parsePushPayload,
+  scheduledNoticeDetail,
   scheduledNoticeFor,
 } from "./deep-links";
 import {
@@ -160,9 +161,14 @@ export function PushBridge() {
       // M12: scheduled-ride pushes — a notice on the home sheet, or the
       // conversion's live ride picked up at once.
       if (context.current.signedIn && context.current.isDriver) {
-        const { event } = parsePushPayload(data);
+        const { event, link } = parsePushPayload(data);
         const notice = scheduledNoticeFor(event);
-        if (notice) context.current.showRideNotice?.(notice);
+        if (notice) {
+          context.current.showRideNotice?.(
+            notice,
+            scheduledNoticeDetail(link?.params),
+          );
+        }
         if (isScheduledConversion(event)) void context.current.resyncRides?.();
       }
     });

@@ -2,6 +2,7 @@ import type { Href } from "expo-router";
 
 import { DOCUMENT_TYPES } from "../api/onboarding-types";
 import type { DeepLink } from "../api/realtime-types";
+import type { RideNoticeDetail } from "../rides/DriverRideProvider";
 
 /**
  * The single deep-link mapper (UC-S-11): catalog `{screen, params}` →
@@ -154,6 +155,31 @@ export function scheduledNoticeFor(
   if (event === "scheduled.released") return "scheduledReleased";
   if (event === "scheduled.cancelled_rider_busy") return "scheduledRiderBusy";
   return null;
+}
+
+/**
+ * W22: the time / rider a scheduled push may carry in its link params —
+ * tolerant of payloads that only name the ride.
+ */
+export function scheduledNoticeDetail(
+  params: Record<string, string> | null | undefined,
+): RideNoticeDetail | null {
+  if (!params) return null;
+  const pick = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = params[key]?.trim();
+      if (value) return value;
+    }
+    return null;
+  };
+  return {
+    rideId: pick("rideId"),
+    scheduledAt: pick("scheduledAt"),
+    pickupDate: pick("pickupDate"),
+    pickupTime: pick("pickupTime"),
+    riderName: pick("riderName", "riderFirstName"),
+    liveAt: pick("liveAt", "liveTime", "wentLiveAt"),
+  };
 }
 
 export function isScheduledConversion(event: string | null | undefined): boolean {

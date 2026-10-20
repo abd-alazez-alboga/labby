@@ -641,8 +641,14 @@
       "markedUnpaid": "Marked as unpaid — the ride is closed.",
       "paymentSettled": "The payment for this ride was already recorded.",
       "scheduledLive": "Your scheduled ride is live — head to the pickup now.",
-      "scheduledReleased": "A scheduled ride claim was released. It's back on the board or in live dispatch.",
-      "scheduledRiderBusy": "A scheduled ride was cancelled: the rider was still on another trip. Nothing counts against you."
+      "scheduledReleased": "It went back to the board or to live dispatch. It counts as a release.",
+      "scheduledReleasedLive": "It went live at {{liveAt}} while you were unavailable, so it went to live dispatch. It counts as a release.",
+      "scheduledReleasedTitle": "Your {{time}} claim was released",
+      "scheduledReleasedTitleGeneric": "Your scheduled ride claim was released",
+      "scheduledRiderBusy": "The rider was still on another trip. Nothing counts against you.",
+      "scheduledRiderBusyTitle": "{{name}}'s {{when}} ride was cancelled",
+      "scheduledRiderBusyTitleWhen": "Your {{when}} scheduled ride was cancelled",
+      "scheduledRiderBusyTitleGeneric": "A scheduled ride was cancelled"
     },
     "shared": {
       "group": "the group",
