@@ -11,7 +11,14 @@ import {
   promoPage,
   stubGrowthRoutes,
 } from './growth-fixtures';
-import { callsTo, jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
+import {
+  adminUser,
+  callsTo,
+  jsonResponse,
+  renderShell,
+  seedStoredSession,
+  sessionFor,
+} from './test-utils';
 
 const STARTS_LOCAL = '2026-11-01T00:00';
 const ENDS_LOCAL = '2026-11-15T23:59';
@@ -60,6 +67,16 @@ describe('new promo form', () => {
     await user.type(screen.getByLabelText('Ends'), ENDS_LOCAL);
     await user.type(screen.getByLabelText('Total uses (blank = no cap)'), '1000');
   }
+
+  it('explains an empty region picker without regions:view (I101)', async () => {
+    const noRegions = adminUser(['promos:view', 'promos:manage']);
+    seedStoredSession(sessionFor(noRegions));
+    stubGrowthRoutes(noRegions, () => null);
+    renderShell();
+
+    await screen.findByLabelText('Region');
+    expect(screen.getByText('Region names need the View regions permission.')).toBeInTheDocument();
+  });
 
   it('creates a percent promo: uppercased code, ISO window, caps and restrictions', async () => {
     const fetchMock = stubCreate();

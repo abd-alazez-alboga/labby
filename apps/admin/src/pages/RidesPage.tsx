@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { DataTable, FilterChips, PageHeader, StatusChip, TablePager } from '../ui';
+import { useRegionsViewTitle } from './regions/use-regions-view-title';
 import { ExportCsvButton, ExportFailureBanner } from './exports/CsvExport';
 import { exportNote, useCsvExport } from './exports/use-csv-export';
 import { formatMoment, formatMoney } from './money/money-format';
@@ -51,6 +52,7 @@ interface SearchResult {
  */
 export default function RidesPage() {
   const { t, i18n } = useTranslation();
+  const regionsTitle = useRegionsViewTitle();
   const language = i18n.language;
   const navigate = useNavigate();
   const { apiClient } = useAuth();
@@ -308,6 +310,8 @@ export default function RidesPage() {
         </label>
         <select
           aria-label={t('rides.regionLabel')}
+          title={regionsTitle}
+          disabled={regionsTitle !== undefined}
           value={regionId}
           onChange={(event) => update({ region: event.target.value, page: '' })}
         >

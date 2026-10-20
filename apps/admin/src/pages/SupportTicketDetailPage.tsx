@@ -315,7 +315,8 @@ export default function SupportTicketDetailPage() {
               </section>
             ) : null}
 
-            {can('wallets:manage') ? (
+            {/* The link opens the wallet page, which itself needs wallets:view (I101). */}
+            {can('wallets:view') && can('wallets:manage') ? (
               <section className="card section" aria-label={t('ticketDetail.remedyTitle')}>
                 <h2 className="section__heading">{t('ticketDetail.remedyTitle')}</h2>
                 <Link

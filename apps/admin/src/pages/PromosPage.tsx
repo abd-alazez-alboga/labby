@@ -11,6 +11,7 @@ import {
 } from '../api/regions';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
+import { useRegionsViewTitle } from './regions/use-regions-view-title';
 import { useCurrencyLabel } from './money/use-currency-label';
 import { useToast } from '../toast/ToastProvider';
 import { DataTable, KpiRow, KpiTile, PageHeader, StatusChip, TablePager } from '../ui';
@@ -37,6 +38,7 @@ const PAGE_SIZE = 20;
  */
 export default function PromosPage() {
   const { t, i18n } = useTranslation();
+  const regionsTitle = useRegionsViewTitle();
   const language = i18n.language;
   const { apiClient } = useAuth();
   const { can } = usePermissions();
@@ -280,6 +282,8 @@ export default function PromosPage() {
           <label htmlFor="promos-region">{t('promos.regionFilter')}</label>
           <select
             id="promos-region"
+            title={regionsTitle}
+            disabled={regionsTitle !== undefined}
             value={regionId}
             onChange={(event) => navigate(event.target.value, 0)}
           >

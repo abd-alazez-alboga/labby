@@ -14,6 +14,7 @@ import {
 } from './support-fixtures';
 import { ridePage, transactionPage, walletView } from './money-fixtures';
 import {
+  adminUser,
   callsTo,
   jsonResponse,
   renderShell,
@@ -142,6 +143,17 @@ describe('ticket detail', () => {
       'href',
       `/users/${OMAR_ID}/wallet`,
     );
+  });
+
+  it('hides the wallet remedy link without wallets:view, its page would refuse (I101)', async () => {
+    const manageOnly = adminUser(
+      SUPPORT_ADMIN.roles[0].permissions!.filter((code) => code !== 'wallets:view'),
+    );
+    stubDetail(manageOnly);
+    renderShell();
+
+    await screen.findByRole('heading', { level: 1, name: 'Charged cash after wallet payment' });
+    expect(screen.queryByRole('link', { name: 'Grant wallet credit…' })).not.toBeInTheDocument();
   });
 
   it('moves the status per the state machine and refetches', async () => {

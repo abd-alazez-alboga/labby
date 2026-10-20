@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../toast/ToastProvider';
 import { BackLink, DecisionPanel, PageHeader, ReviewLayout, Section } from '../ui';
+import { RegionsViewHint } from './regions/RegionsViewHint';
 import { formatDecimal, windowLabel, toIso } from './growth/growth-format';
 
 function mapCreateError(error: unknown): string {
@@ -384,6 +385,7 @@ export default function PromoCreatePage() {
                     </option>
                   ))}
                 </select>
+                <RegionsViewHint />
                 {type === 'fixed' ? (
                   <p className="panel__hint">{t('promos.form.fixedRegionHint')}</p>
                 ) : null}

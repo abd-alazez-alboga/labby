@@ -42,7 +42,8 @@
     "loading": "Loading…",
     "confirm": "Confirm",
     "cancel": "Cancel",
-    "close": "Close"
+    "close": "Close",
+    "needsRegionsView": "Region names need the View regions permission."
   },
   "auth": {
     "loginTitle": "Sign in",

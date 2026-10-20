@@ -13,6 +13,7 @@ import {
   oneOf,
   useUrlFilters,
 } from './directory/directory-utils';
+import { useRegionsViewTitle } from './regions/use-regions-view-title';
 import { ExportCsvButton, ExportFailureBanner } from './exports/CsvExport';
 import { exportNote, useCsvExport } from './exports/use-csv-export';
 import { formatDay, formatNumber } from './money/money-format';
@@ -27,6 +28,7 @@ const ONLINE_FILTERS = ['online', 'offline'] as const;
  */
 export default function DriversPage() {
   const { t, i18n } = useTranslation();
+  const regionsTitle = useRegionsViewTitle();
   const language = i18n.language;
   const { apiClient } = useAuth();
   const { params, update, page } = useUrlFilters();
@@ -87,6 +89,8 @@ export default function DriversPage() {
       <div className="directory-filters">
         <select
           aria-label={t('directory.drivers.regionLabel')}
+          title={regionsTitle}
+          disabled={regionsTitle !== undefined}
           value={regionId}
           onChange={(event) => update({ region: event.target.value })}
         >

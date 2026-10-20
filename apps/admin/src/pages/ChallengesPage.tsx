@@ -17,6 +17,7 @@ import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { useToast } from '../toast/ToastProvider';
 import { DataTable, DecisionPanel, PageHeader, ReviewLayout, StatusChip, TablePager } from '../ui';
+import { RegionsViewHint } from './regions/RegionsViewHint';
 import { formatNumber } from './money/money-format';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
@@ -308,6 +309,7 @@ export default function ChallengesPage() {
                         </option>
                       ))}
                     </select>
+                    <RegionsViewHint />
                   </div>
                 </div>
                 <div className="panel__row">

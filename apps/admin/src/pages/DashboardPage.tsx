@@ -18,6 +18,7 @@ import {
   resolveRange,
   type RangePreset,
 } from './dashboard/dashboard-utils';
+import { useRegionsViewTitle } from './regions/use-regions-view-title';
 import { RidesPerDayChart } from './dashboard/RidesPerDayChart';
 import { formatMoney, formatNumber } from './money/money-format';
 
@@ -82,6 +83,7 @@ function DashboardSection({
  */
 export default function DashboardPage() {
   const { t, i18n } = useTranslation();
+  const regionsTitle = useRegionsViewTitle();
   const language = i18n.language;
   const config = useConfig();
   const { apiClient } = useAuth();
@@ -224,6 +226,8 @@ export default function DashboardPage() {
       </div>
       <select
         aria-label={t('dashboard.regionLabel')}
+        title={regionsTitle}
+        disabled={regionsTitle !== undefined}
         value={regionId}
         onChange={(event) => update({ region: event.target.value })}
       >
