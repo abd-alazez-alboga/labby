@@ -39,6 +39,8 @@ describe('language switching', () => {
 
     expect(document.documentElement.getAttribute('dir')).toBe('rtl');
     expect(document.documentElement.getAttribute('lang')).toBe('ar');
+    // I104: the browser tab title follows the language.
+    expect(document.title).toBe('لوحة تحكم لبي');
     // Shell strings re-render in Arabic
     expect(screen.getByRole('heading', { name: 'لوحة تحكم لبي' })).toBeInTheDocument();
     expect(
@@ -58,6 +60,7 @@ describe('language switching', () => {
 
     await user.click(screen.getByRole('button', { name: 'تغيير اللغة' }));
     expect(document.documentElement.getAttribute('dir')).toBe('ltr');
+    expect(document.title).toBe('Labby Admin');
     expect(document.documentElement.getAttribute('lang')).toBe('en');
   });
 

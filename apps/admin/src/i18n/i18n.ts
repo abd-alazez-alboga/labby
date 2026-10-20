@@ -35,10 +35,15 @@ export function applyDocumentDirection(language: string): void {
   document.documentElement.setAttribute('lang', language);
 }
 
+/** The browser tab title in the active language (V1 audit I104). */
+export function applyDocumentTitle(): void {
+  document.title = i18n.t('app.title');
+}
+
 /**
  * Initializes i18next with EN + AR resources. The stored choice (localStorage)
- * wins; direction is applied immediately and re-applied + persisted on every
- * language change, so toggling flips LTR/RTL instantly.
+ * wins; direction and the tab title are applied immediately and re-applied +
+ * persisted on every language change, so toggling flips LTR/RTL instantly.
  */
 export async function initI18n(): Promise<typeof i18n> {
   const language = readStoredLanguage();
@@ -55,9 +60,11 @@ export async function initI18n(): Promise<typeof i18n> {
 
   i18n.on('languageChanged', (next) => {
     applyDocumentDirection(next);
+    applyDocumentTitle();
     persistLanguage(next);
   });
   applyDocumentDirection(language);
+  applyDocumentTitle();
 
   return i18n;
 }
