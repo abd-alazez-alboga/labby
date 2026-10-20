@@ -18,8 +18,10 @@ import com.labby.backend.service.RiderRideService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -83,19 +85,34 @@ public class RiderRidesController {
   }
 
   /**
-   * The rider's history.
+   * The rider's history, optionally filtered (V1 conformance W41, UC-R-16).
    *
    * @param page zero-based page
    * @param size page size (1..50)
+   * @param state completed | cancelled (optional)
+   * @param kind on_demand | scheduled | shared (optional)
+   * @param from first day, inclusive (optional, ISO date)
+   * @param to last day, inclusive (optional, ISO date)
    * @return 200 with one page
    */
   @GetMapping
-  @Operation(summary = "Ride history, newest first")
+  @Operation(summary = "Ride history, newest first, with optional filters")
   public ResponseEntity<RideSummaryPageDto> history(
-      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size,
+      @RequestParam(required = false) String state,
+      @RequestParam(required = false) String kind,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
     return ResponseEntity.ok(
         riderRideService.history(
-            SecurityUtils.currentUserId(), Math.max(0, page), Math.clamp(size, 1, 50)));
+            SecurityUtils.currentUserId(),
+            Math.max(0, page),
+            Math.clamp(size, 1, 50),
+            state,
+            kind,
+            from,
+            to));
   }
 
   /**

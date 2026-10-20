@@ -97,29 +97,64 @@ public interface RideRepository extends JpaRepository<Ride, UUID>, JpaSpecificat
   /**
    * The rider's history (M12): their own rides plus the shared rides they rode in as a member (any
    * membership but one left before dispatch), newest first by the time the ride actually ran — a
-   * claimed scheduled ride keeps its booking-time {@code requested_at}, so conversion time wins.
+   * claimed scheduled ride keeps its booking-time {@code requested_at}, so conversion time wins. V1
+   * conformance W41 (UC-R-16 filters): each filter is optional (null = any). {@code stateGroup}
+   * {@code completed} = the {@code completed} state, {@code cancelled} = {@code cancelled_by_rider}
+   * / {@code cancelled_by_driver} / {@code no_driver_found}; {@code kind} a ride kind; {@code
+   * fromDate} / {@code toDate} (ISO dates, both inclusive) bound that same ride time by the
+   * region-local days of the ride's region.
    */
   @Query(
       value =
           """
           SELECT r.* FROM rides r
           LEFT JOIN scheduled_rides s ON s.ride_id = r.ride_id
-          WHERE r.rider_user_id = :riderUserId
-             OR EXISTS (SELECT 1 FROM shared_ride_members m
-                        WHERE m.ride_id = r.ride_id AND m.rider_user_id = :riderUserId
-                          AND m.status <> 'left')
+          JOIN regions g ON g.region_id = r.region_id
+          WHERE (r.rider_user_id = :riderUserId
+                 OR EXISTS (SELECT 1 FROM shared_ride_members m
+                            WHERE m.ride_id = r.ride_id AND m.rider_user_id = :riderUserId
+                              AND m.status <> 'left'))
+          """
+              + HISTORY_FILTERS
+              + """
           ORDER BY COALESCE(s.converted_at, r.requested_at) DESC
           """,
       countQuery =
           """
           SELECT COUNT(*) FROM rides r
-          WHERE r.rider_user_id = :riderUserId
-             OR EXISTS (SELECT 1 FROM shared_ride_members m
-                        WHERE m.ride_id = r.ride_id AND m.rider_user_id = :riderUserId
-                          AND m.status <> 'left')
-          """,
+          LEFT JOIN scheduled_rides s ON s.ride_id = r.ride_id
+          JOIN regions g ON g.region_id = r.region_id
+          WHERE (r.rider_user_id = :riderUserId
+                 OR EXISTS (SELECT 1 FROM shared_ride_members m
+                            WHERE m.ride_id = r.ride_id AND m.rider_user_id = :riderUserId
+                              AND m.status <> 'left'))
+          """
+              + HISTORY_FILTERS,
       nativeQuery = true)
-  Page<Ride> findRiderHistory(@Param("riderUserId") UUID riderUserId, Pageable pageable);
+  Page<Ride> findRiderHistory(
+      @Param("riderUserId") UUID riderUserId,
+      @Param("stateGroup") String stateGroup,
+      @Param("kind") String kind,
+      @Param("fromDate") String fromDate,
+      @Param("toDate") String toDate,
+      Pageable pageable);
+
+  /** The W41 rider-history filters of {@link #findRiderHistory} (each null = any). */
+  String HISTORY_FILTERS =
+      """
+        AND (CAST(:stateGroup AS text) IS NULL
+             OR (CAST(:stateGroup AS text) = 'completed' AND r.state = 'completed')
+             OR (CAST(:stateGroup AS text) = 'cancelled'
+                 AND r.state IN ('cancelled_by_rider', 'cancelled_by_driver', 'no_driver_found')))
+        AND (CAST(:kind AS text) IS NULL OR r.kind = CAST(:kind AS text))
+        AND (CAST(:fromDate AS text) IS NULL
+             OR COALESCE(s.converted_at, r.requested_at)
+                >= (CAST(CAST(:fromDate AS text) AS timestamp) AT TIME ZONE g.time_zone))
+        AND (CAST(:toDate AS text) IS NULL
+             OR COALESCE(s.converted_at, r.requested_at)
+                < ((CAST(CAST(:toDate AS text) AS timestamp) + INTERVAL '1 day')
+                   AT TIME ZONE g.time_zone))
+      """;
 
   Page<Ride> findByDriverUserIdOrderByRequestedAtDesc(UUID driverUserId, Pageable pageable);
 

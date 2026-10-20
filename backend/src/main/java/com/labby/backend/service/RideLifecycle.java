@@ -300,7 +300,8 @@ public class RideLifecycle {
                           : (fare == null ? null : fare.getTotal()),
                       member != null ? member.getCancellationFee() : ride.getCancellationFee(),
                       ratings.get(ride.getId()),
-                      names.get(counterpartOf(ride, side)));
+                      names.get(counterpartOf(ride, side)),
+                      member == null ? null : member.getPartySize());
                 })
             .toList(),
         rides.getNumber(),
@@ -332,7 +333,8 @@ public class RideLifecycle {
       BigDecimal total,
       BigDecimal cancellationFee,
       MyRatingDto myRating,
-      String counterpartFirstName) {
+      String counterpartFirstName,
+      Short partySize) {
     ServiceType serviceType = serviceTypeRepository.findById(ride.getServiceTypeId()).orElseThrow();
     return new RideSummaryDto(
         ride.getId(),
@@ -347,7 +349,9 @@ public class RideLifecycle {
         ride.getCurrency(),
         myRating,
         counterpartFirstName,
-        ride.getCancellationReason());
+        ride.getCancellationReason(),
+        ride.getKind(),
+        partySize);
   }
 
   /**

@@ -45,6 +45,8 @@ import com.labby.backend.util.GeoPoints;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,6 +77,9 @@ public class RiderRideServiceImpl implements RiderRideService {
           CancellationReason.OTHER);
 
   private static final String NOT_FOUND = "Ride not found";
+
+  /** V1 conformance W41: the history state filter groups. */
+  private static final Set<String> HISTORY_STATE_GROUPS = Set.of("completed", "cancelled");
 
   private final RideAccess rideAccess;
   private final PromoService promoService;
@@ -178,10 +183,27 @@ public class RiderRideServiceImpl implements RiderRideService {
 
   @Override
   @Transactional(readOnly = true)
-  public RideSummaryPageDto history(UUID userId, int page, int size) {
+  public RideSummaryPageDto history(
+      UUID userId, int page, int size, String state, String kind, LocalDate from, LocalDate to) {
     rideAccess.requireRider(userId);
+    if (state != null && !HISTORY_STATE_GROUPS.contains(state)) {
+      throw new InvalidRequestException("state must be completed or cancelled");
+    }
+    if (kind != null
+        && Arrays.stream(RideKind.values()).noneMatch(value -> value.getValue().equals(kind))) {
+      throw new InvalidRequestException("kind must be on_demand, scheduled or shared");
+    }
+    if (from != null && to != null && from.isAfter(to)) {
+      throw new InvalidRequestException("from must not be after to");
+    }
     return rideLifecycle.historyPage(
-        rideRepository.findRiderHistory(userId, PageRequest.of(page, size)),
+        rideRepository.findRiderHistory(
+            userId,
+            state,
+            kind,
+            from == null ? null : from.toString(),
+            to == null ? null : to.toString(),
+            PageRequest.of(page, size)),
         RideParty.RIDER,
         userId);
   }

@@ -378,17 +378,34 @@ paths:
             `payment_method_unavailable`
     get:
       tags: [RiderRides]
-      summary: The rider's ride history, newest first (all states)
+      summary: The rider's ride history, newest first (all states), with optional filters
+      description: >
+        V1 conformance W41 (UC-R-16 "list with filters"; boards V1FRiderHistoryFilters / Dates /
+        Empty). Every filter is optional and they combine (AND) with each other and with paging;
+        `totalItems` counts the filtered rows. The rows are ordered — and the date range applies
+        to — the time the ride ran: the conversion time of a claimed scheduled ride, otherwise
+        `requestedAt`. `from` / `to` are inclusive calendar days in the ride's REGION time zone.
+        400 for an unknown `state` or `kind`, a malformed date, or `from` after `to`.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - name: state
+          in: query
+          description: >
+            `completed` = state `completed`; `cancelled` = `cancelled_by_rider`,
+            `cancelled_by_driver` or `no_driver_found`. Omitted = every state.
+          schema: { type: string, enum: [completed, cancelled] }
+        - { name: kind, in: query, description: Omitted = every kind, schema: { type: string, enum: [on_demand, scheduled, shared] } }
+        - { name: from, in: query, description: First day, inclusive (region-local), schema: { type: string, format: date, example: '2026-10-01' } }
+        - { name: to, in: query, description: Last day, inclusive (region-local), schema: { type: string, format: date, example: '2026-10-19' } }
       responses:
         '200':
           description: One page
           content:
             application/json:
               schema: { $ref: '#/components/schemas/RideSummaryPage' }
+        '400': { description: Unknown state / kind, malformed date, or from after to }
 
   /api/v1/rides/active:
     get:
@@ -1287,8 +1304,15 @@ components:
       allOf:
         - { $ref: '#/components/schemas/RideSummary' }
         - type: object
-          required: [myRating, counterpartFirstName, cancellationReason]
+          required: [myRating, counterpartFirstName, cancellationReason, kind]
           properties:
+            kind:
+              type: string
+              enum: [on_demand, scheduled, shared]
+              description: The row's ride kind (V1 conformance W41 — the history labels and filter)
+            partySize:
+              type: [integer, 'null']
+              description: The rider's own seats on a shared ride (rider history); null otherwise
             myRating:
               description: The caller's own rating state for the ride — same object as `Ride.myRating`
               type: object

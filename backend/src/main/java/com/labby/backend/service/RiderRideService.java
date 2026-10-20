@@ -10,6 +10,7 @@ import com.labby.backend.dto.RiderCancelRequestDto;
 import com.labby.backend.dto.RouteChangeRequestDto;
 import com.labby.backend.dto.RouteInputDto;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,14 +54,22 @@ public interface RiderRideService {
   RideDto get(UUID userId, UUID rideId);
 
   /**
-   * The rider's history, newest first.
+   * The rider's history, newest first, optionally filtered (V1 conformance W41, UC-R-16).
    *
    * @param userId the rider
    * @param page zero-based page
    * @param size page size
+   * @param state {@code completed} | {@code cancelled} (cancelled by rider / driver, no driver
+   *     found), or null for any
+   * @param kind {@code on_demand} | {@code scheduled} | {@code shared}, or null for any
+   * @param from first day (inclusive, the ride region's local day), or null
+   * @param to last day (inclusive, the ride region's local day), or null
    * @return one page
+   * @throws com.labby.backend.exception.InvalidRequestException an unknown state / kind, or from
+   *     after to
    */
-  RideSummaryPageDto history(UUID userId, int page, int size);
+  RideSummaryPageDto history(
+      UUID userId, int page, int size, String state, String kind, LocalDate from, LocalDate to);
 
   /**
    * What cancelling now would cost (RIDE-07 grace indication).
