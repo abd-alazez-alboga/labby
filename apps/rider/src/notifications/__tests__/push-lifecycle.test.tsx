@@ -8,9 +8,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, type AppStateStatus, Platform } from "react-native";
 
 import { emitSessionExpired } from "../../auth/session-store";
+import { LANGUAGE_STORAGE_KEY } from "../../i18n/locale-context";
 import { setOpenChatRideId } from "../../chat/open-chat";
 import SettingsScreen from "../../screens/settings-screen";
 import { mockApi, seedSignedInSession } from "../../test-utils/mock-api";
@@ -142,6 +143,28 @@ describe("push registration lifecycle", () => {
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(PUSH_TOKEN_KEY)).toBe("fcm-token-1"),
     );
+  });
+
+  it("names the Android channel with the brand in the app language (V1 audit I91)", async () => {
+    const os = jest.replaceProperty(Platform, "OS", "android");
+    try {
+      await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+      grantPush();
+      const api = mockApi({
+        [UNREAD]: { status: 200, body: { unread: 0 } },
+        [`PUT ${DEVICES}`]: { status: 204 },
+      });
+
+      await renderSignedIn();
+
+      await waitFor(() => expect(api.callsTo("PUT", DEVICES)).toHaveLength(1));
+      expect(notificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
+        "default",
+        expect.objectContaining({ name: "لبي" }),
+      );
+    } finally {
+      os.restore();
+    }
   });
 
   it("asks for the permission first and registers nothing when it is refused", async () => {

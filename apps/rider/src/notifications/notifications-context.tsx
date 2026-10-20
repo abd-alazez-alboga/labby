@@ -35,6 +35,7 @@ import { AppState } from "react-native";
 import { getUnreadCount, markNotificationRead } from "../api/notifications";
 import { ACCOUNT_STATE_EVENTS, useOptionalAuth } from "../auth/auth-context";
 import { openChatRideId } from "../chat/open-chat";
+import { useOptionalLocale } from "../i18n/locale-context";
 import { notifications } from "./notifications-module";
 import { parsePushPayload, resolveDeepLink } from "./deep-links";
 import { whenSignedInStackSettled } from "./navigation-settled";
@@ -176,6 +177,15 @@ export function NotificationsProvider({
     return () => subscription.remove();
   }, [refreshUnread]);
 
+  // The Android channel name follows the app language (I91); read through a
+  // ref so a language change never re-runs (and re-prompts) registration.
+  const locale = useOptionalLocale();
+  const channelName = locale?.t("notifications.channelName") ?? "Labby";
+  const channelNameRef = useRef(channelName);
+  useEffect(() => {
+    channelNameRef.current = channelName;
+  }, [channelName]);
+
   // Push registration after sign-in + token rotation. Prompts once per
   // sign-in; later foregrounds only re-check (no dialog loop) and register
   // when the permission is already granted.
@@ -190,7 +200,7 @@ export function NotificationsProvider({
       const prompt = !prompted;
       prompted = true;
       inFlight = true;
-      void registerForPush({ prompt })
+      void registerForPush({ prompt, channelName: channelNameRef.current })
         .then((result) => {
           if (!cancelled) registered = result === "registered";
         })

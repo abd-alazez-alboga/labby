@@ -237,6 +237,8 @@ export const translations = {
     },
     notifications: {
       title: "Notifications",
+      // The Android notification channel, as shown in the OS settings.
+      channelName: "Labby",
       open: "Open notifications",
       openWithUnread: "Open notifications, {{count}} unread",
       unreadHint: "Unread. Opening it marks it as read.",
@@ -505,6 +507,7 @@ export const translations = {
     },
     notifications: {
       title: "الإشعارات",
+      channelName: "لبي",
       open: "فتح الإشعارات",
       openWithUnread: "فتح الإشعارات، {{count}} غير مقروءة",
       unreadHint: "غير مقروء. فتحه يجعله مقروءًا.",

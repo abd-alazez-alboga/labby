@@ -55,11 +55,15 @@ function devicePlatform(): DevicePlatform {
   return Platform.OS === "ios" ? "ios" : "android";
 }
 
-/** Android 13+ only shows the permission prompt once a channel exists. */
-async function ensureAndroidChannel(): Promise<void> {
+/**
+ * Android 13+ only shows the permission prompt once a channel exists. The
+ * channel name is the brand in the app language (V1 audit I91); setting it
+ * again renames the existing channel.
+ */
+async function ensureAndroidChannel(name: string): Promise<void> {
   if (Platform.OS !== "android") return;
   await notifications().setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-    name: "Labby",
+    name,
     importance: notifications().AndroidImportance.HIGH,
   });
 }
@@ -96,11 +100,11 @@ export async function registerToken(token: string): Promise<void> {
  * foreground would loop the dialog.
  */
 export async function registerForPush(
-  options: { prompt?: boolean } = {},
+  options: { prompt?: boolean; channelName?: string } = {},
 ): Promise<PushRegistrationResult> {
   if (!isRemotePushSupported()) return "unsupported";
   try {
-    await ensureAndroidChannel();
+    await ensureAndroidChannel(options.channelName ?? "Labby");
     if (!(await ensurePermission(options.prompt !== false)))
       return "permissionDenied";
     const { data } = await notifications().getDevicePushTokenAsync();
