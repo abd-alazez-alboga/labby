@@ -23,8 +23,10 @@ import org.springframework.stereotype.Component;
 /**
  * The COM-03 floor rules shared by dispatch, the driver balance views and the ledger: the floor is
  * per region ({@code driver_balance_floor}, NULL = the SRS default −50) and is compared against the
- * driver's balance in that region's currency. Status {@code warning} within the configured margin
- * above the floor, {@code blocked} at/below. The driver's OPERATING region is the region of their
+ * driver's balance in that region's currency. Status {@code warning} within the warning margin
+ * above the floor, {@code blocked} at/below. The margin is per region too ({@code
+ * floor_warning_margin}, owner ruling 2026-10-20: both amounts in the region's currency; NULL = the
+ * global {@code MONEY_FLOOR_WARNING_MARGIN}). The driver's OPERATING region is the region of their
  * most recent online presence (latest location), falling back to their last ride's region.
  */
 @Component
@@ -42,6 +44,17 @@ public class MoneyFloors {
   private final MoneyProperties moneyProperties;
 
   /**
+   * The floor rule that applies to a balance.
+   *
+   * @param floor the floor (blocked at/below)
+   * @param warningMargin warning within this much above the floor
+   * @param regionId the region the rule comes from, null for the SRS default
+   * @param regionName that region's name, null for the SRS default
+   */
+  public record FloorRule(
+      BigDecimal floor, BigDecimal warningMargin, UUID regionId, String regionName) {}
+
+  /**
    * The region's floor (COM-03).
    *
    * @param region the region
@@ -52,17 +65,39 @@ public class MoneyFloors {
   }
 
   /**
+   * The region's floor warning margin (COM-03 "warned before blocking").
+   *
+   * @param region the region
+   * @return its margin, or the global {@code MONEY_FLOOR_WARNING_MARGIN} when unset
+   */
+  public BigDecimal warningMargin(Region region) {
+    return region.getFloorWarningMargin() == null
+        ? moneyProperties.floorWarningMargin()
+        : region.getFloorWarningMargin();
+  }
+
+  /**
+   * The region's floor rule.
+   *
+   * @param region the region
+   * @return its floor and warning margin
+   */
+  public FloorRule rule(Region region) {
+    return new FloorRule(floor(region), warningMargin(region), region.getId(), region.getName());
+  }
+
+  /**
    * The floor standing of a balance.
    *
-   * @param balance the driver's balance in the floor's currency
-   * @param floor the floor
+   * @param balance the driver's balance in the rule's currency
+   * @param rule the floor rule
    * @return blocked at/below the floor, warning within the margin above it, ok otherwise
    */
-  public FloorStatus status(BigDecimal balance, BigDecimal floor) {
-    if (balance.compareTo(floor) <= 0) {
+  public FloorStatus status(BigDecimal balance, FloorRule rule) {
+    if (balance.compareTo(rule.floor()) <= 0) {
       return FloorStatus.BLOCKED;
     }
-    if (balance.compareTo(floor.add(moneyProperties.floorWarningMargin())) <= 0) {
+    if (balance.compareTo(rule.floor().add(rule.warningMargin())) <= 0) {
       return FloorStatus.WARNING;
     }
     return FloorStatus.OK;
@@ -119,14 +154,26 @@ public class MoneyFloors {
    * @return the floor
    */
   public BigDecimal floorFor(UUID driverUserId, String currency) {
-    return floorFor(operatingRegion(driverUserId).orElse(null), currency);
+    return ruleFor(driverUserId, currency).floor();
   }
 
-  private BigDecimal floorFor(Region operatingRegion, String currency) {
+  /**
+   * The floor rule that applies to the driver's balance in a currency: the operating region's floor
+   * and margin when its currency matches, else the SRS default floor with the global margin.
+   *
+   * @param driverUserId the driver
+   * @param currency the balance currency
+   * @return the rule
+   */
+  public FloorRule ruleFor(UUID driverUserId, String currency) {
+    return ruleFor(operatingRegion(driverUserId).orElse(null), currency);
+  }
+
+  private FloorRule ruleFor(Region operatingRegion, String currency) {
     if (operatingRegion != null && currency.equals(operatingRegion.getCurrency())) {
-      return floor(operatingRegion);
+      return rule(operatingRegion);
     }
-    return DEFAULT_FLOOR;
+    return new FloorRule(DEFAULT_FLOOR, moneyProperties.floorWarningMargin(), null, null);
   }
 
   /**
@@ -140,12 +187,14 @@ public class MoneyFloors {
     return driverBalanceRepository.findByDriverUserIdOrderByCurrencyAsc(driverUserId).stream()
         .map(
             balance -> {
-              BigDecimal floor = floorFor(operatingRegion, balance.getCurrency());
+              FloorRule rule = ruleFor(operatingRegion, balance.getCurrency());
               return new DriverBalanceEntryDto(
                   balance.getCurrency(),
                   balance.getBalance(),
-                  floor,
-                  status(balance.getBalance(), floor));
+                  rule.floor(),
+                  status(balance.getBalance(), rule),
+                  rule.regionId(),
+                  rule.regionName());
             })
         .toList();
   }
@@ -167,9 +216,10 @@ public class MoneyFloors {
       BigDecimal before,
       BigDecimal after,
       DriverLedgerType type) {
-    BigDecimal floor = floorFor(driverUserId, currency);
-    FloorStatus was = status(before, floor);
-    FloorStatus now = status(after, floor);
+    FloorRule rule = ruleFor(driverUserId, currency);
+    BigDecimal floor = rule.floor();
+    FloorStatus was = status(before, rule);
+    FloorStatus now = status(after, rule);
     if (now == was) {
       return;
     }

@@ -94,6 +94,13 @@ public class Region {
   @Column(name = "driver_balance_floor")
   private BigDecimal driverBalanceFloor;
 
+  /**
+   * COM-03 warning margin above the floor, in the region's currency (V36, owner ruling 2026-10-20):
+   * always positive; NULL means the global {@code MONEY_FLOOR_WARNING_MARGIN}.
+   */
+  @Column(name = "floor_warning_margin")
+  private BigDecimal floorWarningMargin;
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "commission_tiers")
   private List<Map<String, Object>> commissionTiers;

@@ -130,7 +130,7 @@ class RegionServiceImplTest {
   private static RegionUpsertRequestDto nameOnlyRequest(String name) {
     return new RegionUpsertRequestDto(
         name, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-        null, null, null, null);
+        null, null, null, null, null);
   }
 
   @Test
@@ -208,6 +208,7 @@ class RegionServiceImplTest {
         null,
         null,
         null,
+        null,
         incentives,
         null,
         null,
@@ -259,6 +260,7 @@ class RegionServiceImplTest {
         new RegionUpsertRequestDto(
             "Damascus",
             geoSquare(36.2, 33.2, 36.8, 33.8),
+            null,
             null,
             null,
             null,

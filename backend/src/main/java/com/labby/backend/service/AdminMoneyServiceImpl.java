@@ -29,7 +29,6 @@ import com.labby.backend.repository.SettlementRepository;
 import com.labby.backend.repository.SharedRideMemberRepository;
 import com.labby.backend.repository.UserRepository;
 import com.labby.backend.service.DriverLedgerService.LedgerPosting;
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -212,7 +211,7 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
     after.put("balanceAfter", entry.getBalanceAfter());
     auditService.record(
         actorUserId, "settlement.record", "settlement", settlement.getId().toString(), null, after);
-    BigDecimal floor = moneyFloors.floorFor(driverUserId, request.currency());
+    MoneyFloors.FloorRule floorRule = moneyFloors.ruleFor(driverUserId, request.currency());
     return new SettlementResponseDto(
         settlement.getId(),
         driverUserId,
@@ -222,7 +221,7 @@ public class AdminMoneyServiceImpl implements AdminMoneyService {
         settlement.getNote(),
         settlement.getCreatedAt(),
         entry.getBalanceAfter(),
-        moneyFloors.status(entry.getBalanceAfter(), floor));
+        moneyFloors.status(entry.getBalanceAfter(), floorRule));
   }
 
   private void requireUser(UUID userId) {

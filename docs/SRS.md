@@ -226,7 +226,7 @@ Name **Labby**; logo/icon in `assets/images/` (purple tri-spoke mark + wordmark,
 
 | ID | Requirement | Ver |
 |---|---|---|
-| ADM-01 | Region management: full config bundle — name + boundary, currency, emergency number, service types + pricing (base/km/min/minimum), time-window surcharges, surge zones (map-drawn) + thresholds + cap, cancellation/wait/pickup-fee values, commission tiers, incentive values, suspension thresholds. New-region setup notes the map-extract ops step. Edits audit-logged. | V1 |
+| ADM-01 | Region management: full config bundle — name + boundary, currency, emergency number, service types + pricing (base/km/min/minimum), time-window surcharges, surge zones (map-drawn) + thresholds + cap, cancellation/wait/pickup-fee values, commission tiers, incentive values, suspension thresholds. New-region setup notes the map-extract ops step. Edits audit-logged. (owner ruling 2026-10-20: debt floor and floor-warning margin are per-region fields in the region's currency) | V1 |
 | ADM-02 | Analytics dashboard with date-range + region filters: Rides (volume, completion vs cancellation, by region/service, over time) · Revenue (gross fares, commission, by region) · Users (signups, active riders/drivers, drivers online now) · Ops (avg pickup ETA, acceptance rate, active surge zones). | V1 |
 | ADM-03 | **Live operations map** per region: online driver dots (idle/on-ride), active ride routes, surge overlay, red SOS pins; click-through to detail. | V1 |
 | ADM-04 | Work queues (permission-gated): driver applications, reports, tickets, lost items, settlements, flagged accounts. | V1 |

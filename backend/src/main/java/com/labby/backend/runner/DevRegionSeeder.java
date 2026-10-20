@@ -19,8 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
  * A15RegionIncentives board's peak windows (Mon–Thu 07:00–09:30, Fri–Sat 22:00–02:00 — a peak bonus
  * above 0 needs one, so an admin save of the region validates) and three surge zones. Idempotent:
  * skipped entirely once a region named Damascus exists, so admin edits survive restarts. Fare
- * values are demo-realistic SYP figures, tunable in the admin UI. Uses JdbcTemplate like {@link
- * DevDataSeeder} (runner layer stays repository-free per ArchUnit).
+ * values are demo-realistic SYP figures, tunable in the admin UI; so are the COM-03 debt floor
+ * (−500,000 SYP) and floor-warning margin (100,000 SYP) — review V1 W3, owner ruling 2026-10-20.
+ * Uses JdbcTemplate like {@link DevDataSeeder} (runner layer stays repository-free per ArchUnit).
  */
 @Slf4j
 @Component
@@ -83,9 +84,11 @@ public class DevRegionSeeder implements ApplicationRunner {
         "INSERT INTO regions (region_id, name, boundary, currency, emergency_number, state,"
             + " cancellation_grace_min, cancellation_fee, wait_grace_min, wait_per_min_rate,"
             + " pickup_fee_threshold_km, pickup_fee_per_km, surge_cap, commission_tiers,"
-            + " incentive_values, suspension_thresholds) VALUES"
+            + " incentive_values, suspension_thresholds, driver_balance_floor,"
+            + " floor_warning_margin) VALUES"
             + " (?, ?, ST_GeomFromText(?, 4326), 'SYP', '112', 'active',"
-            + " 5, 5000.00, 5, 500.00, 10.0, 1000.00, 2.00, ?::jsonb, ?::jsonb, ?::jsonb)",
+            + " 5, 5000.00, 5, 500.00, 10.0, 1000.00, 2.00, ?::jsonb, ?::jsonb, ?::jsonb,"
+            + " -500000.00, 100000.00)",
         regionId,
         REGION_NAME,
         BOUNDARY_WKT,

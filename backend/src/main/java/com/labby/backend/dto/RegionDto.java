@@ -25,6 +25,7 @@ public record RegionDto(
     BigDecimal pickupFeePerKm,
     BigDecimal surgeCap,
     BigDecimal driverBalanceFloor,
+    BigDecimal floorWarningMargin,
     List<CommissionTierDto> commissionTiers,
     IncentiveValuesDto incentiveValues,
     SuspensionThresholdsDto suspensionThresholds,

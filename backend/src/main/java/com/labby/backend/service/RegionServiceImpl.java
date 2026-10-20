@@ -222,9 +222,9 @@ public class RegionServiceImpl implements RegionService {
   }
 
   /**
-   * The requested IANA zone, or the region's current one when omitted (the admin dashboard has no
-   * time-zone field yet, so a bundle save must not reset a zone set via the API — M7 audit W1); an
-   * unknown id is a 400. New regions start at {@link Region#DEFAULT_TIME_ZONE}.
+   * The requested IANA zone, or the region's current one when omitted (a client that leaves the
+   * field out must not reset a zone set elsewhere — M7 audit W1; the dashboard edits it since
+   * review V1 I23); an unknown id is a 400. New regions start at {@link Region#DEFAULT_TIME_ZONE}.
    */
   private static String timeZone(String requested, String current) {
     if (requested == null) {
@@ -252,10 +252,15 @@ public class RegionServiceImpl implements RegionService {
     region.setPickupFeeThresholdKm(request.pickupFeeThresholdKm());
     region.setPickupFeePerKm(request.pickupFeePerKm());
     region.setSurgeCap(request.surgeCap());
-    // Like timeZone (M8 audit H1): the dashboard has no floor field, so an omitted/null floor keeps
-    // the stored one; a new region starts NULL (= the SRS default -50).
+    // Like timeZone (M8 audit H1): an omitted/null floor keeps the stored one (a client without the
+    // field must not reset it); a new region starts NULL (= the SRS default -50).
     if (request.driverBalanceFloor() != null) {
       region.setDriverBalanceFloor(request.driverBalanceFloor());
+    }
+    // Review V1 W3 (owner ruling 2026-10-20): the per-region warning margin follows the same
+    // keep-on-omit rule; NULL = the global MONEY_FLOOR_WARNING_MARGIN.
+    if (request.floorWarningMargin() != null) {
+      region.setFloorWarningMargin(request.floorWarningMargin());
     }
     region.setCommissionTiers(
         request.commissionTiers() == null
@@ -427,6 +432,7 @@ public class RegionServiceImpl implements RegionService {
         region.getPickupFeePerKm(),
         region.getSurgeCap(),
         region.getDriverBalanceFloor(),
+        region.getFloorWarningMargin(),
         region.getCommissionTiers() == null
             ? null
             : objectMapper.convertValue(
@@ -496,6 +502,7 @@ public class RegionServiceImpl implements RegionService {
     snapshot.put("pickupFeePerKm", region.getPickupFeePerKm());
     snapshot.put("surgeCap", region.getSurgeCap());
     snapshot.put("driverBalanceFloor", region.getDriverBalanceFloor());
+    snapshot.put("floorWarningMargin", region.getFloorWarningMargin());
     snapshot.put("commissionTiers", region.getCommissionTiers());
     snapshot.put("incentiveValues", region.getIncentiveValues());
     snapshot.put("suspensionThresholds", region.getSuspensionThresholds());

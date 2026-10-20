@@ -46,7 +46,7 @@ public class DriverDutyGatesImpl implements DriverDutyGates {
     }
     FloorStatus status =
         moneyFloors.status(
-            moneyFloors.balance(driverUserId, region.getCurrency()), moneyFloors.floor(region));
+            moneyFloors.balance(driverUserId, region.getCurrency()), moneyFloors.rule(region));
     return status == FloorStatus.BLOCKED ? BALANCE_BELOW_FLOOR : null;
   }
 

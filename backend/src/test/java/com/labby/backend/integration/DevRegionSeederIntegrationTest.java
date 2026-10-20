@@ -74,6 +74,16 @@ class DevRegionSeederIntegrationTest extends AbstractIntegrationTest {
     assertThat(damascus.getSurgeCap()).isEqualByComparingTo("2.00");
   }
 
+  @Test
+  @DisplayName("review V1 W3: Damascus seeds an SYP-scale debt floor and warning margin")
+  void shouldSeedSypScaleFloorAndMargin() {
+    new DevRegionSeeder(jdbcTemplate).run(null);
+
+    Region damascus = regionRepository.findActiveRegionsCovering(33.51, 36.29).get(0);
+    assertThat(damascus.getDriverBalanceFloor()).isEqualByComparingTo("-500000");
+    assertThat(damascus.getFloorWarningMargin()).isEqualByComparingTo("100000");
+  }
+
   private int count(String table, String where) {
     Integer value =
         jdbcTemplate.queryForObject(

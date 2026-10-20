@@ -88,8 +88,9 @@ paths:
       summary: Edit a region's bundle (UC-A-06)
       x-required-permission: 'regions:edit'
       description: >
-        Full-bundle replace (absent optional fields clear — except `timeZone` and
-        `driverBalanceFloor`, which an omitted/null value keeps). Applies to NEW rides only. An
+        Full-bundle replace (absent optional fields clear — except `timeZone`,
+        `driverBalanceFloor`, `floorWarningMargin`, `metricWarnings`, `scheduledSettings` and
+        `growthSettings`, which an omitted/null value keeps). Applies to NEW rides only. An
         ACTIVE region may not un-fill mandatory config -> 409; boundary edits that would make
         the region overlap another region -> 409 (M4-T2 rule); boundary edits that would leave
         a surge zone outside the region -> 409 naming the zones (move or delete them first;
@@ -631,7 +632,15 @@ components:
         waitPerMinRate: { type: [number, 'null'], minimum: 0, description: 'Default: 0.25' }
         pickupFeeThresholdKm: { type: [number, 'null'], minimum: 0, description: 'Default: 10' }
         pickupFeePerKm: { type: [number, 'null'], minimum: 0, description: 'Default: 0.50' }
-        driverBalanceFloor: { type: [number, 'null'], maximum: 0, description: 'COM-03 (M8); default: -50' }
+        driverBalanceFloor: { type: [number, 'null'], maximum: 0, description: 'COM-03 (M8); default: -50. In the region''s currency (owner ruling 2026-10-20)' }
+        floorWarningMargin:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          description: >
+            COM-03 "warn drivers when within" (review V1 W3, owner ruling 2026-10-20): a driver
+            whose balance is at most this much above the floor gets status `warning` (money-v1
+            FloorStatus). In the region's currency. Null = the global MONEY_FLOOR_WARNING_MARGIN
+            (default 10).
         surgeCap: { type: [number, 'null'], minimum: 1, description: Region-wide surge cap (PRC-02) }
         commissionTiers:
           oneOf:
@@ -697,7 +706,17 @@ components:
           description: >
             COM-03 (M8); never positive. Omitted or null → the region KEEPS its stored floor (same
             rule as `timeZone`, M8 audit H1); a new region starts unset (= the SRS default -50).
-            To return to the default an admin sends -50 explicitly.
+            To return to the default an admin sends -50 explicitly. An amount in the region's
+            currency (owner ruling 2026-10-20), e.g. -500000 for SYP.
+        floorWarningMargin:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          description: >
+            Review V1 W3 (owner ruling 2026-10-20), in the region's currency, e.g. 100000 for SYP.
+            Must be above 0 (400 otherwise). Omitted or null → the region KEEPS its stored margin
+            (same rule as `driverBalanceFloor`); a new region starts unset (= the global
+            MONEY_FLOOR_WARNING_MARGIN, default 10). To return to that value an admin sends it
+            explicitly.
         surgeCap: { type: [number, 'null'], minimum: 1 }
         commissionTiers:
           oneOf:

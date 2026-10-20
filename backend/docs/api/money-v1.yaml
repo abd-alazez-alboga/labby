@@ -100,8 +100,10 @@ info:
 
     **Floor (COM-03, UC-D-16).** Per region (`driverBalanceFloor`, regions-v1.yaml; NULL = the
     SRS default −50), checked against the driver's balance in that region's currency. Dispatch
-    excludes drivers at or below the floor; status `warning` within `MONEY_FLOOR_WARNING_MARGIN`
-    (default 10) above it, `blocked` at/below. A settlement that lifts the balance above the
+    excludes drivers at or below the floor; status `warning` within the region's
+    `floorWarningMargin` above it (regions-v1.yaml; NULL = the global `MONEY_FLOOR_WARNING_MARGIN`,
+    default 10; owner ruling 2026-10-20: floor and margin are per-region amounts in the region's
+    currency), `blocked` at/below. A settlement that lifts the balance above the
     floor unblocks automatically and notifies the driver (UC-A-27).
 
 
@@ -494,7 +496,8 @@ components:
       type: string
       enum: [ok, warning, blocked]
       description: >
-        COM-03 — `warning` within MONEY_FLOOR_WARNING_MARGIN (default 10) above the floor,
+        COM-03 — `warning` within the region's floorWarningMargin (NULL = MONEY_FLOOR_WARNING_MARGIN,
+        default 10) above the floor,
         `blocked` at/below (no new offers until settlement)
     DriverBalanceEntry:
       type: object
@@ -508,6 +511,11 @@ components:
             The operating region's floor when its currency matches this entry, else the SRS
             default (-50)
         status: { $ref: '#/components/schemas/FloorStatus' }
+        floorRegionId:
+          type: [string, 'null']
+          format: uuid
+          description: The region whose floor and margin apply (review V1 W4 ledger card); null = the SRS default
+        floorRegionName: { type: [string, 'null'], description: 'That region''s name ("Floor · Damascus")' }
     DriverBalanceView:
       type: object
       required: [balances, commission]
