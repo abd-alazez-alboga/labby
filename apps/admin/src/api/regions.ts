@@ -251,14 +251,19 @@ export function createServiceType(
 
 /**
  * PUT /admin/service-types/{serviceTypeId} — edit or disable (UC-A-07; never
- * deleted); requires pricing:edit; 409 = duplicate English name.
+ * deleted); requires pricing:edit; 409 `service_type_name_taken`, or
+ * `service_type_has_claimed_rides` (details.rides) when disabling a type that
+ * claimed scheduled rides still use — repeated with `acknowledgeClaimedRides`
+ * to disable anyway (UC-A-07 E1, review V1 W38).
  */
 export function updateServiceType(
   client: ApiClient,
   serviceTypeId: string,
   body: ServiceTypeUpsertRequest,
+  options: { acknowledgeClaimedRides?: boolean } = {},
 ): Promise<ServiceType> {
-  return client.put<ServiceType>(`/api/v1/admin/service-types/${serviceTypeId}`, body);
+  const query = options.acknowledgeClaimedRides ? '?acknowledgeClaimedRides=true' : '';
+  return client.put<ServiceType>(`/api/v1/admin/service-types/${serviceTypeId}${query}`, body);
 }
 
 /* ---------- Surcharge windows ---------- */

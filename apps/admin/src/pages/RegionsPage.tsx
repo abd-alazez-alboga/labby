@@ -8,8 +8,14 @@ import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { DataTable, PageHeader } from '../ui';
 
-/** Maps the contract's region-creation failures (regions-v1.yaml) to messages. */
+/**
+ * Maps the contract's region-creation failures (regions-v1.yaml) to messages:
+ * the 409 by its code (`region_name_taken`, `boundary_overlap`; W37), else by class.
+ */
 function mapRegionError(error: unknown): string {
+  if (error instanceof ApiError && error.status === 409 && error.code === 'boundary_overlap') {
+    return 'regionDetail.errors.boundaryOverlap';
+  }
   if (error instanceof ApiError) {
     if (error.status === 409) {
       return 'regions.errors.nameConflict';

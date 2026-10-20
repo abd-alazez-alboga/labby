@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -13,6 +14,7 @@ import {
 } from '../../api/regions';
 import { useAuth } from '../../auth/AuthContext';
 import { PolygonMapEditor, type MapOverlay } from './PolygonMapEditor';
+import { regionConflictMessage } from './region-errors';
 import { SRS_SURGE_STEPS } from './srs-defaults';
 
 interface StepRow {
@@ -22,7 +24,12 @@ interface StepRow {
 
 type EditorState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; item: SurgeZone };
 
-function mapZoneError(error: unknown): string {
+/** The zone 409 by its code (`surge_zone_name_taken`, `zone_outside_boundary`, `region_has_no_boundary`; W37). */
+function mapZoneError(error: unknown, t: TFunction, language: string): string {
+  const conflict = regionConflictMessage(error, t, language);
+  if (conflict) {
+    return conflict.key;
+  }
   if (error instanceof ApiError) {
     if (error.status === 409) {
       return 'surgeZones.errors.conflict';
@@ -56,7 +63,7 @@ export function SurgeZonesSection({
   canEdit: boolean;
   onChange: (items: SurgeZone[]) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
 
   const [editor, setEditor] = useState<EditorState>({ mode: 'closed' });
@@ -152,7 +159,7 @@ export function SurgeZonesSection({
       }
       setEditor({ mode: 'closed' });
     } catch (error) {
-      setEditorError(mapZoneError(error));
+      setEditorError(mapZoneError(error, t, i18n.language));
     } finally {
       setSubmitting(false);
     }
@@ -168,7 +175,7 @@ export function SurgeZonesSection({
         setEditor({ mode: 'closed' });
       }
     } catch (error) {
-      setPageError(mapZoneError(error));
+      setPageError(mapZoneError(error, t, i18n.language));
     }
   }
 

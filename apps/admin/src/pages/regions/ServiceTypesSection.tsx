@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import { ApiError } from '../../api/client';
 import {
@@ -9,11 +11,26 @@ import {
   type ServiceTypeUpsertRequest,
 } from '../../api/regions';
 import { useAuth } from '../../auth/AuthContext';
+import { usePermissions } from '../../auth/usePermissions';
+import { formatMoment } from '../money/money-format';
+import { rideRef } from '../rides/ride-format';
+import { claimedRidesOf, regionConflictMessage, type ClaimedRide } from './region-errors';
 import { SRS_MINIMUM_FARE } from './srs-defaults';
 
 type EditorState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; item: ServiceType };
 
-function mapServiceTypeError(error: unknown): string {
+/** A disable the server held back: the claimed scheduled rides still on the type (W38). */
+interface ClaimedWarning {
+  item: ServiceType;
+  body: ServiceTypeUpsertRequest;
+  rides: ClaimedRide[];
+}
+
+function mapServiceTypeError(error: unknown, t: TFunction, language: string): string {
+  const conflict = regionConflictMessage(error, t, language);
+  if (conflict) {
+    return conflict.key;
+  }
   if (error instanceof ApiError) {
     if (error.status === 409) {
       return 'serviceTypes.errors.nameConflict';
@@ -30,7 +47,11 @@ function mapServiceTypeError(error: unknown): string {
  * NEVER deleted — disabling removes them from booking while existing rides
  * keep referencing them, so the only state control is the enable/disable
  * toggle. Viewing needs pricing:view (the section is hidden without it);
- * every mutating control additionally needs pricing:edit.
+ * every mutating control additionally needs pricing:edit. Disabling a type
+ * that claimed scheduled rides still use is held back by the server (409
+ * `service_type_has_claimed_rides`, UC-A-07 E1, review V1 W38): the warning
+ * lists those rides, and "Disable anyway" repeats the call acknowledged —
+ * the claimed rides still run.
  */
 export function ServiceTypesSection({
   regionId,
@@ -43,8 +64,10 @@ export function ServiceTypesSection({
   canEdit: boolean;
   onChange: (items: ServiceType[]) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
+  const { can } = usePermissions();
+  const canRides = can('rides:view');
 
   const [editor, setEditor] = useState<EditorState>({ mode: 'closed' });
   const [nameEn, setNameEn] = useState('');
@@ -57,6 +80,7 @@ export function ServiceTypesSection({
   const [submitting, setSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [claimed, setClaimed] = useState<ClaimedWarning | null>(null);
 
   function openEditor(next: EditorState) {
     setEditor(next);
@@ -105,7 +129,7 @@ export function ServiceTypesSection({
       }
       setEditor({ mode: 'closed' });
     } catch (error) {
-      setEditorError(mapServiceTypeError(error));
+      setEditorError(mapServiceTypeError(error, t, i18n.language));
     } finally {
       setSubmitting(false);
     }
@@ -113,8 +137,6 @@ export function ServiceTypesSection({
 
   /** Flips `enabled` through the same full-upsert PUT (UC-A-07). */
   async function handleToggle(item: ServiceType) {
-    setPageError(null);
-    setTogglingId(item.id);
     const body: ServiceTypeUpsertRequest = {
       nameEn: item.nameEn,
       nameAr: item.nameAr,
@@ -124,11 +146,29 @@ export function ServiceTypesSection({
       minimumFare: item.minimumFare,
       enabled: !item.enabled,
     };
+    await sendToggle(item, body, false);
+  }
+
+  async function sendToggle(
+    item: ServiceType,
+    body: ServiceTypeUpsertRequest,
+    acknowledgeClaimedRides: boolean,
+  ) {
+    setPageError(null);
+    setClaimed(null);
+    setTogglingId(item.id);
     try {
-      const updated = await updateServiceType(apiClient, item.id, body);
+      const updated = await updateServiceType(apiClient, item.id, body, {
+        acknowledgeClaimedRides,
+      });
       onChange(items.map((current) => (current.id === updated.id ? updated : current)));
     } catch (error) {
-      setPageError(mapServiceTypeError(error));
+      const rides = claimedRidesOf(error);
+      if (rides !== null && !acknowledgeClaimedRides) {
+        setClaimed({ item, body, rides });
+      } else {
+        setPageError(mapServiceTypeError(error, t, i18n.language));
+      }
     } finally {
       setTogglingId(null);
     }
@@ -167,6 +207,50 @@ export function ServiceTypesSection({
         <p className="banner banner--error" role="alert">
           {t(pageError)}
         </p>
+      ) : null}
+
+      {claimed ? (
+        <div
+          className="banner banner--warning claimed-rides"
+          role="alertdialog"
+          aria-labelledby="claimed-rides-title"
+          aria-describedby="claimed-rides-body"
+        >
+          <span id="claimed-rides-title" className="banner__title">
+            {t('serviceTypes.claimed.title')}
+          </span>
+          <span id="claimed-rides-body" className="banner__detail">
+            {t('serviceTypes.claimed.body', { name: claimed.item.nameEn })}
+          </span>
+          <ul className="claimed-rides__list">
+            {claimed.rides.map((ride) => (
+              <li key={ride.rideId}>
+                {canRides ? (
+                  <Link to={`/rides/${ride.rideId}`}>
+                    <bdi dir="ltr">{rideRef(ride.rideId)}</bdi>
+                  </Link>
+                ) : (
+                  <bdi dir="ltr">{rideRef(ride.rideId)}</bdi>
+                )}
+                {' · '}
+                {formatMoment(ride.scheduledAt, i18n.language)}
+              </li>
+            ))}
+          </ul>
+          <span className="claimed-rides__actions">
+            <button
+              className="btn btn--danger"
+              type="button"
+              disabled={togglingId === claimed.item.id}
+              onClick={() => void sendToggle(claimed.item, claimed.body, true)}
+            >
+              {t('serviceTypes.claimed.confirm')}
+            </button>
+            <button className="btn" type="button" onClick={() => setClaimed(null)}>
+              {t('common.cancel')}
+            </button>
+          </span>
+        </div>
       ) : null}
 
       {canEdit ? (

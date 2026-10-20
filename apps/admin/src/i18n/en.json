@@ -399,7 +399,8 @@
       },
       "errors": {
         "incomplete": "The server rejected activation — the mandatory bundle is still incomplete. The server's completeness check is the truth; save your changes and review the checklist.",
-        "generic": "Something went wrong. Please try again."
+        "generic": "Something went wrong. Please try again.",
+        "incompleteParts": "The server refused activation — still missing: {{missing}}."
       }
     },
     "errors": {
@@ -414,7 +415,11 @@
       "warnNotAboveMin": "A flag level must be higher than the suspension level of the same role.",
       "incompleteMetricWarnings": "Fill in all four metric warning fields, or leave them all blank.",
       "peakWindows": "A bonus above 0 needs at least one window. Start and end must differ.",
-      "peakWindowIncomplete": "Every window needs at least one day, a start and an end."
+      "peakWindowIncomplete": "Every window needs at least one day, a start and an end.",
+      "boundaryOverlap": "The boundary overlaps another region. Redraw it so the regions don't overlap.",
+      "zonesOutside": "The new boundary would leave these surge zones outside the region: {{zones}}. Move or delete them first.",
+      "zonesOutsideUnnamed": "The new boundary would leave surge zones outside the region. Move or delete them first.",
+      "activeIncomplete": "An active region must keep its mandatory configuration. This save would remove: {{missing}}."
     },
     "warnHint": "Flag levels (optional): below this live average an account is flagged for review — never suspended. Must be above the suspension level; blank = suspension level + 0.5.",
     "metricWarningsTitle": "Driver metric warnings",
@@ -458,6 +463,11 @@
       "nameConflict": "This English name is already used in this region.",
       "validation": "The request was rejected — check the values and try again.",
       "generic": "Something went wrong. Please try again."
+    },
+    "claimed": {
+      "title": "Claimed scheduled rides still use this type",
+      "body": "These claimed scheduled rides use {{name}}. Resolve them first, or disable anyway — the claimed rides still run.",
+      "confirm": "Disable anyway"
     }
   },
   "surcharges": {
@@ -536,7 +546,10 @@
       "incompleteSteps": "Every threshold step needs both a ratio and a multiplier — and at least one step is required.",
       "conflict": "Not allowed: the zone name is already used in this region, or the polygon lies outside the region boundary.",
       "validation": "The request was rejected — check the values and try again.",
-      "generic": "Something went wrong. Please try again."
+      "generic": "Something went wrong. Please try again.",
+      "nameTaken": "This zone name is already used in this region.",
+      "outsideBoundary": "The zone's polygon lies outside the region boundary. Redraw it inside.",
+      "noRegionBoundary": "This region has no boundary yet. Draw and save the boundary before adding zones."
     },
     "liveLink": "Live surge"
   },

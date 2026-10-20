@@ -2287,6 +2287,31 @@ input[type='radio'] {
   font-weight: 800;
 }
 
+/* Disabling a service type that claimed scheduled rides use (UC-A-07 E1, V1 audit W38). */
+
+.claimed-rides {
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-2);
+}
+
+.claimed-rides__list {
+  margin: 0;
+  padding-inline-start: var(--labby-space-5);
+  font-size: 14px;
+  color: var(--labby-text);
+}
+
+.claimed-rides__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--labby-space-2);
+}
+
+.claimed-rides__actions .btn {
+  margin-inline-start: 0;
+}
+
 .kpi__suffix {
   font-size: 18px;
   font-weight: 700;

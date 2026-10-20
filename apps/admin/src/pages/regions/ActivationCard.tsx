@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client';
 import { activateRegion, type Region, type ServiceType } from '../../api/regions';
 import { useAuth } from '../../auth/AuthContext';
 import { isComplete, regionChecklist } from './completeness';
+import { regionConflictMessage, type UiMessage } from './region-errors';
 
 /**
  * UC-A-05 step 5: the activation flow. The checklist mirrors the
@@ -24,10 +25,10 @@ export function ActivationCard({
   canEdit: boolean;
   onActivated: (region: Region) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiMessage | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const items = regionChecklist(region, serviceTypes);
@@ -40,10 +41,12 @@ export function ActivationCard({
       const activated = await activateRegion(apiClient, region.id);
       onActivated(activated);
     } catch (caught) {
+      // 409 `region_incomplete` lists the missing parts (W37); other 409s stay generic.
       setError(
-        caught instanceof ApiError && caught.status === 409
-          ? 'regionDetail.activation.errors.incomplete'
-          : 'regionDetail.activation.errors.generic',
+        regionConflictMessage(caught, t, i18n.language) ??
+          (caught instanceof ApiError && caught.status === 409
+            ? { key: 'regionDetail.activation.errors.incomplete' }
+            : { key: 'regionDetail.activation.errors.generic' }),
       );
     } finally {
       setSubmitting(false);
@@ -68,7 +71,7 @@ export function ActivationCard({
 
       {error ? (
         <p className="banner banner--error" role="alert">
-          {t(error)}
+          {t(error.key, error.values)}
         </p>
       ) : null}
 

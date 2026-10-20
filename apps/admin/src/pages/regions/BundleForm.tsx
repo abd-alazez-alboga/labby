@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '../../api/client';
@@ -11,6 +12,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { PeakHourBonusSection, type PeakWindowRow } from './PeakHourBonusSection';
 import { PolygonMapEditor } from './PolygonMapEditor';
+import { regionConflictMessage, type UiMessage } from './region-errors';
 import { withSrsDefaults } from './srs-defaults';
 import { toContractTime, toTimeInput } from './timeWindows';
 
@@ -45,16 +47,21 @@ function isPeakWindowError(error: unknown): boolean {
   );
 }
 
-function mapSaveError(error: unknown): string {
+/** The save failure: the 409 named by its code (W37), else the generic class. */
+function mapSaveError(error: unknown, t: TFunction, language: string): UiMessage {
+  const conflict = regionConflictMessage(error, t, language);
+  if (conflict) {
+    return conflict;
+  }
   if (error instanceof ApiError) {
     if (error.status === 409) {
-      return 'regionDetail.errors.saveConflict';
+      return { key: 'regionDetail.errors.saveConflict' };
     }
     if (error.status === 400) {
-      return 'regionDetail.errors.validation';
+      return { key: 'regionDetail.errors.validation' };
     }
   }
-  return 'regionDetail.errors.generic';
+  return { key: 'regionDetail.errors.generic' };
 }
 
 /**
@@ -79,7 +86,7 @@ export function BundleForm({
   /** The region was just created: offer the SRS §9 defaults (I24, I26–I28). */
   prefillDefaults?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
   const prefilled = prefillDefaults && canEdit;
   const initial = prefilled ? withSrsDefaults(region) : region;
@@ -168,7 +175,7 @@ export function BundleForm({
     toInput(initial.metricWarnings?.minSample ?? null),
   );
 
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<UiMessage | null>(null);
   const [peakError, setPeakError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -189,7 +196,7 @@ export function BundleForm({
    */
   function buildBody(): RegionUpsertRequest | null {
     if (tiers.some((row) => row.weeklyTripsAbove.trim() === '' || row.percent.trim() === '')) {
-      setSaveError('regionDetail.errors.incompleteTiers');
+      setSaveError({ key: 'regionDetail.errors.incompleteTiers' });
       return null;
     }
 
@@ -202,7 +209,7 @@ export function BundleForm({
       incentiveFields.every((field) => field.trim() !== '') &&
       bonuses.every((row) => row.trips.trim() !== '' && row.amount.trim() !== '');
     if (incentivesTouched && !incentivesComplete) {
-      setSaveError('regionDetail.errors.incompleteIncentives');
+      setSaveError({ key: 'regionDetail.errors.incompleteIncentives' });
       return null;
     }
     // M15-T3: every window needs a day and both times; start and end differ;
@@ -230,7 +237,7 @@ export function BundleForm({
     const suspensionTouched = suspensionFields.some((field) => field.trim() !== '');
     const suspensionComplete = suspensionFields.every((field) => field.trim() !== '');
     if (suspensionTouched && !suspensionComplete) {
-      setSaveError('regionDetail.errors.incompleteSuspension');
+      setSaveError({ key: 'regionDetail.errors.incompleteSuspension' });
       return null;
     }
     const warnLevels: [string, string][] = [
@@ -238,12 +245,12 @@ export function BundleForm({
       [riderWarnAvgRating, riderMinAvgRating],
     ];
     if (warnLevels.some(([warn]) => warn.trim() !== '') && !suspensionComplete) {
-      setSaveError('regionDetail.errors.incompleteSuspension');
+      setSaveError({ key: 'regionDetail.errors.incompleteSuspension' });
       return null;
     }
     // The flag level must sit above the suspension level (contract).
     if (warnLevels.some(([warn, min]) => warn.trim() !== '' && Number(warn) <= Number(min))) {
-      setSaveError('regionDetail.errors.warnNotAboveMin');
+      setSaveError({ key: 'regionDetail.errors.warnNotAboveMin' });
       return null;
     }
 
@@ -255,7 +262,7 @@ export function BundleForm({
     ];
     const metricsTouched = metricFields.some((field) => field.trim() !== '');
     if (metricsTouched && !metricFields.every((field) => field.trim() !== '')) {
-      setSaveError('regionDetail.errors.incompleteMetricWarnings');
+      setSaveError({ key: 'regionDetail.errors.incompleteMetricWarnings' });
       return null;
     }
 
@@ -350,7 +357,7 @@ export function BundleForm({
       if (isPeakWindowError(error)) {
         setPeakError('regionDetail.errors.peakWindows');
       } else {
-        setSaveError(mapSaveError(error));
+        setSaveError(mapSaveError(error, t, i18n.language));
       }
     } finally {
       setSubmitting(false);
@@ -387,7 +394,7 @@ export function BundleForm({
 
       {saveError ? (
         <p className="banner banner--error" role="alert">
-          {t(saveError)}
+          {t(saveError.key, saveError.values)}
         </p>
       ) : null}
       {saved ? (
