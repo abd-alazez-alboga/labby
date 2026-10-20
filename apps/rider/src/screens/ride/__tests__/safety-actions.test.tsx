@@ -491,3 +491,59 @@ describe("SOS (UC-S-16, SAFE-01)", () => {
     );
   });
 });
+
+describe("I'm coming on the wait-charge sheet (RiderWaitCharge)", () => {
+  const charging = () =>
+    acceptedRide({
+      state: "driver_arrived",
+      waitGraceEndsAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+  it("sends the rider_coming quick reply once", async () => {
+    mockApi(
+      routes({
+        [ACTIVE]: { status: 200, body: charging() },
+        [RIDE]: { status: 200, body: charging() },
+      }),
+    );
+    await renderRide();
+    const socket = await connect();
+
+    const button = await screen.findByTestId("ride-im-coming");
+    expect(button).toHaveTextContent("I'm coming");
+    await fireEvent.press(button);
+
+    const frames = socket.sent.filter((frame) => frame.type === "chat.send");
+    expect(frames).toEqual([
+      expect.objectContaining({
+        type: "chat.send",
+        rideId: RIDE_ID,
+        kind: "quick_reply",
+        quickReplyCode: "rider_coming",
+        clientMsgId: expect.any(String),
+      }),
+    ]);
+    expect(screen.getByTestId("ride-im-coming")).toHaveTextContent(
+      "Your driver knows you're coming",
+    );
+    expect(
+      screen.getByTestId("ride-im-coming").props.accessibilityState,
+    ).toEqual(expect.objectContaining({ disabled: true }));
+  });
+
+  it("is not offered while the free waiting time runs", async () => {
+    const free = acceptedRide({
+      state: "driver_arrived",
+      waitGraceEndsAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+    mockApi(
+      routes({
+        [ACTIVE]: { status: 200, body: free },
+        [RIDE]: { status: 200, body: free },
+      }),
+    );
+    await renderRide();
+    expect(await screen.findByTestId("ride-wait-countdown")).toBeOnTheScreen();
+    expect(screen.queryByTestId("ride-im-coming")).toBeNull();
+  });
+});

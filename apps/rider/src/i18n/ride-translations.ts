@@ -135,6 +135,8 @@ export const rideEn = {
       "Your {{minutes}} free minutes ended at {{time}}. Waiting now adds {{money}} per minute to your fare.",
     waitChargeBodyNoRate:
       "Your free waiting time ended at {{time}}. Waiting now adds a per-minute charge to your fare.",
+    imComing: "I'm coming",
+    imComingSent: "Your driver knows you're coming",
     onTheWay: "On the way",
     arriveAbout: "Arrive about {{time}}",
     changeDestination: "Change destination",
@@ -416,6 +418,8 @@ export const rideAr = {
       "انتهت دقائقك المجانية ({{minutes}}) الساعة {{time}}. الانتظار الآن يضيف {{money}} عن كل دقيقة إلى أجرتك.",
     waitChargeBodyNoRate:
       "انتهى وقت الانتظار المجاني الساعة {{time}}. الانتظار الآن يضيف رسمًا عن كل دقيقة إلى أجرتك.",
+    imComing: "أنا قادم",
+    imComingSent: "يعرف سائقك أنك قادم",
     onTheWay: "في الطريق",
     arriveAbout: "الوصول حوالي {{time}}",
     changeDestination: "تغيير الوجهة",

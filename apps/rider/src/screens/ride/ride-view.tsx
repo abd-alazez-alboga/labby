@@ -53,6 +53,8 @@ import {
   TextButton,
   useDirection,
 } from "../../components/ui";
+import { newClientMsgId } from "../../chat/use-chat-thread";
+import { useOptionalChat } from "../../chat/chat-context";
 import { useLocale } from "../../i18n/locale-context";
 import { useOptionalRegion } from "../../region/region-context";
 import { useActiveRide } from "../../ride/ride-context";
@@ -163,6 +165,9 @@ export function RideView({
   const [ratingDone, setRatingDone] = useState(false);
   const accountSuspended = useAccountSuspended();
   const region = useOptionalRegion();
+  const chat = useOptionalChat();
+  // RiderWaitCharge "I'm coming": sent once per ride (the rider_coming quick reply).
+  const [comingSentFor, setComingSentFor] = useState<string | null>(null);
   // TRK-02: the route on the tracking map (driver → pickup, then the trip).
   const route = useRideRoute(ride, facade.driverPosition);
 
@@ -701,6 +706,20 @@ export function RideView({
       }
       return region?.config?.waitGraceMin ?? 5;
     })();
+    const thread = chat?.thread?.rideId === ride.id ? chat.thread : null;
+    const chatWritable =
+      thread?.windowState === "open" || thread?.windowState === "reopened";
+    const comingSent = comingSentFor === ride.id;
+    const sendComing = () => {
+      const sent = facade.sendChatFrame({
+        type: "chat.send",
+        rideId: ride.id,
+        clientMsgId: newClientMsgId(),
+        kind: "quick_reply",
+        quickReplyCode: "rider_coming",
+      });
+      if (sent) setComingSentFor(ride.id);
+    };
     sheet = (
       <BottomSheet testID="ride-arrived">
         <View style={styles.titleBlock}>
@@ -755,7 +774,17 @@ export function RideView({
                   })}
             </AppText>
           </View>
-        ) : graceLeft !== null ? (
+        ) : null}
+        {charging && chatWritable ? (
+          // RiderWaitCharge: one tap tells the driver the rider is on the way.
+          <SecondaryButton
+            label={comingSent ? t("ride.imComingSent") : t("ride.imComing")}
+            onPress={sendComing}
+            disabled={comingSent}
+            testID="ride-im-coming"
+          />
+        ) : null}
+        {charging ? null : graceLeft !== null ? (
           <View style={[styles.waitBox, { flexDirection: row }]}>
             <Ionicons name="time-outline" size={20} color={colors.accent} />
             <AppText variant="bodyStrong" style={styles.flex} tone="accent">
