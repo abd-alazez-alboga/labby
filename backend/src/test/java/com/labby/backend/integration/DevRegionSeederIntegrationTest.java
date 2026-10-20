@@ -57,6 +57,17 @@ class DevRegionSeederIntegrationTest extends AbstractIntegrationTest {
     assertThat(damascus.getEmergencyNumber()).isEqualTo("112");
     assertThat(damascus.getCommissionTiers()).hasSize(3);
     assertThat(damascus.getIncentiveValues()).containsKey("ratingReward");
+    // Review V1 I29: the DRV-08 / M15-T3 defaults at the SYP scale of the other seeded amounts
+    // (x1000): weekly 50 @ 40+ and 100 @ 60+, peak +1.00/trip, rating reward 20 @ 4.8 / 30 trips.
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT incentive_values -> 'weeklyTripBonuses' = '[{\"trips\": 40, \"amount\":"
+                    + " 50000}, {\"trips\": 60, \"amount\": 100000}]'::jsonb AND"
+                    + " (incentive_values ->> 'peakHourBonusPerTrip')::numeric = 1000 AND"
+                    + " incentive_values -> 'ratingReward' = '{\"amount\": 20000, \"minAvgRating\":"
+                    + " 4.8, \"minWeeklyTrips\": 30}'::jsonb FROM regions WHERE name = 'Damascus'",
+                Boolean.class))
+        .isTrue();
     // A peak bonus above 0 needs a window (incentives-v1 Q1): the A15 board's two windows.
     assertThat((List<?>) damascus.getIncentiveValues().get("peakWindows")).hasSize(2);
     assertThat(damascus.getSuspensionThresholds()).containsKeys("driver", "rider");

@@ -45,6 +45,13 @@ public class DevRegionSeeder implements ApplicationRunner {
   private static final String COMMISSION_TIERS =
       "[{\"weeklyTripsAbove\":0,\"percent\":25},{\"weeklyTripsAbove\":100,\"percent\":20},"
           + "{\"weeklyTripsAbove\":200,\"percent\":15}]";
+
+  /**
+   * The SRS DRV-08 / M15-T3 incentive defaults (weekly 50 @ 40+ and 100 @ 60+ trips, peak +1.00 per
+   * trip, rating reward 20 @ 4.8 with 30+ trips) at the SYP scale of the other seeded amounts
+   * (x1000). No code path applies incentive defaults to other regions: activation requires the
+   * values to be entered (UC-A-05).
+   */
   private static final String INCENTIVE_VALUES =
       "{\"weeklyTripBonuses\":[{\"trips\":40,\"amount\":50000},{\"trips\":60,\"amount\":100000}],"
           + "\"peakHourBonusPerTrip\":1000,"
@@ -52,6 +59,7 @@ public class DevRegionSeeder implements ApplicationRunner {
           + "\"endsAt\":\"09:30:00\"},{\"daysOfWeek\":[5,6],\"startsAt\":\"22:00:00\","
           + "\"endsAt\":\"02:00:00\"}],"
           + "\"ratingReward\":{\"amount\":20000,\"minAvgRating\":4.8,\"minWeeklyTrips\":30}}";
+
   private static final String SUSPENSION_THRESHOLDS =
       "{\"driver\":{\"minAvgRating\":3.0,\"minRatedRides\":20},"
           + "\"rider\":{\"minAvgRating\":2.5,\"minRatedRides\":10}}";
