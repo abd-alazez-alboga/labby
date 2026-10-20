@@ -5,9 +5,11 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   FLAG_KINDS,
   listAccountFlags,
+  listAdminReports,
   resolveAccountFlag,
   type AccountFlag,
   type AccountFlagPage,
+  type AdminReportSummary,
   type FlagKind,
   type FlagResolution,
 } from '../api/trust';
@@ -244,6 +246,45 @@ function FlagPanel({
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
 
+  // AdminFlags board (V1 audit I85): the evidence reads "category · date".
+  // One read of the user's substantiated reports names the flag's ids;
+  // without reports:view (or on failure) the ids stay as refs.
+  const [reportsById, setReportsById] = useState<Map<string, AdminReportSummary>>(new Map());
+  const thresholdUserId = flag.kind === 'report_threshold' ? flag.user.userId : null;
+  useEffect(() => {
+    setReportsById(new Map());
+    if (!thresholdUserId || !canReports) {
+      return;
+    }
+    let cancelled = false;
+    listAdminReports(apiClient, {
+      status: 'substantiated',
+      reportedUserId: thresholdUserId,
+      size: 100,
+    })
+      .then((page) => {
+        if (!cancelled) {
+          setReportsById(new Map(page.items.map((report) => [report.id, report])));
+        }
+      })
+      .catch(() => {
+        // Keep the id refs.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, thresholdUserId, canReports]);
+
+  function reportLabel(reportId: string): string {
+    const report = reportsById.get(reportId);
+    return report
+      ? t('flags.panel.reportEntry', {
+          category: t(`reports.category.${report.category}`),
+          date: formatDay(report.createdAt, i18n.language),
+        })
+      : t('flags.panel.report', { ref: reportId.slice(0, 8).toUpperCase() });
+  }
+
   async function close(resolution: FlagResolution) {
     if (note.trim() === '') {
       setErrorKey('flags.panel.noteRequired');
@@ -277,13 +318,11 @@ function FlagPanel({
           <span className="decision-panel__subtitle">{t('flags.panel.reportsTitle')}</span>
           {flag.details.reportIds.map((reportId) =>
             canReports ? (
-              <Link key={reportId} to={`/reports/${reportId}`} dir="ltr">
-                {t('flags.panel.report', { ref: reportId.slice(0, 8).toUpperCase() })}
+              <Link key={reportId} to={`/reports/${reportId}`}>
+                {reportLabel(reportId)}
               </Link>
             ) : (
-              <span key={reportId} dir="ltr">
-                {t('flags.panel.report', { ref: reportId.slice(0, 8).toUpperCase() })}
-              </span>
+              <span key={reportId}>{reportLabel(reportId)}</span>
             ),
           )}
         </div>

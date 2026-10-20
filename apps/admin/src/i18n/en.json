@@ -1552,7 +1552,8 @@
       "noteRequired": "Write a note before closing the flag.",
       "markActioned": "Mark actioned",
       "dismiss": "Dismiss",
-      "audited": "Closing only closes the flag. Logged under your name."
+      "audited": "Closing only closes the flag. Logged under your name.",
+      "reportEntry": "{{category}} · {{date}}"
     }
   },
   "trust": {

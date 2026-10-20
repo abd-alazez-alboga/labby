@@ -5,7 +5,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { AccountFlag } from '../api/trust';
 import i18n from '../i18n/i18n';
 import { bodyOf } from './onboarding-fixtures';
-import { callsTo, jsonResponse, renderShell, seedStoredSession, sessionFor } from './test-utils';
+import { formatDay } from '../pages/money/money-format';
+import {
+  adminUser,
+  callsTo,
+  jsonResponse,
+  renderShell,
+  seedStoredSession,
+  sessionFor,
+} from './test-utils';
 import {
   FLAG_1,
   FLAG_3,
@@ -13,7 +21,10 @@ import {
   LOW_RATING_FLAG,
   METRIC_FLAG,
   REPORT_1,
+  REPORT_2,
   REPORT_THRESHOLD_FLAG,
+  reportPage,
+  reportSummary,
   SAMER_ID,
   stubTrustRoutes,
   TRUST_ADMIN,
@@ -109,6 +120,43 @@ describe('flagged accounts', () => {
       'Omar Saleh · Metric warning',
     );
     expect(rows[2]).toHaveClass('table__row--selected');
+  });
+
+  it('names the threshold evidence by category and date (AdminFlags, I85)', async () => {
+    const reportsViewer = adminUser(['users:view', 'reports:view']);
+    seedStoredSession(sessionFor(reportsViewer));
+    const created = '2026-10-02T10:00:00Z';
+    const fetchMock = stubTrustRoutes(reportsViewer, (method, path, _init, url) => {
+      if (method === 'GET' && path === '/api/v1/admin/flags') {
+        return jsonResponse(200, flagPage([REPORT_THRESHOLD_FLAG]));
+      }
+      if (method === 'GET' && path === '/api/v1/admin/reports') {
+        return url?.searchParams.get('status') === 'substantiated' &&
+          url.searchParams.get('reportedUserId') === SAMER_ID
+          ? jsonResponse(
+              200,
+              reportPage([
+                reportSummary({ id: REPORT_1, status: 'substantiated', createdAt: created }),
+              ]),
+            )
+          : jsonResponse(200, reportPage([]));
+      }
+      return null;
+    });
+    renderShell();
+
+    const label = `Unsafe driving · ${formatDay(created, 'en')}`;
+    const link = await screen.findByRole('link', { name: label });
+    expect(link).toHaveAttribute('href', `/reports/${REPORT_1}`);
+    // A report the lookup did not return keeps its ref.
+    expect(
+      screen.getByRole('link', { name: `Report ${REPORT_2.slice(0, 8).toUpperCase()}` }),
+    ).toBeInTheDocument();
+    expect(
+      callsTo(fetchMock, '/api/v1/admin/reports').filter(([input]) =>
+        String(input).includes('status=substantiated'),
+      ),
+    ).toHaveLength(1);
   });
 
   it('filters by kind through the list endpoint', async () => {
