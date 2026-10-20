@@ -16,6 +16,7 @@ import { MockSocket } from "../test-utils/realtime";
 import {
   ACTIVE_RIDE,
   AVAILABILITY,
+  emitPosition,
   goLive,
   mockLocationGranted,
   receive,
@@ -217,8 +218,19 @@ describe("active ride (UC-D-07..10)", () => {
       "Umayyad Square",
       { exact: false },
     );
+    // I60 (board DriverInRide): while a stop remains, the top card leads to
+    // it with its number badge; once passed, to the drop-off.
+    expect(screen.getByTestId("in-ride-instruction-title")).toHaveTextContent(
+      "Abu Rummaneh",
+    );
     expect(screen.getByTestId("in-ride-instruction-subtitle")).toHaveTextContent(
-      "Drop-off · 7 min",
+      /^Next stop · [0-9.]+ km$/,
+    );
+    act(() => emitPosition(33.5101, 36.2901));
+    await waitFor(() =>
+      expect(screen.getByTestId("in-ride-instruction-subtitle")).toHaveTextContent(
+        "Drop-off · 7 min",
+      ),
     );
     expect(screen.queryByTestId("route-changed")).toBeNull();
 

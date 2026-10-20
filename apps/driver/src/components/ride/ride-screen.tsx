@@ -15,7 +15,9 @@ import { useOptionalAvailability } from "../../realtime/AvailabilityProvider";
 import type { DriverRideContextValue } from "../../rides/DriverRideProvider";
 import {
   distanceMeters,
+  formatDistance,
   formatMinutes,
+  formatNumber,
   placeLabel,
 } from "../../rides/format";
 import { useRideRoute } from "../../rides/use-ride-route";
@@ -42,6 +44,13 @@ import {
 
 /** Instruction card height (+ gap) kept clear of in-map banners. */
 const TOP_CARD = 96;
+
+/**
+ * I60 (board DriverInRide): a stop counts as reached once the driver came
+ * this close. The ride contract has no reached-stop state, so the app tracks
+ * it locally — a display hint only; the server prices the whole route.
+ */
+export const STOP_REACHED_METERS = 150;
 
 /**
  * The map layer of the ride screens: own position (follow-me), the pickup
@@ -134,6 +143,21 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
   const position = availability?.position ?? null;
   const route = useRideRoute(ride, position);
 
+  // I60: how many stops of the running ride the driver has already passed.
+  const [stopsPassed, setStopsPassed] = useState<{ rideId: string; count: number } | null>(null);
+  const passed = stopsPassed && stopsPassed.rideId === rideId ? stopsPassed.count : 0;
+  const nextStop =
+    ride?.state === "in_progress" && passed < ride.stops.length
+      ? ride.stops[passed]
+      : null;
+  const nextStopDistance =
+    nextStop && position ? distanceMeters(position, nextStop) : null;
+  useEffect(() => {
+    if (rideId && nextStopDistance !== null && nextStopDistance <= STOP_REACHED_METERS) {
+      setStopsPassed({ rideId, count: passed + 1 });
+    }
+  }, [rideId, nextStopDistance, passed]);
+
   // ------------------------------------------------------------- offer
   if (ctx.offer) {
     return (
@@ -217,6 +241,24 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
         onNoShow={() => setCancel({ reason: "rider_no_show" })}
       />
     );
+  } else if (ride.state === "in_progress" && nextStop) {
+    // I60: while stops remain, the top card leads to the next one.
+    top = (
+      <InstructionCard
+        badge={formatNumber(passed + 1, language)}
+        subtitleFirst
+        subtitle={
+          nextStopDistance !== null
+            ? t("ride.inRide.nextStopIn", {
+                distance: formatDistance(t, nextStopDistance, language),
+              })
+            : t("ride.inRide.nextStop")
+        }
+        title={placeLabel(t, nextStop)}
+        testID="in-ride-instruction"
+      />
+    );
+    sheet = <InRideSheet ctx={ctx} ride={ride} />;
   } else if (ride.state === "in_progress") {
     const eta = ride.etaSeconds ?? route?.durationSeconds ?? null;
     top = (

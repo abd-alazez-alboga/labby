@@ -573,6 +573,8 @@
     "inRide": {
       "title": "رحلة {{name}}",
       "dropOffIn": "الوجهة · {{eta}}",
+      "nextStop": "المحطة التالية",
+      "nextStopIn": "المحطة التالية · {{distance}}",
       "dropOffUpdated": "الوجهة · عدّل الراكب المسار",
       "routeChanged": "غيّر الراكب المسار.",
       "metered": "{{payment}} · تُحسب الأجرة من الرحلة الفعلية",
