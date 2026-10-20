@@ -641,7 +641,6 @@
       "markedUnpaid": "Marked as unpaid — the ride is closed.",
       "paymentSettled": "The payment for this ride was already recorded.",
       "scheduledLive": "Your scheduled ride is live — head to the pickup now.",
-      "sharedSettled": "Every party is settled — the shared ride is closed.",
       "scheduledReleased": "A scheduled ride claim was released. It's back on the board or in live dispatch.",
       "scheduledRiderBusy": "A scheduled ride was cancelled: the rider was still on another trip. Nothing counts against you."
     },
@@ -692,7 +691,8 @@
         "absentFee": "Owes the cancellation fee",
         "cancelledBody": "Left the ride",
         "didNotPay": "Didn't pay",
-        "hint": "Confirm each party's cash · the ride closes once every payment is settled ({{count}} left)"
+        "hint": "Confirm each party's cash · Done unlocks once every payment is settled",
+        "done": "Done"
       }
     },
     "scheduledChip": "Scheduled · pickup {{time}}"

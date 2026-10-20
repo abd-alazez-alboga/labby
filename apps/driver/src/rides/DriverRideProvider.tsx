@@ -88,8 +88,6 @@ export type RideNotice =
   | "paymentSettled"
   /** M12 (UC-D-12): a claimed scheduled ride converted into this live ride. */
   | "scheduledLive"
-  /** M12 (UC-D-13): every member of the shared ride is settled. */
-  | "sharedSettled"
   /** M12 push `scheduled.released`: a claim was given back (e.g. unavailable at conversion). */
   | "scheduledReleased"
   /** M12 push `scheduled.cancelled_rider_busy`: the rider was on another ride. */
@@ -142,6 +140,12 @@ export interface DriverRideContextValue {
    */
   settled: Ride | null;
   dismissSettled: () => void;
+  /**
+   * W23 (board D12SharedCollect): a shared ride whose every party is
+   * settled — the collection stays up, Done unlocked, until dismissed.
+   */
+  collected: Ride | null;
+  dismissCollected: () => void;
   /** `ride.updated` route_changed arrived for the current ride. */
   routeChanged: boolean;
   notice: RideNotice | null;
@@ -221,7 +225,6 @@ function noticeForEndedRide(ride: Ride): RideNotice | null {
     case "completed":
       if (ride.paymentStatus === "paid_cash") return "cashConfirmed";
       if (ride.paymentStatus === "unpaid") return "markedUnpaid";
-      if (ride.paymentStatus === "split") return "sharedSettled";
       return null;
     default:
       return null;
@@ -238,6 +241,15 @@ function isSettledPayment(ride: Ride): boolean {
     (ride.paymentStatus === "paid_cash" ||
       ride.paymentStatus === "paid_wallet" ||
       ride.paymentStatus === "paid_mixed")
+  );
+}
+
+/** M12 (UC-D-13): every party of a shared ride is settled — Done unlocks. */
+function isCollectedShared(ride: Ride): boolean {
+  return (
+    ride.kind === "shared" &&
+    ride.state === "completed" &&
+    ride.paymentStatus === "split"
   );
 }
 
@@ -264,6 +276,7 @@ export function DriverRideProvider({
   const [offer, setOffer] = useState<OfferWithDeadline | null>(null);
   const [ride, setRide] = useState<Ride | null>(null);
   const [settled, setSettled] = useState<Ride | null>(null);
+  const [collected, setCollected] = useState<Ride | null>(null);
   const [routeChangedFor, setRouteChangedFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<RideNotice | null>(null);
   const [pending, setPending] = useState<RideAction | null>(null);
@@ -315,6 +328,7 @@ export function DriverRideProvider({
         rideRef.current = next;
         setRide(next);
         setSettled(null);
+        setCollected(null);
         if (offerRef.current?.offer.rideId === next.id) replaceOffer(null);
         return;
       }
@@ -326,6 +340,9 @@ export function DriverRideProvider({
         if (isSettledPayment(next)) {
           // UC-D-15: the payment landed — show the earnings breakdown.
           setSettled(next);
+        } else if (isCollectedShared(next)) {
+          // W23: the collection stays up with Done unlocked.
+          setCollected(next);
         } else if (options.noticeOnEnd !== false) {
           const endNotice = noticeForEndedRide(next);
           if (endNotice) setNotice(endNotice);
@@ -341,6 +358,7 @@ export function DriverRideProvider({
     rideRef.current = null;
     setRide(null);
     setSettled(null);
+    setCollected(null);
     setRouteChangedFor(null);
     setNotice(null);
     setPending(null);
@@ -374,6 +392,10 @@ export function DriverRideProvider({
           setError(null);
           try {
             const ended = await getDriverRide(previousRide.id);
+            if (live() && isCollectedShared(ended)) {
+              setCollected(ended);
+              return;
+            }
             const endNotice = live() ? noticeForEndedRide(ended) : null;
             if (endNotice) setNotice(endNotice);
           } catch {
@@ -489,7 +511,7 @@ export function DriverRideProvider({
 
   // M11: a ride in flight (or its earnings breakdown) keeps the driver app
   // open even after a suspension landed — released once it is over.
-  const held = !!ride || !!settled;
+  const held = !!ride || !!settled || !!collected;
   useEffect(() => {
     setRideHold(held);
   }, [held, setRideHold]);
@@ -787,6 +809,7 @@ export function DriverRideProvider({
   const dismissNotice = useCallback(() => setNotice(null), []);
   const showNotice = useCallback((next: RideNotice) => setNotice(next), []);
   const dismissSettled = useCallback(() => setSettled(null), []);
+  const dismissCollected = useCallback(() => setCollected(null), []);
 
   const openLink = useCallback(
     (link: DeepLink | null) => {
@@ -802,6 +825,8 @@ export function DriverRideProvider({
       ride,
       settled,
       dismissSettled,
+      collected,
+      dismissCollected,
       routeChanged: !!ride && routeChangedFor === ride.id,
       notice,
       pending,
@@ -829,6 +854,8 @@ export function DriverRideProvider({
       ride,
       settled,
       dismissSettled,
+      collected,
+      dismissCollected,
       routeChangedFor,
       notice,
       pending,

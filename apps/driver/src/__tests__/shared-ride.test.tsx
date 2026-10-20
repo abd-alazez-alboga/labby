@@ -5,8 +5,8 @@
  * no-show, 409 wait_grace_running), no whole-ride no-show reason, the
  * per-member chat list (one private thread per member — ruling
  * 2026-10-16), the per-member collection (split summary, cash-confirm /
- * mark-unpaid per member, wallet paid, absent fee) closing the ride once
- * every member is settled, and Arabic RTL.
+ * mark-unpaid per member, wallet paid, absent fee) with the Done primary
+ * unlocked once every member is settled (W23), and Arabic RTL.
  */
 import { fireEvent, waitFor } from "@testing-library/react-native";
 
@@ -241,7 +241,7 @@ describe("shared ride (UC-D-13)", () => {
     expect(screen.getByTestId("member-no-show-sheet")).toBeTruthy();
   });
 
-  it("completion: the split, then each party settles on its own; the ride closes when all are settled", async () => {
+  it("completion: the split, then each party settles on its own; Done unlocks when all are settled", async () => {
     const completed = withSplit(completedShared());
     const settled = withSplit(
       completedShared({
@@ -268,11 +268,28 @@ describe("shared ride (UC-D-13)", () => {
     expect(screen.getByTestId(`collect-${LINA.memberId}`)).toHaveTextContent(
       /Owes the cancellation fee.*SYP 2,000/,
     );
+    // W23 (board D12SharedCollect): Done is the one primary, locked while
+    // a party is still pending.
+    expect(screen.getByTestId("collect-hint")).toHaveTextContent(
+      "Confirm each party's cash · Done unlocks once every payment is settled",
+    );
+    expect(screen.getByTestId("collect-done").props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
 
     fireEvent.press(screen.getByTestId(`collect-cash-${RANA.memberId}`));
-    expect(await screen.findByTestId("ride-notice-sharedSettled")).toBeTruthy();
-    expect(screen.queryByTestId("shared-collect-screen")).toBeNull();
+    // Every party settled: the collection stays up with Done unlocked.
+    await waitFor(() =>
+      expect(screen.getByTestId("collect-done").props.accessibilityState).toMatchObject({
+        disabled: false,
+      }),
+    );
+    expect(screen.getByTestId(`collect-status-${RANA.memberId}`)).toHaveTextContent("Paid");
     expect(contract.requestsTo(memberRoute(RIDE_ID, RANA.memberId, "cash-confirm"))).toHaveLength(1);
+
+    fireEvent.press(screen.getByTestId("collect-done"));
+    await waitFor(() => expect(screen.queryByTestId("shared-collect-screen")).toBeNull());
+    expect(await screen.findByTestId("home-screen")).toBeTruthy();
   });
 
   it("a member who didn't pay is marked unpaid on their own; others stay pending", async () => {
@@ -300,7 +317,10 @@ describe("shared ride (UC-D-13)", () => {
     fireEvent.press(await screen.findByTestId(`collect-unpaid-${OMAR.memberId}`));
     expect(await screen.findByTestId(`collect-status-${OMAR.memberId}`)).toHaveTextContent("Unpaid");
     expect(screen.getByTestId(`collect-cash-${RANA.memberId}`)).toBeTruthy();
-    expect(screen.getByTestId("collect-hint")).toHaveTextContent(/\(1 left\)/);
+    // One party still pending: Done stays locked (W23).
+    expect(screen.getByTestId("collect-done").props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
   });
 
   it("Arabic: the collection reads right to left with Western digits", async () => {
@@ -312,6 +332,11 @@ describe("shared ride (UC-D-13)", () => {
     await waitFor(() =>
       expect(screen.getByTestId("split-per-seat")).toHaveTextContent(/9,500/),
     );
-    expect(screen.getByTestId(`collect-cash-${RANA.memberId}`)).toHaveTextContent("استلمت النقود");
+    // I71 (board D12SharedCollectAr): the copy and the 'تم' primary.
+    expect(screen.getByTestId(`collect-cash-${RANA.memberId}`)).toHaveTextContent("استلمت النقد");
+    expect(screen.getByTestId("collect-hint")).toHaveTextContent(
+      "أكّد نقد كل راكب على حدة · ينتهي عند حسم كل الدفعات",
+    );
+    expect(screen.getByTestId("collect-done")).toHaveTextContent("تم");
   });
 });

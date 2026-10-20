@@ -493,15 +493,18 @@ function CollectRow({
  * split (fare ÷ boarded seats = per seat, server amounts only), then one
  * card per party — cash parties get "Cash received" / "Didn't pay"
  * (per-member cash-confirm / mark-unpaid), wallet parties show as paid,
- * absent parties their fee. The ride closes by itself once every payment
- * is settled.
+ * absent parties their fee. Done (the one primary, W23) unlocks once every
+ * payment is settled; until then the ride stays open.
  */
 export function SharedCollectScreen({
   ctx,
   ride,
+  onDone,
 }: {
   ctx: DriverRideContextValue;
   ride: Ride;
+  /** Set once every party is settled (the provider's `collected` ride). */
+  onDone?: () => void;
 }) {
   const { t } = useTranslation();
   const { language } = useDirection();
@@ -516,7 +519,7 @@ export function SharedCollectScreen({
 
   return (
     <View style={styles.screen} testID="shared-collect-screen">
-      <SafeScrollView safeTop contentContainerStyle={[styles.content, { paddingBottom: bottom }]}>
+      <SafeScrollView safeTop contentContainerStyle={[styles.content, styles.collectContent]}>
         <AppText variant="rowTitle" color={colors.textSecondary} testID="shared-collect-title">
           {t("ride.shared.collect.title")}
         </AppText>
@@ -552,9 +555,17 @@ export function SharedCollectScreen({
           />
         ) : null}
         <AppText variant="caption" weight="400" color={colors.textMuted} testID="collect-hint">
-          {t("ride.shared.collect.hint", { count: formatNumber(left, language) })}
+          {t("ride.shared.collect.hint")}
         </AppText>
       </SafeScrollView>
+      <View style={[styles.collectFooter, { paddingBottom: bottom }]}>
+        <PrimaryButton
+          title={t("ride.shared.collect.done")}
+          onPress={() => onDone?.()}
+          disabled={left > 0 || !onDone}
+          testID="collect-done"
+        />
+      </View>
     </View>
   );
 }
@@ -602,6 +613,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl + spacing.sm,
     paddingHorizontal: spacing.ml,
     gap: spacing.ms,
+  },
+  collectContent: { paddingBottom: spacing.ms },
+  collectFooter: {
+    paddingHorizontal: spacing.ml,
+    paddingTop: spacing.ms,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    backgroundColor: colors.surface,
   },
   splitCard: {
     backgroundColor: colors.text,

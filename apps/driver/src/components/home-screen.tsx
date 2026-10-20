@@ -25,6 +25,7 @@ import { NotificationsBell } from "./notifications/notifications-bell";
 import { BackgroundLocationBanner } from "./availability/background-location-banner";
 import { RideNoticeBanner } from "./ride/ride-parts";
 import { RideScreen } from "./ride/ride-screen";
+import { SharedCollectScreen } from "./ride/shared-parts";
 import { FloorBlockedCard, FloorWarningBanner } from "./money/floor";
 import { TripEarningsScreen } from "./money/trip-earnings-screen";
 import { RateRiderScreen, reportHrefFor } from "./trust/rate-rider-screen";
@@ -226,6 +227,16 @@ export function HomeScreen() {
 
   if (rides && (rides.offer || rides.ride)) {
     return <RideScreen ctx={rides} />;
+  }
+  if (rides?.collected) {
+    // W23: the settled shared ride's collection, Done unlocked.
+    return (
+      <SharedCollectScreen
+        ctx={rides}
+        ride={rides.collected}
+        onDone={rides.dismissCollected}
+      />
+    );
   }
   if (rides?.settled) {
     // UC-D-15: the just-settled ride's earnings breakdown.

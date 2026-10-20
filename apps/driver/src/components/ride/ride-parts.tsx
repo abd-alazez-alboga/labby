@@ -335,7 +335,6 @@ const NOTICE_TONES: Record<RideNotice, "neutral" | "success" | "warning"> = {
   markedUnpaid: "neutral",
   paymentSettled: "neutral",
   scheduledLive: "success",
-  sharedSettled: "success",
   scheduledReleased: "warning",
   scheduledRiderBusy: "neutral",
 };
