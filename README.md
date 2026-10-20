@@ -30,9 +30,10 @@ OSRM for maps and routing.
 
 Root `make help` lists everything; `make check` runs every sub-project's gate.
 
-- **Backend** ([backend/README.md](backend/README.md)) — `make -C backend db-up` (compose
-  Postgres), then `make -C backend run`; health at `:8080/actuator/health`, Swagger at
-  `/swagger-ui.html`. Gate: `make backend-check`.
+- **Backend** ([backend/README.md](backend/README.md)) — `cp backend/.env.example backend/.env`
+  and set `JWT_SECRET` in it (no default; the app refuses to boot without it), then
+  `make -C backend db-up` (compose Postgres) and `make -C backend run` (loads `.env`); health
+  at `:8080/actuator/health`, Swagger at `/swagger-ui.html`. Gate: `make backend-check`.
 - **Admin dashboard** ([apps/admin/README.md](apps/admin/README.md)) — `cd apps/admin &&
   npm install && npm run dev` → `http://localhost:5173`. Gate: `make admin-check`.
 - **Rider app** ([apps/rider/README.md](apps/rider/README.md)) — `cd apps/rider &&

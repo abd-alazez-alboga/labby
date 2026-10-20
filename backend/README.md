@@ -17,11 +17,16 @@ its own phone+password auth in M2; there is no Spring Security yet.
 ## Run locally
 
 ```bash
-# 1. Start Postgres (uses defaults from .env.example; export overrides as needed)
+# 1. Create your local env file and set JWT_SECRET to a long random value
+#    (e.g. `openssl rand -base64 48`) — it has no default, the app refuses to boot without it.
+cp .env.example .env
+
+# 2. Start Postgres (docker compose reads .env)
 docker compose up -d --wait        # or: make db-up
 
-# 2. Run the app with the dev profile (readable logs)
-SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run   # or: make run
+# 3. Run the app with the dev profile (readable logs); `make run` loads .env for you
+make run
+# without make: set -a; . ./.env; set +a; SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run
 ```
 
 Then:
@@ -33,8 +38,10 @@ Then:
 ## Configuration
 
 Every setting in `application.yml` is `${ENV_VAR:default}`; all variables are
-documented in [`.env.example`](.env.example) and default to a working local
-setup. Profiles: `dev` (readable console logs, verbose app logging) and `prod`
+documented in [`.env.example`](.env.example). Every variable except `JWT_SECRET`
+defaults to a working local setup; `JWT_SECRET` deliberately has no default, so
+set it in `.env` (see "Run locally"). Profiles: `dev` (readable console logs,
+verbose app logging) and `prod`
 (JSON logs via logstash encoder, no stack traces in responses). Never commit a
 real `.env` — secrets live in the environment only.
 
@@ -47,7 +54,7 @@ real `.env` — secrets live in the environment only.
 | `make fix` | Auto-format sources (`spotless:apply`) |
 | `make test` | Test suite only |
 | `make build` | Runnable jar without tests |
-| `make run` | `spring-boot:run` with the dev profile |
+| `make run` | `spring-boot:run` with the dev profile, loading `.env` when present |
 | `make db-up` / `make db-down` | Start/stop the compose Postgres |
 
 The root-level `make backend-check|test|build` delegates here.

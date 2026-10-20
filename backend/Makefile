@@ -22,8 +22,8 @@ test: ## Run the test suite
 build: ## Build the runnable jar (skips tests; use `check` for the full gate)
 	$(MVN) -DskipTests package
 
-run: ## Run the app locally (dev profile; expects db-up)
-	SPRING_PROFILES_ACTIVE=dev $(MVN) spring-boot:run
+run: ## Run the app locally (dev profile; expects db-up; loads .env when present)
+	set -a; [ -f .env ] && . ./.env; set +a; SPRING_PROFILES_ACTIVE=dev $(MVN) spring-boot:run
 
 db-up: ## Start the local Postgres (docker compose)
 	docker compose up -d --wait
