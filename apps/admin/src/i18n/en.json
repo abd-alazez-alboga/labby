@@ -61,6 +61,42 @@
       "notAdmin": "This is not an admin account.",
       "throttled": "Too many attempts — please wait and try again.",
       "generic": "Something went wrong. Please try again."
+    },
+    "reset": {
+      "link": "Set or reset your password",
+      "back": "Back to sign in",
+      "step": "Step {{n}} of {{total}}",
+      "title": "Set or reset your password",
+      "intro": "New admin, or forgot your password? Enter the phone number on your admin account and we'll text you a 6-digit code.",
+      "sendCode": "Send code",
+      "sentHint": "If this number has a Labby account, the code arrives by SMS within a minute. It works for 5 minutes.",
+      "codeTitle": "Enter the code",
+      "codeSent": "We sent a 6-digit code to",
+      "codeSentEnd": ".",
+      "changeNumber": "Change number",
+      "codeGroup": "6-digit code",
+      "digitLabel": "Digit {{n}} of {{total}}",
+      "continue": "Continue",
+      "resend": "Resend code",
+      "resendIn": "Resend code ({{seconds}}s)",
+      "sendNewCode": "Send a new code",
+      "passwordTitle": "Choose a new password",
+      "passwordIntro": "You'll use it with your phone number to sign in.",
+      "newPassword": "New password",
+      "passwordHint": "At least {{min}} characters.",
+      "confirmPassword": "Confirm new password",
+      "setPassword": "Set password",
+      "signsOut": "Setting a password signs you out everywhere else.",
+      "startAgain": "Start again",
+      "passwordSet": "Password set. Sign in with your phone number and new password.",
+      "errors": {
+        "phoneInvalid": "Check the phone number. A number outside Syria needs + and its country code.",
+        "wrongCode": "That code is not correct. Try again.",
+        "codeExpired": "That code expired or was tried too many times. Request a new one.",
+        "tooShort": "Use at least 8 characters.",
+        "mismatch": "Passwords do not match.",
+        "resetExpired": "This reset expired before the password was set. Start again with your phone number."
+      }
     }
   },
   "dashboard": {

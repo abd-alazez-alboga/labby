@@ -1,18 +1,29 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { normalizePhone } from '../auth/phone';
 import { BrandMark } from '../layout/BrandMark';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
+import { PasswordInput } from './auth/PasswordInput';
+import { CheckIcon, LockIcon } from './auth/auth-icons';
 
 type LoginErrorKey =
   | 'auth.errors.invalidCredentials'
   | 'auth.errors.notAdmin'
   | 'auth.errors.throttled'
   | 'auth.errors.generic';
+
+/** What other screens hand the sign-in page through router state. */
+export interface LoginLocationState {
+  /** Where the guard sent us from — restored after a successful login. */
+  from?: { pathname?: string };
+  /** The set/reset password flow just finished (V1 audit H2): banner + pre-filled phone. */
+  passwordSet?: boolean;
+  phone?: string;
+}
 
 /** Maps the contract's login failures (auth-v1.yaml) to user-facing messages. */
 function mapLoginError(error: unknown): LoginErrorKey {
@@ -35,14 +46,14 @@ export default function LoginPage() {
   const { user, sessionExpired, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [phone, setPhone] = useState('');
+  const state = location.state as LoginLocationState | null;
+  const passwordSet = state?.passwordSet === true;
+  const [phone, setPhone] = useState(passwordSet ? (state?.phone ?? '') : '');
   const [password, setPassword] = useState('');
-  const [passwordRevealed, setPasswordRevealed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorKey, setErrorKey] = useState<LoginErrorKey | null>(null);
 
-  // Where the guard sent us from — restored after a successful login.
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/';
+  const from = state?.from?.pathname ?? '/';
 
   // Already signed in (direct visit to /login): go straight home.
   if (user) {
@@ -74,7 +85,12 @@ export default function LoginPage() {
           <p className="login__subtitle">{t('auth.loginSubtitle')}</p>
         </div>
 
-        {sessionExpired && errorKey === null ? (
+        {passwordSet && errorKey === null ? (
+          <p className="login__success" role="status">
+            <CheckIcon />
+            {t('auth.reset.passwordSet')}
+          </p>
+        ) : sessionExpired && errorKey === null ? (
           <p className="login__notice" role="status">
             {t('auth.sessionExpired')}
           </p>
@@ -100,56 +116,23 @@ export default function LoginPage() {
         </div>
         <div className="form-field">
           <label htmlFor="login-password">{t('auth.passwordLabel')}</label>
-          <div className="form-field__password">
-            <input
-              id="login-password"
-              type={passwordRevealed ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              disabled={submitting}
-            />
-            <button
-              type="button"
-              className="form-field__reveal"
-              aria-label={t(passwordRevealed ? 'auth.hidePassword' : 'auth.showPassword')}
-              aria-pressed={passwordRevealed}
-              onClick={() => setPasswordRevealed((v) => !v)}
-            >
-              {passwordRevealed ? (
-                <svg
-                  viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  aria-hidden="true"
-                >
-                  <path d="M3 3l18 18M10.6 10.7a2.5 2.5 0 0 0 3.5 3.5M6.6 6.7C4.1 8.3 2.5 10.6 2 12c1.3 3.3 5.3 7 10 7 1.8 0 3.5-.5 5-1.4M9.9 4.3A10 10 0 0 1 12 5c4.7 0 8.7 3.7 10 7-.4 1-1.3 2.4-2.6 3.7" />
-                </svg>
-              ) : (
-                <svg
-                  viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  aria-hidden="true"
-                >
-                  <path d="M2 12c1.3-3.3 5.3-7 10-7s8.7 3.7 10 7c-1.3 3.3-5.3 7-10 7S3.3 15.3 2 12Z" />
-                  <circle cx="12" cy="12" r="2.5" />
-                </svg>
-              )}
-            </button>
-          </div>
+          <PasswordInput
+            id="login-password"
+            autoComplete="current-password"
+            value={password}
+            onChange={setPassword}
+            disabled={submitting}
+          />
         </div>
 
         <button className="btn btn--primary btn--lg btn--block" type="submit" disabled={submitting}>
           {submitting ? t('auth.submitting') : t('auth.submit')}
         </button>
+        {/* UC-A-01 / AUTH-06: a new admin sets, a locked-out admin resets, their password (H2). */}
+        <Link className="login__link" to="/set-password">
+          <LockIcon />
+          {t('auth.reset.link')}
+        </Link>
 
         <div className="login__footer">
           <LanguageSwitcher />

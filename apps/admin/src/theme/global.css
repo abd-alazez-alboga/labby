@@ -1959,6 +1959,182 @@ input[type='radio'] {
   justify-content: center;
 }
 
+/* Set / reset password (V1 audit H2, board V1FAdminSetPassword). */
+
+.login__success {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--labby-space-2);
+  padding: 10px var(--labby-space-3);
+  border-radius: var(--labby-radius-control);
+  background: var(--labby-success-bg);
+  color: var(--labby-success);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.login__error--icon {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--labby-space-2);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.login__success svg,
+.login__error--icon svg {
+  flex: none;
+  margin-block-start: 1px;
+}
+
+.login__link {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--labby-space-2);
+  min-block-size: 44px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--labby-accent);
+  text-decoration: none;
+}
+
+.login__back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--labby-space-1);
+  min-block-size: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--labby-text-secondary);
+  text-decoration: none;
+}
+
+[dir='rtl'] .icon--flip-rtl {
+  transform: scaleX(-1);
+}
+
+.login__progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-2);
+}
+
+.login__step {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--labby-accent);
+}
+
+.login__bars {
+  display: flex;
+  gap: 6px;
+}
+
+.login__bar {
+  flex: 1;
+  block-size: 6px;
+  border-radius: 3px;
+  background: var(--labby-line);
+}
+
+.login__bar--done {
+  background: var(--labby-accent);
+}
+
+.login__heading {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.login__lead {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--labby-text-secondary);
+}
+
+.login__phone {
+  font-weight: 800;
+  color: var(--labby-text);
+}
+
+.login__inline-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 800;
+  color: var(--labby-accent);
+  cursor: pointer;
+}
+
+.login__hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--labby-text-muted);
+}
+
+.login__secondary {
+  align-self: flex-start;
+}
+
+.login__resend {
+  align-self: center;
+  min-block-size: 44px;
+  padding: 0 var(--labby-space-3);
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--labby-accent);
+  cursor: pointer;
+}
+
+.login__resend:disabled {
+  color: var(--labby-text-muted);
+  cursor: default;
+}
+
+.otp {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--labby-space-2);
+}
+
+.otp__box {
+  inline-size: 50px;
+  min-inline-size: 0;
+  block-size: 58px;
+  padding: 0;
+  border: 1.5px solid var(--labby-grab-handle);
+  border-radius: var(--labby-radius-button-lg);
+  background: var(--labby-surface);
+  color: var(--labby-text);
+  font: inherit;
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.otp__box:focus {
+  outline: none;
+  border: 2px solid var(--labby-accent);
+  box-shadow: 0 0 0 3px var(--labby-accent-tint);
+}
+
+.otp__box--invalid {
+  border-color: var(--labby-danger);
+}
+
 /* ---------- Empty / status pages ---------- */
 
 .status-page {

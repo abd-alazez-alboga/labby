@@ -3,7 +3,8 @@ import type { ApiClient } from './client';
 /**
  * Contract types and calls for the M2 auth endpoints.
  * Source of truth: backend/docs/api/auth-v1.yaml — the admin app only uses
- * the login / refresh / logout / profile subset (M2-T5).
+ * the login / refresh / logout / profile subset (M2-T5) and the password-reset
+ * rail a new or locked-out admin sets their password on (V1 audit H2).
  */
 
 export type Role = 'rider' | 'driver' | 'admin';
@@ -80,4 +81,43 @@ export function updateMyProfile(
   body: { name: string; language: 'en' | 'ar' },
 ): Promise<UserProfile> {
   return client.put<UserProfile>('/api/v1/users/me', body);
+}
+
+/* ---------- Set / reset password (AUTH-03, AUTH-06; V1 audit H2) ---------- */
+
+/**
+ * POST /auth/password-reset/start — always 204, whether or not the phone has
+ * an account (no enumeration, NFR-S3); the server simply skips sending on a
+ * cooldown or the hourly cap. 400 = a phone it cannot canonicalize.
+ */
+export function startPasswordReset(client: ApiClient, phone: string): Promise<void> {
+  return client.post<void>('/api/v1/auth/password-reset/start', { phone });
+}
+
+export interface PasswordResetVerifyResponse {
+  resetToken: string;
+}
+
+/** POST /auth/password-reset/verify — 400 wrong code (attempt counted); 410 expired or tries used up. */
+export function verifyPasswordReset(
+  client: ApiClient,
+  phone: string,
+  code: string,
+): Promise<PasswordResetVerifyResponse> {
+  return client.post<PasswordResetVerifyResponse>('/api/v1/auth/password-reset/verify', {
+    phone,
+    code,
+  });
+}
+
+/**
+ * POST /auth/password-reset/complete — 204 sets the password and revokes every
+ * session (AUTH-03); 400 = invalid/expired reset token or a weak password.
+ */
+export function completePasswordReset(
+  client: ApiClient,
+  resetToken: string,
+  newPassword: string,
+): Promise<void> {
+  return client.post<void>('/api/v1/auth/password-reset/complete', { resetToken, newPassword });
 }

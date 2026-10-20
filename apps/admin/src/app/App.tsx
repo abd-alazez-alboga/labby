@@ -10,6 +10,7 @@ import { ToastProvider } from '../toast/ToastProvider';
 // Lazy-loaded routes: this is the pattern every future feature page follows.
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
+const SetPasswordPage = lazy(() => import('../pages/SetPasswordPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 const AdminsPage = lazy(() => import('../pages/AdminsPage'));
 const RolesPage = lazy(() => import('../pages/RolesPage'));
@@ -63,6 +64,15 @@ export function App() {
               element={
                 <Suspense fallback={<div className="loading" />}>
                   <LoginPage />
+                </Suspense>
+              }
+            />
+            {/* UC-A-01 / AUTH-06: a new or locked-out admin sets a password (V1 audit H2). */}
+            <Route
+              path="/set-password"
+              element={
+                <Suspense fallback={<div className="loading" />}>
+                  <SetPasswordPage />
                 </Suspense>
               }
             />
