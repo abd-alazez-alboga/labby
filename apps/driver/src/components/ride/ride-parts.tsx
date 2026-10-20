@@ -121,9 +121,12 @@ const ring = StyleSheet.create({
 /** 6 px progress bar (the free-wait window). */
 export function ProgressBar({
   fraction,
+  tone = "accent",
   testID,
 }: {
   fraction: number;
+  /** I61: `warning` fills amber (the near-floor banner, board DriverBalance). */
+  tone?: "accent" | "warning";
   testID?: string;
 }) {
   const { flipRows } = useDirection();
@@ -136,7 +139,14 @@ export function ProgressBar({
       accessibilityValue={{ min: 0, max: 100, now: percent }}
       testID={testID}
     >
-      <View style={[styles.barFill, { width }]} />
+      <View
+        style={[
+          styles.barFill,
+          tone === "warning" && styles.barFillWarning,
+          { width },
+        ]}
+        testID={testID && `${testID}-fill`}
+      />
     </View>
   );
 }
@@ -485,6 +495,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   barFill: { height: 6, backgroundColor: colors.accent },
+  barFillWarning: { backgroundColor: colors.warning },
   avatar: {
     width: 56,
     height: 56,

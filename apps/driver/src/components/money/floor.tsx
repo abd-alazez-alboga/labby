@@ -48,7 +48,11 @@ export function FloorWarningBanner({
           {t("floor.warningTitle")}
         </AppText>
       </View>
-      <ProgressBar fraction={floorFraction(entry)} testID={`${testID}-bar`} />
+      <ProgressBar
+        fraction={floorFraction(entry)}
+        tone="warning"
+        testID={`${testID}-bar`}
+      />
       <AppText
         variant="caption"
         weight="600"

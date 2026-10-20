@@ -135,6 +135,10 @@ describe("balance screen (UC-D-16)", () => {
       { exact: false },
     );
     expect(screen.getByTestId("floor-warning-bar")).toBeTruthy();
+    // I61: the bar inside the amber warning fills amber, not purple.
+    expect(screen.getByTestId("floor-warning-bar-fill")).toHaveStyle({
+      backgroundColor: colors.warning,
+    });
   });
 
   it("blocked: the red offers-paused card with the settle steps", async () => {
