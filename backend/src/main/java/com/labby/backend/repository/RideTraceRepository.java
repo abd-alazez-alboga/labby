@@ -53,5 +53,27 @@ public interface RideTraceRepository extends JpaRepository<RideTrace, Long> {
       nativeQuery = true)
   double meteredDistanceMeters(@Param("rideId") UUID rideId);
 
+  /**
+   * Whether the ride's in-ride trace came within {@code meters} of a point (V1 audit W40: a stop
+   * counts as visited, so the ETA no longer routes through it).
+   *
+   * @return true when a sample was that close
+   */
+  @Query(
+      value =
+          """
+          SELECT EXISTS (
+            SELECT 1 FROM ride_traces
+            WHERE ride_id = :rideId AND phase = 'in_ride'
+              AND ST_DWithin(position::geography,
+                             ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :meters))
+          """,
+      nativeQuery = true)
+  boolean passedNear(
+      @Param("rideId") UUID rideId,
+      @Param("lat") double lat,
+      @Param("lng") double lng,
+      @Param("meters") double meters);
+
   List<RideTrace> findByRideIdOrderByRecordedAtAscIdAsc(UUID rideId);
 }

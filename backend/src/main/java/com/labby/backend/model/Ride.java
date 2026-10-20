@@ -191,6 +191,17 @@ public class Ride {
   @Column(name = "eta_refreshed_at")
   private Instant etaRefreshedAt;
 
+  /**
+   * V34 (V1 audit W40): the expected arrival (refresh moment + ETA) the rider was last told of in
+   * this phase — the first one measured, or the one of the last delay notice; null until then.
+   */
+  @Column(name = "eta_baseline_arrival_at")
+  private Instant etaBaselineArrivalAt;
+
+  /** V34 (V1 audit W40): when the last {@code ride.eta_delayed} notice was queued. */
+  @Column(name = "eta_delay_notified_at")
+  private Instant etaDelayNotifiedAt;
+
   @Version
   @Column(name = "version", nullable = false)
   private long version;

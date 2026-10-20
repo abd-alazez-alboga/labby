@@ -84,4 +84,28 @@ class NotificationRendererAuditFixesTest {
     assertThat(busy.bodyEn()).contains("Rana", "09:00");
     assertThat(busy.bodyAr()).contains("Rana", "09:00");
   }
+
+  @Test
+  @DisplayName("W40: the ETA delay notice is bilingual, ride category, with Arabic agreement")
+  void shouldRenderEtaDelay() {
+    Rendered pickup =
+        renderer
+            .render(
+                "ride.eta_delayed", Map.of("rideId", "r", "etaMinutes", "12", "phase", "pickup"))
+            .orElseThrow();
+    assertThat(pickup.category()).isEqualTo(com.labby.backend.enums.NotificationCategory.RIDE);
+    assertThat(pickup.audience()).isEqualTo(NotificationAudience.RIDER);
+    assertThat(pickup.titleEn()).isEqualTo("Your driver is delayed");
+    assertThat(pickup.bodyEn()).contains("12 minutes");
+    assertThat(pickup.bodyAr()).contains("12 دقيقة");
+    assertThat(pickup.linkParams()).containsEntry("rideId", "r");
+    Rendered trip =
+        renderer
+            .render(
+                "ride.eta_delayed",
+                Map.of("rideId", "r", "etaMinutes", "7", "phase", "destination"))
+            .orElseThrow();
+    assertThat(trip.titleEn()).isEqualTo("Your arrival is delayed");
+    assertThat(trip.bodyAr()).contains("7 دقائق");
+  }
 }

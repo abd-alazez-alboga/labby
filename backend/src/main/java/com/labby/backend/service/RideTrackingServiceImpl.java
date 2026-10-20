@@ -17,6 +17,7 @@ import com.labby.backend.repository.RideRepository;
 import com.labby.backend.repository.RideTraceRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,7 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Tracing joins the location-ingestion transaction (one extra indexed lookup + one insert per
  * sample). The monitor locks each assigned ride with SKIP LOCKED in its own transaction so several
  * instances can run it (NFR-P4). The ETA targets the pickup until the ride starts and the
- * destination after (the remaining-stop order is not tracked in V1).
+ * destination after, through the stops the trace has not passed yet (V1 audit W40).
  */
 @Slf4j
 @Service
@@ -54,6 +55,12 @@ public class RideTrackingServiceImpl implements RideTrackingService {
   private final RideProperties rideProperties;
   private final TransactionTemplate transactionTemplate;
   private final Clock clock;
+
+  /** V1 audit W40: the slip that triggers a delay notice, and the minimum gap between two. */
+  static final Duration ETA_DELAY_NOTICE = Duration.ofMinutes(5);
+
+  /** V1 audit W40: an in-ride sample this close to a stop marks it visited. */
+  static final double STOP_VISITED_METERS = 150;
 
   @Override
   @Transactional(propagation = Propagation.MANDATORY)
@@ -135,17 +142,76 @@ public class RideTrackingServiceImpl implements RideTrackingService {
     if (etaDue && position.isPresent()) {
       LatLngDto from =
           new LatLngDto(position.get().getPosition().getY(), position.get().getPosition().getX());
-      var target =
-          ride.getState() == RideState.IN_PROGRESS ? ride.getDestination() : ride.getPickup();
-      ride.setEtaSeconds(
-          (int) routingProvider.etaSeconds(from, new LatLngDto(target.getY(), target.getX())));
+      boolean inRide = ride.getState() == RideState.IN_PROGRESS;
+      List<LatLngDto> points = new ArrayList<>();
+      points.add(from);
+      if (inRide) {
+        // V1 audit W40: during the trip the ETA routes through the stops not yet visited.
+        points.addAll(remainingStops(ride));
+        points.add(new LatLngDto(ride.getDestination().getY(), ride.getDestination().getX()));
+      } else {
+        points.add(new LatLngDto(ride.getPickup().getY(), ride.getPickup().getX()));
+      }
+      ride.setEtaSeconds((int) routingProvider.route(points).durationSeconds());
       ride.setEtaRefreshedAt(now);
+      notifyEtaDelay(ride, now, inRide);
       changed = true;
     }
     if (changed) {
       rideRepository.saveAndFlush(ride);
     }
     return changed;
+  }
+
+  /**
+   * The stops after the last one the in-ride trace passed within {@link #STOP_VISITED_METERS} (the
+   * stop order is the booked order), as routing points.
+   */
+  private List<LatLngDto> remainingStops(Ride ride) {
+    List<LatLngDto> stops = new ArrayList<>();
+    for (Map<String, Object> stop : ride.getStops()) {
+      stops.add(
+          new LatLngDto(
+              ((Number) stop.get("lat")).doubleValue(), ((Number) stop.get("lng")).doubleValue()));
+    }
+    int lastVisited = -1;
+    for (int i = 0; i < stops.size(); i++) {
+      if (rideTraceRepository.passedNear(
+          ride.getId(), stops.get(i).lat(), stops.get(i).lng(), STOP_VISITED_METERS)) {
+        lastVisited = i;
+      }
+    }
+    return stops.subList(lastVisited + 1, stops.size());
+  }
+
+  /**
+   * V1 audit W40 (owner ruling 2026-10-20): the rider is told when the expected arrival (refresh +
+   * ETA) slips by {@link #ETA_DELAY_NOTICE} or more over the last one they were told of in this
+   * phase, at most once per {@link #ETA_DELAY_NOTICE}. The first ETA of a phase is the baseline.
+   */
+  private void notifyEtaDelay(Ride ride, Instant now, boolean inRide) {
+    Instant arrival = now.plusSeconds(ride.getEtaSeconds());
+    Instant baseline = ride.getEtaBaselineArrivalAt();
+    if (baseline == null) {
+      ride.setEtaBaselineArrivalAt(arrival);
+      return;
+    }
+    boolean slipped = !arrival.isBefore(baseline.plus(ETA_DELAY_NOTICE));
+    boolean rested =
+        ride.getEtaDelayNotifiedAt() == null
+            || !now.isBefore(ride.getEtaDelayNotifiedAt().plus(ETA_DELAY_NOTICE));
+    if (!slipped || !rested) {
+      return;
+    }
+    ride.setEtaBaselineArrivalAt(arrival);
+    ride.setEtaDelayNotifiedAt(now);
+    rideEvents.pushRiders(
+        ride,
+        NotificationEvent.RIDE_ETA_DELAYED,
+        Map.of(
+            "rideId", ride.getId().toString(),
+            "etaMinutes", String.valueOf(Math.max(1, (ride.getEtaSeconds() + 59) / 60)),
+            "phase", inRide ? "destination" : "pickup"));
   }
 
   /**

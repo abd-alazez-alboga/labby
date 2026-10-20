@@ -47,6 +47,13 @@ public enum NotificationEvent {
   // M8 money events (money-v1.yaml; PRC-03, PAY-03, COM-03).
   /** To the rider when wait-charge accrual starts (PRC-03). Params: rideId, rate, currency. */
   RIDE_WAIT_CHARGE_STARTED("ride.wait_charge_started"),
+  /**
+   * To the rider(s) when the expected arrival — at the pickup, or at the destination through the
+   * remaining stops — slips by 5+ minutes over the last one they were told, at most once per 5
+   * minutes (V1 audit W40, owner ruling 2026-10-20; UC-R-06 step 3). Params: rideId, etaMinutes,
+   * phase ({@code pickup} | {@code destination}).
+   */
+  RIDE_ETA_DELAYED("ride.eta_delayed"),
   /** To the credited user (UC-A-15). Params: amount, currency. */
   WALLET_GRANTED("wallet.granted"),
   /** To the refunded user (PAY-03). Params: amount, currency. */

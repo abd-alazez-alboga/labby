@@ -285,6 +285,7 @@ public class NotificationRenderer {
                       "We couldn't find a driver right now. Tap to try again.",
                       "لا يوجد سائق متاح",
                       "لم نجد سائقاً متاحاً حالياً. اضغط لإعادة المحاولة.");
+      case RIDE_ETA_DELAYED -> etaDelayed(event, params);
       case RIDE_WAIT_CHARGE_STARTED ->
           toRider(
               event,
@@ -678,6 +679,40 @@ public class NotificationRenderer {
         "Your scheduled ride is in %s, at %s.".formatted(leadEn(minutes), time),
         "رحلة قادمة",
         "رحلتك المجدولة بعد %s، الساعة %s.".formatted(leadAr(minutes), time));
+  }
+
+  /**
+   * V1 audit W40: the expected arrival slipped by 5+ minutes (traffic, a reroute) — to the pickup
+   * while the driver is on the way, to the destination during the trip.
+   */
+  private static Rendered etaDelayed(NotificationEvent event, Map<String, Object> params) {
+    int minutes;
+    try {
+      minutes = Math.max(1, Integer.parseInt(text(params.get("etaMinutes"))));
+    } catch (NumberFormatException ex) {
+      minutes = 1;
+    }
+    boolean pickup = "pickup".equals(text(params.get("phase")));
+    return pickup
+        ? toRider(
+            event,
+            params,
+            "Your driver is delayed",
+            "Traffic or a change of route slowed your driver down. They now need about %s to"
+                    .formatted(leadEn(minutes))
+                + " reach you.",
+            "تأخّر سائقك",
+            "أبطأت حركة المرور أو تغيير المسار سائقك. يحتاج الآن إلى نحو %s للوصول إليك."
+                .formatted(leadAr(minutes)))
+        : toRider(
+            event,
+            params,
+            "Your arrival is delayed",
+            "Traffic or a change of route added time to your trip. You'll now arrive in about %s."
+                .formatted(leadEn(minutes)),
+            "تأخّر وصولك",
+            "أضافت حركة المرور أو تغيير المسار وقتاً إلى رحلتك. ستصل الآن خلال نحو %s."
+                .formatted(leadAr(minutes)));
   }
 
   private static boolean isDriver(Map<String, Object> params) {

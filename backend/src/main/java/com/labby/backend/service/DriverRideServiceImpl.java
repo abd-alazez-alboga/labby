@@ -244,6 +244,7 @@ public class DriverRideServiceImpl implements DriverRideService {
     // The next ETA refresh targets the destination instead of the pickup.
     ride.setEtaSeconds(null);
     ride.setEtaRefreshedAt(null);
+    ride.setEtaBaselineArrivalAt(null); // V1 audit W40: a new phase, a new baseline
     ride = rideRepository.saveAndFlush(ride);
     rideEvents.stateChanged(ride);
     rideEvents.pushRiders(

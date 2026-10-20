@@ -182,8 +182,8 @@ info:
 
     - `{"type":"ride.driver_position","rideId","lat","lng","headingDeg"?,"recordedAt","etaSeconds"?}`
     — to the rider for every accepted sample from `accepted` until `completed`; `etaSeconds` is
-    to the pickup before start and straight to the destination after (V1 does not track which
-    stops are done), refreshed by the ride monitor (every 5 s, `RIDE_MONITOR_CRON`) at most
+    to the pickup before start and to the destination after — routed through the stops the
+    in-ride trace has not yet passed within 150 m (V1 audit W40) — refreshed by the ride monitor (every 5 s, `RIDE_MONITOR_CRON`) at most
     every 30 s (`RIDE_ETA_REFRESH_SECONDS`) and repeated in between.
 
     - `{"type":"ride.connection","rideId","driverStream":"ok"|"lost"}` — to both parties when
@@ -198,6 +198,11 @@ info:
     `ride.cancelled_by_driver` (+ new ride id), `ride.no_driver_found` → rider (deep link `ride`
     {rideId}); `ride.cancelled_by_rider` → the assigned driver if any (no link). Deep-link
     catalog additions: `ride` (params `rideId`), `ride_offer` (params `offerId`).
+    **ETA delay (V1 audit W40, owner ruling 2026-10-20; UC-R-06 step 3):** `ride.eta_delayed` →
+    rider(s) (deep link `ride` {rideId}; params `etaMinutes`, `phase` = `pickup` |
+    `destination`) when the expected arrival (refresh moment + `etaSeconds`) is 5+ minutes later
+    than the last one the rider was told of in this phase (the first ETA of the phase, or the
+    last notice), at most once per 5 minutes; category `ride`, EN + AR.
 
 
     **Rider info exposure.** Before acceptance the rider sees no driver. From acceptance:

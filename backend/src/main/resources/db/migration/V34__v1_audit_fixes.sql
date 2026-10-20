@@ -17,3 +17,9 @@ INSERT INTO ticket_categories (ticket_category_id, system_code, name_en, name_ar
                                sort_order)
 VALUES ('00000000-0000-0000-0000-000000001402', 'unpaid_ride', 'Unpaid ride', 'رحلة غير مدفوعة',
         'normal', 1001);
+
+-- W40 (owner ruling 2026-10-20, UC-R-06 step 3): the rider is notified when the expected arrival
+-- slips by 5+ minutes over the last one they were told, at most once per 5 minutes.
+ALTER TABLE rides
+    ADD COLUMN eta_baseline_arrival_at TIMESTAMPTZ,
+    ADD COLUMN eta_delay_notified_at   TIMESTAMPTZ;
