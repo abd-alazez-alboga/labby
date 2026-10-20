@@ -27,6 +27,10 @@
     "language": "Language",
     "english": "English",
     "arabic": "العربية",
+    "switchTo": {
+      "en": "Change language to English",
+      "ar": "Change language to Arabic"
+    },
     "direction": "Layout direction",
     "ltr": "Left to right",
     "rtl": "Right to left",
@@ -39,7 +43,8 @@
       "title": "Drive with Labby",
       "subtitle": "Log in or create an account to start driving.",
       "login": "Log in",
-      "register": "Create account"
+      "register": "Create account",
+      "brand": "Labby Driver"
     },
     "fields": {
       "phone": "Phone number",

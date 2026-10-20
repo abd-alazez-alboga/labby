@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import { ApiStatus } from "./api-status";
-import { updateMyProfile } from "../api/auth";
+import { useSwitchLanguage } from "./language-switch";
 import { useOptionalAuth } from "../auth/AuthProvider";
 import { useLocale } from "../i18n/LocaleProvider";
 import { SUPPORTED_LANGUAGES } from "../i18n";
@@ -128,7 +128,7 @@ const LANGUAGE_LABEL_KEYS: Record<Language, string> = {
 export function SettingsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { language, direction, setLanguage } = useLocale();
+  const { language, direction } = useLocale();
   // Optional: unit tests render this screen without an AuthProvider, and
   // the driving/account sections only make sense for a signed-in session.
   const auth = useOptionalAuth();
@@ -136,25 +136,8 @@ export function SettingsScreen() {
   // UC-S-03 E1: no logging out while a job is running (accepted..payment).
   const rideActive = !!useOptionalDriverRide()?.ride;
 
-  // UC-S-10: the switch applies on the device at once, then is saved to
-  // the account best-effort so pushes and the notification center follow
-  // it (W14) — before a direction reload can cut the request off.
-  const switchLanguage = (next: Language) =>
-    setLanguage(next, {
-      returnTo: "/settings",
-      beforeReload: async () => {
-        const user = auth?.user;
-        if (!signedIn || !user || user.language === next) return;
-        try {
-          await auth.setUser(
-            await updateMyProfile({ name: user.name, language: next }),
-          );
-        } catch {
-          // Offline: the device switch already happened; the account
-          // follows the next time the profile is saved.
-        }
-      },
-    });
+  // UC-S-10: switched on the device at once, saved to the account (W14).
+  const switchLanguage = useSwitchLanguage("/settings");
 
   return (
     <Screen title={t("settings.title")} testID="settings-screen">

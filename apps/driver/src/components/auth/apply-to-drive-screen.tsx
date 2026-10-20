@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, RefreshControl, StyleSheet, View } from "react-native";
+import { RefreshControl, StyleSheet, View } from "react-native";
 
 import { getMyProfile } from "../../api/auth";
 import {
@@ -17,6 +17,7 @@ import { failureKindOf } from "../../onboarding/server-errors";
 import { useRemote } from "../../onboarding/use-remote";
 import { colors, radius, spacing } from "../../theme/tokens";
 import { countCopy, formatRating, formatThreshold } from "../../trust/format";
+import { LanguagePill } from "../language-switch";
 import { NotificationsBell } from "../notifications/notifications-bell";
 import {
   ApplicationTracker,
@@ -25,26 +26,21 @@ import {
 import {
   AppText,
   Banner,
-  DestructiveTextButton,
   FailureState,
   FieldError,
   Icon,
-  ListRow,
   LoadingState,
   Muted,
   OutlineButton,
   PrimaryButton,
   Screen,
   SecondaryButton,
-  SectionLabel,
   TextButton,
   useDirection,
 } from "../ui";
 import { RateRiderScreen, reportHrefFor } from "../trust/rate-rider-screen";
 import { useOptionalRatingPrompt } from "../../trust/RatingPromptProvider";
 
-// Brand asset copied from /assets/images/labby-logo.png (source of truth).
-const logo = require("../../../assets/images/labby-logo.png");
 
 const NOT_FOUND = [404] as const;
 
@@ -95,19 +91,32 @@ function GateLayout({
   const { user, signOut } = useAuth();
   const { flipRows } = useDirection();
 
+  // W7 (boards V1FDriverApplicantLanguage, V1FDriverSuspendedLanguageAr):
+  // who is signed in and the one-tap language pill on top — these screens
+  // cannot reach Settings; Log out closes the bottom action area.
   return (
     <Screen
       testID="apply-to-drive-screen"
       header={
         <View style={[styles.topRow, flipRows && styles.rowReverse]}>
-          <Image
-            source={logo}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel={t("app.name")}
-          />
-          {/* Applicants get their stage updates in the center too (UC-S-11). */}
-          <NotificationsBell variant="plain" />
+          <View style={styles.grow}>
+            {user ? (
+              <AppText
+                variant="secondary"
+                weight="700"
+                color={colors.textMuted}
+                numberOfLines={1}
+                testID="gate-user"
+              >
+                {t("gate.signedInAs", { name: user.name })}
+              </AppText>
+            ) : null}
+          </View>
+          <View style={[styles.topActions, flipRows && styles.rowReverse]}>
+            <LanguagePill variant="outline" />
+            {/* Applicants get their stage updates in the center too (UC-S-11). */}
+            <NotificationsBell variant="plain" />
+          </View>
         </View>
       }
       refreshControl={
@@ -115,7 +124,17 @@ function GateLayout({
           <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} />
         ) : undefined
       }
-      footer={footer}
+      footer={
+        <>
+          {footer}
+          <TextButton
+            title={t("gate.logout")}
+            tone="neutral"
+            onPress={() => signOut()}
+            testID="gate-logout"
+          />
+        </>
+      }
     >
       <View style={styles.intro}>
         {lead}
@@ -127,18 +146,6 @@ function GateLayout({
         </AppText>
       </View>
       {children}
-      <View style={styles.account}>
-        {user ? (
-          <Muted testID="gate-user">
-            {t("gate.signedInAs", { name: user.name })}
-          </Muted>
-        ) : null}
-        <DestructiveTextButton
-          title={t("gate.logout")}
-          onPress={() => signOut()}
-          testID="gate-logout"
-        />
-      </View>
     </Screen>
   );
 }
@@ -407,6 +414,21 @@ function SuspendedGate({ expired }: { expired: boolean }) {
   );
 }
 
+/** One "What you'll need" line: an accent check in a tinted circle. */
+function NeedRow({ text }: { text: string }) {
+  const { flipRows } = useDirection();
+  return (
+    <View style={[styles.needRow, flipRows && styles.rowReverse]}>
+      <View style={styles.needCheck}>
+        <Icon name="checkmark" size={16} color={colors.accent} />
+      </View>
+      <AppText variant="body" style={[styles.grow, styles.needText]}>
+        {text}
+      </AppText>
+    </View>
+  );
+}
+
 /** No driver role yet: application intro (never applied) or the stage tracker. */
 function ApplicationGate() {
   const { t } = useTranslation();
@@ -485,24 +507,13 @@ function ApplicationGate() {
         <FailureState kind={state.kind} onRetry={() => void reload()} />
       ) : null}
       {state.status === "absent" ? (
-        <View testID="gate-intro">
-          <SectionLabel>{t("gate.needTitle")}</SectionLabel>
-          <ListRow
-            icon="person-outline"
-            title={t("gate.needPersonal")}
-            titleVariant="body"
-          />
-          <ListRow
-            icon="document-text-outline"
-            title={t("gate.needDocuments")}
-            titleVariant="body"
-          />
-          <ListRow
-            icon="car-outline"
-            title={t("gate.needVehicle")}
-            titleVariant="body"
-            last
-          />
+        <View style={styles.needCard} testID="gate-intro">
+          <AppText variant="bodyStrong" weight="800">
+            {t("gate.needTitle")}
+          </AppText>
+          <NeedRow text={t("gate.needPersonal")} />
+          <NeedRow text={t("gate.needDocuments")} />
+          <NeedRow text={t("gate.needVehicle")} />
         </View>
       ) : null}
     </GateLayout>
@@ -567,10 +578,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: spacing.ms,
     paddingBottom: spacing.sm,
   },
+  topActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   rowReverse: { flexDirection: "row-reverse" },
-  logo: { width: 120, height: 22 },
+  grow: { flex: 1 },
+  needCard: {
+    gap: 14,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  needRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.ms },
+  needCheck: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.accentTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  needText: { paddingTop: 5 },
   intro: { gap: spacing.ms, marginBottom: spacing.sm },
   mark: {
     width: 64,
@@ -589,10 +619,4 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cardFilled: { borderWidth: 0, backgroundColor: colors.surfaceFill },
-  account: {
-    marginTop: "auto",
-    paddingTop: spacing.lg,
-    alignItems: "center",
-    gap: spacing.xs,
-  },
 });

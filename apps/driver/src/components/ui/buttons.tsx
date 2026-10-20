@@ -231,8 +231,18 @@ export function SecondaryButton({ title, icon, busy, ...props }: ButtonProps) {
   );
 }
 
-/** Accent text link-button (e.g. "Forgot password?"). */
-export function TextButton({ title, icon, busy, ...props }: ButtonProps) {
+/**
+ * Accent text link-button (e.g. "Forgot password?"). `neutral` is the quiet
+ * secondary-text variant (the gates' Log out, boards V1FDriver*Language).
+ */
+export function TextButton({
+  title,
+  icon,
+  busy,
+  tone = "accent",
+  ...props
+}: ButtonProps & { tone?: "accent" | "neutral" }) {
+  const color = tone === "neutral" ? colors.textSecondary : colors.accent;
   return (
     <BaseButton
       {...props}
@@ -241,14 +251,9 @@ export function TextButton({ title, icon, busy, ...props }: ButtonProps) {
       pressedStyle={styles.textPressed}
     >
       {busy ? (
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={color} />
       ) : (
-        <Label
-          title={title}
-          icon={icon}
-          color={colors.accent}
-          variant="bodyStrong"
-        />
+        <Label title={title} icon={icon} color={color} variant="bodyStrong" />
       )}
     </BaseButton>
   );
