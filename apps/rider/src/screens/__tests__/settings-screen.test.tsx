@@ -155,4 +155,29 @@ describe("SettingsScreen", () => {
     });
     expect(await getStoredTokens()).toBeNull();
   });
+
+  describe("in a production build (V1 audit W24)", () => {
+    const dev = globalThis as unknown as { __DEV__: boolean };
+    beforeEach(() => {
+      dev.__DEV__ = false;
+    });
+    afterEach(() => {
+      dev.__DEV__ = true;
+    });
+
+    it("shows no layout-direction row and no backend version line", async () => {
+      await seedSignedInSession();
+      const api = mockApi({});
+      await renderWithProviders(<SettingsScreen />);
+
+      expect(
+        await screen.findByTestId("settings-profile-card"),
+      ).toBeOnTheScreen();
+      expect(screen.getByText("Language")).toBeOnTheScreen();
+      expect(screen.queryByTestId("direction-flag")).toBeNull();
+      expect(screen.queryByText("Layout direction")).toBeNull();
+      expect(screen.queryByTestId(/^api-status-/)).toBeNull();
+      expect(api.callsTo("GET", "/api/v1/meta")).toHaveLength(0);
+    });
+  });
 });

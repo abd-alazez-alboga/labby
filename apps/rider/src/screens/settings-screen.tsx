@@ -280,20 +280,23 @@ export default function SettingsScreen() {
             />
           ))}
         </View>
-        <View style={[styles.directionRow, { flexDirection: row }]}>
-          <AppText variant="secondary" tone="muted">
-            {t("settings.direction")}
-          </AppText>
-          <AppText
-            variant="caption"
-            weight={800}
-            tone="accent"
-            style={styles.flag}
-            testID="direction-flag"
-          >
-            {direction}
-          </AppText>
-        </View>
+        {__DEV__ ? (
+          // Development aid only — no board has it (V1 audit W24).
+          <View style={[styles.directionRow, { flexDirection: row }]}>
+            <AppText variant="secondary" tone="muted">
+              {t("settings.direction")}
+            </AppText>
+            <AppText
+              variant="caption"
+              weight={800}
+              tone="accent"
+              style={styles.flag}
+              testID="direction-flag"
+            >
+              {direction}
+            </AppText>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -411,7 +414,7 @@ export default function SettingsScreen() {
         testID="settings-logout"
       />
 
-      <ApiStatus />
+      {__DEV__ ? <ApiStatus /> : null}
     </ScreenScrollView>
   );
 }

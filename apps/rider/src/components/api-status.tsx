@@ -9,9 +9,11 @@ type ApiStatusState =
   { kind: "loading" } | { kind: "ok"; meta: ApiMeta } | { kind: "offline" };
 
 /**
- * Shows the backend's live version fetched on mount, or a friendly offline
- * note when the API is unreachable. Never throws — a dead backend must not
- * crash the shell.
+ * The boot meta smoke call (M1): fetches the backend's version on mount.
+ * Development builds show the version, or an offline note when the API is
+ * unreachable; production builds render nothing — no board has a version
+ * line (V1 audit W24 / I36). Never throws — a dead backend must not crash
+ * the shell.
  */
 export function ApiStatus() {
   const { t } = useLocale();
@@ -30,6 +32,8 @@ export function ApiStatus() {
       cancelled = true;
     };
   }, []);
+
+  if (!__DEV__) return null;
 
   const text =
     state.kind === "loading"

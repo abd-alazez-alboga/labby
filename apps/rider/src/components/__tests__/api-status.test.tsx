@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
 
 import { LocaleProvider } from "../../i18n/locale-context";
@@ -46,5 +46,34 @@ describe("ApiStatus (meta smoke call)", () => {
 
     expect(await screen.findByTestId("api-status-offline")).toBeOnTheScreen();
     expect(screen.getByText("Backend unreachable")).toBeOnTheScreen();
+  });
+
+  it("makes the call but shows nothing in a production build (V1 audit I36)", async () => {
+    const dev = globalThis as unknown as { __DEV__: boolean };
+    dev.__DEV__ = false;
+    try {
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ name: "labby-backend", version: "0.1.0" }),
+      }) as unknown as typeof fetch;
+
+      await render(
+        <LocaleProvider>
+          <ApiStatus />
+        </LocaleProvider>,
+      );
+
+      await waitFor(() =>
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("/api/v1/meta"),
+          expect.anything(),
+        ),
+      );
+      expect(screen.queryByTestId(/^api-status-/)).toBeNull();
+      expect(screen.queryByText(/Backend version/)).toBeNull();
+    } finally {
+      dev.__DEV__ = true;
+    }
   });
 });
