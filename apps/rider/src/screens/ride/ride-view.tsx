@@ -43,6 +43,7 @@ import {
   AppText,
   Banner,
   BottomSheet,
+  DestructiveTextButton,
   LoadingView,
   MapFab,
   MapScreen,
@@ -97,6 +98,17 @@ const FLOATING_CLEARANCE = 72;
 
 function etaMinutes(seconds: number | null, locale: "en" | "ar") {
   return seconds == null ? null : formatMinutes(seconds, locale);
+}
+
+/** "Your 2 seats · Cash" — the member's own party and payment method. */
+function sharedSeatsLine(
+  party: number,
+  payment: string,
+  t: (key: string, options?: object) => string,
+): string {
+  if (party === 1) return t("shared.yourSeatOne", { payment });
+  if (party === 2) return t("shared.yourSeatsTwo", { payment });
+  return t("shared.yourSeatsMany", { count: party, payment });
 }
 
 function OutlineAction({
@@ -455,6 +467,55 @@ export function RideView({
     tipAmount === null &&
     !alreadyTipped;
 
+  // Accepted / arrived footer. A shared member sees where to meet and that
+  // they pay their seats' share of the FINAL fare — never the whole-ride
+  // estimate (approved artboard RiderSharedOnWay).
+  const approachFooter = shared ? (
+    <View testID="ride-shared-footer">
+      <View style={[styles.factRow, styles.factDivider, { flexDirection: row }]}>
+        <AppText variant="secondary" tone="secondary">
+          {t("shared.meetAt")}
+        </AppText>
+        <AppText
+          variant="secondary"
+          weight={800}
+          style={styles.factValue}
+          testID="ride-shared-meet-at"
+        >
+          {placeLabel(ride.pickup)}
+        </AppText>
+      </View>
+      <View style={[styles.factRow, { flexDirection: row }]}>
+        <AppText variant="secondary" tone="secondary" testID="ride-shared-seats">
+          {sharedSeatsLine(
+            shared.me?.partySize ?? 1,
+            t(`m12.payment.${shared.me?.paymentMethod ?? ride.paymentMethod}`),
+            t,
+          )}
+        </AppText>
+        <AppText variant="secondary" weight={800} style={styles.factValue}>
+          {t("shared.shareOfFinalFare")}
+        </AppText>
+      </View>
+      <DestructiveTextButton
+        label={cancelLabel}
+        onPress={openCancel}
+        testID="ride-cancel"
+      />
+    </View>
+  ) : (
+    <EstimateFooter
+      ride={ride}
+      trailing={
+        <OutlineAction
+          label={cancelLabel}
+          onPress={openCancel}
+          testID="ride-cancel"
+        />
+      }
+    />
+  );
+
   let sheet: React.ReactNode;
 
   if (finding) {
@@ -607,16 +668,7 @@ export function RideView({
         {sharedChip}
         <DriverCard driver={driver} />
         <SafetyActionsRow ride={ride} />
-        <EstimateFooter
-          ride={ride}
-          trailing={
-            <OutlineAction
-              label={cancelLabel}
-              onPress={openCancel}
-              testID="ride-cancel"
-            />
-          }
-        />
+        {approachFooter}
       </BottomSheet>
     );
   } else if (ride.state === "driver_arrived" && driver) {
@@ -717,16 +769,7 @@ export function RideView({
         {sharedChip}
         <DriverCard driver={driver} />
         <SafetyActionsRow ride={ride} />
-        <EstimateFooter
-          ride={ride}
-          trailing={
-            <OutlineAction
-              label={cancelLabel}
-              onPress={openCancel}
-              testID="ride-cancel"
-            />
-          }
-        />
+        {approachFooter}
       </BottomSheet>
     );
   } else if (ride.state === "in_progress") {
@@ -1116,6 +1159,19 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radius.round,
     paddingHorizontal: spacing.lg,
+  },
+  factRow: {
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  factDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  factValue: {
+    flexShrink: 1,
   },
   lostBanner: {
     position: "absolute",

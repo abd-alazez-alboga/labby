@@ -622,6 +622,59 @@ describe("after dispatch (UC-R-14 E1, UC-R-15 completion)", () => {
     );
   });
 
+  it("shows a member where to meet and their seats' share — never the whole-ride estimate (W25)", async () => {
+    const live = liveSharedRide();
+    mockApi({ "GET /api/v1/rides/active": { status: 200, body: live } });
+    const view = await withProviders(<RideView ride={live} onDone={() => {}} />);
+
+    expect(await screen.findByTestId("ride-shared-footer")).toBeOnTheScreen();
+    expect(screen.getByText("Meet at")).toBeOnTheScreen();
+    expect(screen.getByTestId("ride-shared-meet-at")).toHaveTextContent(
+      "Mazzeh Autostrad",
+    );
+    expect(screen.getByTestId("ride-shared-seats")).toHaveTextContent(
+      "Your 2 seats · Cash",
+    );
+    expect(screen.getByText("share of the final fare")).toBeOnTheScreen();
+    expect(screen.queryByTestId("ride-estimate")).toBeNull();
+    expect(screen.queryByText(/22,000/)).toBeNull();
+    expect(screen.getByTestId("ride-cancel")).toHaveTextContent("Leave ride");
+
+    // The arrived sheet carries the same rows.
+    const arrived = liveSharedRide({
+      state: "driver_arrived",
+      shared: {
+        ...live.shared!,
+        me: member({ partySize: 1, paymentMethod: "wallet" }),
+      },
+    });
+    await view.rerender(
+      <LocaleProvider>
+        <RideProvider socketFactory={fakeSocketFactory}>
+          <RideView ride={arrived} onDone={() => {}} />
+        </RideProvider>
+      </LocaleProvider>,
+    );
+    expect(await screen.findByTestId("ride-arrived")).toBeOnTheScreen();
+    expect(screen.getByTestId("ride-shared-seats")).toHaveTextContent(
+      "Your seat · Wallet",
+    );
+    expect(screen.queryByTestId("ride-estimate")).toBeNull();
+  });
+
+  it("words the member's seats in Arabic, dual and plural (W25)", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    const live = liveSharedRide();
+    mockApi({ "GET /api/v1/rides/active": { status: 200, body: live } });
+    await withProviders(<RideView ride={live} onDone={() => {}} />);
+
+    expect(await screen.findByTestId("ride-shared-seats")).toHaveTextContent(
+      "مقعداك · نقدًا",
+    );
+    expect(screen.getByText("نقطة اللقاء")).toBeOnTheScreen();
+    expect(screen.getByText("حصتك من الأجرة النهائية")).toBeOnTheScreen();
+  });
+
   it("offers no route changes on a shared ride", async () => {
     const live = liveSharedRide({ state: "in_progress" });
     mockApi({ "GET /api/v1/rides/active": { status: 200, body: live } });
