@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -68,15 +69,18 @@ public class ServiceTypesController {
    *
    * @param serviceTypeId the type
    * @param request the replacement values
+   * @param acknowledgeClaimedRides disable although claimed scheduled rides exist (UC-A-07 E1)
    * @return 200 with the updated type
    */
   @PutMapping("/service-types/{serviceTypeId}")
   @PreAuthorize("hasAuthority('pricing:edit')")
   @Operation(summary = "Edit or disable a service type")
   public ResponseEntity<ServiceTypeDto> updateServiceType(
-      @PathVariable UUID serviceTypeId, @Valid @RequestBody ServiceTypeUpsertRequestDto request) {
+      @PathVariable UUID serviceTypeId,
+      @Valid @RequestBody ServiceTypeUpsertRequestDto request,
+      @RequestParam(defaultValue = "false") boolean acknowledgeClaimedRides) {
     return ResponseEntity.ok(
         serviceTypeService.updateServiceType(
-            SecurityUtils.currentUserId(), serviceTypeId, request));
+            SecurityUtils.currentUserId(), serviceTypeId, request, acknowledgeClaimedRides));
   }
 }

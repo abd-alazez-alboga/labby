@@ -601,6 +601,52 @@ class ScheduledRideIntegrationTest extends AbstractRideIntegrationTest {
         .isZero();
   }
 
+  @Test
+  @DisplayName(
+      "UC-A-07 E1 (review V1 W38): disabling a type with a claimed scheduled ride is a 409 listing"
+          + " it until acknowledged; the ride keeps its claim")
+  void shouldWarnBeforeDisablingATypeWithClaimedRides() {
+    Account rider = rider();
+    Instant pickup = in(Duration.ofDays(2));
+    UUID claimed = schedule(rider, pickup);
+    schedule(rider(), in(Duration.ofDays(3))); // unclaimed: not listed
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    coverWholeDay(driver, local(pickup));
+    ok(claim(driver, claimed), HttpStatus.OK);
+    Map<String, Object> disabled = new LinkedHashMap<>();
+    disabled.put("nameEn", "Economy");
+    disabled.put("nameAr", "اقتصادي");
+    disabled.put("baseFare", 1.00);
+    disabled.put("perKmRate", 0.50);
+    disabled.put("perMinRate", 0.10);
+    disabled.put("minimumFare", 1.50);
+    disabled.put("enabled", false);
+    String url = "/api/v1/admin/service-types/" + economy;
+
+    ResponseEntity<JsonNode> warned = put(url, disabled, admin);
+    assertThat(warned.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(code(warned)).isEqualTo("service_type_has_claimed_rides");
+    JsonNode rides = warned.getBody().get("details").get("rides");
+    assertThat(rides).hasSize(1);
+    assertThat(rides.get(0).get("rideId").asText()).isEqualTo(claimed.toString());
+    assertThat(rides.get(0).get("claimedDriverUserId").asText())
+        .isEqualTo(driver.userId().toString());
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT enabled FROM service_types WHERE service_type_id = ?",
+                Boolean.class,
+                economy))
+        .isTrue();
+
+    JsonNode acknowledged =
+        ok(put(url + "?acknowledgeClaimedRides=true", disabled, admin), HttpStatus.OK);
+    assertThat(acknowledged.get("enabled").asBoolean()).isFalse();
+    // Existing rides are unaffected (UC-A-07): the claim stands.
+    assertThat(ok(get("/api/v1/driver/scheduled-rides", driver.token()), HttpStatus.OK)).hasSize(1);
+    // Editing an already disabled type needs no acknowledgement.
+    ok(put(url, disabled, admin), HttpStatus.OK);
+  }
+
   // ---- helpers -------------------------------------------------------------------------------
 
   private Instant in(Duration duration) {

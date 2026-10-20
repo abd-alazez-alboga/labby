@@ -32,14 +32,20 @@ public interface ServiceTypeService {
       UUID actorUserId, UUID regionId, ServiceTypeUpsertRequestDto request);
 
   /**
-   * Edits or disables a service type (UC-A-07). Disabling with claimed scheduled rides returns the
-   * E1 warning once scheduled rides exist (M12); until then the disable always succeeds.
+   * Edits or disables a service type (UC-A-07). Disabling a type that still has claimed scheduled
+   * rides is the E1 warning (review V1 W38): 409 {@code service_type_has_claimed_rides} listing
+   * them, unless the admin acknowledges it — the rides then still run (UC-A-07 "existing rides
+   * unaffected").
    *
    * @param actorUserId the acting admin
    * @param serviceTypeId the type
    * @param request the replacement values
+   * @param acknowledgeClaimedRides the admin saw the warning and disables anyway
    * @return the updated type
    */
   ServiceTypeDto updateServiceType(
-      UUID actorUserId, UUID serviceTypeId, ServiceTypeUpsertRequestDto request);
+      UUID actorUserId,
+      UUID serviceTypeId,
+      ServiceTypeUpsertRequestDto request,
+      boolean acknowledgeClaimedRides);
 }

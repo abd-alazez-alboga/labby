@@ -63,7 +63,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Region' }
         '400': { description: Validation failure (bad polygon, bad currency, …) }
-        '409': { description: Region name already exists }
+        '409': { description: '`region_name_taken` | `boundary_overlap` (the boundary overlaps another region)' }
 
   /api/v1/admin/regions/{regionId}:
     get:
@@ -109,8 +109,10 @@ paths:
         '404': { description: Unknown regionId }
         '409':
           description: >-
-            Duplicate name, boundary overlap with another region, or stripping mandatory
-            config from an active region
+            Distinct codes (review V1 W37): `region_name_taken`; `boundary_overlap` (overlaps
+            another region); `zones_outside_boundary` with `details.zoneNames` (the surge zones
+            the new boundary would leave outside, by name); `active_region_incomplete` with
+            `details.missing` (the mandatory parts an ACTIVE region would lose)
 
   /api/v1/admin/regions/{regionId}/activate:
     post:
@@ -132,7 +134,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Region' }
         '404': { description: Unknown regionId }
-        '409': { description: Mandatory config incomplete (message lists what is missing) }
+        '409': { description: '`region_incomplete` — mandatory config incomplete; `details.missing` lists the parts (the message too)' }
 
   /api/v1/admin/regions/{regionId}/service-types:
     get:
@@ -171,7 +173,7 @@ paths:
               schema: { $ref: '#/components/schemas/ServiceType' }
         '400': { description: Validation failure }
         '404': { description: Unknown regionId }
-        '409': { description: English name already used in this region }
+        '409': { description: '`service_type_name_taken` — English name already used in this region' }
 
   /api/v1/admin/service-types/{serviceTypeId}:
     put:
@@ -180,15 +182,24 @@ paths:
       x-required-permission: 'pricing:edit'
       description: >
         Service types are never deleted — disabling (`enabled: false`) removes them from
-        booking while existing rides keep referencing them. Disabling with claimed scheduled
-        rides returns the E1 warning payload once scheduled rides exist (M12); until then the
-        disable always succeeds.
+        booking while existing rides keep referencing them. UC-A-07 E1 (review V1 W38):
+        disabling an enabled type that still has claimed scheduled rides (state `scheduled`,
+        claimed, not yet converted or fallen back) answers 409 `service_type_has_claimed_rides`
+        with `details.rides` = [{rideId, scheduledAt, claimedDriverUserId}] soonest first, and
+        changes nothing. The admin resolves them first, or repeats the request with
+        `?acknowledgeClaimedRides=true` to disable anyway — the claimed rides then still run
+        (existing rides unaffected).
       security: [{ bearerAuth: [] }]
       parameters:
         - name: serviceTypeId
           in: path
           required: true
           schema: { type: string, format: uuid }
+        - name: acknowledgeClaimedRides
+          in: query
+          required: false
+          description: Disable although claimed scheduled rides exist (UC-A-07 E1 acknowledged)
+          schema: { type: boolean, default: false }
       requestBody:
         required: true
         content:
@@ -202,7 +213,7 @@ paths:
               schema: { $ref: '#/components/schemas/ServiceType' }
         '400': { description: Validation failure }
         '404': { description: Unknown serviceTypeId }
-        '409': { description: English name already used in this region }
+        '409': { description: '`service_type_name_taken` | `service_type_has_claimed_rides` (details.rides; see above)' }
 
   /api/v1/admin/regions/{regionId}/surcharge-windows:
     get:
@@ -321,7 +332,7 @@ paths:
               schema: { $ref: '#/components/schemas/SurgeZone' }
         '400': { description: Validation failure (bad polygon, bad steps) }
         '404': { description: Unknown regionId }
-        '409': { description: Zone name already used in this region, or polygon outside the region }
+        '409': { description: '`surge_zone_name_taken` | `zone_outside_boundary` (polygon outside the region) | `region_has_no_boundary`' }
 
   /api/v1/admin/surge-zones/{surgeZoneId}:
     put:
@@ -344,7 +355,7 @@ paths:
               schema: { $ref: '#/components/schemas/SurgeZone' }
         '400': { description: Validation failure }
         '404': { description: Unknown surgeZoneId }
-        '409': { description: Zone name already used in this region, or polygon outside the region }
+        '409': { description: '`surge_zone_name_taken` | `zone_outside_boundary` (polygon outside the region) | `region_has_no_boundary`' }
     delete:
       tags: [SurgeZones]
       summary: Delete a surge zone (UC-A-08)

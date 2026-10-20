@@ -156,6 +156,25 @@ public interface ScheduledRideRepository extends JpaRepository<ScheduledRide, UU
       nativeQuery = true)
   List<UUID> findUpcomingOfRider(@Param("riderUserId") UUID riderUserId);
 
+  /**
+   * Claimed scheduled rides of a service type still waiting for their time (UC-A-07 E1, review V1
+   * W38), soonest first.
+   *
+   * @param serviceTypeId the service type
+   * @return the ride ids
+   */
+  @Query(
+      value =
+          """
+          SELECT s.ride_id FROM scheduled_rides s JOIN rides r ON r.ride_id = s.ride_id
+          WHERE r.service_type_id = :serviceTypeId AND r.state = 'scheduled'
+            AND s.claimed_driver_user_id IS NOT NULL
+            AND s.fallback_at IS NULL AND s.converted_at IS NULL
+          ORDER BY s.scheduled_at, s.ride_id
+          """,
+      nativeQuery = true)
+  List<UUID> findClaimedOfServiceType(@Param("serviceTypeId") UUID serviceTypeId);
+
   /** The board checks of one ride for one driver. */
   interface ClaimEligibility {
 
