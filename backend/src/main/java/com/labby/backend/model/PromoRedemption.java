@@ -62,4 +62,20 @@ public class PromoRedemption {
   void onCreate() {
     createdAt = Objects.requireNonNullElse(createdAt, Instant.now());
   }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof PromoRedemption that)) {
+      return false;
+    }
+    return id != null && id.equals(that.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(id);
+  }
 }

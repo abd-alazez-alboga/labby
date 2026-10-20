@@ -39,4 +39,20 @@ public class ReferralCode {
   void onCreate() {
     createdAt = Objects.requireNonNullElse(createdAt, Instant.now());
   }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof ReferralCode that)) {
+      return false;
+    }
+    return userId != null && userId.equals(that.userId);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(userId);
+  }
 }

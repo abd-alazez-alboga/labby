@@ -56,4 +56,23 @@ public class UserBadge {
     private UUID userId;
     private String badgeCode;
   }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof UserBadge that)) {
+      return false;
+    }
+    return userId != null
+        && userId.equals(that.userId)
+        && badgeCode != null
+        && badgeCode.equals(that.badgeCode);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(userId, badgeCode);
+  }
 }

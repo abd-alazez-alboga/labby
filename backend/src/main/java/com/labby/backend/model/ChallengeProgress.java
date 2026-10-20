@@ -73,4 +73,23 @@ public class ChallengeProgress {
     private UUID challengeId;
     private UUID userId;
   }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof ChallengeProgress that)) {
+      return false;
+    }
+    return challengeId != null
+        && challengeId.equals(that.challengeId)
+        && userId != null
+        && userId.equals(that.userId);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(challengeId, userId);
+  }
 }

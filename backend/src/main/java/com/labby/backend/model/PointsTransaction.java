@@ -67,4 +67,20 @@ public class PointsTransaction {
   void onCreate() {
     createdAt = Objects.requireNonNullElse(createdAt, Instant.now());
   }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof PointsTransaction that)) {
+      return false;
+    }
+    return id != null && id.equals(that.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(id);
+  }
 }

@@ -53,4 +53,20 @@ public class PointsAccount {
   void onUpdate() {
     updatedAt = Instant.now();
   }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof PointsAccount that)) {
+      return false;
+    }
+    return userId != null && userId.equals(that.userId);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(userId);
+  }
 }
