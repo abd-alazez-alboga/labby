@@ -5,10 +5,12 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import { ApiStatus } from "./api-status";
+import { updateMyProfile } from "../api/auth";
 import { useOptionalAuth } from "../auth/AuthProvider";
 import { useLocale } from "../i18n/LocaleProvider";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import type { Language } from "../i18n";
+import { useOptionalDriverRide } from "../rides/DriverRideProvider";
 import { spacing } from "../theme/tokens";
 import { ListRow, OptionGroup, Screen, SectionLabel, StatusChip } from "./ui";
 import type { IconName } from "./ui";
@@ -131,6 +133,28 @@ export function SettingsScreen() {
   // the driving/account sections only make sense for a signed-in session.
   const auth = useOptionalAuth();
   const signedIn = auth?.status === "signedIn" && !!auth.user;
+  // UC-S-03 E1: no logging out while a job is running (accepted..payment).
+  const rideActive = !!useOptionalDriverRide()?.ride;
+
+  // UC-S-10: the switch applies on the device at once, then is saved to
+  // the account best-effort so pushes and the notification center follow
+  // it (W14) — before a direction reload can cut the request off.
+  const switchLanguage = (next: Language) =>
+    setLanguage(next, {
+      returnTo: "/settings",
+      beforeReload: async () => {
+        const user = auth?.user;
+        if (!signedIn || !user || user.language === next) return;
+        try {
+          await auth.setUser(
+            await updateMyProfile({ name: user.name, language: next }),
+          );
+        } catch {
+          // Offline: the device switch already happened; the account
+          // follows the next time the profile is saved.
+        }
+      },
+    });
 
   return (
     <Screen title={t("settings.title")} testID="settings-screen">
@@ -164,8 +188,10 @@ export function SettingsScreen() {
             <ListRow
               icon="log-out-outline"
               title={t("account.logout")}
+              subtitle={rideActive ? t("account.logoutBlockedRide") : null}
               tone="danger"
               onPress={() => auth.signOut()}
+              disabled={rideActive}
               last
               testID="settings-logout"
             />
@@ -177,28 +203,31 @@ export function SettingsScreen() {
       <OptionGroup
         options={SUPPORTED_LANGUAGES}
         value={language}
-        onChange={(option) =>
-          void setLanguage(option, { returnTo: "/settings" })
-        }
+        onChange={(option) => void switchLanguage(option)}
         labelFor={(option) => t(LANGUAGE_LABEL_KEYS[option])}
         testIDPrefix="language-option"
       />
 
-      <SectionLabel>{t("settings.direction")}</SectionLabel>
-      <ListRow
-        title={t(direction === "rtl" ? "settings.rtl" : "settings.ltr")}
-        trailing={
-          <StatusChip
-            label={direction.toUpperCase()}
-            tone="accent"
-            testID="direction-flag"
+      {/* I96: M1 shell diagnostics — development builds only. */}
+      {__DEV__ ? (
+        <>
+          <SectionLabel>{t("settings.direction")}</SectionLabel>
+          <ListRow
+            title={t(direction === "rtl" ? "settings.rtl" : "settings.ltr")}
+            trailing={
+              <StatusChip
+                label={direction.toUpperCase()}
+                tone="accent"
+                testID="direction-flag"
+              />
+            }
+            last
           />
-        }
-        last
-      />
-      <View style={styles.api}>
-        <ApiStatus />
-      </View>
+          <View style={styles.api}>
+            <ApiStatus />
+          </View>
+        </>
+      ) : null}
     </Screen>
   );
 }

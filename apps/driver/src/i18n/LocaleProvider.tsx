@@ -31,10 +31,12 @@ export interface LocaleContextValue {
   /**
    * Switches language; when the layout direction changes, the app reloads so
    * the native layout mirrors (returning to `returnTo`, if given).
+   * `beforeReload` runs after the local switch and before any reload (e.g.
+   * saving the choice to the account).
    */
   setLanguage: (
     language: Language,
-    options?: { returnTo?: string },
+    options?: { returnTo?: string; beforeReload?: () => Promise<void> },
   ) => Promise<void>;
 }
 
@@ -75,9 +77,13 @@ export function LocaleProvider({
   const [language, setLanguageState] = useState<Language>(initialLanguage);
 
   const setLanguage = useCallback(
-    async (next: Language, options?: { returnTo?: string }) => {
+    async (
+      next: Language,
+      options?: { returnTo?: string; beforeReload?: () => Promise<void> },
+    ) => {
       await setAppLanguage(next);
       setLanguageState(next);
+      await options?.beforeReload?.();
       if ((directionFor(next) === "rtl") !== NATIVE_RTL_AT_LAUNCH) {
         await reloadForDirection(options?.returnTo);
       }

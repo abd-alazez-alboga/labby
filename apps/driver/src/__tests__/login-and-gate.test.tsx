@@ -124,6 +124,27 @@ describe("login + driver gate (UC-S-02, M2-T4)", () => {
     expect(screen.queryByTestId("welcome-screen")).toBeNull();
   });
 
+  it("sends an unknown link to welcome while signed out (I98)", async () => {
+    installContractFetch({});
+    renderRouter("src/app", { initialUrl: "/no-such-screen" });
+    expect(await screen.findByTestId("welcome-screen")).toBeTruthy();
+  });
+
+  it("sends an unknown link home for a signed-in driver (I98)", async () => {
+    const user = driverUser();
+    installContractFetch({
+      "GET /api/v1/meta": {
+        status: 200,
+        body: { name: "labby-backend", version: "0.1.0" },
+      },
+      "GET /api/v1/users/me": { status: 200, body: user },
+    });
+    await seedSession(user, "1");
+
+    renderRouter("src/app", { initialUrl: "/no-such-screen" });
+    expect(await screen.findByTestId("home-screen")).toBeTruthy();
+  });
+
   it("restores a stored rider-only session on launch into the gate", async () => {
     const user = riderOnlyUser();
     installContractFetch({
@@ -156,6 +177,28 @@ describe("login + driver gate (UC-S-02, M2-T4)", () => {
       screen.getByText("Phone number or password is incorrect."),
     ).toBeTruthy();
     expect(getSession()).toBeNull();
+  });
+
+  it("logs in with a locally typed number sent in E.164 (H3)", async () => {
+    const contract = installContractFetch({
+      "POST /api/v1/auth/login": {
+        status: 401,
+        body: { status: 401, message: "bad credentials" },
+      },
+    });
+    renderRouter("src/app");
+    await screen.findByTestId("welcome-screen");
+    fireEvent.press(screen.getByTestId("welcome-login"));
+    await screen.findByTestId("login-screen");
+
+    fireEvent.changeText(screen.getByTestId("login-phone"), "0933-000-111");
+    fireEvent.changeText(screen.getByTestId("login-password"), "password8");
+    fireEvent.press(screen.getByTestId("login-submit"));
+
+    await screen.findByTestId("login-error");
+    expect(contract.requestsTo("POST /api/v1/auth/login")[0].body).toMatchObject(
+      { phone: "+963933000111" },
+    );
   });
 
   it("shows the throttling error on 429", async () => {
