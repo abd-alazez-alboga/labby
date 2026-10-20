@@ -6,6 +6,8 @@ import com.labby.backend.dto.PointsTransactionPageDto;
 import com.labby.backend.enums.AccountState;
 import com.labby.backend.enums.GrowthLevel;
 import com.labby.backend.enums.PointsTransactionType;
+import com.labby.backend.enums.Role;
+import com.labby.backend.enums.RoleState;
 import com.labby.backend.enums.WalletTransactionType;
 import com.labby.backend.exception.ConflictException;
 import com.labby.backend.exception.ForbiddenException;
@@ -18,6 +20,7 @@ import com.labby.backend.model.WalletTransaction;
 import com.labby.backend.repository.PointsAccountRepository;
 import com.labby.backend.repository.PointsTransactionRepository;
 import com.labby.backend.repository.RegionRepository;
+import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -44,6 +47,7 @@ public class LoyaltyServiceImpl implements LoyaltyService {
   private final PointsTransactionRepository pointsTransactionRepository;
   private final RegionRepository regionRepository;
   private final UserRepository userRepository;
+  private final RoleAssignmentRepository roleAssignmentRepository;
   private final WalletService walletService;
   private final RideAccess rideAccess;
 
@@ -88,6 +92,14 @@ public class LoyaltyServiceImpl implements LoyaltyService {
       // Ruling 6: redemption is frozen while suspended; the points are kept.
       throw (ForbiddenException)
           new ForbiddenException("Your account is suspended").withCode("account_suspended");
+    }
+    if (roleAssignmentRepository
+        .findByUserIdAndRole(userId, Role.RIDER)
+        .map(assignment -> assignment.getState() == RoleState.SUSPENDED)
+        .orElse(false)) {
+      // V1 audit I21: a rider ROLE suspension (USR-05 / manual) freezes redemption too.
+      throw (ForbiddenException)
+          new ForbiddenException("Your rider account is suspended").withCode("account_suspended");
     }
     Region region = region(regionId);
     GrowthRules.Settings settings = GrowthRules.settings(region.getGrowthSettings());

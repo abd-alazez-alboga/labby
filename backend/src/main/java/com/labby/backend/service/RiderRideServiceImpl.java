@@ -306,8 +306,9 @@ public class RiderRideServiceImpl implements RiderRideService {
                 : previous.getSurgeMultiplier(),
             null);
     Ride ride = createRide(userId, request, previous.getId());
-    // The retried ride keeps the promo (the failed ride stopped counting against the caps).
-    promoService.carry(previous, ride);
+    // The retried ride keeps the promo while it still fits its total cap and the rider's limit
+    // (the failed ride stopped counting against them; V1 audit I19 re-checks under the lock).
+    promoService.carryOnRetry(previous, ride);
     rideEvents.stateChanged(ride);
     return rideAssembler.view(ride, Audience.RIDER);
   }

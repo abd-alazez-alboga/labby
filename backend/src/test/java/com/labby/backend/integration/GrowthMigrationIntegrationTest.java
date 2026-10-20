@@ -103,6 +103,35 @@ class GrowthMigrationIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
+  @DisplayName("V1 audit I2: points_transactions and incentive_awards are append-only (V34)")
+  void shouldBlockPointsAndIncentiveMutation() {
+    UUID entry = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO points_transactions (points_transaction_id, user_id, type, points,"
+            + " created_by, reason) VALUES (?, ?, 'adjustment', 10, ?, 'test')",
+        entry,
+        rider,
+        admin);
+    assertThatThrownBy(
+            () ->
+                jdbcTemplate.update(
+                    "UPDATE points_transactions SET points = 20 WHERE points_transaction_id = ?",
+                    entry))
+        .hasMessageContaining("points_transactions is append-only");
+    assertThatThrownBy(
+            () ->
+                jdbcTemplate.update(
+                    "DELETE FROM points_transactions WHERE points_transaction_id = ?", entry))
+        .hasMessageContaining("append-only");
+    assertThat(
+            jdbcTemplate.queryForList(
+                "SELECT tgname FROM pg_trigger WHERE tgname IN"
+                    + " ('trg_points_transactions_append_only', 'trg_incentive_awards_append_only')",
+                String.class))
+        .hasSize(2);
+  }
+
+  @Test
   @DisplayName("GRW-02: one promo redemption per ride, ever — the DB-level redemption backstop")
   void shouldRedeemAtMostOncePerRide() {
     UUID promo = insertPromo("ONCE", "percent", "10.00", null);

@@ -101,6 +101,26 @@ public class PromoServiceImpl implements PromoService {
   }
 
   @Override
+  public boolean carryOnRetry(Ride from, Ride to) {
+    PromoRedemption reservation = promoRedemptionRepository.findByRideId(from.getId()).orElse(null);
+    if (reservation == null) {
+      return false;
+    }
+    Promo promo = promoRepository.lockById(reservation.getPromoId()).orElseThrow();
+    boolean capReached =
+        promo.getTotalCap() != null
+            && promoRedemptionRepository.countingAgainstCap(promo.getId()) >= promo.getTotalCap();
+    boolean limitReached =
+        promoRedemptionRepository.countingAgainstUserLimit(promo.getId(), reservation.getUserId())
+            >= promo.getPerUserLimit();
+    if (capReached || limitReached) {
+      return false;
+    }
+    carry(from, to);
+    return true;
+  }
+
+  @Override
   public void releaseMember(Ride ride, UUID memberUserId) {
     promoRedemptionRepository
         .findByRideId(ride.getId())

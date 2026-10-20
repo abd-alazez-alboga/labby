@@ -42,6 +42,18 @@ public interface PromoService {
   void carry(Ride from, Ride to);
 
   /**
+   * V1 audit I19: a rider's RETRY of a failed ride carries the promo only while it still fits —
+   * under the promo lock the total cap and the rider's per-user limit are re-checked (the failed
+   * ride stopped counting, so someone else may have taken the last slot meanwhile). Otherwise the
+   * retried ride goes on without it.
+   *
+   * @param from the failed ride
+   * @param to the retried ride
+   * @return true when the promo was carried (false also when the failed ride had none)
+   */
+  boolean carryOnRetry(Ride from, Ride to);
+
+  /**
    * Releases one member's reservation on a shared ride they are leaving or dropped from (M13 review
    * H1): the caps free up and another member may apply a promo. A reservation held by someone else
    * stays.

@@ -35,11 +35,18 @@ info:
     first referral, 5-star week); **levels** are Bronze 0 / Silver 500 / Gold 2,000 /
     Platinum 5,000 lifetime points, never decreasing (redemption spends `redeemable` only).
     5-star week = at least 3 ratings within any rolling 7 days, all of them 5★ (owner-confirmed
-    at T2 sign-off, 2026-10-18).
+    at T2 sign-off, 2026-10-18) — checked at each 5★ over the ratings of the last 7 days after
+    the latest non-5★ one, so an earlier lower rating no longer hides a later qualifying window
+    (V1 audit I22).
 
     (6) A referral reward pays at most **once per referee account AND once per phone number,
     ever** (DB-unique; a deleted then reactivated account never retriggers). Self-referral is
-    refused. **Suspension freezes accrual and redemption but points are kept.**
+    refused. **Suspension freezes accrual and redemption but points are kept** — an account
+    suspension, or (V1 audit I21) a suspension of the ROLE growth acts for: the rider role
+    (USR-05 low rating or manual) freezes rider accrual, redemption, badges, challenges and the
+    referral reward; the driver role freezes driver badges and challenges. A deleted account that
+    was reactivated (USR-07) is not a new user: it can never enter a referral code (409
+    `referral_not_new_user`, V1 audit I20; `users.reactivated_at`, stamped by the database).
 
 
     **Promo application (GRW-01/02; amended at T2 — the implementation is the truth).** The
@@ -49,7 +56,9 @@ info:
     the code is re-validated under the promo row lock and RESERVED as the ride's redemption row;
     caps count reservations whose ride is still alive, so a cancelled / failed ride releases its
     reservation (the row stays as the audit trail) and a retry or driver-cancel redispatch carries
-    the promo to the new ride. At completion the discount is computed against the final metered
+    the promo to the new ride — a rider's RETRY only while the promo still fits: under the promo
+    lock the total cap and the rider's per-user limit are re-checked, and when either is now
+    reached the retried ride goes on without the promo (V1 audit I19). At completion the discount is computed against the final metered
     total — stored in the fare breakdown's `discount` component, NEVER recomputed, floor at zero,
     applied AFTER extras/surge/surcharge and the minimum-fare floor (stacking order: promo is
     last). One promo per ride, promos never stack (joining with a code when the ride already has
@@ -166,7 +175,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ReferralStatus' }
         '404': { description: '`referral_code_not_found`' }
-        '409': { description: '`referral_already_entered` | `referral_self` | `referral_phone_used` | `referral_too_late` (the caller already completed a ride)' }
+        '409': { description: '`referral_already_entered` | `referral_self` | `referral_phone_used` | `referral_too_late` (the caller already completed a ride) | `referral_not_new_user` (a reactivated deleted account, V1 audit I20)' }
 
   /api/v1/loyalty:
     get:
@@ -223,7 +232,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LoyaltyBalance' }
-        '403': { description: '`account_suspended`' }
+        '403': { description: '`account_suspended` — the account or (V1 audit I21) the rider role is suspended' }
         '409': { description: '`below_threshold` (details.thresholdPoints) | `insufficient_points` (details.redeemable)' }
 
   /api/v1/gamification/me:

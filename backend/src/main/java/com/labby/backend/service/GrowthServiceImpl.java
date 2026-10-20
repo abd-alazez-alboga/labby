@@ -8,6 +8,8 @@ import com.labby.backend.enums.PointsTransactionType;
 import com.labby.backend.enums.ReferralStatus;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
+import com.labby.backend.enums.Role;
+import com.labby.backend.enums.RoleState;
 import com.labby.backend.enums.WalletTransactionType;
 import com.labby.backend.model.Challenge;
 import com.labby.backend.model.ChallengeProgress;
@@ -27,6 +29,7 @@ import com.labby.backend.repository.RatingRepository;
 import com.labby.backend.repository.ReferralRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideRepository;
+import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserBadgeRepository;
 import com.labby.backend.repository.UserRepository;
 import java.math.BigDecimal;
@@ -58,6 +61,7 @@ public class GrowthServiceImpl implements GrowthService {
 
   private final RegionRepository regionRepository;
   private final UserRepository userRepository;
+  private final RoleAssignmentRepository roleAssignmentRepository;
   private final RideRepository rideRepository;
   private final RatingRepository ratingRepository;
   private final ReferralRepository referralRepository;
@@ -89,12 +93,18 @@ public class GrowthServiceImpl implements GrowthService {
   @Override
   public void onRatingSubmitted(
       Ride ride, UUID ratedUserId, RideParty ratedRole, int score, Instant now) {
-    if (score != 5 || suspended(ratedUserId)) {
+    if (score != 5 || suspended(ratedUserId, roleOf(ratedRole))) {
       return;
     }
+    // V1 audit I22 (ruling: "at least 3 ratings within ANY rolling 7 days, all 5★"): the ratings
+    // of the last 7 days after the latest non-5★ one form a window that ends now and holds only
+    // 5★ ratings — any qualifying window ending at this rating is found this way.
     List<Short> scores = ratingRepository.scoresSince(ratedUserId, now.minus(WEEK));
-    if (scores.size() >= FIVE_STAR_WEEK_MIN_RATINGS
-        && scores.stream().allMatch(value -> value == 5)) {
+    int fiveStarRun = 0;
+    for (Short value : scores) {
+      fiveStarRun = value == 5 ? fiveStarRun + 1 : 0;
+    }
+    if (fiveStarRun >= FIVE_STAR_WEEK_MIN_RATINGS) {
       award(ratedUserId, BadgeCode.FIVE_STAR_WEEK, ratedRole);
     }
     for (Challenge challenge : challengeRepository.runningAt(ride.getRegionId(), ratedRole, now)) {
@@ -114,7 +124,7 @@ public class GrowthServiceImpl implements GrowthService {
       Instant now) {
     long completed = rideRepository.riderCompletedCount(riderUserId);
     rewardReferral(ride, riderUserId, settings, now, completed);
-    if (suspended(riderUserId)) {
+    if (suspended(riderUserId, Role.RIDER)) {
       return; // Ruling 6: accrual, badges and challenges are frozen while suspended.
     }
     long points =
@@ -139,7 +149,7 @@ public class GrowthServiceImpl implements GrowthService {
 
   private void driverCompletion(Ride ride, boolean shared, Instant now) {
     UUID driverUserId = ride.getDriverUserId();
-    if (suspended(driverUserId)) {
+    if (suspended(driverUserId, Role.DRIVER)) {
       return;
     }
     rideBadges(
@@ -172,7 +182,7 @@ public class GrowthServiceImpl implements GrowthService {
       // referral PENDING — it is never shown as rewarded while nothing was paid.
       return;
     }
-    if (suspended(riderUserId) || suspended(referral.getReferrerUserId())) {
+    if (suspended(riderUserId, Role.RIDER) || suspended(referral.getReferrerUserId(), Role.RIDER)) {
       referral.setStatus(ReferralStatus.BLOCKED);
       referralRepository.saveAndFlush(referral);
       return;
@@ -298,11 +308,26 @@ public class GrowthServiceImpl implements GrowthService {
     return pointsTransactionRepository.saveAndFlush(transaction);
   }
 
-  private boolean suspended(UUID userId) {
-    return userRepository
-        .findById(userId)
-        .map(User::getState)
-        .map(state -> state != AccountState.ACTIVE)
-        .orElse(true);
+  /**
+   * Ruling 6 + V1 audit I21: growth freezes while the ACCOUNT is not active or the ROLE growth acts
+   * for (rider accrual / redemption / referral, driver badges and challenges) is suspended — USR-05
+   * low-rating or a manual role suspension count too.
+   */
+  private boolean suspended(UUID userId, Role role) {
+    boolean accountInactive =
+        userRepository
+            .findById(userId)
+            .map(User::getState)
+            .map(state -> state != AccountState.ACTIVE)
+            .orElse(true);
+    return accountInactive
+        || roleAssignmentRepository
+            .findByUserIdAndRole(userId, role)
+            .map(assignment -> assignment.getState() == RoleState.SUSPENDED)
+            .orElse(false);
+  }
+
+  private static Role roleOf(RideParty party) {
+    return party == RideParty.DRIVER ? Role.DRIVER : Role.RIDER;
   }
 }

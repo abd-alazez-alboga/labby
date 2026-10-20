@@ -92,7 +92,12 @@ public class ReferralServiceImpl implements ReferralService {
       throw conflict(
           "Referral codes can only be entered before your first ride", "referral_too_late");
     }
-    String phone = userRepository.findById(userId).orElseThrow().getPhone();
+    User user = userRepository.findById(userId).orElseThrow();
+    if (user.getReactivatedAt() != null) {
+      // V1 audit I20 (GRW-03): a reactivated deleted account is not a new user.
+      throw conflict("Referral codes are for new accounts only", "referral_not_new_user");
+    }
+    String phone = user.getPhone();
     if (referralRepository.existsByRefereePhone(phone)) {
       // Ruling 6: once per phone number, EVER — a reactivated account never re-enters.
       throw conflict("A referral was already used with this phone number", "referral_phone_used");

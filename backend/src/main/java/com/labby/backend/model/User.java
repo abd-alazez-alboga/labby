@@ -76,6 +76,13 @@ public class User {
   @Column(name = "deleted_at")
   private Instant deletedAt;
 
+  /**
+   * V34 (V1 audit I20): when a deleted account was last reactivated — stamped by the database
+   * trigger on the deleted → active transition, read-only here.
+   */
+  @Column(name = "reactivated_at", insertable = false, updatable = false)
+  private Instant reactivatedAt;
+
   @Column(name = "terms_accepted_at")
   private Instant termsAcceptedAt;
 

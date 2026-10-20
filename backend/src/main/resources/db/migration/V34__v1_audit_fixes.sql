@@ -23,3 +23,42 @@ VALUES ('00000000-0000-0000-0000-000000001402', 'unpaid_ride', 'Unpaid ride', '�
 ALTER TABLE rides
     ADD COLUMN eta_baseline_arrival_at TIMESTAMPTZ,
     ADD COLUMN eta_delay_notified_at   TIMESTAMPTZ;
+
+-- I2 (SRS §5 / §5.5: money and audit tables are append-only): the loyalty points ledger and the
+-- incentive awards get the same database backstop as the V12 money ledgers. promo_redemptions is
+-- deliberately NOT guarded: it is a reservation table — the amount is finalized at completion and a
+-- leaving member's reservation is deleted (M13 rulings), so it is mutable by design.
+CREATE TRIGGER trg_points_transactions_append_only
+    BEFORE UPDATE OR DELETE
+    ON points_transactions
+    FOR EACH ROW
+EXECUTE FUNCTION money_block_mutation();
+
+CREATE TRIGGER trg_incentive_awards_append_only
+    BEFORE UPDATE OR DELETE
+    ON incentive_awards
+    FOR EACH ROW
+EXECUTE FUNCTION money_block_mutation();
+
+-- I20 (GRW-03 "a reactivated deleted account is not a new user"): the moment a deleted account is
+-- reactivated (re-registration, USR-07) is recorded by the database itself, so the referral
+-- primitive can refuse such an account even before its first ride.
+ALTER TABLE users
+    ADD COLUMN reactivated_at TIMESTAMPTZ;
+
+CREATE FUNCTION users_mark_reactivated() RETURNS trigger
+    LANGUAGE plpgsql AS
+$$
+BEGIN
+    IF OLD.state = 'deleted' AND NEW.state = 'active' THEN
+        NEW.reactivated_at := now();
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_users_mark_reactivated
+    BEFORE UPDATE OF state
+    ON users
+    FOR EACH ROW
+EXECUTE FUNCTION users_mark_reactivated();
