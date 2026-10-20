@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -379,5 +380,46 @@ class RideLifecycleIntegrationTest extends AbstractRideIntegrationTest {
     position(driver, 33.5002, 36.30);
     rideTrackingService.monitor();
     assertThat(riderRide(rider, rideId).get("driverStream").asText()).isEqualTo("ok");
+  }
+
+  @Test
+  @DisplayName(
+      "M6 owner item b (review V1 I35): a sample stamped in the future is stored at the server"
+          + " clock, in driver_locations and in the ride trace")
+  void shouldClampAFutureRecordedAtToTheServerClock() {
+    Account rider = rider();
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    UUID rideId = book(rider);
+    dispatchAndAccept(rideId, driver);
+    advance(Duration.ofSeconds(5));
+    Instant serverNow = CLOCK.instant();
+
+    ok(
+        post(
+            "/api/v1/driver/locations",
+            Map.of(
+                "samples",
+                List.of(
+                    sample(
+                        PICKUP_LAT + 0.001, PICKUP_LNG, serverNow.plus(Duration.ofMinutes(10))))),
+            driver.token()),
+        HttpStatus.ACCEPTED);
+
+    assertThat(
+            jdbcTemplate
+                .queryForObject(
+                    "SELECT recorded_at FROM driver_locations WHERE user_id = ?",
+                    Timestamp.class,
+                    driver.userId())
+                .toInstant())
+        .isEqualTo(serverNow);
+    assertThat(
+            jdbcTemplate
+                .queryForObject(
+                    "SELECT max(recorded_at) FROM ride_traces WHERE ride_id = ?",
+                    Timestamp.class,
+                    rideId)
+                .toInstant())
+        .isEqualTo(serverNow);
   }
 }
