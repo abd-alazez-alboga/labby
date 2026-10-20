@@ -403,4 +403,26 @@ describe("scheduled rides (UC-D-05, UC-D-11, UC-D-12)", () => {
     );
     await act(async () => {});
   });
+
+  it("the converted notice names the pickup time and a live-surge fare says so (I74)", async () => {
+    const live = rideFixture({
+      kind: "scheduled",
+      surgeMultiplier: 1.5,
+      scheduled: {
+        scheduledAt: inHours(0.25),
+        claimState: "converted",
+        pricedAtRideTime: false,
+      },
+    });
+    const contract = await renderDriverApp({ [ACTIVE_RIDE]: ok(live) });
+    await goLive();
+    await waitForResync(contract);
+    expect(await screen.findByTestId("ride-notice-scheduledLive")).toHaveTextContent(
+      /Your \d\d:\d\d scheduled ride is live/,
+    );
+    expect(screen.getByTestId("to-pickup-live-surge")).toHaveTextContent(
+      "Fare now includes live surge",
+    );
+    await act(async () => {});
+  });
 });

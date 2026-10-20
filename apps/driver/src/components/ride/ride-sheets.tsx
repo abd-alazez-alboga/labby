@@ -151,6 +151,18 @@ export function ToPickupSheet({
               ),
             })}
           </AppText>
+          {/* I74 (board D12Converted): a converted claim priced with live surge says so. */}
+          {ride.scheduled?.claimState === "converted" &&
+          ride.surgeMultiplier > 1 ? (
+            <AppText
+              variant="caption"
+              weight="400"
+              color={colors.textSecondary}
+              testID="to-pickup-live-surge"
+            >
+              {t("ride.toPickup.liveSurge")}
+            </AppText>
+          ) : null}
         </View>
       </View>
 

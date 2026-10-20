@@ -555,6 +555,7 @@
     "toPickup": {
       "title": "Pick up {{name}}",
       "summary": "{{service}} · {{payment}} · {{fare}} est.",
+      "liveSurge": "Fare now includes live surge",
       "subtitle": "to pickup · {{place}}",
       "headTo": "Head to pickup",
       "arrived": "Arrived",
@@ -643,6 +644,7 @@
       "markedUnpaid": "Marked as unpaid — the ride is closed.",
       "paymentSettled": "The payment for this ride was already recorded.",
       "scheduledLive": "Your scheduled ride is live — head to the pickup now.",
+      "scheduledLiveTitle": "Your {{time}} scheduled ride is live",
       "scheduledReleased": "It went back to the board or to live dispatch. It counts as a release.",
       "scheduledReleasedLive": "It went live at {{liveAt}} while you were unavailable, so it went to live dispatch. It counts as a release.",
       "scheduledReleasedTitle": "Your {{time}} claim was released",

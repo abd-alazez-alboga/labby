@@ -395,9 +395,21 @@ function scheduledTitle(
   detail: RideNoticeDetail | null,
   language: string,
 ): string | null {
-  if (notice !== "scheduledReleased" && notice !== "scheduledRiderBusy")
+  if (
+    notice !== "scheduledReleased" &&
+    notice !== "scheduledRiderBusy" &&
+    notice !== "scheduledLive"
+  )
     return null;
   const { time, when } = pickupWhen(detail ?? {}, language);
+  if (notice === "scheduledLive") {
+    // I74 (board D12Converted): "Your 09:00 scheduled ride is live".
+    return time
+      ? t("ride.notice.scheduledLiveTitle", {
+          time: isolateDigits(time, language),
+        })
+      : null;
+  }
   if (notice === "scheduledReleased") {
     return time
       ? t("ride.notice.scheduledReleasedTitle", {

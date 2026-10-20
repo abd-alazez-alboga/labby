@@ -295,6 +295,7 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
             {ctx.notice === "scheduledLive" ? (
               <RideNoticeBanner
                 notice={ctx.notice}
+                detail={{ scheduledAt: ride.scheduled?.scheduledAt ?? null }}
                 onDismiss={ctx.dismissNotice}
               />
             ) : null}
