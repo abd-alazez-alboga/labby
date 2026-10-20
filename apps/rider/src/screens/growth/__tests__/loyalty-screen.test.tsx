@@ -20,6 +20,7 @@ import React from "react";
 import { LocaleProvider } from "../../../i18n/locale-context";
 import { RegionProvider } from "../../../region/region-context";
 import {
+  challengeView,
   loyaltyBalance,
   pointsPage,
   regionConfig,
@@ -130,6 +131,32 @@ describe("loyalty screen (UC-R-19)", () => {
         `loyalty-activity-${rows[2].pointsTransactionId}-points`,
       ),
     ).toHaveTextContent(/−500/);
+  });
+
+  it("names the challenge a credit came from (R13Loyalty, V1 audit I57)", async () => {
+    const rows = pointsPage().items;
+    mockApi({
+      ...REGION_ROUTE,
+      "GET /api/v1/loyalty": { status: 200, body: loyaltyBalance() },
+      "GET /api/v1/loyalty/transactions": { status: 200, body: pointsPage() },
+      "GET /api/v1/challenges": {
+        status: 200,
+        body: [challengeView({ challengeId: rows[1].challengeId as string })],
+      },
+    });
+    await renderLoyalty();
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId(
+          `loyalty-activity-${rows[1].pointsTransactionId}-title`,
+        ),
+      ).toHaveTextContent("Challenge · Weekend rider"),
+    );
+    // Other rows keep their type label.
+    expect(
+      screen.getByTestId(`loyalty-activity-${rows[0].pointsTransactionId}-title`),
+    ).toHaveTextContent("Ride");
   });
 
   it("disables redeeming below the region threshold (E1)", async () => {

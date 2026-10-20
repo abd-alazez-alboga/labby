@@ -12,7 +12,9 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import {
+  type ChallengeView,
   getLoyalty,
+  listChallenges,
   listPointsTransactions,
   type LoyaltyBalance,
   type LoyaltyRule,
@@ -99,14 +101,23 @@ const TYPE_META: Record<
 
 function ActivityRow({
   transaction,
+  challenge,
   testID,
 }: {
   transaction: PointsTransaction;
+  /** The challenge a `challenge` credit came from, when known. */
+  challenge?: ChallengeView | null;
   testID: string;
 }) {
   const { t, locale } = useLocale();
   const { row } = useDirection();
   const meta = TYPE_META[transaction.type];
+  // Approved artboard R13Loyalty: "Challenge · Weekend rider".
+  const title = challenge
+    ? t("growth.loyalty.typeChallengeNamed", {
+        name: locale === "ar" ? challenge.titleAr : challenge.titleEn,
+      })
+    : t(meta.labelKey);
   return (
     <View style={[styles.activity, { flexDirection: row }]} testID={testID}>
       <View style={[styles.well, meta.accent && styles.wellAccent]}>
@@ -117,8 +128,8 @@ function ActivityRow({
         />
       </View>
       <View style={styles.flex}>
-        <AppText variant="rowTitle" weight={700}>
-          {t(meta.labelKey)}
+        <AppText variant="rowTitle" weight={700} testID={`${testID}-title`}>
+          {title}
         </AppText>
         <AppText variant="caption" tone="secondary" weight={400}>
           {formatDate(transaction.createdAt, locale)}
@@ -143,6 +154,7 @@ export default function LoyaltyScreen() {
   const regionId = region?.config?.id ?? null;
   const [balance, setBalance] = useState<LoyaltyBalance | null>(null);
   const [activity, setActivity] = useState<PointsTransaction[] | null>(null);
+  const [challenges, setChallenges] = useState<ChallengeView[]>([]);
   const [failure, setFailure] = useState<FailureKind | null>(null);
   const [redeemOpen, setRedeemOpen] = useState(false);
 
@@ -158,6 +170,14 @@ export default function LoyaltyScreen() {
       setActivity(page.items);
     } catch (error) {
       setFailure(failureKind(error));
+      return;
+    }
+    // Names the challenge credits; best effort — the rows read
+    // "Challenge" without it.
+    try {
+      setChallenges(await listChallenges(regionId));
+    } catch {
+      setChallenges([]);
     }
   }, [regionId]);
 
@@ -310,6 +330,13 @@ export default function LoyaltyScreen() {
             <ActivityRow
               key={transaction.pointsTransactionId}
               transaction={transaction}
+              challenge={
+                transaction.type === "challenge" && transaction.challengeId
+                  ? challenges.find(
+                      (item) => item.challengeId === transaction.challengeId,
+                    )
+                  : null
+              }
               testID={`loyalty-activity-${transaction.pointsTransactionId}`}
             />
           ))}
