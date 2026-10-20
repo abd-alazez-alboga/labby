@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,8 +33,22 @@ public class PushConfig {
   private static final String FIREBASE_APP_NAME = "labby";
 
   /** The CORS browser origins; the first is the admin dashboard (V1 audit W6 push links). */
-  @Value("${labby.cors.allowed-origins:}")
-  private String allowedOrigins;
+  private final String allowedOrigins;
+
+  /** A config without the admin dashboard origin (no web-push click links). */
+  public PushConfig() {
+    this(null);
+  }
+
+  /**
+   * The config.
+   *
+   * @param allowedOrigins the CORS browser origins; the first is the admin dashboard
+   */
+  @Autowired
+  public PushConfig(@Value("${labby.cors.allowed-origins:}") String allowedOrigins) {
+    this.allowedOrigins = allowedOrigins;
+  }
 
   /**
    * The push sender.
