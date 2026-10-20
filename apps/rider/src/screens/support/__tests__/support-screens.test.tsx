@@ -269,6 +269,27 @@ describe("help search (ruling 7)", () => {
     expect(mockPush).toHaveBeenCalledWith("/new-ticket");
   });
 
+  it("shows each result under its category name (S14HelpSearch, V1 audit I55)", async () => {
+    mockApi({
+      [CATEGORIES]: { status: 200, body: [helpCategory()] },
+      [SEARCH]: { status: 200, body: [articleSummary()] },
+    });
+    await render(
+      <LocaleProvider>
+        <HelpSearchScreen />
+      </LocaleProvider>,
+    );
+
+    await fireEvent.changeText(screen.getByTestId("help-search-input"), "refund");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId(`help-search-result-${ARTICLE_ID}`),
+      ).toHaveTextContent(
+        /^Payments & wallet\s*When do I get a refund to my wallet\?/,
+      ),
+    );
+  });
+
   it("a failed search shows the error view with retry, not the empty state", async () => {
     mockApi({
       [SEARCH]: [

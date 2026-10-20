@@ -2,7 +2,9 @@
  * Help search (UC-S-21 step 3, ruling 7) — approved artboard
  * S14HelpSearch: debounced substring search in the active language
  * (`GET /help/search?q=&lang=`), results grouped as the API orders them
- * (title matches first), empty state and the "create ticket" fallback.
+ * (title matches first) under their category name (read once from the
+ * category list; best effort — a failed read just drops the eyebrow),
+ * empty state and the "create ticket" fallback.
  * A failed search shows the shared error view with retry, not "No results".
  */
 import { useRouter } from "expo-router";
@@ -13,9 +15,11 @@ import { failureKind, type FailureKind } from "../../api/http-client";
 import {
   HELP_SEARCH_MAX,
   HELP_SEARCH_MIN,
+  listHelpCategories,
   localized,
   searchHelp,
   type HelpArticleSummary,
+  type HelpCategory,
 } from "../../api/support";
 import {
   AppText,
@@ -46,6 +50,21 @@ export default function HelpSearchScreen() {
   // Bumped by the error view's retry to re-run the same search.
   const [attempt, setAttempt] = useState(0);
   const requestSeq = useRef(0);
+  const [categories, setCategories] = useState<HelpCategory[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listHelpCategories()
+      .then((found) => {
+        if (!cancelled) setCategories(found);
+      })
+      .catch(() => {
+        // The eyebrow is optional; results still show without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const trimmed = query.trim();
 
@@ -83,6 +102,11 @@ export default function HelpSearchScreen() {
       clearTimeout(timer);
     };
   }, [trimmed, locale, attempt]);
+
+  const categoryName = (id: string): string | undefined => {
+    const category = categories.find((item) => item.helpCategoryId === id);
+    return category ? localized(category.name, locale) : undefined;
+  };
 
   const countLine =
     results.length === 1
@@ -144,6 +168,7 @@ export default function HelpSearchScreen() {
               <ListRow
                 key={article.helpArticleId}
                 testID={`help-search-result-${article.helpArticleId}`}
+                eyebrow={categoryName(article.helpCategoryId)}
                 title={localized(article.title, locale)}
                 chevron
                 last={index === results.length - 1}

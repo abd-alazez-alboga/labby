@@ -22,6 +22,8 @@ import { AppText, type TextTone } from "./text";
 export interface ListRowProps {
   title: string;
   subtitle?: string;
+  /** A small muted line above the title (e.g. a help article's category). */
+  eyebrow?: string;
   icon?: React.ComponentProps<typeof Ionicons>["name"];
   leading?: React.ReactNode;
   /** Rendered right after the title on the same line (e.g. a lock icon). */
@@ -42,6 +44,7 @@ export interface ListRowProps {
 export function ListRow({
   title,
   subtitle,
+  eyebrow,
   icon,
   leading,
   titleAdornment,
@@ -75,11 +78,16 @@ export function ListRow({
         style={[
           styles.body,
           { flexDirection: row },
-          subtitle ? styles.bodyTwoLines : null,
+          subtitle || eyebrow ? styles.bodyTwoLines : null,
           !last && styles.divider,
         ]}
       >
         <View style={styles.text}>
+          {eyebrow ? (
+            <AppText variant="caption" weight={700} tone="muted">
+              {eyebrow}
+            </AppText>
+          ) : null}
           <View style={[styles.titleLine, { flexDirection: row }]}>
             <AppText
               variant="rowTitle"
