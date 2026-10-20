@@ -80,6 +80,11 @@ describe("ride offers (UC-D-06)", () => {
     expect(Number(ring.props.accessibilityLabel.match(/\d+/)[0])).toBeGreaterThanOrEqual(9);
     // A null rider rating (below 5 ratings, M11): nothing rendered.
     expect(screen.queryByText(/rating|★/i)).toBeNull();
+    // I33: the rider's comfort preferences ride along on the offer.
+    expect(screen.getByTestId("offer-comfort-temperature")).toHaveTextContent("Cool", { exact: false });
+    expect(screen.getByTestId("offer-comfort-conversation")).toHaveTextContent("Quiet", {
+      exact: false,
+    });
   });
 
   it("accepts → the to-pickup screen with rider name and comfort chips", async () => {

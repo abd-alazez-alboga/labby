@@ -20,7 +20,7 @@ import {
   SquareIconButton,
   useDirection,
 } from "../ui";
-import { CountdownRing, RouteSteps } from "./ride-parts";
+import { ComfortChips, CountdownRing, RouteSteps } from "./ride-parts";
 import { seatsAndParties } from "./shared-parts";
 
 /**
@@ -29,6 +29,8 @@ import { seatsAndParties } from "./shared-parts";
  * distance / ETA + label, stops, destination, Decline (icon) + big Accept.
  * M11: the rider's rating ("rider rating 4.8 ★") joins the fare caption
  * when the daily snapshot has one (null below 5 ratings — nothing shown).
+ * I33: the rider's comfort preferences show as chips, as the offer contract
+ * (rides-v1 "comfort preferences from the offer on") promises.
  * No trip length (the offer payload carries none).
  */
 export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
@@ -121,6 +123,10 @@ export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
           ].join(" · ")}
         </AppText>
       </View>
+
+      {!offer.shared && offer.rider?.comfort ? (
+        <ComfortChips comfort={offer.rider.comfort} testID="offer-comfort" />
+      ) : null}
 
       <RouteSteps
         steps={[
