@@ -66,6 +66,16 @@ export default function HelpCategoryScreen({
       contentContainerStyle={screenStyles.content}
       testID="help-category"
     >
+      {articles.length === 0 ? (
+        <AppText
+          variant="secondary"
+          tone="muted"
+          weight={400}
+          testID="help-category-empty"
+        >
+          {t("help.categoryEmpty")}
+        </AppText>
+      ) : null}
       <View>
         {articles.map((article, index) => (
           <ListRow

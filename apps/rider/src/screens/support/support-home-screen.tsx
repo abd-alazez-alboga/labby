@@ -110,6 +110,16 @@ export default function SupportHomeScreen() {
       </Pressable>
 
       <AppText variant="heading">{t("support.helpTopics")}</AppText>
+      {categories.length === 0 ? (
+        <AppText
+          variant="secondary"
+          tone="muted"
+          weight={400}
+          testID="support-no-topics"
+        >
+          {t("support.noTopics")}
+        </AppText>
+      ) : null}
       <View>
         {categories.map((category, index) => (
           <ListRow

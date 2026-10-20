@@ -176,9 +176,40 @@ describe("support home (UC-S-19 step 1 — help first)", () => {
     expect(screen.getByText("مواضيع المساعدة")).toBeOnTheScreen();
     expect(screen.getByText("إنشاء تذكرة")).toBeOnTheScreen();
   });
+
+  it("says so when nothing is published yet (V1 audit I89)", async () => {
+    mockApi({
+      [CATEGORIES]: { status: 200, body: [] },
+      [TICKETS]: { status: 200, body: ticketListPage(0) },
+    });
+    await render(
+      <LocaleProvider>
+        <SupportHomeScreen />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByTestId("support-no-topics")).toHaveTextContent(
+      "No help topics yet. You can still create a ticket.",
+    );
+    expect(screen.getByTestId("support-create-ticket")).toBeOnTheScreen();
+  });
 });
 
 describe("help category + article (UC-S-21)", () => {
+  it("says so when the category has no articles (V1 audit I89)", async () => {
+    mockApi({ [ARTICLES]: { status: 200, body: [] } });
+    await render(
+      <LocaleProvider>
+        <HelpCategoryScreen helpCategoryId={CATEGORY_ID} />
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByTestId("help-category-empty")).toHaveTextContent(
+      "No articles here yet.",
+    );
+    expect(screen.getByTestId("help-category-create-ticket")).toBeOnTheScreen();
+  });
+
   it("lists the published articles and falls back to create-ticket (A1)", async () => {
     mockApi({ [ARTICLES]: { status: 200, body: [articleSummary()] } });
     await render(

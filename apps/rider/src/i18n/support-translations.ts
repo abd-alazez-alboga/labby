@@ -14,6 +14,7 @@ export const supportEn = {
     settingsSection: "Support",
     searchPlaceholder: "Search help",
     helpTopics: "Help topics",
+    noTopics: "No help topics yet. You can still create a ticket.",
     articleCountOne: "1 article",
     articleCount: "{{count}} articles",
     yourTickets: "Your tickets",
@@ -24,6 +25,7 @@ export const supportEn = {
   },
   help: {
     categoryHint: "Couldn't find an answer here?",
+    categoryEmpty: "No articles here yet.",
     articleHint: "Didn't answer your question?",
     searchResultsOne: '1 result for "{{query}}"',
     searchResults: '{{count}} results for "{{query}}"',
@@ -169,6 +171,7 @@ export const supportAr: typeof supportEn = {
     settingsSection: "الدعم",
     searchPlaceholder: "ابحث في المساعدة",
     helpTopics: "مواضيع المساعدة",
+    noTopics: "لا توجد مواضيع مساعدة بعد. ما زال بإمكانك إنشاء تذكرة.",
     articleCountOne: "مقال واحد",
     articleCount: "{{count}} مقالات",
     yourTickets: "تذاكرك",
@@ -179,6 +182,7 @@ export const supportAr: typeof supportEn = {
   },
   help: {
     categoryHint: "لم تجد إجابة هنا؟",
+    categoryEmpty: "لا توجد مقالات هنا بعد.",
     articleHint: "لم يُجب المقال عن سؤالك؟",
     searchResultsOne: 'نتيجة واحدة لـ "{{query}}"',
     searchResults: '{{count}} نتائج لـ "{{query}}"',
