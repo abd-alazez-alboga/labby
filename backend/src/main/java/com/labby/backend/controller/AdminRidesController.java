@@ -1,9 +1,11 @@
 package com.labby.backend.controller;
 
 import com.labby.backend.dto.AdminRideDetailDto;
+import com.labby.backend.dto.AdminRideRelatedDto;
 import com.labby.backend.dto.AdminRideSummaryPageDto;
 import com.labby.backend.enums.Permission;
 import com.labby.backend.security.SecurityUtils;
+import com.labby.backend.service.AdminRideRelatedService;
 import com.labby.backend.service.AdminRideService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminRidesController {
 
   private final AdminRideService adminRideService;
+  private final AdminRideRelatedService adminRideRelatedService;
 
   /**
    * Searches rides.
@@ -78,5 +81,26 @@ public class AdminRidesController {
     boolean contactAccess =
         SecurityUtils.holds(authentication, Permission.SUPPORT_HANDLE.getValue());
     return ResponseEntity.ok(contactAccess ? detail : detail.withoutPhones());
+  }
+
+  /**
+   * What else is filed about the ride (review V1 W15): its reports ({@code reports:view}), support
+   * tickets, lost-item cases and SOS events ({@code support:view}). A section the caller may not
+   * see is left out of the response.
+   *
+   * @param rideId the ride
+   * @param authentication the caller
+   * @return 200 with the sections; 404 unknown ride
+   */
+  @GetMapping("/{rideId}/related")
+  @PreAuthorize("hasAuthority('rides:view')")
+  @Operation(summary = "Reports, tickets, lost-item cases and SOS of a ride (UC-A-18)")
+  public ResponseEntity<AdminRideRelatedDto> related(
+      @PathVariable UUID rideId, Authentication authentication) {
+    return ResponseEntity.ok(
+        adminRideRelatedService.related(
+            rideId,
+            SecurityUtils.holds(authentication, Permission.REPORTS_VIEW.getValue()),
+            SecurityUtils.holds(authentication, Permission.SUPPORT_VIEW.getValue())));
   }
 }

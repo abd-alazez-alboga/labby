@@ -5,12 +5,15 @@ import com.labby.backend.dto.AdminRideSummaryDto;
 import com.labby.backend.dto.AdminRideSummaryPageDto;
 import com.labby.backend.dto.OfferTrailEntryDto;
 import com.labby.backend.dto.TracePointDto;
+import com.labby.backend.enums.RideKind;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Fare;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
 import com.labby.backend.model.ServiceType;
 import com.labby.backend.model.User;
+import com.labby.backend.repository.AdminRideRelatedRepository;
+import com.labby.backend.repository.AdminRideRelatedRepository.SharedCountRow;
 import com.labby.backend.repository.FareRepository;
 import com.labby.backend.repository.RegionRepository;
 import com.labby.backend.repository.RideOfferRepository;
@@ -56,6 +59,7 @@ public class AdminRideServiceImpl implements AdminRideService {
   private final ServiceTypeRepository serviceTypeRepository;
   private final UserRepository userRepository;
   private final RideAssembler rideAssembler;
+  private final AdminRideRelatedRepository adminRideRelatedRepository;
 
   @Override
   public AdminRideSummaryPageDto search(Filter filter, int page, int size) {
@@ -198,6 +202,14 @@ public class AdminRideServiceImpl implements AdminRideService {
           }
         });
     Map<UUID, User> users = byId(userRepository.findAllById(partyIds), User::getId);
+    Map<UUID, SharedCountRow> shared =
+        byId(
+            adminRideRelatedRepository.sharedCounts(
+                rides.stream()
+                    .filter(ride -> ride.getKind() == RideKind.SHARED)
+                    .map(Ride::getId)
+                    .toList()),
+            SharedCountRow::rideId);
     return rides.stream()
         .map(
             ride -> {
@@ -207,6 +219,7 @@ public class AdminRideServiceImpl implements AdminRideService {
               User driver =
                   ride.getDriverUserId() == null ? null : users.get(ride.getDriverUserId());
               Region region = regions.get(ride.getRegionId());
+              SharedCountRow occupancy = shared.get(ride.getId());
               return new AdminRideSummaryDto(
                   ride.getId(),
                   ride.getState(),
@@ -224,7 +237,9 @@ public class AdminRideServiceImpl implements AdminRideService {
                   ride.getRiderUserId(),
                   rider == null ? "" : rider.getName(),
                   ride.getDriverUserId(),
-                  driver == null ? null : driver.getName());
+                  driver == null ? null : driver.getName(),
+                  occupancy == null ? null : occupancy.seats(),
+                  occupancy == null ? null : occupancy.parties());
             })
         .toList();
   }

@@ -772,6 +772,23 @@ paths:
         '403': { description: Missing `rides:view` }
         '404': { description: Unknown ride }
 
+  /api/v1/admin/rides/{rideId}/related:
+    parameters:
+      - { $ref: '#/components/parameters/RideId' }
+    get:
+      tags: [AdminRides]
+      summary: Reports, support tickets, lost-item cases and SOS events of one ride (UC-A-18, review V1 W15)
+      description: Each section is gated by its own permission and left out when the caller lacks it (see AdminRideRelated).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The sections the caller may see
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRideRelated' }
+        '403': { description: Missing `rides:view` }
+        '404': { description: Unknown ride }
+
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -1313,6 +1330,16 @@ components:
             riderName: { type: string }
             driverUserId: { type: [string, 'null'], format: uuid }
             driverName: { type: [string, 'null'] }
+            sharedSeats:
+              type: [integer, 'null']
+              description: >
+                Shared rides only (review V1 W15, "Shared · 3 seats"): the seats the fare was split
+                over once completed, else the seats held now. Null for other kinds.
+            sharedParties:
+              type: [integer, 'null']
+              description: >
+                Shared rides only ("Nour S. + 2"): the parties riding — joined or completed
+                members, the creator included. Null for other kinds.
     AdminRideSummaryPage:
       type: object
       required: [items, page, size, totalItems]
@@ -1343,7 +1370,8 @@ components:
       type: object
       description: >
         UC-A-18 full truth. Chat log, payments ledger, reports/tickets/SOS join the detail when
-        their milestones land (M8/M10).
+        their milestones land (M8/M10). The related reports, support tickets, lost-item cases
+        and SOS events are served by `GET /api/v1/admin/rides/{rideId}/related` (review V1 W15).
       required: [ride, riderUserId, riderName, riderPhone, offers, trace]
       properties:
         ride: { $ref: '#/components/schemas/Ride' }
@@ -1363,3 +1391,81 @@ components:
           type: array
           description: Every stored GPS point, both phases, in recordedAt order (TRK-03)
           items: { $ref: '#/components/schemas/TracePoint' }
+    AdminRelatedParty:
+      type: object
+      required: [userId, name, role]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string, enum: [rider, driver], description: The side they acted on (filed / opened from / raised as) }
+    AdminRideRelated:
+      type: object
+      description: >
+        Review V1 W15 (UC-A-18 "related reports/tickets/SOS"). Each section is present ONLY when
+        the caller holds the permission that guards that data elsewhere, and absent from the JSON
+        otherwise: `reports` needs `reports:view`; `tickets`, `lostItems` and `sos` need
+        `support:view`. A present section may be empty. Lists are newest first. `ref` = the id's
+        first 8 hex digits upper-case (the apps add their own prefix, e.g. T- / L-). Ids are
+        link-ready: a report opens at the admin report detail, a ticket or lost-item case at the
+        admin ticket detail. No phone is served.
+      required: [rideId]
+      properties:
+        rideId: { type: string, format: uuid }
+        reports:
+          type: array
+          items:
+            type: object
+            required: [id, ref, category, status, reporter, reported, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              ref: { type: string }
+              category: { type: string, description: trust-v1 ReportCategory }
+              status: { type: string, enum: [open, substantiated, unsubstantiated] }
+              reporter: { $ref: '#/components/schemas/AdminRelatedParty' }
+              reported: { $ref: '#/components/schemas/AdminRelatedParty' }
+              createdAt: { type: string, format: date-time }
+        tickets:
+          type: array
+          description: Support tickets about the ride (kind `ticket`), SOS-linked ones included
+          items:
+            type: object
+            required: [id, ref, categoryId, categoryNameEn, categoryNameAr, summary, status, priority, user, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              ref: { type: string }
+              categoryId: { type: string, format: uuid }
+              categoryNameEn: { type: string }
+              categoryNameAr: { type: string }
+              summary: { type: string, description: "The description's first line, at most 120 characters (ellipsis when cut)" }
+              status: { type: string, description: support-v1 TicketStatus }
+              priority: { type: string, description: support-v1 TicketPriority }
+              user: { $ref: '#/components/schemas/AdminRelatedParty' }
+              sosEventId: { type: [string, 'null'], format: uuid }
+              createdAt: { type: string, format: date-time }
+        lostItems:
+          type: array
+          description: Lost-item cases of the ride (support tickets of kind `lost_item`)
+          items:
+            type: object
+            required: [id, ref, summary, caseStatus, status, user, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              ref: { type: string }
+              summary: { type: string }
+              caseStatus: { type: string, description: support-v1 CaseStatus }
+              status: { type: string, description: support-v1 TicketStatus }
+              user: { $ref: '#/components/schemas/AdminRelatedParty' }
+              createdAt: { type: string, format: date-time }
+        sos:
+          type: array
+          items:
+            type: object
+            required: [id, ref, triggeredBy, triggeredAt, acknowledged]
+            properties:
+              id: { type: string, format: uuid }
+              ref: { type: string }
+              triggeredBy: { $ref: '#/components/schemas/AdminRelatedParty' }
+              triggeredAt: { type: string, format: date-time }
+              acknowledged: { type: boolean }
+              acknowledgedAt: { type: [string, 'null'], format: date-time }
+              ticketId: { type: [string, 'null'], format: uuid, description: The SOS-linked support ticket }
