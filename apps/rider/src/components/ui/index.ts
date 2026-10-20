@@ -1,6 +1,7 @@
 /** Rider design-system primitives (docs/design/design-system.md). */
 export { Banner } from "./banner";
 export {
+  DestructiveButton,
   DestructiveTextButton,
   PrimaryButton,
   SecondaryButton,

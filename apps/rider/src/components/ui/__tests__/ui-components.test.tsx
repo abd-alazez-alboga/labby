@@ -18,6 +18,7 @@ import {
   AppText,
   Banner,
   BottomSheet,
+  DestructiveButton,
   DestructiveTextButton,
   ListRow,
   MapFab,
@@ -159,6 +160,25 @@ describe("ui primitives", () => {
       expect(
         flat<ViewStyle>(screen.getByTestId("del").props.style).backgroundColor,
       ).toBeUndefined();
+    });
+
+    it("renders the costly destructive confirm outlined in danger (RiderCancel)", async () => {
+      await renderIn(
+        "en",
+        <DestructiveButton
+          label="Cancel ride · SYP 2,000 fee"
+          onPress={jest.fn()}
+          testID="confirm"
+        />,
+      );
+      const label = await screen.findByText("Cancel ride · SYP 2,000 fee");
+      expect(flat<TextStyle>(label.props.style).color).toBe(colors.danger);
+      expect(flat<ViewStyle>(screen.getByTestId("confirm").props.style)).toMatchObject({
+        height: 56,
+        backgroundColor: colors.surface,
+        borderWidth: 1.5,
+        borderColor: colors.danger,
+      });
     });
   });
 

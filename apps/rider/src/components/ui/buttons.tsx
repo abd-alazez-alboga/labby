@@ -2,6 +2,8 @@
  * Mobile buttons (design system): one PrimaryButton per screen (56 px,
  * radius 14, accent fill, 18/800 white label, 40 % opacity when disabled,
  * spinner while loading), SecondaryButton (surface-fill ground, text colour),
+ * DestructiveButton (56 px, white ground, 1.5 px danger outline, danger
+ * label — the confirm of a costly cancel, approved artboard RiderCancel),
  * DestructiveTextButton (danger text, no fill) and TextButton for links.
  */
 import React from "react";
@@ -27,7 +29,7 @@ export interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-type FilledKind = "primary" | "secondary";
+type FilledKind = "primary" | "secondary" | "destructive";
 
 function FilledButton({
   kind,
@@ -41,6 +43,7 @@ function FilledButton({
 }: ButtonProps & { kind: FilledKind }) {
   const isDisabled = !!(disabled || loading);
   const primary = kind === "primary";
+  const destructive = kind === "destructive";
   return (
     <Pressable
       accessibilityRole="button"
@@ -51,7 +54,11 @@ function FilledButton({
       testID={testID}
       style={({ pressed }) => [
         styles.filled,
-        primary ? styles.primary : styles.secondary,
+        primary
+          ? styles.primary
+          : destructive
+            ? styles.destructive
+            : styles.secondary,
         pressed &&
           !isDisabled &&
           (primary ? styles.primaryPressed : styles.secondaryPressed),
@@ -61,14 +68,16 @@ function FilledButton({
     >
       {loading ? (
         <ActivityIndicator
-          color={primary ? colors.onAccent : colors.text}
+          color={
+            primary ? colors.onAccent : destructive ? colors.danger : colors.text
+          }
           testID={testID ? `${testID}-loading` : undefined}
         />
       ) : (
         <AppText
-          variant={primary ? "button" : "bodyStrong"}
+          variant={primary ? "button" : destructive ? "rowTitle" : "bodyStrong"}
           weight={800}
-          tone={primary ? "onAccent" : "default"}
+          tone={primary ? "onAccent" : destructive ? "danger" : "default"}
           align="center"
           numberOfLines={1}
         >
@@ -85,6 +94,11 @@ export function PrimaryButton(props: ButtonProps) {
 
 export function SecondaryButton(props: ButtonProps) {
   return <FilledButton kind="secondary" {...props} />;
+}
+
+/** Outlined danger button — a destructive action that costs the rider. */
+export function DestructiveButton(props: ButtonProps) {
+  return <FilledButton kind="destructive" {...props} />;
 }
 
 function PlainTextButton({
@@ -159,6 +173,11 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: colors.surfaceFill,
+  },
+  destructive: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
   },
   secondaryPressed: {
     backgroundColor: colors.line,

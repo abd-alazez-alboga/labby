@@ -21,7 +21,7 @@ import {
   AppText,
   Banner,
   BottomSheet,
-  DestructiveTextButton,
+  DestructiveButton,
   PrimaryButton,
   TextField,
   useDirection,
@@ -236,7 +236,8 @@ export function CancelSheet({
             onPress={onClose}
             testID="cancel-keep"
           />
-          <DestructiveTextButton
+          {/* Approved artboard RiderCancel: an outlined danger button. */}
+          <DestructiveButton
             label={
               feeMoney
                 ? t("cancel.confirmFee", { money: feeMoney })
