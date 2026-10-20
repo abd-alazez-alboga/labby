@@ -126,7 +126,8 @@ export const trustEn = {
 export const trustAr: typeof trustEn = {
   rating: {
     skip: "تخطي",
-    title: "كيف كانت رحلتك مع {{name}}؟",
+    // The name sits in a first-strong isolate (Latin or Arabic names).
+    title: "كيف كانت رحلتك مع \u2068{{name}}\u2069؟",
     rideLine: "{{date}} · {{place}}",
     starsLabel: "التقييم من 1 إلى 5 نجوم",
     stars: {
@@ -168,7 +169,7 @@ export const trustAr: typeof trustEn = {
     windowClosed: "انتهت مهلة التقييم",
   },
   report: {
-    title: "الإبلاغ عن {{name}}",
+    title: "الإبلاغ عن \u2068{{name}}\u2069",
     rideLine: "رحلة {{date}} · {{place}}",
     question: "ماذا حدث؟",
     categories: {

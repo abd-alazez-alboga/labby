@@ -150,4 +150,11 @@ export const typography = {
 
 export type TypeVariant = keyof typeof typography;
 
+/**
+ * Arabic line height ÷ font size. IBM Plex Sans Arabic's marks reach well
+ * past its em box, so Arabic text always carries an explicit line height
+ * (display 48, title 39, heading 30, body 24, caption 20 …).
+ */
+export const ARABIC_LINE_HEIGHT_RATIO = 1.5;
+
 export type Colors = typeof colors;

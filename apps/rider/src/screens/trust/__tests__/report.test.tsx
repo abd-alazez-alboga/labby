@@ -206,7 +206,10 @@ describe("report flow (UC-S-18)", () => {
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
     mockApi({ [RIDE]: { status: 200, body: completedRide() } });
     await renderReport();
-    expect(await screen.findByText("الإبلاغ عن Samer")).toBeOnTheScreen();
+    // W2: the whole title, the name in a first-strong isolate.
+    expect(
+      await screen.findByText("الإبلاغ عن ⁨Samer⁩"),
+    ).toBeOnTheScreen();
     expect(screen.getByText("قيادة غير آمنة")).toBeOnTheScreen();
     expect(screen.getByText("إرسال البلاغ")).toBeOnTheScreen();
   });

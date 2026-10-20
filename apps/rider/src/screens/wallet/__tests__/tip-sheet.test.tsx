@@ -8,8 +8,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
+import { StyleSheet } from "react-native";
 
-import { LocaleProvider } from "../../../i18n/locale-context";
+import {
+  LANGUAGE_STORAGE_KEY,
+  LocaleProvider,
+} from "../../../i18n/locale-context";
 import { mockApi, seedSignedInSession } from "../../../test-utils/mock-api";
 import { tipResponse, walletView } from "../../../test-utils/money-fixtures";
 import { RIDE_ID } from "../../../test-utils/ride-fixtures";
@@ -235,6 +239,19 @@ describe("tip sheet (UC-R-08)", () => {
     expect(api.callsTo("POST", `/api/v1/rides/${RIDE_ID}/tip`)[0].body).toEqual(
       { amount: 12.5 },
     );
+  });
+
+  it("shows the whole Arabic title with the driver's name (W2)", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    mockApi({ "GET /api/v1/wallet": { status: 200, body: walletView() } });
+    await renderSheet();
+
+    const title = await screen.findByTestId("tip-title");
+    expect(title).toHaveTextContent("إكرامية لـ⁨Samer⁩");
+    expect(title.props.textBreakStrategy).toBe("simple");
+    expect(StyleSheet.flatten(title.props.style)).toMatchObject({
+      lineHeight: 39,
+    });
   });
 });
 

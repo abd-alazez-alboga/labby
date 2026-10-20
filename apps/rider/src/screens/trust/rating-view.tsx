@@ -141,10 +141,20 @@ export function RatingView({
       </View>
       <View style={styles.hero}>
         <DriverAvatar firstName={driverName} photoUrl={driverPhotoUrl} size={80} />
-        <AppText variant="title" align="center" testID="rating-title">
+        <AppText
+          variant="title"
+          align="center"
+          style={styles.heroText}
+          testID="rating-title"
+        >
           {t("rating.title", { name: driverName })}
         </AppText>
-        <AppText variant="secondary" tone="secondary" align="center">
+        <AppText
+          variant="secondary"
+          tone="secondary"
+          align="center"
+          style={styles.heroText}
+        >
           {rideLine}
         </AppText>
       </View>
@@ -295,6 +305,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     paddingTop: spacing.sm,
+  },
+  // Full width: a centred title never shrink-wraps (Android under-measures
+  // Arabic and drops the last word — the driver's name).
+  heroText: {
+    alignSelf: "stretch",
   },
   stars: {
     justifyContent: "center",

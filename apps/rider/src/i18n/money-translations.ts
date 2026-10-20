@@ -98,7 +98,7 @@ export const moneyAr = {
     },
   },
   tip: {
-    title: "إكرامية لـ{{name}}",
+    title: "إكرامية لـ\u2068{{name}}\u2069",
     titleNoName: "قدّم إكرامية لسائقك",
     customLabel: "مبلغ مخصص · {{currency}}",
     fromWallet: "من محفظتك · الرصيد {{money}}",

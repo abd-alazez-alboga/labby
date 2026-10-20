@@ -25,6 +25,7 @@ import {
   FakeSocket,
   fakeSocketFactory,
   RIDE_ID,
+  sampleDriver,
 } from "../../../test-utils/ride-fixtures";
 import {
   coded,
@@ -230,7 +231,8 @@ describe("rating screen (UC-S-17)", () => {
     });
     await renderRate();
 
-    const title = await screen.findByText("كيف كانت رحلتك مع Samer؟");
+    // W2: the whole title, the name in a first-strong isolate.
+    const title = await screen.findByText("كيف كانت رحلتك مع ⁨Samer⁩؟");
     expect(StyleSheet.flatten(title.props.style)).toMatchObject({
       writingDirection: "rtl",
     });
@@ -249,6 +251,38 @@ describe("rating screen (UC-S-17)", () => {
     // Western digits in the window line (NFR-I2).
     expect(screen.getByTestId("rating-window")).toHaveTextContent(/22/);
     expect(screen.getByTestId("rating-window")).not.toHaveTextContent(/[٠-٩]/);
+  });
+
+  it("never clips the driver's name off the Arabic title (W2)", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    mockApi({
+      [RIDE]: {
+        status: 200,
+        body: completedRide(undefined, {
+          driver: {
+            ...sampleDriver,
+            firstName: "عبد الرحمن",
+            photoUrl: "https://cdn.example/broken.jpg",
+          },
+        }),
+      },
+    });
+    await renderRate();
+
+    const title = await screen.findByTestId("rating-title");
+    expect(title).toHaveTextContent("كيف كانت رحلتك مع ⁨عبد الرحمن⁩؟");
+    // Full width, an explicit Arabic line height and the simple Android
+    // break strategy: the last word is never pushed onto an undrawn line.
+    expect(title.props.textBreakStrategy).toBe("simple");
+    expect(StyleSheet.flatten(title.props.style)).toMatchObject({
+      alignSelf: "stretch",
+      fontSize: 26,
+      lineHeight: 39,
+    });
+    // A photo that fails to load falls back to the initials.
+    await fireEvent(screen.getByTestId("driver-photo"), "error");
+    expect(screen.queryByTestId("driver-photo")).toBeNull();
+    expect(screen.getByText("عا")).toBeOnTheScreen();
   });
 });
 

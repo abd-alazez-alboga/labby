@@ -149,12 +149,16 @@ export function DriverAvatar({
 }) {
   const { t, locale } = useLocale();
   const large = size >= 64;
+  // The photo URL that failed to load; that URL falls back to initials.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showPhoto = !!photoUrl && failedUrl !== photoUrl;
   return (
     <View style={{ width: size, height: size }}>
-      {photoUrl ? (
+      {showPhoto ? (
         <Image
           source={{ uri: photoUrl }}
           style={{ width: size, height: size, borderRadius: size / 2 }}
+          onError={() => setFailedUrl(photoUrl)}
           testID="driver-photo"
         />
       ) : (

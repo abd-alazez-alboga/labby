@@ -9,6 +9,7 @@ import { StyleSheet, Text, type TextProps, type TextStyle } from "react-native";
 
 import { useOptionalLocale } from "../../i18n/locale-context";
 import {
+  ARABIC_LINE_HEIGHT_RATIO,
   colors,
   type FontWeight,
   fontFamilies,
@@ -36,6 +37,11 @@ const TONE_COLOR: Record<TextTone, string> = {
   warning: colors.warning,
   danger: colors.danger,
 };
+
+/** Arabic line height for a font size: 1.5× the size, rounded up. */
+export function arabicLineHeight(fontSize: number): number {
+  return Math.ceil(fontSize * ARABIC_LINE_HEIGHT_RATIO);
+}
 
 /** Font family for a weight in the active script. */
 export function useFontFamily(weight: FontWeight): string {
@@ -65,6 +71,7 @@ export function AppText({
   // Physical start side. React Native swaps left/right while native RTL is
   // live, so the value is relative to the launch layout, i.e. `flipRows`.
   const flipRows = locale?.flipRows ?? false;
+  const arabic = locale?.locale === "ar";
   const type = typography[variant];
   const family = useFontFamily(weight ?? type.weight);
   const base: TextStyle = {
@@ -72,11 +79,23 @@ export function AppText({
     fontSize: type.fontSize,
     // Tracking is for Latin type only — it breaks Arabic joining and makes
     // Android under-measure (and clip) Arabic lines.
-    letterSpacing: locale?.locale === "ar" ? undefined : type.letterSpacing,
+    letterSpacing: arabic ? undefined : type.letterSpacing,
     color: TONE_COLOR[tone],
   };
+  if (arabic) {
+    // IBM Plex Sans Arabic draws taller than its font metrics: without an
+    // explicit line height Android measures a wrapped line too short and
+    // drops it (a name at the end of a short title vanished). The height
+    // follows the size actually used, so a caller's fontSize override
+    // never clips either; a caller's own lineHeight still wins.
+    const own = StyleSheet.flatten(style) as TextStyle | undefined;
+    base.lineHeight = arabicLineHeight(own?.fontSize ?? type.fontSize);
+  }
   return (
     <Text
+      // The default "highQuality" strategy under-measures Arabic runs on
+      // Android and pushes the last word onto a clipped line (W2).
+      textBreakStrategy="simple"
       {...props}
       style={[
         base,
