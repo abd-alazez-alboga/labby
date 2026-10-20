@@ -755,6 +755,117 @@ describe("ride flow (UC-R-05…07)", () => {
     expect(api.callsTo("GET", "/api/v1/rides/active")).toHaveLength(3);
   });
 
+  it("draws the route on the tracking map: driver → pickup, then the trip (TRK-02)", async () => {
+    const ROUTE = "POST /api/v1/routing/route";
+    const line = (coordinates: [number, number][], approximate = false) => ({
+      status: 200,
+      body: {
+        distanceMeters: 1200,
+        durationSeconds: 240,
+        geometry: { type: "LineString", coordinates },
+        approximate,
+      },
+    });
+    const api = mockApi({
+      [ACTIVE]: { status: 200, body: acceptedRide() },
+      [ROUTE]: [
+        // Approach: an OSRM line from the driver to the pickup.
+        line([
+          [36.27, 33.52],
+          [36.273, 33.517],
+          [36.2765, 33.5138],
+        ]),
+        // The driver moved far enough: the approach is re-routed, here as
+        // a straight-line estimate (drawn dashed).
+        line(
+          [
+            [36.26, 33.53],
+            [36.2765, 33.5138],
+          ],
+          true,
+        ),
+        // In progress: pickup → stop → destination.
+        line([
+          [36.2765, 33.5138],
+          [36.28, 33.51],
+          [36.2913, 33.5131],
+        ]),
+      ],
+    });
+    await renderHome();
+    const socket = await connect();
+    expect(await screen.findByText("Meet at pickup")).toBeOnTheScreen();
+    await act(async () => {
+      fireEvent(screen.getByTestId("ride-map-webview"), "message", {
+        nativeEvent: { data: '{"type":"ready"}' },
+      });
+    });
+    await waitFor(() =>
+      expect(lastMapScript()).toContain(
+        '"route":[[33.52,36.27],[33.517,36.273],[33.5138,36.2765]],"routeApproximate":false',
+      ),
+    );
+    expect(api.callsTo("POST", "/api/v1/routing/route")[0].body).toEqual({
+      points: [
+        { lat: 33.52, lng: 36.27 },
+        { lat: 33.5138, lng: 36.2765 },
+      ],
+    });
+
+    // A small move keeps the line (never re-routed per GPS sample)…
+    await send(socket, {
+      type: "ride.driver_position",
+      rideId: RIDE_ID,
+      lat: 33.5195,
+      lng: 36.2705,
+      recordedAt: "2026-10-08T09:30:00Z",
+      etaSeconds: 200,
+    });
+    expect(api.callsTo("POST", "/api/v1/routing/route")).toHaveLength(1);
+    // …a move of more than 300 m re-routes from the new position.
+    await send(socket, {
+      type: "ride.driver_position",
+      rideId: RIDE_ID,
+      lat: 33.53,
+      lng: 36.26,
+      recordedAt: "2026-10-08T09:31:00Z",
+      etaSeconds: 300,
+    });
+    await waitFor(() =>
+      expect(lastMapScript()).toContain(
+        '"route":[[33.53,36.26],[33.5138,36.2765]],"routeApproximate":true',
+      ),
+    );
+    expect(api.callsTo("POST", "/api/v1/routing/route")[1].body).toEqual({
+      points: [
+        { lat: 33.53, lng: 36.26 },
+        { lat: 33.5138, lng: 36.2765 },
+      ],
+    });
+
+    // In progress: the trip itself, through the stop.
+    await send(socket, {
+      type: "ride.state",
+      ride: acceptedRide({
+        state: "in_progress",
+        stops: [{ lat: 33.51, lng: 36.28, label: "Abu Rummaneh" }],
+      }),
+    });
+    expect(await screen.findByText("On the way")).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(lastMapScript()).toContain(
+        '"route":[[33.5138,36.2765],[33.51,36.28],[33.5131,36.2913]],"routeApproximate":false',
+      ),
+    );
+    expect(api.callsTo("POST", "/api/v1/routing/route")[2].body).toEqual({
+      points: [
+        { lat: 33.5138, lng: 36.2765 },
+        { lat: 33.51, lng: 36.28 },
+        { lat: 33.5131, lng: 36.2913 },
+      ],
+    });
+  });
+
   it("learns how a ride ended while the app was not listening", async () => {
     mockApi({
       [ACTIVE]: [

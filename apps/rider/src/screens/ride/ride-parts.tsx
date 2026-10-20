@@ -375,6 +375,7 @@ export function RideMap({
   destination,
   driver,
   route,
+  routeApproximate = false,
   noticeTop,
   testID = "ride-map",
 }: {
@@ -383,6 +384,8 @@ export function RideMap({
   destination: LatLng;
   driver?: LatLng | null;
   route?: GeoJsonLineString | null;
+  /** Straight-line estimate (NFR-A3): the line is drawn dashed. */
+  routeApproximate?: boolean;
   noticeTop?: number;
   testID?: string;
 }) {
@@ -406,6 +409,7 @@ export function RideMap({
       center={driver ?? pickup}
       markers={markers}
       route={route ?? null}
+      routeApproximate={routeApproximate}
       followMe={!!driver}
       noticeTop={noticeTop}
       style={styles.fill}

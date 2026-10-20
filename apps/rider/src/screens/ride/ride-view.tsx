@@ -56,6 +56,7 @@ import { useLocale } from "../../i18n/locale-context";
 import { useOptionalRegion } from "../../region/region-context";
 import { useActiveRide } from "../../ride/ride-context";
 import { rideErrorMessage } from "../../ride/ride-errors";
+import { useRideRoute } from "../../ride/use-ride-route";
 import { paymentRows, waitChargePreview } from "../../ride/money-math";
 import {
   formatClock,
@@ -150,6 +151,8 @@ export function RideView({
   const [ratingDone, setRatingDone] = useState(false);
   const accountSuspended = useAccountSuspended();
   const region = useOptionalRegion();
+  // TRK-02: the route on the tracking map (driver → pickup, then the trip).
+  const route = useRideRoute(ride, facade.driverPosition);
 
   const driver = ride.driver ?? null;
   // RATE-01 post-ride prompt — never for a suspended account (refused).
@@ -891,6 +894,8 @@ export function RideView({
             stops={ride.stops}
             destination={ride.destination}
             driver={showDriver ? facade.driverPosition : null}
+            route={showDriver ? (route?.geometry ?? null) : null}
+            routeApproximate={route?.approximate ?? false}
             noticeTop={top + FLOATING_CLEARANCE}
           />
           {showDriver ? (
