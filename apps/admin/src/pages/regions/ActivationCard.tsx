@@ -59,7 +59,11 @@ export function ActivationCard({
           {t('regionDetail.activation.activeNotice')}
         </p>
       ) : (
-        <p className="panel__hint">{t('regionDetail.activation.draftHint')}</p>
+        <>
+          <p className="panel__hint">{t('regionDetail.activation.draftHint')}</p>
+          {/* ADM-01 / UC-A-05 step 5 (ASM-04): the new-region map-extract ops step. */}
+          <p className="banner banner--info">{t('regionDetail.activation.mapExtractHint')}</p>
+        </>
       )}
 
       {error ? (

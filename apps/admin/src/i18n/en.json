@@ -340,6 +340,7 @@
     "activation": {
       "title": "Activation",
       "draftHint": "A draft region activates once every mandatory item below is complete.",
+      "mapExtractHint": "Ops step for a new region: load its map extract into the self-hosted routing and map-tile server before riders use it.",
       "activeNotice": "This region is active.",
       "done": "Done",
       "missing": "Missing",
@@ -1509,7 +1510,8 @@
     "tabs": {
       "label": "Profile sections",
       "trust": "Ratings, reports & flags",
-      "wallet": "Wallet"
+      "wallet": "Wallet",
+      "history": "History"
     },
     "role": {
       "rider": "rider",
@@ -1591,6 +1593,72 @@
       "account_deleted": "This account was deleted and can't be suspended.",
       "validation": "The server rejected this. Check the required text and its length.",
       "conflict": "This changed in the meantime. The page is refreshed."
+    }
+  },
+  "history": {
+    "loading": "Loading…",
+    "loadFailed": "This section could not be loaded.",
+    "retry": "Try again",
+    "latest": "Latest {{shown}} of {{total}}",
+    "total": "Total: {{total}}",
+    "rides": {
+      "title": "Rides",
+      "viewAll": "View all rides",
+      "empty": "No rides yet, as rider or driver.",
+      "columns": {
+        "ride": "Ride",
+        "when": "When",
+        "as": "As",
+        "state": "State",
+        "fare": "Fare"
+      },
+      "as": {
+        "rider": "Rider",
+        "driver": "Driver"
+      }
+    },
+    "tickets": {
+      "title": "Support tickets",
+      "empty": "No support tickets from this user.",
+      "columns": {
+        "category": "Category",
+        "status": "Status",
+        "updated": "Updated"
+      }
+    },
+    "gamification": {
+      "title": "Badges & level",
+      "riderLevel": "Rider level",
+      "driverLevel": "Driver level",
+      "riderLifetime": "{{points}} lifetime points",
+      "driverLifetime": "{{trips}} trips + {{points}} challenge points",
+      "badges": "Badges",
+      "earned": "{{badge}} · {{when}}",
+      "empty": "No badges earned yet.",
+      "badge": {
+        "ride_10": "10 rides",
+        "ride_50": "50 rides",
+        "ride_100": "100 rides",
+        "first_shared_ride": "First shared ride",
+        "first_referral": "First referral",
+        "five_star_week": "5-star week"
+      },
+      "level": {
+        "bronze": "Bronze",
+        "silver": "Silver",
+        "gold": "Gold",
+        "platinum": "Platinum"
+      }
+    },
+    "audit": {
+      "title": "Audit trail",
+      "empty": "No admin actions on this user.",
+      "columns": {
+        "when": "When",
+        "admin": "Admin",
+        "action": "Action",
+        "reason": "Reason"
+      }
     }
   },
   "promos": {

@@ -239,3 +239,7 @@ Tokens and rules live in [../design-system.md](../design-system.md); this folder
 - [Driver · Incentives · none in region](D15IncentivesEmpty.dc.html)
 - [Driver · Menu · Incentives entry (addition)](D15SettingsIncentives.dc.html)
 - [Admin · Region · incentives + peak-hour windows](A15RegionIncentives.dc.html)
+- [Driver · Incentives · tier secured (M15 review W8)](D15IncentivesSecured.dc.html)
+- [Driver · Incentives · tier secured (AR, RTL)](D15IncentivesSecuredAr.dc.html)
+- [Admin · User profile · History tab (M15 review H3)](A15UserHistory.dc.html)
+- [Admin · User profile · History tab (AR, RTL)](A15UserHistoryAr.dc.html)

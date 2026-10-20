@@ -128,7 +128,7 @@ export function GrantRefundPanel({
       onCredited(transaction);
     } catch (error) {
       const kind = classifyError(error);
-      setErrorDetail(rejectionDetail(error));
+      setErrorDetail(rejectionDetail(error, i18n.language));
       setErrorKey(
         kind === 'validation'
           ? 'money.panel.rejected'

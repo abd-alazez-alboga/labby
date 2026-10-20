@@ -14,19 +14,13 @@ import {
 } from '../api/trust';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
-import { BackLink, DataTable, PageHeader, ReviewLayout, StatusChip, type ChipTone } from '../ui';
+import { BackLink, DataTable, PageHeader, ReviewLayout, StatusChip } from '../ui';
 import { formatDay } from './money/money-format';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
 import { SuspensionPanel } from './trust/SuspensionPanel';
 import { ReportStatusChip, UserProfileTabs } from './trust/TrustUi';
-import { flagRule, formatRating, metricRule } from './trust/trust-format';
-
-const ACCOUNT_TONES: Record<AdminUserTrust['accountState'], ChipTone> = {
-  active: 'success',
-  suspended: 'danger',
-  deleted: 'neutral',
-};
+import { ACCOUNT_TONES, flagRule, formatRating, metricRule } from './trust/trust-format';
 
 /** The reports against the user, all statuses, newest first (`reports:view`). */
 function useReportsAgainst(userId: string, refresh: number) {

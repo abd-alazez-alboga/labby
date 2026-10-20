@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>المستخدم · السجل</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div dir="rtl" style="width: 100%; min-height: 1300px; display: flex; flex-wrap: wrap; font-family: 'IBM Plex Sans Arabic', Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-left: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">ل</span>
+      <span style="font-size: 18px; font-weight: 800;">لوحة لبي</span>
+    </div>
+    <a href="A15DashboardAr.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">لوحة التحكم</a>
+    <a href="AdminLiveOps.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">الخريطة المباشرة</a>
+    <a href="A15RidesExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">الرحلات</a>
+    <a href="A15Users.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">المستخدمون</a>
+    <a href="A15Drivers.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">السائقون</a>
+    <a href="A15TicketsExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">الدعم</a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">سجل التدقيق</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <a href="A15Users.dc.html" style="font-size: 13px; font-weight: 700; color: #6E6780; text-decoration: none;">→ المستخدمون</a>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 dir="auto" style="margin: 0; font-size: 30px; font-weight: 800;">سامر حداد</h1>
+        <span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">الحساب نشط</span>
+      </div>
+      <div role="tablist" aria-label="أقسام الملف" style="display: flex; gap: 4px; padding-top: 10px; border-bottom: 1px solid #ECEAF0;">
+        <a href="AdminUserTrust.dc.html" role="tab" aria-selected="false" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #463C58; font-size: 15px; font-weight: 700;">التقييمات والبلاغات والعلامات</a>
+        <a href="AdminUserWallet.dc.html" role="tab" aria-selected="false" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #463C58; font-size: 15px; font-weight: 700;">المحفظة</a>
+        <a href="#" role="tab" aria-selected="true" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #59128A; font-size: 15px; font-weight: 800; box-shadow: inset 0 -3px 0 #59128A;">السجل</a>
+      </div>
+    </div>
+
+    <!-- الرحلات (rides:view): آخر 10 رحلات، راكبًا أو سائقًا؛ الإجراء الأساسي الوحيد يفتح القائمة المصفّاة. -->
+    <section aria-label="الرحلات" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <div style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 800;">الرحلات</h2>
+          <span style="font-size: 13px; color: #6E6780;">آخر 10 من 143</span>
+        </div>
+        <a href="A15RidesExport.dc.html" style="height: 44px; padding: 0 18px; border-radius: 12px; background: #59128A; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 800; display: flex; align-items: center;">عرض كل الرحلات</a>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px;">
+        <thead><tr style="color: #6E6780; font-size: 13px;"><th style="padding: 10px 24px; font-weight: 700; text-align: start;">الرحلة</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">الوقت</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">بصفة</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">الحالة</th><th style="padding: 10px 24px; font-weight: 700; text-align: end;">الأجرة</th></tr></thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="AdminRideDetail.dc.html" dir="ltr" style="font-weight: 800;">R-8F2A1C09</a></td><td style="padding: 12px; color: #6E6780;">19 أكتوبر، 21:42</td><td style="padding: 12px; font-weight: 700;">سائق</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px;">مكتملة</span></td><td style="padding: 12px 24px; text-align: end; font-weight: 700;"><span dir="ltr">18,500</span> ل.س</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" dir="ltr" style="font-weight: 800;">R-41C0D7E2</a></td><td style="padding: 12px; color: #6E6780;">19 أكتوبر، 18:05</td><td style="padding: 12px; font-weight: 700;">سائق</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px;">مكتملة</span></td><td style="padding: 12px 24px; text-align: end; font-weight: 700;"><span dir="ltr">9,200</span> ل.س</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" dir="ltr" style="font-weight: 800;">R-0B93E5A1</a></td><td style="padding: 12px; color: #6E6780;">18 أكتوبر، 09:12</td><td style="padding: 12px; font-weight: 700;">راكب</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #B42318; background: #FEF3F2; padding: 4px 10px; border-radius: 12px;">ألغاها الراكب</span></td><td style="padding: 12px 24px; text-align: end; color: #463C58;"><span dir="ltr">2,000</span> ل.س رسوم</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" dir="ltr" style="font-weight: 800;">R-77D1F0B4</a></td><td style="padding: 12px; color: #6E6780;">17 أكتوبر، 23:30</td><td style="padding: 12px; font-weight: 700;">سائق</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #6A2C0A; background: #FFF4E5; padding: 4px 10px; border-radius: 12px;">لم يُعثر على سائق</span></td><td style="padding: 12px 24px; text-align: end; color: #6E6780;">—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; align-items: start;">
+      <!-- تذاكر الدعم (support:view) — حالة فارغة. -->
+      <section aria-label="تذاكر الدعم" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 10px;">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 800;">تذاكر الدعم</h2>
+        <span style="font-size: 14px; color: #6E6780;">لا توجد تذاكر دعم من هذا المستخدم.</span>
+      </section>
+
+      <!-- الشارات والمستوى (users:view): مستوى الراكب ومستوى السائق كما يراهما المستخدم. -->
+      <section aria-label="الشارات والمستوى" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 14px;">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 800;">الشارات والمستوى</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <div style="border: 1px solid #ECEAF0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 13px; font-weight: 700; color: #6E6780;">مستوى الراكب</span>
+            <span style="font-size: 22px; font-weight: 800;">فضي</span>
+            <span style="font-size: 13px; color: #463C58;">640 نقطة مدى الحياة</span>
+          </div>
+          <div style="border: 1px solid #ECEAF0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 13px; font-weight: 700; color: #6E6780;">مستوى السائق</span>
+            <span style="font-size: 22px; font-weight: 800;">برونزي</span>
+            <span style="font-size: 13px; color: #463C58;">212 رحلة + 0 نقطة تحديات</span>
+          </div>
+        </div>
+        <ul aria-label="الشارات" style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px;">
+          <li style="font-size: 13px; font-weight: 800; color: #59128A; background: #F1EAF8; padding: 6px 12px; border-radius: 14px;">✓ 10 رحلات · 2 سبتمبر 2026</li>
+          <li style="font-size: 13px; font-weight: 800; color: #59128A; background: #F1EAF8; padding: 6px 12px; border-radius: 14px;">✓ 50 رحلة · 30 سبتمبر 2026</li>
+          <li style="font-size: 13px; font-weight: 700; color: #6E6780; border: 1px dashed #D9D5DF; padding: 5px 12px; border-radius: 14px;">100 رحلة</li>
+          <li style="font-size: 13px; font-weight: 800; color: #59128A; background: #F1EAF8; padding: 6px 12px; border-radius: 14px;">✓ أول رحلة مشتركة · 14 سبتمبر 2026</li>
+          <li style="font-size: 13px; font-weight: 700; color: #6E6780; border: 1px dashed #D9D5DF; padding: 5px 12px; border-radius: 14px;">أول دعوة ناجحة</li>
+          <li style="font-size: 13px; font-weight: 700; color: #6E6780; border: 1px dashed #D9D5DF; padding: 5px 12px; border-radius: 14px;">أسبوع 5 نجوم</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- سجل التدقيق (audit:view فقط؛ مخفي من دونها). -->
+    <section aria-label="سجل التدقيق" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <div style="padding: 16px 24px; display: flex; align-items: baseline; gap: 10px;"><h2 style="margin: 0; font-size: 16px; font-weight: 800;">سجل التدقيق</h2><span style="font-size: 13px; color: #6E6780;">الإجمالي: 3</span></div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px;">
+        <thead><tr style="color: #6E6780; font-size: 13px;"><th style="padding: 10px 24px; font-weight: 700; text-align: start;">الوقت</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">المشرف</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">الإجراء</th><th style="padding: 10px 24px; font-weight: 700; text-align: start;">السبب</th></tr></thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px; color: #6E6780;">16 أكتوبر، 11:20</td><td dir="auto" style="padding: 12px; font-weight: 700;">لينا صالح</td><td style="padding: 12px;"><code dir="ltr" style="font-size: 13px;">user.role_reactivate</code></td><td dir="auto" style="padding: 12px 24px; color: #463C58;">راجعنا الأمر مع السائق؛ فرصة ثانية بعد مكالمة توجيه.</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px; color: #6E6780;">14 أكتوبر، 08:02</td><td dir="auto" style="padding: 12px; font-weight: 700;">عمر قصاب</td><td style="padding: 12px;"><code dir="ltr" style="font-size: 13px;">user.role_suspend</code></td><td dir="auto" style="padding: 12px 24px; color: #463C58;">ثلاثة بلاغات قيادة متهورة مثبتة.</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px; color: #6E6780;">9 أكتوبر، 15:44</td><td dir="auto" style="padding: 12px; font-weight: 700;">لينا صالح</td><td style="padding: 12px;"><code dir="ltr" style="font-size: 13px;">wallet.refund</code></td><td dir="auto" style="padding: 12px 24px; color: #463C58;">Support ticket T-8F2A1C09</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

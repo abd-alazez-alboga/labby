@@ -256,6 +256,24 @@ describe('rides search page (UC-A-18)', () => {
     await waitFor(() => expect(window.location.pathname).toBe(`/rides/${SOS_RIDE_ID}`));
   });
 
+  it("filters to one user's rides from the profile History deep link (?q=<userId>)", async () => {
+    const userId = 'dddddddd-0000-4000-8000-0000000000aa';
+    window.history.pushState({}, '', `/rides?q=${userId}`);
+    const fetchMock = stubRides(SUPPORT_VIEWER, {
+      extra: (method, path) =>
+        method === 'GET' && path === `/api/v1/admin/rides/${userId}`
+          ? jsonResponse(404, { status: 404, message: 'No ride' })
+          : null,
+    });
+    renderShell();
+
+    await screen.findByRole('table');
+    // The filter stays visible in the search box.
+    expect(screen.getByLabelText('Search')).toHaveValue(userId);
+    const url = new URL(String(callsTo(fetchMock, `${RIDES_PATH}?`).at(-1)?.[0]));
+    expect(url.searchParams.get('userId')).toBe(userId);
+  });
+
   it('paginates with the shared pager', async () => {
     const fetchMock = stubRides(SUPPORT_VIEWER, {
       rides: () => [COMPLETED_ROW],

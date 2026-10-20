@@ -19,6 +19,8 @@ function exportUrl(fetchMock: ReturnType<typeof stubAnalyticsRoutes>, list: stri
  */
 describe('CSV export', () => {
   const saved: string[] = [];
+  /** Whether the object URL was revoked in the same task as the link click. */
+  let revokedWithClick = false;
 
   beforeAll(async () => {
     await Promise.all([
@@ -32,6 +34,7 @@ describe('CSV export', () => {
     await i18n.changeLanguage('en');
     window.sessionStorage.clear();
     saved.length = 0;
+    revokedWithClick = false;
     vi.stubGlobal(
       'URL',
       Object.assign(URL, {
@@ -43,6 +46,9 @@ describe('CSV export', () => {
       this: HTMLAnchorElement,
     ) {
       saved.push(this.download);
+      queueMicrotask(() => {
+        revokedWithClick = vi.mocked(URL.revokeObjectURL).mock.calls.length > 0;
+      });
     });
   });
 
@@ -63,6 +69,9 @@ describe('CSV export', () => {
     await screen.findAllByRole('row');
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
     await waitFor(() => expect(saved).toEqual(['labby-users-20261020-081530Z.csv']));
+    // The object URL outlives the click (revoked on a later task) and is then released.
+    expect(revokedWithClick).toBe(false);
+    await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:export'));
     const url = exportUrl(fetchMock, 'users');
     expect(url.searchParams.get('role')).toBe('driver');
     expect(url.searchParams.get('from')).toBe(new Date('2026-10-01T00:00:00').toISOString());

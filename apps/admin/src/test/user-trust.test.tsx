@@ -412,7 +412,13 @@ describe('user trust profile', () => {
     expect(await screen.findByRole('region', { name: 'Driver role' })).toBeInTheDocument();
     expect(screen.queryByLabelText(REASON_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Other actions' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Profile sections' })).not.toBeInTheDocument();
+    // The History tab (M15 review H3, users:view) is reachable; the wallet tab is not.
+    const tabs = screen.getByRole('navigation', { name: 'Profile sections' });
+    expect(
+      within(tabs)
+        .getAllByRole('link')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Ratings, reports & flags', 'History']);
     // No reports:view → no per-report list is fetched.
     expect(callsTo(fetchMock, 'reportedUserId')).toHaveLength(0);
   });

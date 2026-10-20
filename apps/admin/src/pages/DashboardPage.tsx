@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
 import { getDashboard, type AnalyticsDashboard, type RevenueRow } from '../api/analytics';
-import { listRegions, type RegionSummary } from '../api/regions';
+import { getRegion, listRegions, type RegionSummary } from '../api/regions';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { useConfig } from '../config/ConfigContext';
 import { DataTable, PageHeader } from '../ui';
 import {
+  dashboardZone,
   fillDays,
   formatRate,
   minutesSeconds,
@@ -94,12 +95,16 @@ export default function DashboardPage() {
   const customFrom = params.get('from') ?? '';
   const customTo = params.get('to') ?? '';
   const regionId = params.get('region') ?? '';
-  const current = useMemo(
-    () => resolveRange(preset, customFrom, customTo),
-    [preset, customFrom, customTo],
-  );
 
   const [regions, setRegions] = useState<RegionSummary[]>([]);
+  // Region id → IANA zone: the day bounds follow the region's calendar (W5).
+  const [zones, setZones] = useState<ReadonlyMap<string, string>>(new Map());
+  const [zonesReady, setZonesReady] = useState(false);
+  const timeZone = dashboardZone(regionId, zones);
+  const current = useMemo(
+    () => resolveRange(preset, customFrom, customTo, { timeZone }),
+    [preset, customFrom, customTo, timeZone],
+  );
   const [data, setData] = useState<AnalyticsDashboard | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -110,15 +115,32 @@ export default function DashboardPage() {
     }
     let cancelled = false;
     listRegions(apiClient)
-      .then((loaded) => !cancelled && setRegions(loaded))
-      .catch(() => undefined);
+      .then(async (loaded) => {
+        if (cancelled) {
+          return;
+        }
+        setRegions(loaded);
+        // The region list carries no zone; each region's bundle does.
+        const entries = await Promise.all(
+          loaded.map(async (region) => {
+            const detail = await getRegion(apiClient, region.id);
+            return [region.id, detail.timeZone] as const;
+          }),
+        );
+        if (!cancelled) {
+          setZones(new Map(entries));
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => !cancelled && setZonesReady(true));
     return () => {
       cancelled = true;
     };
   }, [apiClient, canView]);
 
   useEffect(() => {
-    if (!canView || current === null) {
+    // Wait for the zones so the first request already has the right day bounds.
+    if (!canView || !zonesReady || current === null) {
       return;
     }
     let cancelled = false;
@@ -134,7 +156,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiClient, canView, current, regionId, attempt]);
+  }, [apiClient, canView, zonesReady, current, regionId, attempt]);
 
   function update(changes: Record<string, string>) {
     const next = new URLSearchParams(params);

@@ -185,6 +185,15 @@ export function stubAnalyticsRoutes(user: UserProfile, extra: FetchRouteHandler 
     if (method === 'GET' && path === '/api/v1/admin/regions') {
       return jsonResponse(200, REGIONS);
     }
+    const region = REGIONS.find((row) => path === `/api/v1/admin/regions/${row.id}`);
+    if (method === 'GET' && region) {
+      return jsonResponse(200, {
+        ...region,
+        timeZone: 'Asia/Damascus',
+        serviceTypeCount: 1,
+        surgeZoneCount: 0,
+      });
+    }
     if (method === 'GET' && path === '/api/v1/admin/analytics') {
       return jsonResponse(200, dashboard());
     }

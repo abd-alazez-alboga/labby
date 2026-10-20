@@ -140,6 +140,26 @@ describe('region detail page', () => {
     expect(await screen.findByText('This region is active.')).toBeInTheDocument();
   });
 
+  it('notes the map-extract ops step on a draft region (ADM-01, UC-A-05 step 5)', async () => {
+    seedStoredSession(sessionFor(FULL_ACCESS));
+    stubRegionRoutes(FULL_ACCESS, DRAFT_REGION);
+    renderShell();
+
+    expect(
+      await screen.findByText(
+        'Ops step for a new region: load its map extract into the self-hosted routing and ' +
+          'map-tile server before riders use it.',
+      ),
+    ).toBeInTheDocument();
+
+    await i18n.changeLanguage('ar');
+    expect(
+      await screen.findByText(
+        'خطوة تشغيلية لكل منطقة جديدة: حمّل مقتطف خريطتها على خادم التوجيه والخرائط المستضاف ذاتيًا قبل أن يستخدمها الركاب.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('surfaces the activation 409 honestly — the server is the truth', async () => {
     seedStoredSession(sessionFor(FULL_ACCESS));
     stubRegionRoutes(FULL_ACCESS, COMPLETE_REGION, (method, path) =>

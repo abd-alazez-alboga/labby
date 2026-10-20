@@ -14,6 +14,13 @@ import { classifyError } from '../onboarding/review-utils';
 
 /** Pure display helpers behind the M11 trust screens (UC-A-13/14/16/17). */
 
+/** The account-state chip tone of the user profile header (trust and history tabs). */
+export const ACCOUNT_TONES: Record<AdminUserTrust['accountState'], ChipTone> = {
+  active: 'success',
+  suspended: 'danger',
+  deleted: 'neutral',
+};
+
 /** A rating average with exactly 2 decimals, Western digits (e.g. "3.38"). */
 export function formatRating(value: number, language: string): string {
   return new Intl.NumberFormat(latinLocale(language), {

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatNumber, formatSigned, parseAmount } from '../pages/money/money-format';
+import { ApiError } from '../api/client';
+import {
+  formatNumber,
+  formatSigned,
+  parseAmount,
+  rejectionDetail,
+} from '../pages/money/money-format';
 
 describe('money format', () => {
   it('parses grouped amounts with at most 2 decimals', () => {
@@ -21,5 +27,13 @@ describe('money format', () => {
     expect(arabic).toContain('−430,000');
     expect(formatNumber(-430000, 'en')).toBe('−430,000');
     expect(formatSigned(-2000, 'ar')).toBe('−2,000');
+  });
+
+  it('shows the English-only server detail of a 400 in the English UI only', () => {
+    const rejected = new ApiError(400, '/x', undefined, 'amount must not exceed the debt');
+    expect(rejectionDetail(rejected, 'en')).toBe('amount must not exceed the debt');
+    expect(rejectionDetail(rejected, 'en-GB')).toBe('amount must not exceed the debt');
+    expect(rejectionDetail(rejected, 'ar')).toBeNull();
+    expect(rejectionDetail(new ApiError(500, '/x', undefined, 'boom'), 'en')).toBeNull();
   });
 });

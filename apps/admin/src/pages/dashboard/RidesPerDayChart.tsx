@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { formatNumber } from '../money/money-format';
-import type { ChartDay } from './dashboard-utils';
+import { axisMax, type ChartDay } from './dashboard-utils';
 
 const WIDTH = 720;
 const HEIGHT = 240;
@@ -12,20 +12,6 @@ const SERIES = [
   { key: 'cancelled', className: 'rides-chart__bar--cancelled' },
   { key: 'other', className: 'rides-chart__bar--other' },
 ] as const;
-
-/** A round axis maximum above the tallest day (1, 2, 5 × 10ⁿ steps). */
-function axisMax(peak: number): number {
-  if (peak <= 0) {
-    return 4;
-  }
-  const magnitude = 10 ** Math.floor(Math.log10(peak));
-  for (const step of [1, 2, 5, 10]) {
-    if (step * magnitude >= peak) {
-      return step * magnitude;
-    }
-  }
-  return 10 * magnitude;
-}
 
 /**
  * Stacked rides-per-day bars (approved board "Admin · Dashboard"): completed

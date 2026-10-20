@@ -3053,6 +3053,59 @@ input[type='radio'] {
   color: var(--labby-text-secondary);
 }
 
+/* M15 review H3: the user profile's History tab (board "Admin · User history"). */
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: var(--labby-space-5);
+  align-items: start;
+}
+
+.history-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--labby-space-3);
+}
+
+.history-level {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--labby-line);
+  border-radius: 12px;
+}
+
+.history-level__value {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.history-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--labby-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-badge {
+  padding: 5px 12px;
+  border: 1px dashed var(--labby-line);
+  border-radius: 14px;
+  color: var(--labby-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.history-badge--earned {
+  border: 1px solid transparent;
+  background: var(--labby-accent-tint);
+  color: var(--labby-accent);
+  font-weight: 800;
+}
+
 /* M13 promotions (review Info 5): the code cell and the page footnote. */
 .promos__code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

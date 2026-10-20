@@ -38,6 +38,7 @@ const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 const ReportDetailPage = lazy(() => import('../pages/ReportDetailPage'));
 const FlagsPage = lazy(() => import('../pages/FlagsPage'));
 const UserTrustPage = lazy(() => import('../pages/UserTrustPage'));
+const UserHistoryPage = lazy(() => import('../pages/UserHistoryPage'));
 const PromosPage = lazy(() => import('../pages/PromosPage'));
 const PromoCreatePage = lazy(() => import('../pages/PromoCreatePage'));
 const ChallengesPage = lazy(() => import('../pages/ChallengesPage'));
@@ -363,6 +364,17 @@ export function App() {
                     <Suspense fallback={<div className="loading" />}>
                       <RequirePermission permission="users:view">
                         <UserTrustPage />
+                      </RequirePermission>
+                    </Suspense>
+                  }
+                />
+                {/* UC-A-13 full history: each section is gated by its own permission. */}
+                <Route
+                  path="users/:userId/history"
+                  element={
+                    <Suspense fallback={<div className="loading" />}>
+                      <RequirePermission permission="users:view">
+                        <UserHistoryPage />
                       </RequirePermission>
                     </Suspense>
                   }

@@ -208,3 +208,36 @@ export function getChallenge(
 export function endChallenge(client: ApiClient, challengeId: string): Promise<Challenge> {
   return client.post<Challenge>(`/api/v1/admin/challenges/${challengeId}/end`);
 }
+
+/* ---------- A user's badges and levels (UC-A-13 profile History tab) ---------- */
+
+export type BadgeCode =
+  'ride_10' | 'ride_50' | 'ride_100' | 'first_shared_ride' | 'first_referral' | 'five_star_week';
+export type GrowthLevel = 'bronze' | 'silver' | 'gold' | 'platinum';
+
+/** One role's view, exactly as GET /gamification/me serves it to the user. */
+export interface GamificationView {
+  /** The whole catalog in sort order, earned or not. */
+  badges: { badgeCode: BadgeCode; earned: boolean; awardedAt?: string | null }[];
+  level: GrowthLevel;
+  /** Riders: loyalty earned; drivers: trips + challenge points. */
+  lifetime: number;
+  /** Driver view only; null for riders. */
+  driverTrips?: number | null;
+  challengePoints?: number | null;
+  levels: { level: GrowthLevel; thresholdPoints: number }[];
+}
+
+/** Each role's view; null when the user does not hold that role. */
+export interface AdminUserGamification {
+  rider: GamificationView | null;
+  driver: GamificationView | null;
+}
+
+/** GET /admin/users/{userId}/gamification — users:view; 404 unknown user. */
+export function getUserGamification(
+  client: ApiClient,
+  userId: string,
+): Promise<AdminUserGamification> {
+  return client.get<AdminUserGamification>(`/api/v1/admin/users/${userId}/gamification`);
+}

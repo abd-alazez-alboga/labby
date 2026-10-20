@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>User · history</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#59128A}a:hover{color:#3D0B57}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 1500px; display: flex; flex-wrap: wrap; font-family: Manrope, sans-serif; color: #141018; background: #F7F6F9;">
+  <nav aria-label="Main" style="flex: 0 0 248px; background: #FFFFFF; border-right: 1px solid #ECEAF0; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 12px 24px;">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #59128A; color: #FFFFFF; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center;">L</span>
+      <span style="font-size: 18px; font-weight: 800;">Labby Admin</span>
+    </div>
+    <a href="A15Dashboard.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Dashboard</a>
+    <a href="AdminLiveOps.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Live ops</a>
+    <a href="A15RidesExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Rides</a>
+    <a href="A15Users.dc.html" aria-current="page" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; background: #F1EAF8; color: #59128A; text-decoration: none; font-size: 15px; font-weight: 800;">Users</a>
+    <a href="A15Drivers.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Drivers</a>
+    <a href="A15TicketsExport.dc.html" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Support</a>
+    <a href="#" style="height: 44px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; color: #463C58; text-decoration: none; font-size: 15px; font-weight: 600;">Audit log</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <a href="A15Users.dc.html" style="font-size: 13px; font-weight: 700; color: #6E6780; text-decoration: none;">← Users</a>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Samer Haddad</h1>
+        <span style="font-size: 13px; font-weight: 700; color: #067647; background: #ECFDF3; padding: 5px 10px; border-radius: 12px;">Account active</span>
+      </div>
+      <div role="tablist" aria-label="Profile sections" style="display: flex; gap: 4px; padding-top: 10px; border-bottom: 1px solid #ECEAF0;">
+        <a href="AdminUserTrust.dc.html" role="tab" aria-selected="false" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #463C58; font-size: 15px; font-weight: 700;">Ratings, reports &amp; flags</a>
+        <a href="AdminUserWallet.dc.html" role="tab" aria-selected="false" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #463C58; font-size: 15px; font-weight: 700;">Wallet</a>
+        <a href="#" role="tab" aria-selected="true" style="height: 44px; padding: 0 14px; display: flex; align-items: center; text-decoration: none; color: #59128A; font-size: 15px; font-weight: 800; box-shadow: inset 0 -3px 0 #59128A;">History</a>
+      </div>
+    </div>
+
+    <!-- Rides (rides:view): latest 10, rider OR driver; the one primary action opens the full filtered list. -->
+    <section aria-label="Rides" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <div style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 800;">Rides</h2>
+          <span style="font-size: 13px; color: #6E6780;">Latest 10 of 143</span>
+        </div>
+        <a href="A15RidesExport.dc.html" style="height: 44px; padding: 0 18px; border-radius: 12px; background: #59128A; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 800; display: flex; align-items: center;">View all rides</a>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px;">
+        <thead><tr style="color: #6E6780; font-size: 13px;"><th style="padding: 10px 24px; font-weight: 700; text-align: start;">Ride</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">When</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">As</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">State</th><th style="padding: 10px 24px; font-weight: 700; text-align: end;">Fare</th></tr></thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="AdminRideDetail.dc.html" dir="ltr" style="font-weight: 800;">R-8F2A1C09</a></td><td style="padding: 12px; color: #6E6780;">19 Oct, 21:42</td><td style="padding: 12px; font-weight: 700;">Driver</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px;">Completed</span></td><td style="padding: 12px 24px; text-align: end; font-weight: 700;" dir="ltr">SYP 18,500</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" dir="ltr" style="font-weight: 800;">R-41C0D7E2</a></td><td style="padding: 12px; color: #6E6780;">19 Oct, 18:05</td><td style="padding: 12px; font-weight: 700;">Driver</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px;">Completed</span></td><td style="padding: 12px 24px; text-align: end; font-weight: 700;" dir="ltr">SYP 9,200</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" dir="ltr" style="font-weight: 800;">R-0B93E5A1</a></td><td style="padding: 12px; color: #6E6780;">18 Oct, 09:12</td><td style="padding: 12px; font-weight: 700;">Rider</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #B42318; background: #FEF3F2; padding: 4px 10px; border-radius: 12px;">Cancelled by rider</span></td><td style="padding: 12px 24px; text-align: end; color: #463C58;" dir="ltr">Fee SYP 2,000</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" dir="ltr" style="font-weight: 800;">R-77D1F0B4</a></td><td style="padding: 12px; color: #6E6780;">17 Oct, 23:30</td><td style="padding: 12px; font-weight: 700;">Driver</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #6A2C0A; background: #FFF4E5; padding: 4px 10px; border-radius: 12px;">No driver found</span></td><td style="padding: 12px 24px; text-align: end; color: #6E6780;">—</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" dir="ltr" style="font-weight: 800;">R-2C5E8A90</a></td><td style="padding: 12px; color: #6E6780;">17 Oct, 14:48</td><td style="padding: 12px; font-weight: 700;">Driver</td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px;">Completed</span></td><td style="padding: 12px 24px; text-align: end; font-weight: 700;" dir="ltr">SYP 12,750</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; align-items: start;">
+      <!-- Tickets (support:view): latest 10 by last update; each row opens the ticket. -->
+      <section aria-label="Support tickets" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+        <div style="padding: 16px 24px; display: flex; align-items: baseline; gap: 10px;"><h2 style="margin: 0; font-size: 16px; font-weight: 800;">Support tickets</h2><span style="font-size: 13px; color: #6E6780;">Total: 3</span></div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 420px;">
+          <thead><tr style="color: #6E6780; font-size: 13px;"><th style="padding: 10px 24px; font-weight: 700; text-align: start;">Category</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">Status</th><th style="padding: 10px 24px; font-weight: 700; text-align: end;">Updated</th></tr></thead>
+          <tbody>
+            <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="A14TicketDetail.dc.html" style="font-weight: 800;">Payment issue</a></td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #59128A; background: #F1EAF8; padding: 4px 10px; border-radius: 12px;">In progress</span></td><td style="padding: 12px 24px; color: #6E6780; text-align: end;">19 Oct</td></tr>
+            <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" style="font-weight: 800;">Lost item</a></td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #067647; background: #ECFDF3; padding: 4px 10px; border-radius: 12px;">Resolved</span></td><td style="padding: 12px 24px; color: #6E6780; text-align: end;">11 Oct</td></tr>
+            <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px;"><a href="#" style="font-weight: 800;">App problem</a></td><td style="padding: 12px;"><span style="font-size: 12px; font-weight: 800; color: #463C58; background: #F1F0F4; padding: 4px 10px; border-radius: 12px;">Closed</span></td><td style="padding: 12px 24px; color: #6E6780; text-align: end;">2 Oct</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Badges & level (users:view): the rider and driver views the user sees in their apps. -->
+      <section aria-label="Badges and level" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 14px;">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 800;">Badges &amp; level</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <div style="border: 1px solid #ECEAF0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Rider level</span>
+            <span style="font-size: 22px; font-weight: 800;">Silver</span>
+            <span style="font-size: 13px; color: #463C58;">640 lifetime points</span>
+          </div>
+          <div style="border: 1px solid #ECEAF0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 13px; font-weight: 700; color: #6E6780;">Driver level</span>
+            <span style="font-size: 22px; font-weight: 800;">Bronze</span>
+            <span style="font-size: 13px; color: #463C58;">212 trips + 0 challenge points</span>
+          </div>
+        </div>
+        <ul aria-label="Badges" style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px;">
+          <li style="font-size: 13px; font-weight: 800; color: #59128A; background: #F1EAF8; padding: 6px 12px; border-radius: 14px;">✓ 10 rides · Sep 2, 2026</li>
+          <li style="font-size: 13px; font-weight: 800; color: #59128A; background: #F1EAF8; padding: 6px 12px; border-radius: 14px;">✓ 50 rides · Sep 30, 2026</li>
+          <li style="font-size: 13px; font-weight: 700; color: #6E6780; border: 1px dashed #D9D5DF; padding: 5px 12px; border-radius: 14px;">100 rides</li>
+          <li style="font-size: 13px; font-weight: 800; color: #59128A; background: #F1EAF8; padding: 6px 12px; border-radius: 14px;">✓ First shared ride · Sep 14, 2026</li>
+          <li style="font-size: 13px; font-weight: 700; color: #6E6780; border: 1px dashed #D9D5DF; padding: 5px 12px; border-radius: 14px;">First referral</li>
+          <li style="font-size: 13px; font-weight: 700; color: #6E6780; border: 1px dashed #D9D5DF; padding: 5px 12px; border-radius: 14px;">5-star week</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- Audit trail (audit:view only; hidden without it): admin actions whose target is this user. -->
+    <section aria-label="Audit trail" style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; overflow-x: auto;">
+      <div style="padding: 16px 24px; display: flex; align-items: baseline; gap: 10px;"><h2 style="margin: 0; font-size: 16px; font-weight: 800;">Audit trail</h2><span style="font-size: 13px; color: #6E6780;">Total: 4</span></div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px;">
+        <thead><tr style="color: #6E6780; font-size: 13px;"><th style="padding: 10px 24px; font-weight: 700; text-align: start;">When</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">Admin</th><th style="padding: 10px 12px; font-weight: 700; text-align: start;">Action</th><th style="padding: 10px 24px; font-weight: 700; text-align: start;">Reason</th></tr></thead>
+        <tbody>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px; color: #6E6780;">16 Oct, 11:20</td><td style="padding: 12px; font-weight: 700;">Lina Saleh</td><td style="padding: 12px;"><code dir="ltr" style="font-size: 13px;">user.role_reactivate</code></td><td style="padding: 12px 24px; color: #463C58;">Reviewed with the driver; second chance after coaching call.</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px; color: #6E6780;">14 Oct, 08:02</td><td style="padding: 12px; font-weight: 700;">Omar Kassab</td><td style="padding: 12px;"><code dir="ltr" style="font-size: 13px;">user.role_suspend</code></td><td style="padding: 12px 24px; color: #463C58;">Three substantiated unsafe-driving reports.</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px; color: #6E6780;">9 Oct, 15:44</td><td style="padding: 12px; font-weight: 700;">Lina Saleh</td><td style="padding: 12px;"><code dir="ltr" style="font-size: 13px;">wallet.refund</code></td><td style="padding: 12px 24px; color: #463C58;">Support ticket T-8F2A1C09</td></tr>
+          <tr style="border-top: 1px solid #F0EEF3;"><td style="padding: 12px 24px; color: #6E6780;">2 Sep, 10:15</td><td style="padding: 12px; font-weight: 700;">Omar Kassab</td><td style="padding: 12px;"><code dir="ltr" style="font-size: 13px;">driver_application.approve</code></td><td style="padding: 12px 24px; color: #6E6780;">—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Empty states, one line inside each section's card (shown here side by side). -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 14px; font-weight: 800;">Rides</span><span style="font-size: 13px; color: #6E6780;">No rides yet, as rider or driver.</span></div>
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 14px; font-weight: 800;">Support tickets</span><span style="font-size: 13px; color: #6E6780;">No support tickets from this user.</span></div>
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 14px; font-weight: 800;">Badges &amp; level</span><span style="font-size: 13px; color: #6E6780;">No badges earned yet.</span></div>
+      <div style="background: #FFFFFF; border: 1px solid #ECEAF0; border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 14px; font-weight: 800;">Audit trail</span><span style="font-size: 13px; color: #6E6780;">No admin actions on this user.</span></div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

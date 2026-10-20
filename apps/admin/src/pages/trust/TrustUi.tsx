@@ -45,8 +45,9 @@ function tabClass({ isActive }: { isActive: boolean }): string {
 
 /**
  * The user profile's section tabs (UC-A-13): ratings/reports/flags
- * (`users:view`) and wallet (`wallets:view`) — each shown only when the
- * admin may open it. Hidden when only one section is reachable.
+ * (`users:view`), wallet (`wallets:view`) and history (`users:view`) — each
+ * shown only when the admin may open it. Hidden when only one section is
+ * reachable.
  */
 export function UserProfileTabs({ userId, name }: { userId: string; name?: string }) {
   const { t } = useTranslation();
@@ -54,6 +55,7 @@ export function UserProfileTabs({ userId, name }: { userId: string; name?: strin
   const tabs = [
     can('users:view') ? { to: `/users/${userId}/trust`, label: t('trust.tabs.trust') } : null,
     can('wallets:view') ? { to: `/users/${userId}/wallet`, label: t('trust.tabs.wallet') } : null,
+    can('users:view') ? { to: `/users/${userId}/history`, label: t('trust.tabs.history') } : null,
   ].filter((tab): tab is { to: string; label: string } => tab !== null);
   if (tabs.length < 2) {
     return null;

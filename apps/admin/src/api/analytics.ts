@@ -231,9 +231,6 @@ export function listAdminTransactions(
 
 export type ExportList = 'rides' | 'users' | 'drivers' | 'transactions' | 'tickets';
 
-/** The most rows one export holds (owner ruling Q4); 422 `export_too_large` above. */
-export const EXPORT_MAX_ROWS = 50_000;
-
 /**
  * GET /admin/exports/{list} with the list's own filter (no page / size):
  * the file holds exactly the rows the list shows, audited `export.<list>`.

@@ -1,5 +1,6 @@
 package com.labby.backend.service;
 
+import com.labby.backend.dto.AdminUserGamificationDto;
 import com.labby.backend.dto.ChallengeViewDto;
 import com.labby.backend.dto.GamificationViewDto;
 import com.labby.backend.dto.LoyaltyBalanceDto;
@@ -8,6 +9,8 @@ import com.labby.backend.enums.GrowthLevel;
 import com.labby.backend.enums.PointsTransactionType;
 import com.labby.backend.enums.RideParty;
 import com.labby.backend.enums.RideState;
+import com.labby.backend.enums.Role;
+import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.Challenge;
 import com.labby.backend.model.ChallengeProgress;
 import com.labby.backend.model.PointsAccount;
@@ -17,7 +20,9 @@ import com.labby.backend.repository.ChallengeRepository;
 import com.labby.backend.repository.PointsAccountRepository;
 import com.labby.backend.repository.PointsTransactionRepository;
 import com.labby.backend.repository.RideRepository;
+import com.labby.backend.repository.RoleAssignmentRepository;
 import com.labby.backend.repository.UserBadgeRepository;
+import com.labby.backend.repository.UserRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -55,12 +60,34 @@ public class GamificationServiceImpl implements GamificationService {
   private final ChallengeRepository challengeRepository;
   private final ChallengeProgressRepository challengeProgressRepository;
   private final RideAccess rideAccess;
+  private final UserRepository userRepository;
+  private final RoleAssignmentRepository roleAssignmentRepository;
   private final Clock clock;
 
   @Override
   @Transactional(readOnly = true)
   public GamificationViewDto me(UUID userId, RideParty as) {
     rideAccess.requireRider(userId);
+    return view(userId, as);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public AdminUserGamificationDto forUser(UUID userId) {
+    if (!userRepository.existsById(userId)) {
+      throw new ResourceNotFoundException("User", userId);
+    }
+    return new AdminUserGamificationDto(
+        roleAssignmentRepository.existsByUserIdAndRole(userId, Role.RIDER)
+            ? view(userId, RideParty.RIDER)
+            : null,
+        roleAssignmentRepository.existsByUserIdAndRole(userId, Role.DRIVER)
+            ? view(userId, RideParty.DRIVER)
+            : null);
+  }
+
+  /** The badges and level one role sees — shared by the user's own view and the admin profile. */
+  private GamificationViewDto view(UUID userId, RideParty as) {
     Map<BadgeCode, Instant> earned =
         userBadgeRepository.findByUserId(userId).stream()
             .collect(

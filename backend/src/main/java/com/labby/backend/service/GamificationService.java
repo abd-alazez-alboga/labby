@@ -1,5 +1,6 @@
 package com.labby.backend.service;
 
+import com.labby.backend.dto.AdminUserGamificationDto;
 import com.labby.backend.dto.ChallengeViewDto;
 import com.labby.backend.dto.GamificationViewDto;
 import com.labby.backend.enums.RideParty;
@@ -17,6 +18,16 @@ public interface GamificationService {
    * @return the view
    */
   GamificationViewDto me(UUID userId, RideParty as);
+
+  /**
+   * Any user's badges and levels for the admin profile (UC-A-13): the rider and driver views the
+   * user would see, each null without that role.
+   *
+   * @param userId the user
+   * @return the views
+   * @throws com.labby.backend.exception.ResourceNotFoundException unknown user
+   */
+  AdminUserGamificationDto forUser(UUID userId);
 
   /**
    * The region + role's challenges with the caller's progress: running first, then upcoming, then

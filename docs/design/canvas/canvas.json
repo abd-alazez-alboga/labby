@@ -1440,6 +1440,40 @@
    "title": "Admin · Region · incentives + peak-hour windows (UC-A-29)",
    "page": "m15",
    "expand": "fill"
+  },
+  "D15IncentivesSecured.dc.html": {
+   "h": 844,
+   "page": "m15",
+   "title": "Driver · Incentives · tier secured, next tier ahead (review W8)",
+   "w": 390,
+   "x": 1880,
+   "y": 3990
+  },
+  "D15IncentivesSecuredAr.dc.html": {
+   "h": 844,
+   "page": "m15",
+   "title": "Driver · Incentives · tier secured (AR, RTL)",
+   "w": 390,
+   "x": 2350,
+   "y": 3990
+  },
+  "A15UserHistory.dc.html": {
+   "expand": "fill",
+   "h": 1500,
+   "page": "m15",
+   "title": "Admin · User profile · History tab (UC-A-13, review H3)",
+   "w": 1440,
+   "x": 0,
+   "y": 6250
+  },
+  "A15UserHistoryAr.dc.html": {
+   "expand": "fill",
+   "h": 1500,
+   "page": "m15",
+   "title": "Admin · User profile · History tab (AR, RTL)",
+   "w": 1440,
+   "x": 1520,
+   "y": 6250
   }
  },
  "createdOnFiles": {
@@ -1913,7 +1947,11 @@
   "D15IncentivesAr.dc.html",
   "D15IncentivesEmpty.dc.html",
   "D15SettingsIncentives.dc.html",
-  "A15RegionIncentives.dc.html"
+  "A15RegionIncentives.dc.html",
+  "D15IncentivesSecured.dc.html",
+  "D15IncentivesSecuredAr.dc.html",
+  "A15UserHistory.dc.html",
+  "A15UserHistoryAr.dc.html"
  ],
  "pages": [
   {

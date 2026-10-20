@@ -173,7 +173,68 @@ class GrowthGamificationIntegrationTest extends AbstractRideIntegrationTest {
         .isZero();
   }
 
+  @Test
+  @DisplayName("UC-A-13: the admin profile reads any user's rider and driver views (users:view)")
+  void shouldServeAUsersGamificationToAdmins() {
+    Account rider = rider();
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    for (int i = 0; i < 10; i++) {
+      finish(driver, book(rider));
+    }
+
+    JsonNode riderOnly =
+        ok(get("/api/v1/admin/users/" + rider.userId() + "/gamification", admin), HttpStatus.OK);
+    assertThat(riderOnly.get("rider").get("badges")).hasSize(6);
+    assertThat(riderOnly.get("rider").get("badges").get(0).get("badgeCode").asText())
+        .isEqualTo("ride_10");
+    assertThat(riderOnly.get("rider").get("badges").get(0).get("earned").asBoolean()).isTrue();
+    assertThat(riderOnly.get("rider").get("driverTrips").isNull()).isTrue();
+    assertThat(riderOnly.get("driver").isNull()).isTrue();
+    // The same view the rider reads for themself.
+    assertThat(riderOnly.get("rider"))
+        .isEqualTo(ok(get("/api/v1/gamification/me?as=rider", rider.token()), HttpStatus.OK));
+
+    JsonNode both =
+        ok(get("/api/v1/admin/users/" + driver.userId() + "/gamification", admin), HttpStatus.OK);
+    assertThat(both.get("driver").get("driverTrips").asLong()).isEqualTo(10);
+    assertThat(both.get("driver").get("lifetime").asLong()).isEqualTo(10);
+    assertThat(both.get("driver").get("level").asText()).isEqualTo("bronze");
+    assertThat(both.get("rider").isNull()).isFalse();
+
+    assertThat(
+            get("/api/v1/admin/users/" + UUID.randomUUID() + "/gamification", admin)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.NOT_FOUND);
+    String viewer = adminWith("+963937904001", "users:view");
+    assertThat(
+            get("/api/v1/admin/users/" + rider.userId() + "/gamification", viewer).getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+    String noUsers = adminWith("+963937904002", "rides:view");
+    assertThat(
+            get("/api/v1/admin/users/" + rider.userId() + "/gamification", noUsers).getStatusCode())
+        .isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(
+            get("/api/v1/admin/users/" + rider.userId() + "/gamification", rider.token())
+                .getStatusCode())
+        .isEqualTo(HttpStatus.FORBIDDEN);
+  }
+
   // ---- helpers ------------------------------------------------------------------------------
+
+  /** An admin whose custom role holds exactly one permission. */
+  private String adminWith(String phone, String permission) {
+    UUID roleId =
+        jdbcTemplate.queryForObject(
+            "INSERT INTO roles (name, is_system) VALUES (?, false) RETURNING role_id",
+            UUID.class,
+            "Only " + permission + " " + phone);
+    jdbcTemplate.update(
+        "INSERT INTO role_permissions (role_id, permission_id)"
+            + " SELECT ?, permission_id FROM permissions WHERE code = ?",
+        roleId,
+        permission);
+    return registerAdmin(phone, roleId);
+  }
 
   private void rate(Account rater, UUID rideId, int score) {
     assertThat(

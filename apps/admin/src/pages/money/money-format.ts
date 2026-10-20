@@ -82,7 +82,14 @@ export function parseAmount(raw: string): number | null {
   return value > 0 ? value : null;
 }
 
-/** The backend's message for a 400 rejection, shown under the generic banner. */
-export function rejectionDetail(error: unknown): string | null {
+/**
+ * The backend's message for a 400 rejection, shown under the generic banner.
+ * Server validation messages are English-only (as in the surge panel, M15-T4),
+ * so the detail line appears only in the English UI (NFR-I1).
+ */
+export function rejectionDetail(error: unknown, language: string): string | null {
+  if (!language.startsWith('en')) {
+    return null;
+  }
   return error instanceof ApiError && error.status === 400 ? (error.serverMessage ?? null) : null;
 }

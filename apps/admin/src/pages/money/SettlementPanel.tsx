@@ -101,7 +101,7 @@ export function SettlementPanel({
       onRecorded(response);
     } catch (error) {
       const kind = classifyError(error);
-      setErrorDetail(rejectionDetail(error));
+      setErrorDetail(rejectionDetail(error, i18n.language));
       setErrorKey(
         kind === 'validation'
           ? 'money.settle.rejected'

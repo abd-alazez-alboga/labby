@@ -69,16 +69,14 @@ export default function TransactionsPage() {
   const currency = params.get('currency') ?? '';
   const fromDay = params.get('from') ?? '';
   const toDay = params.get('to') ?? '';
-  const userId = params.get('userId') ?? '';
   const filter = useMemo<TransactionFilter>(
     () => ({
       source,
       type,
       currency: currency || undefined,
-      userId: userId || undefined,
       ...dayRange(fromDay, toDay),
     }),
-    [source, type, currency, userId, fromDay, toDay],
+    [source, type, currency, fromDay, toDay],
   );
   const exporter = useCsvExport('transactions', filter);
 
