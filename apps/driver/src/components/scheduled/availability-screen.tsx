@@ -19,6 +19,7 @@ import type {
 } from "../../api/scheduled-types";
 import { failureKindOf } from "../../onboarding/server-errors";
 import type { FailureKind } from "../../onboarding/server-errors";
+import { isolateDigits } from "../../money/format";
 import { formatNumber } from "../../rides/format";
 import {
   ALL_DAY_TIME,
@@ -56,13 +57,18 @@ type Load =
 
 type SaveState = "idle" | "saving" | "saved" | "invalid" | FailureKind;
 
-/** "07:00–12:00" with Western digits, or "All day". */
+/**
+ * "07:00–12:00" with Western digits, or "All day". In Arabic the range sits
+ * in an LTR isolate (W21, board D12AvailabilityAr) so the bidi algorithm
+ * never shows it reversed — alone or inside the next-day variant.
+ */
 export function windowLabel(
   t: (key: string) => string,
   window: AvailabilityWindow,
+  language: string,
 ): string {
   if (isAllDay(window)) return t("scheduled.availability.allDay");
-  return `${window.startsAt}–${window.endsAt}`;
+  return isolateDigits(`${window.startsAt}–${window.endsAt}`, language);
 }
 
 /** A time field that opens the platform time picker (24 h). */
@@ -257,7 +263,7 @@ function DayRow({
   last: boolean;
 }) {
   const { t } = useTranslation();
-  const { flipRows } = useDirection();
+  const { flipRows, language } = useDirection();
   const dayName = t(`scheduled.days.${day}`);
   return (
     <View
@@ -279,7 +285,7 @@ function DayRow({
           </AppText>
         ) : null}
         {windows.map((window) => {
-          const label = windowLabel(t, window);
+          const label = windowLabel(t, window, language);
           const id = `${day}-${window.startsAt}-${window.endsAt}`;
           return (
             <View

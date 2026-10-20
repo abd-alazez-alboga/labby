@@ -101,6 +101,14 @@ describe("scheduled rides (UC-D-05, UC-D-11, UC-D-12)", () => {
     expect(formatRelative(t, "2026-10-16T08:40:00Z", "en", now)).toBe("in 40 min");
     expect(formatRelative(t, "2026-10-16T22:00:00Z", "en", now)).toBe("in 14 h");
     expect(formatRelative(t, "2026-10-19T08:00:00Z", "en", now)).toBe("in 3 days");
+    // I78: day + hours past 24 h; Arabic spells the hour unit out.
+    expect(formatRelative(t, "2026-10-17T20:00:00Z", "en", now)).toBe("in 1 day 12 h");
+    expect(formatRelative(t, "2026-10-17T08:00:00Z", "en", now)).toBe("in 1 day");
+    const ar = i18n.getFixedT("ar");
+    expect(formatRelative(ar, "2026-10-16T22:00:00Z", "ar", now)).toBe("بعد 14 ساعة");
+    expect(formatRelative(ar, "2026-10-16T11:00:00Z", "ar", now)).toBe("بعد 3 ساعات");
+    expect(formatRelative(ar, "2026-10-16T10:00:00Z", "ar", now)).toBe("بعد ساعتين");
+    expect(formatRelative(ar, "2026-10-17T20:00:00Z", "ar", now)).toBe("بعد يوم و 12 ساعة");
     expect(scheduledNoticeFor("scheduled.cancelled_rider_busy")).toBe("scheduledRiderBusy");
     expect(scheduledNoticeFor("scheduled.released")).toBe("scheduledReleased");
     expect(scheduledNoticeFor("scheduled.reminder")).toBeNull();
@@ -360,6 +368,15 @@ describe("scheduled rides (UC-D-05, UC-D-11, UC-D-12)", () => {
     expect(monday).toHaveTextContent(/^الاثنين/);
     expect(monday).toHaveStyle({ flexDirection: "row-reverse" });
     expect(screen.getByTestId("window-chip-1-07:00-12:00")).toHaveTextContent("07:00–12:00", { exact: false });
+    // W21: ranges travel inside an LTR isolate, the next-day variant too.
+    expect(screen.getByTestId("window-chip-1-07:00-12:00")).toHaveTextContent(
+      "\u206607:00–12:00\u2069",
+      { exact: false },
+    );
+    expect(screen.getByTestId("window-chip-5-22:00-02:00")).toHaveTextContent(
+      "\u206622:00–02:00\u2069 · حتى اليوم التالي",
+      { exact: false },
+    );
     expect(screen.getByTestId("window-chip-6-00:00-00:00")).toHaveTextContent("طوال اليوم", { exact: false });
     expect(screen.getByTestId("day-none-7")).toHaveTextContent("غير متاح");
   });

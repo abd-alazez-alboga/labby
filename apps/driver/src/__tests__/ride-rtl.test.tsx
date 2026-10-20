@@ -59,8 +59,10 @@ describe("ride screens in Arabic (RTL)", () => {
     expect(screen.getByText("الأجرة التقديرية")).toHaveStyle({
       textAlign: "right",
     });
-    // Amount first, then the currency, in Arabic.
-    expect(screen.getByTestId("offer-fare").props.children).toMatch(/ SYP$/);
+    // Amount first (LTR-isolated, Western digits), then "ل.س" (W20).
+    expect(screen.getByTestId("offer-fare").props.children).toMatch(
+      /^\u2066[0-9,.]+\u2069 ل\.س$/u,
+    );
     // Header row (chip | countdown) and the actions row are mirrored.
     const card = screen.getByTestId("offer-card");
     const header = card.children[0];

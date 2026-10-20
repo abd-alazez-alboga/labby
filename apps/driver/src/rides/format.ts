@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 
 import type { Place } from "../api/ride-types";
+import { formatMoney as formatAmount } from "../money/format";
 
 /**
  * Display helpers for the ride screens. Numbers follow the app's locale
@@ -28,17 +29,17 @@ export function formatNumber(
   }
 }
 
-/** "SYP 22,000" — the stored amount, up to 2 decimals. */
+/**
+ * "SYP 22,000" / "⁦22,000⁩ ل.س" — the stored amount, up to 2 decimals. One
+ * money format app-wide (W20): the M8 formatter's Arabic currency label and
+ * LTR isolate apply to the ride flow too.
+ */
 export function formatMoney(
-  t: TFunction,
   amount: number,
   currency: string,
   language: string,
 ): string {
-  return t("ride.money", {
-    currency,
-    amount: formatNumber(amount, language, 2),
-  });
+  return formatAmount(amount, currency, language);
 }
 
 /** "350 m" below 1 km, "1.1 km" above. */

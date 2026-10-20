@@ -501,7 +501,6 @@
     }
   },
   "ride": {
-    "money": "{{currency}} {{amount}}",
     "meters": "{{value}} m",
     "kilometers": "{{value}} km",
     "minutes": "{{value}} min",
@@ -1069,7 +1068,16 @@
     "relative": {
       "due": "due now",
       "minutes": "in {{value}} min",
-      "hours": "in {{value}} h",
+      "hours": "in {{span}}",
+      "dayAndHours": "in 1 day {{span}}",
+      "hourSpan": {
+        "zero": "{{value}} h",
+        "one": "{{value}} h",
+        "two": "{{value}} h",
+        "few": "{{value}} h",
+        "many": "{{value}} h",
+        "other": "{{value}} h"
+      },
       "days": {
         "zero": "in {{value}} days",
         "one": "in {{value}} day",

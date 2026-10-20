@@ -501,7 +501,6 @@
     }
   },
   "ride": {
-    "money": "{{amount}} {{currency}}",
     "meters": "{{value}} م",
     "kilometers": "{{value}} كم",
     "minutes": "{{value}} د",
@@ -1069,7 +1068,16 @@
     "relative": {
       "due": "حان الوقت",
       "minutes": "بعد {{value}} د",
-      "hours": "بعد {{value}} س",
+      "hours": "بعد {{span}}",
+      "dayAndHours": "بعد يوم و {{span}}",
+      "hourSpan": {
+        "zero": "{{value}} ساعة",
+        "one": "ساعة",
+        "two": "ساعتين",
+        "few": "{{value}} ساعات",
+        "many": "{{value}} ساعة",
+        "other": "{{value}} ساعة"
+      },
       "days": {
         "zero": "بعد {{value}} يوم",
         "one": "بعد يوم",

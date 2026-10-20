@@ -214,7 +214,7 @@ function BoardCard({
       <View style={[styles.cardFooter, flipRows && styles.rowReverse]}>
         <View style={styles.grow}>
           <AppText variant="heading" testID={`${id}-fare`}>
-            {formatMoney(t, entry.estimatedFare, entry.currency, language)}
+            {formatMoney(entry.estimatedFare, entry.currency, language)}
           </AppText>
           <AppText variant="caption" color={colors.textMuted}>
             {t("scheduled.pricedAtRideTimeWith", {
@@ -304,7 +304,6 @@ function ClaimedCard({
         <View style={styles.grow}>
           <AppText variant="bodyStrong" weight="800">
             {formatMoney(
-              t,
               ride.estimate.components.total,
               ride.estimate.components.currency,
               language,

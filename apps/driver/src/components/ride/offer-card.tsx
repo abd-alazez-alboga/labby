@@ -98,7 +98,7 @@ export function OfferCard({ ctx }: { ctx: DriverRideContextValue }) {
 
       <View style={styles.fare}>
         <AppText variant="display" testID="offer-fare">
-          {formatMoney(t, offer.estimatedFare, offer.currency, language)}
+          {formatMoney(offer.estimatedFare, offer.currency, language)}
         </AppText>
         <AppText
           variant="secondary"

@@ -391,7 +391,7 @@ function CollectRow({
     ride.shared?.split?.currency ??
     ride.fare?.components.currency ??
     ride.estimate.components.currency;
-  const money = (amount: number) => formatMoney(t, amount, currency, language);
+  const money = (amount: number) => formatMoney(amount, currency, language);
   const pending = member.status === "completed" && member.paymentStatus === "pending";
   const busy = ctx.pending !== null;
   const mine = ctx.pendingMemberId === member.memberId;
@@ -524,13 +524,13 @@ export function SharedCollectScreen({
           <View style={styles.splitCard} testID="split-card">
             <AppText variant="bodyStrong" color={colors.lineStrong}>
               {t("ride.shared.collect.splitLine", {
-                fare: formatMoney(t, split.fareTotal, split.currency, language),
+                fare: formatMoney(split.fareTotal, split.currency, language),
                 seats: formatNumber(split.boardedSeats, language),
               })}
             </AppText>
             <AppText style={styles.perSeat} color={colors.onAccent} testID="split-per-seat">
               {t("ride.shared.collect.perSeat", {
-                amount: formatMoney(t, split.perSeatAmount, split.currency, language),
+                amount: formatMoney(split.perSeatAmount, split.currency, language),
               })}
             </AppText>
           </View>

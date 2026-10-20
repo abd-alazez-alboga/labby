@@ -145,7 +145,6 @@ export function ToPickupSheet({
               service: serviceName(ride, language),
               payment: t(`ride.payment.${ride.paymentMethod}`),
               fare: formatMoney(
-                t,
                 ride.estimate.components.total,
                 ride.estimate.components.currency,
                 language,
