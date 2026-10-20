@@ -752,6 +752,13 @@ describe("after dispatch (UC-R-14 E1, UC-R-15 completion)", () => {
       /Split by seat.*Seats that rode4.*Your shareSYP 12,850/,
     );
     expect(screen.getByText(/^Shared ride · Economy/)).toBeOnTheScreen();
+    // Approved artboard RiderSharedReceipt (V1 audit I51).
+    expect(screen.getByTestId("receipt-fare-total")).toHaveTextContent(
+      /^Whole ride/,
+    );
+    expect(screen.getByTestId("receipt-shared-each-pays")).toHaveTextContent(
+      "Each rider pays their own share and gets their own receipt.",
+    );
   });
 });
 

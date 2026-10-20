@@ -202,6 +202,8 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
           <FareBreakdown
             components={receipt.fare.components}
             measured={receipt.fare}
+            // Approved artboard RiderSharedReceipt: the fare is the whole ride's.
+            totalLabel={sharedInfo?.split ? t("shared.wholeRideTotal") : undefined}
             testID="receipt-fare"
           />
         </View>
@@ -264,6 +266,16 @@ export default function ReceiptScreen({ rideId }: { rideId: string }) {
               </View>
             ) : null}
           </View>
+        ) : null}
+        {sharedInfo?.split ? (
+          <AppText
+            variant="caption"
+            tone="muted"
+            weight={400}
+            testID="receipt-shared-each-pays"
+          >
+            {t("shared.eachPays")}
+          </AppText>
         ) : null}
         <View
           style={[styles.payment, { flexDirection: row }]}

@@ -332,10 +332,13 @@ export function EstimateFooter({
 export function FareBreakdown({
   components,
   measured,
+  totalLabel,
   testID = "fare-breakdown",
 }: {
   components: FareComponents;
   measured: { distanceMeters: number; durationSeconds: number };
+  /** Overrides "Total" (a shared ride's receipt says "Whole ride"). */
+  totalLabel?: string;
   testID?: string;
 }) {
   const { t, locale } = useLocale();
@@ -362,7 +365,7 @@ export function FareBreakdown({
         testID={`${testID}-total`}
       >
         <AppText variant="rowTitle" weight={800} style={styles.fareLabel}>
-          {t("fare.total")}
+          {totalLabel ?? t("fare.total")}
         </AppText>
         <AppText variant="rowTitle" weight={800}>
           {formatMoney(components.total, components.currency, locale, t)}
