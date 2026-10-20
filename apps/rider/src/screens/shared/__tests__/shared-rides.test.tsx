@@ -380,7 +380,17 @@ describe("creator and member before dispatch (UC-R-14/15)", () => {
       "3 of 4 seats taken",
     );
 
+    // V1 audit I52: leaving is free here, but asked first.
     await fireEvent.press(screen.getByTestId("shared-ride-leave"));
+    expect(await screen.findByTestId("shared-leave-free-sheet")).toHaveTextContent(
+      /Leave this shared ride\?.*Free to leave now/,
+    );
+    await fireEvent.press(screen.getByTestId("shared-leave-free-stay"));
+    expect(api.callsTo("POST", `${SHARED}/leave`)).toHaveLength(0);
+    expect(mockBack).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByTestId("shared-ride-leave"));
+    await fireEvent.press(await screen.findByTestId("shared-leave-free-confirm"));
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
     expect(api.callsTo("POST", `${SHARED}/leave`)[0].body).toEqual({});
   });

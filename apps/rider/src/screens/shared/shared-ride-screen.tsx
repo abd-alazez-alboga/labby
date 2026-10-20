@@ -251,6 +251,61 @@ function CancelSharedSheet({
   );
 }
 
+/**
+ * Leaving before the ride leaves is free, but still asked first (the free
+ * variant of the approved RiderSharedLeave sheet, V1 audit I52).
+ */
+function LeaveFreeSheet({
+  visible,
+  busy,
+  onStay,
+  onLeave,
+}: {
+  visible: boolean;
+  busy: boolean;
+  onStay: () => void;
+  onLeave: () => void;
+}) {
+  const { t } = useLocale();
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onStay}
+      testID="shared-leave-free-modal"
+    >
+      <View style={styles.backdrop}>
+        <Pressable
+          style={styles.flex}
+          onPress={onStay}
+          accessibilityRole="button"
+          accessibilityLabel={t("shared.stay")}
+        />
+        <BottomSheet testID="shared-leave-free-sheet">
+          <AppText variant="title">{t("shared.leaveTitle")}</AppText>
+          <Banner
+            tone="success"
+            title={t("shared.leaveFreeTitle")}
+            message={t("shared.leaveFreeBody")}
+          />
+          <PrimaryButton
+            label={t("shared.stay")}
+            onPress={onStay}
+            testID="shared-leave-free-stay"
+          />
+          <DestructiveTextButton
+            label={t("shared.leaveConfirmFree")}
+            onPress={onLeave}
+            loading={busy}
+            testID="shared-leave-free-confirm"
+          />
+        </BottomSheet>
+      </View>
+    </Modal>
+  );
+}
+
 function ClosedSheet({
   visible,
   onDone,
@@ -309,6 +364,7 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
   const [shortOf, setShortOf] = useState<number | null>(null);
   const [closed, setClosed] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const back = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -456,8 +512,10 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
     setError(null);
     try {
       await leaveSharedRide(ride.rideId);
+      setLeaveOpen(false);
       back();
     } catch (failed) {
+      setLeaveOpen(false);
       if (rideErrorCode(failed) === "illegal_state") void load();
       else setError(t("shared.actionFailed"));
     } finally {
@@ -603,8 +661,7 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
         ) : (
           <SecondaryButton
             label={t("shared.leaveFree")}
-            onPress={() => void leave()}
-            loading={busy}
+            onPress={() => setLeaveOpen(true)}
             testID="shared-ride-leave"
           />
         )}
@@ -791,6 +848,12 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
               setCancelOpen(false);
               show(cancelled);
             }}
+          />
+          <LeaveFreeSheet
+            visible={leaveOpen}
+            busy={busy}
+            onStay={() => setLeaveOpen(false)}
+            onLeave={() => void leave()}
           />
           <ClosedSheet
             visible={closed}
