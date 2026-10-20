@@ -4,6 +4,7 @@ import com.labby.backend.enums.NotificationEvent;
 import com.labby.backend.enums.ReviewStatus;
 import com.labby.backend.model.DriverDocument;
 import com.labby.backend.repository.DriverDocumentRepository;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,8 @@ public class DocumentReminderWriter {
    * current, and stamps it.
    *
    * @param documentId the approved current document
-   * @param daysLeftTier the reminder tier (30 or 7)
+   * @param daysLeftTier the reminder tier (30 or 7) — picks the stamp; the notice states the real
+   *     days left
    * @return true when a reminder was queued
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -46,9 +48,14 @@ public class DocumentReminderWriter {
         document.getDriverUserId(),
         NotificationEvent.DOCUMENT_EXPIRY_REMINDER,
         Map.of(
-            "documentType", document.getType().getValue(),
-            "expiresOn", document.getExpiresOn().toString(),
-            "daysLeft", daysLeftTier));
+            "documentType",
+            document.getType().getValue(),
+            "expiresOn",
+            document.getExpiresOn().toString(),
+            // V1 audit W31: the REAL days left — the tier only picks which reminder is stamped
+            // (a document first caught inside the window says 20 or 3, not 30 or 7).
+            "daysLeft",
+            (int) Math.max(0, ChronoUnit.DAYS.between(calendar.today(), document.getExpiresOn()))));
     if (secondTier) {
       document.setReminder7SentAt(calendar.now());
     } else {

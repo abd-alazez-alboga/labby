@@ -126,6 +126,44 @@ class DocumentExpiryServiceImplTest {
   }
 
   @Test
+  @DisplayName("V1 audit W31: a document first caught at 20 / 3 days says 20 / 3, not 30 / 7")
+  void shouldStateTheRealDaysLeft() {
+    DriverDocument in20 = document(TODAY.plusDays(20));
+    DriverDocument in3 = document(TODAY.plusDays(3));
+    current(in20, in3);
+    when(driverDocumentRepository.findById(in20.getId())).thenReturn(Optional.of(in20));
+    when(driverDocumentRepository.findById(in3.getId())).thenReturn(Optional.of(in3));
+
+    service.runExpiryCheck();
+
+    // The tier still picks the stamp: 20 days → the 30-day reminder, 3 days → the 7-day one.
+    assertThat(in20.getReminder30SentAt()).isEqualTo(NOW);
+    assertThat(in3.getReminder7SentAt()).isEqualTo(NOW);
+    verify(notificationService)
+        .queue(
+            DRIVER,
+            NotificationEvent.DOCUMENT_EXPIRY_REMINDER,
+            Map.of(
+                "documentType",
+                "insurance",
+                "expiresOn",
+                TODAY.plusDays(20).toString(),
+                "daysLeft",
+                20));
+    verify(notificationService)
+        .queue(
+            DRIVER,
+            NotificationEvent.DOCUMENT_EXPIRY_REMINDER,
+            Map.of(
+                "documentType",
+                "insurance",
+                "expiresOn",
+                TODAY.plusDays(3).toString(),
+                "daysLeft",
+                3));
+  }
+
+  @Test
   @DisplayName("valid through the expiry date (Damascus); expired the day after → suspend")
   void shouldSuspendOnlyAfterTheExpiryDate() {
     DriverDocument expiresToday = document(TODAY);

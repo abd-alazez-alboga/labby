@@ -64,7 +64,10 @@ info:
     `driver_application.rejected`, `vehicle_switch.submitted`, `vehicle_switch.approved`,
     `vehicle_switch.rejected`, `document_renewal.submitted`, `document_renewal.approved`,
     `document_renewal.rejected`, `document.expiry_reminder` (params: documentType, expiresOn,
-    daysLeft 30|7), `driver.suspended` (params: reason), `driver.reinstated`.
+    daysLeft — the REAL days left, expiresOn − today in the operating zone; the 30 / 7 tier only
+    decides which of the two reminders is sent and stamped, so a document first caught inside
+    the window says e.g. 20 or 3 — V1 audit W31), `driver.suspended` (params: reason),
+    `driver.reinstated`.
 
 
     **Permissions & audit.** Admin endpoints enforce `x-required-permission` server-side
