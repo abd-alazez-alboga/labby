@@ -169,7 +169,11 @@ export default function UserHistoryPage() {
           </StatusChip>
         }
       />
-      <UserProfileTabs userId={userId} name={trust.name} />
+      <UserProfileTabs
+        userId={userId}
+        name={trust.name}
+        isDriver={trust.roles.some((role) => role.role === 'driver')}
+      />
 
       {can('rides:view') ? (
         <RidesSection userId={userId} state={rides.state} onRetry={rides.retry} />

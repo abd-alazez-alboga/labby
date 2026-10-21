@@ -272,7 +272,11 @@ export default function UserWalletPage() {
         title={<bdi>{identity?.name ?? passedName ?? t('money.wallet.title')}</bdi>}
         description={summary ?? (identity || passedName ? null : <span dir="ltr">{userId}</span>)}
       />
-      <UserProfileTabs userId={userId} name={identity?.name ?? passedName} />
+      <UserProfileTabs
+        userId={userId}
+        name={identity?.name ?? passedName}
+        isDriver={identity?.roles.some((role) => role.role === 'driver') ?? false}
+      />
 
       <ReviewLayout
         aside={

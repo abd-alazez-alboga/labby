@@ -18,6 +18,8 @@ import { BackLink, DataTable, PageHeader, ReviewLayout, StatusChip } from '../ui
 import { formatDay } from './money/money-format';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
+import { DriverLedgerCard } from './money/DriverLedgerCard';
+import { ReportsMadeSection } from './trust/ReportsMade';
 import { SuspensionPanel } from './trust/SuspensionPanel';
 import { ReportStatusChip, UserProfileTabs } from './trust/TrustUi';
 import { ACCOUNT_TONES, flagRule, formatRating, metricRule } from './trust/trust-format';
@@ -65,9 +67,11 @@ function useReportsAgainst(userId: string, refresh: number) {
 
 /**
  * UC-A-13 trust sections + UC-A-14 suspension: per-role state cards (live
- * average, suspension reason and rule), open flags, active metric warnings
- * and reports against the user; with `users:suspend`, the suspend/reactivate
- * panel (mandatory reason shown to the user). `users:view` (route guard).
+ * average, suspension reason and rule), open flags, active metric warnings,
+ * reports against the user and the reports they made (V1 audit W4); with
+ * `users:suspend`, the suspend/reactivate panel (mandatory reason shown to
+ * the user); for a driver with `settlements:view`, the driver ledger card.
+ * `users:view` (route guard).
  */
 export default function UserTrustPage() {
   const { t, i18n } = useTranslation();
@@ -76,6 +80,8 @@ export default function UserTrustPage() {
   const { apiClient } = useAuth();
   const { can } = usePermissions();
   const canSuspend = can('users:suspend');
+  const canReports = can('reports:view');
+  const canLedger = can('settlements:view');
 
   const [trust, setTrust] = useState<AdminUserTrust | null>(null);
   const [loadError, setLoadError] = useState<FailureKind | null>(null);
@@ -144,6 +150,11 @@ export default function UserTrustPage() {
     setRefresh((n) => n + 1);
   }
 
+  const isDriver = trust.roles.some((role) => role.role === 'driver');
+  // UC-A-13 "driver ledger (if driver)" (V1 audit W4): settlements:view only.
+  const ledgerCard =
+    isDriver && canLedger ? <DriverLedgerCard userId={userId} name={trust.name} /> : null;
+
   const reportsByRole = (role: PartyRole) =>
     reports?.filter((report) => report.reported.role === role) ?? null;
 
@@ -158,7 +169,7 @@ export default function UserTrustPage() {
           </StatusChip>
         }
       />
-      <UserProfileTabs userId={userId} name={trust.name} />
+      <UserProfileTabs userId={userId} name={trust.name} isDriver={isDriver} />
 
       {trust.accountState === 'suspended' ? (
         <div className="banner banner--error" role="status">
@@ -187,7 +198,11 @@ export default function UserTrustPage() {
       <ReviewLayout
         aside={
           canSuspend ? (
-            <SuspensionPanel trust={trust} onUpdated={onUpdated} onFailed={onFailed} />
+            <SuspensionPanel trust={trust} onUpdated={onUpdated} onFailed={onFailed}>
+              {ledgerCard}
+            </SuspensionPanel>
+          ) : ledgerCard ? (
+            <div className="review-layout__aside trust-aside">{ledgerCard}</div>
           ) : null
         }
       >
@@ -209,6 +224,8 @@ export default function UserTrustPage() {
             language={language}
           />
         ))}
+
+        {canReports ? <ReportsMadeSection userId={userId} refresh={refresh} /> : null}
       </ReviewLayout>
     </section>
   );

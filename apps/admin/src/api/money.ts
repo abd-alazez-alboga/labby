@@ -87,9 +87,13 @@ export interface DriverBalanceEntry {
   currency: string;
   /** Signed — negative = debt. */
   balance: number;
-  /** The operating region's floor (default -50). */
+  /** The operating region's floor when its currency matches, else the SRS default (-50). */
   floor: number;
   status: FloorStatus;
+  /** The region whose floor and margin apply (V1 audit W4); null = the SRS default. */
+  floorRegionId?: string | null;
+  /** That region's name ("Floor · Damascus"). */
+  floorRegionName?: string | null;
 }
 
 export type DriverLedgerType =

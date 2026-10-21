@@ -45,16 +45,28 @@ function tabClass({ isActive }: { isActive: boolean }): string {
 
 /**
  * The user profile's section tabs (UC-A-13): ratings/reports/flags
- * (`users:view`), wallet (`wallets:view`) and history (`users:view`) — each
- * shown only when the admin may open it. Hidden when only one section is
- * reachable.
+ * (`users:view`), wallet (`wallets:view`), driver ledger (driver accounts,
+ * `settlements:view`; V1 audit W4) and history (`users:view`) — each shown
+ * only when the admin may open it. Hidden when only one section is reachable.
  */
-export function UserProfileTabs({ userId, name }: { userId: string; name?: string }) {
+export function UserProfileTabs({
+  userId,
+  name,
+  isDriver = false,
+}: {
+  userId: string;
+  name?: string;
+  /** The account holds the driver role: offer its driver ledger. */
+  isDriver?: boolean;
+}) {
   const { t } = useTranslation();
   const { can } = usePermissions();
   const tabs = [
     can('users:view') ? { to: `/users/${userId}/trust`, label: t('trust.tabs.trust') } : null,
     can('wallets:view') ? { to: `/users/${userId}/wallet`, label: t('trust.tabs.wallet') } : null,
+    isDriver && can('settlements:view')
+      ? { to: `/driver-ledgers/${userId}`, label: t('trust.tabs.ledger') }
+      : null,
     can('users:view') ? { to: `/users/${userId}/history`, label: t('trust.tabs.history') } : null,
   ].filter((tab): tab is { to: string; label: string } => tab !== null);
   if (tabs.length < 2) {

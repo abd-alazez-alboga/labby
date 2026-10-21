@@ -18,6 +18,7 @@ import { FloorStatusChip, Money, RideRef } from './money/MoneyUi';
 import { useCurrencyLabel } from './money/use-currency-label';
 import { useUserIdentity } from './money/use-user-identity';
 import { SettlementPanel } from './money/SettlementPanel';
+import { UserProfileTabs } from './trust/TrustUi';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
 
@@ -189,6 +190,8 @@ export default function DriverLedgerPage() {
         }
         meta={selected ? <FloorStatusChip status={selected.status} /> : null}
       />
+      {/* The profile's "Driver ledger" tab lands here (V1 audit W4): keep the profile tabs. */}
+      <UserProfileTabs userId={driverUserId} name={identity?.name ?? passedName} isDriver />
 
       {currencies.length > 1 ? (
         <div className="segmented" role="group" aria-label={t('money.ledger.currencyFilterLabel')}>

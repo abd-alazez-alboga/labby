@@ -75,6 +75,8 @@ export interface ReportQuery {
   /** Server default: `open`. */
   status?: ReportStatus;
   reportedUserId?: string;
+  /** Reports this user FILED, as rider or driver (V1 audit W4); combines with reportedUserId. */
+  reporterUserId?: string;
   page?: number;
   size?: number;
 }
@@ -190,6 +192,9 @@ export function listAdminReports(
   }
   if (query.reportedUserId) {
     params.set('reportedUserId', query.reportedUserId);
+  }
+  if (query.reporterUserId) {
+    params.set('reporterUserId', query.reporterUserId);
   }
   params.set('page', String(query.page ?? 0));
   params.set('size', String(query.size ?? 20));

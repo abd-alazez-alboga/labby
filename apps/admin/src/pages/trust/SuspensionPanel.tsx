@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { applySuspensionAction, type AdminUserTrust, type SuspensionAction } from '../../api/trust';
@@ -21,11 +21,14 @@ export function SuspensionPanel({
   trust,
   onUpdated,
   onFailed,
+  children,
 }: {
   trust: AdminUserTrust;
   onUpdated: (trust: AdminUserTrust, action: SuspensionAction) => void;
   /** A refused action (409 etc.): the page shows the copy and reloads. */
   onFailed: (errorKey: string) => void;
+  /** More aside cards below the panel (the driver ledger card, V1 audit W4). */
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
@@ -93,7 +96,7 @@ export function SuspensionPanel({
   }
 
   if (actions.length === 0) {
-    return null;
+    return children ? <div className="review-layout__aside trust-aside">{children}</div> : null;
   }
 
   const destructive = selected?.kind === 'suspendRole' || selected?.kind === 'suspendAccount';
@@ -159,6 +162,7 @@ export function SuspensionPanel({
           </div>
         </section>
       ) : null}
+      {children}
     </div>
   );
 }
