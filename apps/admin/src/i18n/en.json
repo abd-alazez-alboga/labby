@@ -1078,6 +1078,19 @@
       "usersSubtitleProfile": "Find a user to review their ratings, reports and flags, or their wallet.",
       "openProfile": "Open profile"
     },
+    "ledgerSearch": {
+      "title": "Find a driver",
+      "label": "Search drivers by name or phone",
+      "hint": "Searches every driver by name or phone number. A pasted user ID opens that driver’s ledger directly.",
+      "matches_zero": "{{total}} drivers match “{{query}}”",
+      "matches_one": "{{total}} driver matches “{{query}}”",
+      "matches_two": "{{total}} drivers match “{{query}}”",
+      "matches_few": "{{total}} drivers match “{{query}}”",
+      "matches_many": "{{total}} drivers match “{{query}}”",
+      "matches_other": "{{total}} drivers match “{{query}}”",
+      "noMatchTitle": "No drivers match “{{query}}”",
+      "noMatchBody": "Check the spelling or search by phone number. Search covers every driver, including drivers who have never completed a ride."
+    },
     "wallet": {
       "back": "Back to users",
       "title": "User wallet",
