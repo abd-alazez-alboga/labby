@@ -266,7 +266,7 @@ describe("completed screen split + tip (PAY-02, UC-R-08)", () => {
     // Tip within the window: entry on the ride-complete screen.
     await fireEvent.press(screen.getByTestId("ride-tip"));
     expect(await screen.findByTestId("tip-title")).toHaveTextContent(
-      "Tip Samer",
+      "Tip \u2068Samer\u2069",
     );
     await fireEvent.press(screen.getByTestId("tip-send"));
     await waitFor(() =>
@@ -374,7 +374,7 @@ describe("receipt split + tip (UC-R-07/08)", () => {
 
     await fireEvent.press(screen.getByTestId("receipt-tip"));
     expect(await screen.findByTestId("tip-title")).toHaveTextContent(
-      "Tip Samer",
+      "Tip \u2068Samer\u2069",
     );
     await fireEvent.press(screen.getByTestId("tip-send"));
     await waitFor(() =>
@@ -576,7 +576,7 @@ describe("tipping during the ride (PAY-04, UC-R-08)", () => {
     await withProviders(<RideScreen rideId={RIDE_ID} />);
 
     const entry = await screen.findByTestId("ride-tip-in-progress");
-    expect(entry).toHaveTextContent("Tip Samer");
+    expect(entry).toHaveTextContent("Tip \u2068Samer\u2069");
     await fireEvent.press(entry);
     expect(await screen.findByTestId("tip-window")).toHaveTextContent(
       "You can tip during the ride and up to 24 hours after",

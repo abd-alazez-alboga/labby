@@ -267,7 +267,7 @@ function HistoryRow({
       </View>
       <View style={styles.text}>
         <AppText variant="bodyStrong" weight={800}>
-          {placeLabel(item.destination)}
+          {placeLabel(item.destination, t)}
         </AppText>
         <AppText variant="caption" tone="secondary" weight={400}>
           {subtitle}

@@ -305,7 +305,7 @@ describe("driver rating + in-ride report entry", () => {
         <SafetyActionsRow ride={acceptedRide()} />
       </LocaleProvider>,
     );
-    await fireEvent.press(await screen.findByText("Report Samer"));
+    await fireEvent.press(await screen.findByText("Report \u2068Samer\u2069"));
     expect(mockPush).toHaveBeenCalledWith(`/report/${RIDE_ID}`);
   });
 });

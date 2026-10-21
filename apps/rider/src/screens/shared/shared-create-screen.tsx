@@ -213,7 +213,10 @@ export default function SharedCreateScreen() {
       style={styles.page}
       testID="shared-create"
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("common.back")}
@@ -236,7 +239,7 @@ export default function SharedCreateScreen() {
               {t("shared.meetingPoint")}
             </AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>
-              {placeLabel(route.pickup)}
+              {placeLabel(route.pickup, t)}
             </AppText>
           </View>
           <View style={styles.field}>
@@ -244,7 +247,7 @@ export default function SharedCreateScreen() {
               {t("shared.destination")}
             </AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>
-              {placeLabel(route.destination)}
+              {placeLabel(route.destination, t)}
             </AppText>
           </View>
         </Pressable>

@@ -148,7 +148,7 @@ describe("schedule a ride (UC-R-10)", () => {
       /Priced at ride time/,
     );
     expect(api.callsTo("POST", "/api/v1/rides/estimate")[0].body).toEqual({
-      pickup: { lat: 33.5138, lng: 36.2765, label: "Current location" },
+      pickup: { lat: 33.5138, lng: 36.2765, label: null },
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
       stops: [],
       scheduledAt,

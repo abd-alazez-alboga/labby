@@ -7,11 +7,11 @@
 export const commsEn = {
   chat: {
     back: "Back",
-    call: "Call {{name}}",
+    call: "Call \u2068{{name}}\u2069",
     today: "Today",
     seen: "Seen",
     sending: "Sending…",
-    placeholder: "Message {{name}}…",
+    placeholder: "Message \u2068{{name}}\u2069…",
     messageLabel: "Message",
     send: "Send",
     statusOnTheWay: "On the way",
@@ -50,11 +50,11 @@ export const commsEn = {
 export const commsAr: typeof commsEn = {
   chat: {
     back: "رجوع",
-    call: "اتصال بـ{{name}}",
+    call: "اتصال بـ\u2068{{name}}\u2069",
     today: "اليوم",
     seen: "شوهدت",
     sending: "جارٍ الإرسال…",
-    placeholder: "راسل {{name}}…",
+    placeholder: "راسل \u2068{{name}}\u2069…",
     messageLabel: "الرسالة",
     send: "إرسال",
     statusOnTheWay: "في الطريق",

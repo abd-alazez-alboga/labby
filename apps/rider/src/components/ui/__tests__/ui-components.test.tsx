@@ -117,6 +117,26 @@ describe("ui primitives", () => {
       expect(style.backgroundColor).toBe(colors.accent);
     });
 
+    it("keeps one label line by default; side-by-side buttons may wrap to two (L-I5)", async () => {
+      await renderIn(
+        "en",
+        <>
+          <SecondaryButton label="Add stop" onPress={jest.fn()} testID="one" />
+          <SecondaryButton
+            label="Change destination"
+            onPress={jest.fn()}
+            labelLines={2}
+            testID="two"
+          />
+        </>,
+      );
+      expect((await screen.findByText("Add stop")).props.numberOfLines).toBe(1);
+      expect(screen.getByText("Change destination").props.numberOfLines).toBe(2);
+      const style = flat<ViewStyle>(screen.getByTestId("two").props.style);
+      expect(style.height).toBeUndefined();
+      expect(style.minHeight).toBe(56);
+    });
+
     it("is disabled at 40 % opacity and ignores presses", async () => {
       const onPress = jest.fn();
       await renderIn(

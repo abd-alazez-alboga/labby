@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import { LANGUAGE_STORAGE_KEY, LocaleProvider } from "../../../i18n/locale-context";
 import { RideProvider } from "../../../ride/ride-context";
@@ -105,7 +106,7 @@ describe("upcoming scheduled rides (UC-R-11)", () => {
       "Driver confirmed",
     );
     expect(screen.getByTestId(`scheduled-card-${SCHEDULED_ID}`)).toHaveTextContent(
-      /Tomorrow · .*To Damascus Airport.*Samer · 4\.9 · Silver Hyundai Accent/,
+      /Tomorrow · .*To \u2068Damascus Airport\u2069.*Samer · 4\.9 · Silver Hyundai Accent/,
     );
     expect(screen.getByTestId(`scheduled-status-${SCHEDULED_OPEN_ID}`)).toHaveTextContent(
       "Waiting for a driver",
@@ -187,7 +188,7 @@ describe("one scheduled ride", () => {
 
     await fireEvent.press(screen.getByTestId("scheduled-ride-cancel"));
     expect(await screen.findByTestId("scheduled-cancel-free")).toHaveTextContent(
-      /Free — no cancellation fee.*Samer will be told\./,
+      /Free — no cancellation fee.*\u2068Samer\u2069 will be told\./,
     );
     await fireEvent.press(screen.getByTestId("scheduled-cancel-reason-wrong_pickup"));
     await fireEvent.press(screen.getByTestId("scheduled-cancel-confirm"));
@@ -272,7 +273,7 @@ describe("home entries (approved artboard RiderM12Home)", () => {
     await withProviders(<HomeScreen />);
 
     expect(await screen.findByTestId("home-upcoming")).toHaveTextContent(
-      /Tomorrow · .*Damascus Airport · Driver confirmed.*2 scheduled/,
+      /Tomorrow · .*\u2068Damascus Airport\u2069 · Driver confirmed.*2 scheduled/,
     );
     await fireEvent.press(screen.getByTestId("home-later"));
     expect(mockPush).toHaveBeenCalledWith("/schedule");
@@ -307,7 +308,7 @@ describe("home entries (approved artboard RiderM12Home)", () => {
     });
     await withProviders(<HomeScreen />);
     expect(await screen.findByTestId("home-open-shared")).toHaveTextContent(
-      /Your shared ride.*Damascus University · 2 of 4 seats · Leaves .*Gathering/,
+      /Your shared ride.*\u2068Damascus University\u2069 · 2 of 4 seats · Leaves .*Gathering/,
     );
     expect(screen.queryByTestId("home-shared")).toBeNull();
     await fireEvent.press(screen.getByTestId("home-open-shared"));
@@ -432,5 +433,91 @@ describe("realtime protocol", () => {
       socket.receive({ type: "ride.state", as: "rider", ride: ride({ id: RIDE_ID }) }),
     );
     expect(await screen.findByTestId("ride-view")).toBeOnTheScreen();
+  });
+});
+
+describe("upcoming list stays fresh (L-W1)", () => {
+  const listed = (api: ReturnType<typeof mockApi>) =>
+    api.callsTo("GET", "/api/v1/scheduled-rides").length;
+
+  it("re-reads on a realtime claim frame for a listed ride", async () => {
+    const api = mockApi({
+      "GET /api/v1/rides/active": { status: 204 },
+      "GET /api/v1/scheduled-rides": [
+        { status: 200, body: [openScheduledRide()] },
+        {
+          status: 200,
+          body: [openScheduledRide({ scheduled: scheduledRide().scheduled })],
+        },
+      ],
+    });
+    await withProviders(<ScheduledRidesScreen />);
+    expect(await screen.findByTestId(`scheduled-status-${SCHEDULED_OPEN_ID}`)).toHaveTextContent(
+      "Waiting for a driver",
+    );
+    const socket = FakeSocket.latest();
+    await act(async () => socket.open());
+    await act(async () => socket.receive({ type: "ready" }));
+    await act(async () =>
+      socket.receive({
+        type: "ride.updated",
+        as: "rider",
+        reason: "scheduled.claimed",
+        ride: openScheduledRide({ scheduled: scheduledRide().scheduled }),
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId(`scheduled-status-${SCHEDULED_OPEN_ID}`)).toHaveTextContent(
+        "Driver confirmed",
+      ),
+    );
+    expect(listed(api)).toBe(2);
+  });
+
+  it("re-reads on pull-to-refresh, also from the empty state", async () => {
+    const api = mockApi({
+      "GET /api/v1/rides/active": { status: 204 },
+      "GET /api/v1/scheduled-rides": [
+        { status: 200, body: [] },
+        { status: 200, body: [openScheduledRide()] },
+      ],
+    });
+    await withProviders(<ScheduledRidesScreen />);
+    expect(await screen.findByTestId("scheduled-empty")).toBeOnTheScreen();
+    const list = screen.getByTestId("scheduled-list");
+    await act(async () => {
+      list.props.refreshControl.props.onRefresh();
+    });
+    expect(await screen.findByTestId(`scheduled-card-${SCHEDULED_OPEN_ID}`)).toBeOnTheScreen();
+    expect(listed(api)).toBe(2);
+  });
+
+  it("re-reads when the app returns to the foreground", async () => {
+    const listeners: ((state: AppStateStatus) => void)[] = [];
+    const original = AppState.addEventListener;
+    AppState.addEventListener = ((
+      _type: string,
+      listener: (state: AppStateStatus) => void,
+    ) => {
+      listeners.push(listener);
+      return { remove: () => {} };
+    }) as unknown as typeof AppState.addEventListener;
+    try {
+      const api = mockApi({
+        "GET /api/v1/rides/active": { status: 204 },
+        "GET /api/v1/scheduled-rides": [
+          { status: 200, body: [openScheduledRide()] },
+          { status: 200, body: [] },
+        ],
+      });
+      await withProviders(<ScheduledRidesScreen />);
+      expect(await screen.findByTestId(`scheduled-card-${SCHEDULED_OPEN_ID}`)).toBeOnTheScreen();
+      await act(async () => listeners.forEach((listener) => listener("background")));
+      await act(async () => listeners.forEach((listener) => listener("active")));
+      expect(await screen.findByTestId("scheduled-empty")).toBeOnTheScreen();
+      expect(listed(api)).toBe(2);
+    } finally {
+      AppState.addEventListener = original;
+    }
   });
 });

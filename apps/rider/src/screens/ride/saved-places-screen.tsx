@@ -32,7 +32,7 @@ import {
 import { useLocale } from "../../i18n/locale-context";
 import { useCurrentPosition } from "../../location/use-current-position";
 import type { LatLng } from "../../map/geo";
-import { placeLabel } from "../../ride/ride-format";
+import { placeCoordsLabel } from "../../ride/ride-format";
 import { useSavedPlaces } from "../../ride/use-saved-places";
 import { colors, radius, spacing } from "../../theme/tokens";
 import { PinPicker } from "./pin-picker";
@@ -196,7 +196,7 @@ export default function SavedPlacesScreen() {
                   {place.name}
                 </AppText>
                 <AppText variant="caption" tone="secondary" weight={400}>
-                  {place.address ?? placeLabel(place)}
+                  {place.address ?? placeCoordsLabel(place)}
                 </AppText>
               </View>
               <Pressable
@@ -244,7 +244,7 @@ export default function SavedPlacesScreen() {
           <Ionicons name="location-outline" size={18} color={colors.text} />
           <AppText variant="label" weight={700} style={styles.flex}>
             {point
-              ? `${t("savedPlaces.changeLocation")} · ${placeLabel(point)}`
+              ? `${t("savedPlaces.changeLocation")} · ${placeCoordsLabel(point)}`
               : t("savedPlaces.pickLocation")}
           </AppText>
         </Pressable>

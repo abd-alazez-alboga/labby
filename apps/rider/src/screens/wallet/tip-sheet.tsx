@@ -60,7 +60,7 @@ export function tipRideLine(
 ): string {
   return [
     formatDayDate(ride.at, locale),
-    placeLabel(ride.destination),
+    placeLabel(ride.destination, t),
     ride.total != null
       ? formatMoney(ride.total, ride.currency, locale, t)
       : null,

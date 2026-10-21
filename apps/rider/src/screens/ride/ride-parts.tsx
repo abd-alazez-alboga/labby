@@ -104,7 +104,7 @@ export function RouteColumn({
                 weight={800}
                 testID={`${testID}-${point.kind}${point.kind === "stop" ? `-${point.index}` : ""}`}
               >
-                {placeLabel(point.place)}
+                {placeLabel(point.place, t)}
               </AppText>
             </View>
             {trailing?.[point.kind] ? (

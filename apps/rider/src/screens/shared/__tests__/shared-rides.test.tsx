@@ -118,7 +118,7 @@ describe("browse shared rides (UC-R-13 step 1)", () => {
 
     const card = await screen.findByTestId(`shared-card-${SHARED_ID}`);
     expect(card).toHaveTextContent(/Damascus University.*Leaves /);
-    expect(card).toHaveTextContent(/From Mazzeh Autostrad · 0 m from you · Economy/);
+    expect(card).toHaveTextContent(/From \u2068Mazzeh Autostrad\u2069 · 0 m from you · Economy/);
     expect(screen.getByTestId(`shared-card-occupancy-${SHARED_ID}`)).toHaveTextContent(
       "2 of 4 seats taken · 2 left",
     );
@@ -204,8 +204,8 @@ describe("join a shared ride (UC-R-13)", () => {
     });
     await withProviders(<SharedRideScreen rideId={SHARED_ID} />);
 
-    expect(await screen.findByText("To Damascus University")).toBeOnTheScreen();
-    expect(screen.getByText("Shared by Lina · Economy")).toBeOnTheScreen();
+    expect(await screen.findByText("To \u2068Damascus University\u2069")).toBeOnTheScreen();
+    expect(screen.getByText("Shared by \u2068Lina\u2069 · Economy")).toBeOnTheScreen();
     expect(screen.getByTestId("shared-ride-departure")).toHaveTextContent(
       /Leaves at .* with whoever has joined/,
     );
@@ -328,6 +328,28 @@ describe("creator and member before dispatch (UC-R-14/15)", () => {
       isCreator: true,
       me: member({ isCreator: true, partySize: 1 }),
     });
+
+  it("a creator still riding alone sees the alone fare, in both languages (L-I7)", async () => {
+    const alone = () =>
+      sharedRide({
+        seatsTaken: 1,
+        seatsLeft: 3,
+        isCreator: true,
+        me: member({ isCreator: true, partySize: 1 }),
+      });
+    mockApi({
+      ...ACTIVE_NONE,
+      [`GET ${SHARED}`]: { status: 200, body: alone() },
+    });
+    const view = await withProviders(<SharedRideScreen rideId={SHARED_ID} />);
+    expect(await screen.findByText("Your fare if you ride alone")).toBeOnTheScreen();
+    expect(screen.queryByText(/Per seat if/)).toBeNull();
+    await view.unmount();
+
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    await withProviders(<SharedRideScreen rideId={SHARED_ID} />);
+    expect(await screen.findByText("أجرتك إن ركبت وحدك")).toBeOnTheScreen();
+  });
 
   it("the creator starts now", async () => {
     const api = mockApi({
@@ -473,7 +495,7 @@ describe("create a shared ride (UC-R-12)", () => {
       scheduledAt?: string;
     };
     expect(estimateBody).toMatchObject({
-      pickup: { lat: 33.5138, lng: 36.2765, label: "Current location" },
+      pickup: { lat: 33.5138, lng: 36.2765, label: null },
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
     });
     expect(Date.parse(estimateBody.scheduledAt ?? "")).toBeGreaterThan(Date.now());
@@ -497,7 +519,7 @@ describe("create a shared ride (UC-R-12)", () => {
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/shared/${SHARED_ID}`));
     expect(api.callsTo("POST", "/api/v1/shared-rides")[0].body).toEqual({
-      pickup: { lat: 33.5138, lng: 36.2765, label: "Current location" },
+      pickup: { lat: 33.5138, lng: 36.2765, label: null },
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
       serviceTypeId: ECONOMY_ID,
       paymentMethod: "cash",

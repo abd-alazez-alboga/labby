@@ -15,6 +15,7 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import React from "react";
+import { ScrollView } from "react-native";
 
 import { LocaleProvider } from "../../../i18n/locale-context";
 import { RideProvider } from "../../../ride/ride-context";
@@ -280,6 +281,30 @@ describe("promo in on-demand booking (UC-R-04 A1)", () => {
     expect(
       await screen.findByTestId("booking-promo-preview"),
     ).toHaveTextContent("≈ −SYP 4,400 on this estimate");
+  });
+
+  it("scrolls the options to the end once a promo is applied (L-I6)", async () => {
+    mockApi({
+      ...BASE_ROUTES,
+      "POST /api/v1/rides/estimate": { status: 200, body: estimateResponse() },
+      "POST /api/v1/promos/validate": { status: 200, body: promoValidation() },
+    });
+    renderBooking();
+    await planToWork();
+    const options = await screen.findByTestId("booking-options");
+    // The preset's ScrollView mock shares one jest.fn per instance method.
+    const scrollToEnd = ScrollView.prototype.scrollToEnd as unknown as jest.Mock;
+    scrollToEnd.mockClear();
+    // Layout changes before a promo is applied never scroll.
+    await fireEvent(options, "contentSizeChange", 390, 600);
+    expect(scrollToEnd).not.toHaveBeenCalled();
+
+    await applyCode("WELCOME20");
+    await screen.findByTestId("booking-promo-preview");
+    await fireEvent(options, "contentSizeChange", 390, 760);
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: true });
+    await fireEvent(options, "contentSizeChange", 390, 780);
+    expect(scrollToEnd).toHaveBeenCalledTimes(1);
   });
 
   it("re-validates when another service type is picked", async () => {

@@ -162,7 +162,7 @@ describe("chat screen (UC-S-13/14)", () => {
     });
     await renderChat();
     expect(await screen.findByTestId("chat-shared-private")).toHaveTextContent(
-      /Private — only you and Samer see this chat\. Other riders can.t\./,
+      /Private — only you and \u2068Samer\u2069 see this chat\. Other riders can.t\./,
     );
   });
 
@@ -252,7 +252,7 @@ describe("chat screen (UC-S-13/14)", () => {
     expect(await screen.findByText("أنا قادم")).toBeOnTheScreen();
     expect(screen.getByText("أين وصلت؟")).toBeOnTheScreen();
     expect(screen.getByTestId("chat-input").props.placeholder).toBe(
-      "راسل Samer…",
+      "راسل \u2068Samer\u2069…",
     );
   });
 

@@ -51,8 +51,12 @@ jest.mock("expo-router", () => ({
 const webviewMock = require("react-native-webview") as {
   __injectJavaScript: jest.Mock;
 };
+/** The last state pushed into the map page (relayout calls carry no state). */
 function lastMapScript(): string {
-  return (webviewMock.__injectJavaScript.mock.calls.at(-1)?.[0] ?? "") as string;
+  const applies = webviewMock.__injectJavaScript.mock.calls
+    .map(([script]) => String(script))
+    .filter((script) => script.includes("labbyMap.apply("));
+  return applies.at(-1) ?? "";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -173,7 +177,7 @@ describe("ride flow (UC-R-05…07)", () => {
     });
     expect(await screen.findByText("Your driver is here")).toBeOnTheScreen();
     expect(
-      screen.getByText("Samer is waiting at Mazzeh Autostrad."),
+      screen.getByText("\u2068Samer\u2069 is waiting at \u2068Mazzeh Autostrad\u2069."),
     ).toBeOnTheScreen();
     expect(screen.getByTestId("ride-wait-countdown").props.children).toMatch(
       /^4:1[0-2]$/,

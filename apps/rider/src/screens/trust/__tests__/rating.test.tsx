@@ -104,11 +104,11 @@ describe("rating screen (UC-S-17)", () => {
     await renderRate();
 
     expect(
-      await screen.findByText("How was your ride with Samer?"),
+      await screen.findByText("How was your ride with \u2068Samer\u2069?"),
     ).toBeOnTheScreen();
     expect(screen.getByText(/Umayyad Square/)).toBeOnTheScreen();
     expect(screen.getByTestId("rating-anonymous")).toHaveTextContent(
-      "Your rating is anonymous. Samer only ever sees an overall average, never who rated or for which ride.",
+      "Your rating is anonymous. \u2068Samer\u2069 only ever sees an overall average, never who rated or for which ride.",
     );
     expect(screen.getByTestId("rating-window")).toHaveTextContent(
       "You can rate this ride from Your rides until Oct 22.",
@@ -239,7 +239,7 @@ describe("rating screen (UC-S-17)", () => {
     expect(screen.getByText("تخطي")).toBeOnTheScreen();
     expect(screen.getByText("إرسال التقييم")).toBeOnTheScreen();
     expect(screen.getByTestId("rating-anonymous")).toHaveTextContent(
-      "تقييمك مجهول الهوية. يرى Samer متوسطاً عاماً فقط، ولا يعرف أبداً من قيّمه أو في أي رحلة.",
+      "تقييمك مجهول الهوية. يرى \u2068Samer\u2069 متوسطاً عاماً فقط، ولا يعرف أبداً من قيّمه أو في أي رحلة.",
     );
     // Star 1 sits at the reading start: the row mirrors in RTL.
     expect(
@@ -305,7 +305,7 @@ describe("post-ride prompt (RATE-01)", () => {
     await renderRide();
 
     expect(
-      await screen.findByText("How was your ride with Samer?"),
+      await screen.findByText("How was your ride with \u2068Samer\u2069?"),
     ).toBeOnTheScreen();
     expect(screen.queryByTestId("ride-completed")).toBeNull();
 

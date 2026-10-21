@@ -37,7 +37,7 @@ import {
 import { useLocale } from "../../i18n/locale-context";
 import { useCurrentPosition } from "../../location/use-current-position";
 import { rideErrorMessage } from "../../ride/ride-errors";
-import { formatMoney, placeLabel, serviceName } from "../../ride/ride-format";
+import { formatMoney, placeCoordsLabel, placeLabel, serviceName } from "../../ride/ride-format";
 import { distanceMeters, formatDistance, startOfDay } from "../../ride/schedule-format";
 import { useSavedPlaces } from "../../ride/use-saved-places";
 import { colors, radius, spacing } from "../../theme/tokens";
@@ -80,11 +80,11 @@ function SharedCard({
   );
   const from = here
     ? t("shared.cardFrom", {
-        place: placeLabel(ride.pickup),
+        place: placeLabel(ride.pickup, t),
         distance: formatDistance(distanceMeters(here, ride.pickup), locale, t),
         service,
       })
-    : t("shared.cardFromNoDistance", { place: placeLabel(ride.pickup), service });
+    : t("shared.cardFromNoDistance", { place: placeLabel(ride.pickup, t), service });
   return (
     <Pressable
       accessibilityRole="button"
@@ -94,7 +94,7 @@ function SharedCard({
     >
       <View style={[styles.cardHead, { flexDirection: row }]}>
         <AppText variant="rowTitle" weight={800} style={styles.flex}>
-          {placeLabel(ride.destination)}
+          {placeLabel(ride.destination, t)}
         </AppText>
         <AppText variant="label" weight={800}>
           {departureShort(ride.departure, locale, t)}
@@ -193,7 +193,7 @@ export default function SharedRidesScreen() {
       <PinPicker
         initial={pinStart}
         onConfirm={(point) => {
-          setDestination({ ...point, label: t("booking.pinnedPlace") });
+          setDestination({ ...point, label: null });
           setChoosing(null);
         }}
         onBack={() => setChoosing(null)}
@@ -270,7 +270,7 @@ export default function SharedRidesScreen() {
             style={styles.flex}
             numberOfLines={1}
           >
-            {destination ? placeLabel(destination) : t("shared.searchPlaceholder")}
+            {destination ? placeLabel(destination, t) : t("shared.searchPlaceholder")}
           </AppText>
           {destination ? (
             <Pressable
@@ -326,7 +326,7 @@ export default function SharedRidesScreen() {
                   key={place.id}
                   icon={savedPlaceIcon(place.name)}
                   title={place.name}
-                  subtitle={place.address ?? placeLabel(place)}
+                  subtitle={place.address ?? placeCoordsLabel(place)}
                   onPress={() => {
                     setDestination(savedToPlace(place));
                     setChoosing(null);

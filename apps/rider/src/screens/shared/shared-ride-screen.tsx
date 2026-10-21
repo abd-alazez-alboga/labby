@@ -577,10 +577,10 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
             </AppText>
           </View>
           <AppText variant="title">
-            {t("shared.toTitle", { place: placeLabel(ride.destination) })}
+            {t("shared.toTitle", { place: placeLabel(ride.destination, t) })}
           </AppText>
           <AppText variant="caption" weight={400} tone="secondary">
-            {`${t("shared.meetAt")} · ${placeLabel(ride.pickup)}`}
+            {`${t("shared.meetAt")} · ${placeLabel(ride.pickup, t)}`}
           </AppText>
         </View>
         <View style={styles.occupancyBox}>
@@ -613,7 +613,11 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
           />
           {creator ? (
             <ValueRow
-              label={t("shared.perSeatIf", { seats: ride.seatsTaken })}
+              label={
+                ride.seatsTaken === 1
+                  ? t("shared.perSeatAlone")
+                  : t("shared.perSeatIf", { seats: ride.seatsTaken })
+              }
               value={money(perSeat(ride.estimateTotal, ride.seatsTaken))}
               testID="shared-ride-per-seat"
             />
@@ -709,7 +713,7 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
       <>
         <View style={styles.head}>
           <AppText variant="title">
-            {t("shared.toTitle", { place: placeLabel(ride.destination) })}
+            {t("shared.toTitle", { place: placeLabel(ride.destination, t) })}
           </AppText>
           {ride.creatorFirstName ? (
             <AppText variant="caption" weight={400} tone="secondary">
@@ -721,7 +725,7 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
           <FactRow
             leading={<View style={styles.pickupDot} />}
             label={t("shared.meetAt")}
-            value={placeLabel(ride.pickup)}
+            value={placeLabel(ride.pickup, t)}
           />
           <FactRow
             icon="time-outline"
@@ -873,7 +877,10 @@ export default function SharedRideScreen({ rideId }: { rideId: string }) {
       }
       sheet={
         <BottomSheet style={styles.sheet} testID="shared-ride-sheet">
-          <ScrollView contentContainerStyle={styles.sheetContent}>
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+          >
             {content}
           </ScrollView>
           <CancelSharedSheet

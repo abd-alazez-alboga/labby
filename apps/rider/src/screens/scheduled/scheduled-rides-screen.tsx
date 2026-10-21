@@ -4,11 +4,14 @@
  * its claim status ("Driver confirmed" + the claiming driver, or "Waiting
  * for a driver" with the fallback note); a card opens the ride; "Schedule a
  * ride" starts the scheduling flow. Re-read whenever the screen is focused
- * (a cancel on the detail screen comes back here).
+ * (a cancel on the detail screen comes back here), when the app returns to
+ * the foreground, on pull-to-refresh, and on a realtime ride frame for a
+ * listed or scheduled ride (claim / release / conversion / state change —
+ * the same frames the detail screen follows).
  */
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 
 import { failureKind, type FailureKind } from "../../api/http-client";
 import type { Ride } from "../../api/rides";
@@ -28,6 +31,7 @@ import {
   useDirection,
 } from "../../components/ui";
 import { useLocale } from "../../i18n/locale-context";
+import { useOptionalActiveRide } from "../../ride/ride-context";
 import { placeLabel } from "../../ride/ride-format";
 import { formatScheduleDay } from "../../ride/schedule-format";
 import { colors, radius, spacing } from "../../theme/tokens";
@@ -55,10 +59,10 @@ function ScheduledCard({ ride, onPress }: { ride: Ride; onPress: () => void }) {
       </View>
       <View style={styles.places}>
         <AppText variant="secondary" tone="secondary">
-          {t("m12.from", { place: placeLabel(ride.pickup) })}
+          {t("m12.from", { place: placeLabel(ride.pickup, t) })}
         </AppText>
         <AppText variant="secondary" weight={700}>
-          {t("m12.to", { place: placeLabel(ride.destination) })}
+          {t("m12.to", { place: placeLabel(ride.destination, t) })}
         </AppText>
       </View>
       <View style={[styles.cardFoot, { flexDirection: row }]}>
@@ -84,24 +88,78 @@ export default function ScheduledRidesScreen() {
   const router = useRouter();
   const [rides, setRides] = useState<Ride[] | null>(null);
   const [failure, setFailure] = useState<FailureKind | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const barPadding = useBottomBarPadding(spacing.lg);
-
-  const load = useCallback(() => {
-    let cancelled = false;
-    setFailure(null);
-    listScheduledRides()
-      .then((list) => {
-        if (!cancelled) setRides(list);
-      })
-      .catch((error) => {
-        if (!cancelled) setFailure(failureKind(error));
-      });
+  const facade = useOptionalActiveRide();
+  const listed = useRef<Set<string>>(new Set());
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
     return () => {
-      cancelled = true;
+      mounted.current = false;
     };
   }, []);
 
+  const fetchList = useCallback(async () => {
+    setFailure(null);
+    try {
+      const list = await listScheduledRides();
+      if (!mounted.current) return;
+      listed.current = new Set(list.map((ride) => ride.id));
+      setRides(list);
+    } catch (error) {
+      if (mounted.current) setFailure(failureKind(error));
+    }
+  }, []);
+
+  const load = useCallback(() => {
+    void fetchList();
+  }, [fetchList]);
+
   useFocusEffect(load);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchList();
+    } finally {
+      if (mounted.current) setRefreshing(false);
+    }
+  }, [fetchList]);
+
+  // Back in the foreground: the claim may have changed meanwhile.
+  useEffect(() => {
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (previous !== "active" && next === "active") void fetchList();
+      previous = next;
+    });
+    return () => subscription.remove();
+  }, [fetchList]);
+
+  // A claim / release / conversion / state change of a listed (or newly
+  // scheduled) ride re-reads the list.
+  const subscribe = facade?.subscribeRideEvents;
+  useEffect(() => {
+    if (!subscribe) return;
+    return subscribe((event) => {
+      if (
+        (event.type === "ride.state" || event.type === "ride.updated") &&
+        (listed.current.has(event.ride.id) || event.ride.scheduled)
+      ) {
+        void fetchList();
+      }
+    });
+  }, [subscribe, fetchList]);
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={() => void refresh()}
+      tintColor={colors.accent}
+      colors={[colors.accent]}
+    />
+  );
 
   let body: React.ReactNode;
   if (failure && !rides) {
@@ -110,16 +168,26 @@ export default function ScheduledRidesScreen() {
     body = <LoadingView testID="scheduled-loading" />;
   } else if (rides.length === 0) {
     body = (
-      <EmptyView
-        icon="calendar-outline"
-        title={t("scheduled.emptyTitle")}
-        body={t("scheduled.emptyBody")}
-        testID="scheduled-empty"
-      />
+      <ScreenScrollView
+        contentContainerStyle={styles.grow}
+        refreshControl={refreshControl}
+        testID="scheduled-list"
+      >
+        <EmptyView
+          icon="calendar-outline"
+          title={t("scheduled.emptyTitle")}
+          body={t("scheduled.emptyBody")}
+          testID="scheduled-empty"
+        />
+      </ScreenScrollView>
     );
   } else {
     body = (
-      <ScreenScrollView contentContainerStyle={screenStyles.content}>
+      <ScreenScrollView
+        contentContainerStyle={screenStyles.content}
+        refreshControl={refreshControl}
+        testID="scheduled-list"
+      >
         {rides.map((ride) => (
           <ScheduledCard
             key={ride.id}
@@ -150,6 +218,9 @@ export default function ScheduledRidesScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  grow: {
+    flexGrow: 1,
   },
   card: {
     gap: 10,

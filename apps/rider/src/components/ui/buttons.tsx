@@ -27,6 +27,12 @@ export interface ButtonProps {
   testID?: string;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Filled buttons only: lines the label may wrap to (default 1). Two is for
+   * side-by-side buttons whose label must never truncate (L-I5); the button
+   * then grows from 56 px instead of cutting the text.
+   */
+  labelLines?: 1 | 2;
 }
 
 type FilledKind = "primary" | "secondary" | "destructive";
@@ -40,6 +46,7 @@ function FilledButton({
   testID,
   accessibilityLabel,
   style,
+  labelLines = 1,
 }: ButtonProps & { kind: FilledKind }) {
   const isDisabled = !!(disabled || loading);
   const primary = kind === "primary";
@@ -63,6 +70,7 @@ function FilledButton({
           !isDisabled &&
           (primary ? styles.primaryPressed : styles.secondaryPressed),
         isDisabled && styles.disabled,
+        labelLines > 1 && styles.wrapping,
         style,
       ]}
     >
@@ -79,7 +87,7 @@ function FilledButton({
           weight={800}
           tone={primary ? "onAccent" : destructive ? "danger" : "default"}
           align="center"
-          numberOfLines={1}
+          numberOfLines={labelLines}
         >
           {label}
         </AppText>
@@ -164,6 +172,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
+  },
+  wrapping: {
+    height: undefined,
+    minHeight: 56,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
   primary: {
     backgroundColor: colors.accent,

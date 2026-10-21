@@ -61,7 +61,7 @@ export function resetHandledNotificationResponses(): void {
   handlerConfigured = false;
 }
 
-function notificationData(
+export function notificationData(
   notification: ExpoNotifications.Notification | null | undefined,
 ): Record<string, unknown> {
   const request = notification?.request;

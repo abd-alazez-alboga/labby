@@ -189,8 +189,20 @@ export function formatDateTime(iso: string, locale: AppLocale): string {
   }
 }
 
-/** A place's display text: its label, else its coordinates. */
-export function placeLabel(place: Place | null | undefined): string {
+/**
+ * A ride point's display text: its label, else the localized "pinned
+ * location" (L-W2). Current-location and dropped-pin points are sent with
+ * `label: null`, so each client names them in its own language at display
+ * time; older rides keep whatever label they were stored with.
+ */
+export function placeLabel(place: Place | null | undefined, t: T): string {
+  if (!place) return "";
+  const label = place.label?.trim();
+  return label ? label : t("booking.pinnedPlace");
+}
+
+/** A saved place's secondary text: its label, else its coordinates. */
+export function placeCoordsLabel(place: Place | null | undefined): string {
   if (!place) return "";
   if (place.label && place.label.trim()) return place.label.trim();
   return `${place.lat.toFixed(5)}, ${place.lng.toFixed(5)}`;

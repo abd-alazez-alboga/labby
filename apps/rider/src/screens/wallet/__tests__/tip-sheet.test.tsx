@@ -84,7 +84,7 @@ describe("tip sheet (UC-R-08)", () => {
     const { onTipped, onClose } = await renderSheet();
 
     expect(await screen.findByTestId("tip-title")).toHaveTextContent(
-      "Tip Samer",
+      "Tip \u2068Samer\u2069",
     );
     expect(await screen.findByTestId("tip-balance")).toHaveTextContent(
       "From your wallet · balance SYP 15,000",
@@ -93,7 +93,7 @@ describe("tip sheet (UC-R-08)", () => {
       /You can tip until/,
     );
     expect(
-      screen.getByText("100% goes to Samer — Labby takes nothing"),
+      screen.getByText("100% goes to \u2068Samer\u2069 — Labby takes nothing"),
     ).toBeOnTheScreen();
 
     // The middle chip (5,000) starts selected and names the button.

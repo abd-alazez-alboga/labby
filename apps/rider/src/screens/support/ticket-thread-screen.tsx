@@ -5,12 +5,15 @@
  * composer. A user reply on `waiting_on_user` or `resolved` moves the
  * ticket back to `in_progress` server-side; `closed` is read-only
  * (409 `ticket_closed`). Opening the thread stamps the read marker, so
- * the list's unread badge clears on return.
+ * the list's unread badge clears on return. The thread re-reads on focus,
+ * on foreground re-entry and when a support push for this ticket arrives
+ * while it is open (L-W7), so a support reply shows up without leaving.
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -43,7 +46,11 @@ import {
   useFontFamily,
   type ChipTone,
 } from "../../components/ui";
+import { useFocusRefresh } from "../../hooks/use-focus-refresh";
 import { useLocale } from "../../i18n/locale-context";
+import { parsePushPayload } from "../../notifications/deep-links";
+import { notificationData } from "../../notifications/notifications-context";
+import { notifications } from "../../notifications/notifications-module";
 import { formatDate, formatDateTime } from "../../ride/ride-format";
 import { colors, radius, spacing } from "../../theme/tokens";
 
@@ -111,11 +118,38 @@ export default function TicketThreadScreen({ ticketId }: { ticketId: string }) {
     }
   }, [ticketId]);
 
-  useEffect(() => {
-    (async () => {
-      await load();
-    })();
+  // On focus (incl. the first): back from another screen re-reads.
+  const loadOnFocus = useCallback(() => {
+    void load();
   }, [load]);
+  useFocusRefresh(loadOnFocus);
+
+  // Foreground re-entry: a reply may have landed meanwhile.
+  useEffect(() => {
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && previous !== "active") void load();
+      previous = next;
+    });
+    return () => subscription.remove();
+  }, [load]);
+
+  // A support push for THIS ticket while the thread is open (support-v1
+  // "Notifications": screen `ticket` {ticketId}).
+  useEffect(() => {
+    let subscription: { remove: () => void } | null = null;
+    try {
+      subscription = notifications().addNotificationReceivedListener(
+        (notification) => {
+          const { link } = parsePushPayload(notificationData(notification));
+          if (link?.params?.ticketId === ticketId) void load();
+        },
+      );
+    } catch {
+      // unsupported runtime (Expo Go) — focus / foreground still refresh
+    }
+    return () => subscription?.remove();
+  }, [ticketId, load]);
 
   const send = async () => {
     const body = draft.trim();

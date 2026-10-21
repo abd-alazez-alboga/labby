@@ -122,9 +122,9 @@ describe("history rating states (RiderHistoryRate)", () => {
     await renderHistory();
 
     const first = await screen.findByTestId(`history-rate-${RIDE_ID}`);
-    expect(first).toHaveTextContent(/Rate Samer · 7 days left$/);
+    expect(first).toHaveTextContent(/Rate \u2068Samer\u2069 · 7 days left$/);
     expect(screen.getByTestId(`history-rate-${RIDE_2}`)).toHaveTextContent(
-      "Rate Lina · 3 days left",
+      "Rate \u2068Lina\u2069 · 3 days left",
     );
     expect(screen.getByTestId(`history-rated-${RIDE_3}`)).toHaveTextContent(
       /You rated 5$/,
@@ -133,7 +133,7 @@ describe("history rating states (RiderHistoryRate)", () => {
       screen.getByTestId(`history-rating-closed-${RIDE_4}`),
     ).toHaveTextContent("Rating window closed");
     // The driver joins the subtitle; no ride is read one by one.
-    expect(screen.getAllByText(/· Samer · Economy$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/· \u2068Samer\u2069 · Economy$/).length).toBeGreaterThan(0);
     expect(
       api.calls.filter((c) => c.path.startsWith("/api/v1/rides/")),
     ).toHaveLength(0);
@@ -169,7 +169,7 @@ describe("history rating states (RiderHistoryRate)", () => {
     await renderHistory();
     expect(
       await screen.findByTestId(`history-rate-${RIDE_ID}`),
-    ).toHaveTextContent(/قيّم Samer · 7 أيام متبقية$/);
+    ).toHaveTextContent(/قيّم \u2068Samer\u2069 · 7 أيام متبقية$/);
     expect(screen.getByTestId(`history-rated-${RIDE_3}`)).toHaveTextContent(
       /تقييمك: 5$/,
     );

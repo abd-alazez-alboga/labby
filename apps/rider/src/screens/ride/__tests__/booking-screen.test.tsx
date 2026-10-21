@@ -141,7 +141,7 @@ describe("booking (UC-R-04)", () => {
 
     expect(await screen.findByText("Choose a ride")).toBeOnTheScreen();
     expect(api.callsTo("POST", "/api/v1/rides/estimate")[0].body).toEqual({
-      pickup: { ...HERE, label: "Current location" },
+      pickup: { ...HERE, label: null },
       stops: [],
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
     });
@@ -168,7 +168,7 @@ describe("booking (UC-R-04)", () => {
 
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
     expect(api.callsTo("POST", "/api/v1/rides")[0].body).toEqual({
-      pickup: { ...HERE, label: "Current location" },
+      pickup: { ...HERE, label: null },
       stops: [],
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
       serviceTypeId: COMFORT_ID,

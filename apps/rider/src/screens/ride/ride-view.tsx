@@ -354,8 +354,8 @@ export function RideView({
           <AppText variant="display">{t("ride.completedTitle")}</AppText>
           <AppText variant="body" tone="secondary">
             {completedAt
-              ? `${placeLabel(ride.destination)} · ${formatClock(completedAt, locale)}`
-              : placeLabel(ride.destination)}
+              ? `${placeLabel(ride.destination, t)} · ${formatClock(completedAt, locale)}`
+              : placeLabel(ride.destination, t)}
           </AppText>
         </View>
         <View style={styles.cashBox} testID="ride-cash-due">
@@ -494,7 +494,7 @@ export function RideView({
           style={styles.factValue}
           testID="ride-shared-meet-at"
         >
-          {placeLabel(ride.pickup)}
+          {placeLabel(ride.pickup, t)}
         </AppText>
       </View>
       <View style={[styles.factRow, { flexDirection: row }]}>
@@ -604,8 +604,8 @@ export function RideView({
         <View style={styles.tripBox}>
           <AppText variant="bodyStrong" weight={800} testID="ride-trip-line">
             {t("ride.tripLine", {
-              from: placeLabel(ride.pickup),
-              to: placeLabel(ride.destination),
+              from: placeLabel(ride.pickup, t),
+              to: placeLabel(ride.destination, t),
             })}
           </AppText>
           <AppText variant="caption" tone="secondary" weight={400}>
@@ -764,7 +764,7 @@ export function RideView({
           <AppText variant="body" tone="secondary">
             {t("ride.arrivedBody", {
               name: driver.firstName,
-              place: placeLabel(ride.pickup),
+              place: placeLabel(ride.pickup, t),
             })}
           </AppText>
         </View>
@@ -888,6 +888,7 @@ export function RideView({
             label={t("ride.changeDestination")}
             onPress={() => router.push("/change-route")}
             style={styles.flex1}
+            labelLines={2}
             testID="ride-change-destination"
           />
           {ride.stops.length < 3 ? (
@@ -895,6 +896,7 @@ export function RideView({
               label={t("ride.addStop")}
               onPress={() => router.push("/change-route?focus=stop" as never)}
               style={styles.flex1}
+              labelLines={2}
               testID="ride-add-stop"
             />
           ) : null}

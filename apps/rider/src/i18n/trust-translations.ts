@@ -9,8 +9,8 @@
 export const trustEn = {
   rating: {
     skip: "Skip",
-    title: "How was your ride with {{name}}?",
-    rideLine: "{{date}} · {{place}}",
+    title: "How was your ride with \u2068{{name}}\u2069?",
+    rideLine: "{{date}} · \u2068{{place}}\u2069",
     starsLabel: "Rating, 1 to 5 stars",
     stars: {
       "1": "1 star",
@@ -29,7 +29,7 @@ export const trustEn = {
     commentLabel: "Add a comment (optional)",
     commentPlaceholder: "What stood out?",
     anonymous:
-      "Your rating is anonymous. {{name}} only ever sees an overall average, never who rated or for which ride.",
+      "Your rating is anonymous. \u2068{{name}}\u2069 only ever sees an overall average, never who rated or for which ride.",
     submit: "Submit rating",
     windowNote: "You can rate this ride from Your rides until {{date}}.",
     close: "Close",
@@ -45,16 +45,16 @@ export const trustEn = {
     },
   },
   rateHistory: {
-    lineWithDriver: "{{date}} · {{driver}} · {{service}}",
-    rateOneDay: "Rate {{name}} · 1 day left",
-    rateTwoDays: "Rate {{name}} · 2 days left",
-    rateDays: "Rate {{name}} · {{count}} days left",
+    lineWithDriver: "{{date}} · \u2068{{driver}}\u2069 · {{service}}",
+    rateOneDay: "Rate \u2068{{name}}\u2069 · 1 day left",
+    rateTwoDays: "Rate \u2068{{name}}\u2069 · 2 days left",
+    rateDays: "Rate \u2068{{name}}\u2069 · {{count}} days left",
     youRated: "You rated {{score}}",
     windowClosed: "Rating window closed",
   },
   report: {
-    title: "Report {{name}}",
-    rideLine: "Ride {{date}} · {{place}}",
+    title: "Report \u2068{{name}}\u2069",
+    rideLine: "Ride {{date}} · \u2068{{place}}\u2069",
     question: "What happened?",
     categories: {
       unsafe_driving: "Unsafe driving",
@@ -69,7 +69,7 @@ export const trustEn = {
     addPhoto: "Add a photo",
     removePhoto: "Remove photo",
     footnote:
-      "Our team reviews every report with the ride's route and chat. {{name}} is not told who reported them. We'll let you know the outcome.",
+      "Our team reviews every report with the ride's route and chat. \u2068{{name}}\u2069 is not told who reported them. We'll let you know the outcome.",
     send: "Send report",
     viewReports: "Your reports",
     errors: {
@@ -147,7 +147,7 @@ export const trustAr: typeof trustEn = {
     skip: "تخطي",
     // The name sits in a first-strong isolate (Latin or Arabic names).
     title: "كيف كانت رحلتك مع \u2068{{name}}\u2069؟",
-    rideLine: "{{date}} · {{place}}",
+    rideLine: "{{date}} · \u2068{{place}}\u2069",
     starsLabel: "التقييم من 1 إلى 5 نجوم",
     stars: {
       "1": "نجمة واحدة",
@@ -166,7 +166,7 @@ export const trustAr: typeof trustEn = {
     commentLabel: "أضف تعليقاً (اختياري)",
     commentPlaceholder: "ما الذي لفت انتباهك؟",
     anonymous:
-      "تقييمك مجهول الهوية. يرى {{name}} متوسطاً عاماً فقط، ولا يعرف أبداً من قيّمه أو في أي رحلة.",
+      "تقييمك مجهول الهوية. يرى \u2068{{name}}\u2069 متوسطاً عاماً فقط، ولا يعرف أبداً من قيّمه أو في أي رحلة.",
     submit: "إرسال التقييم",
     windowNote: "يمكنك تقييم هذه الرحلة من «رحلاتك» حتى {{date}}.",
     close: "إغلاق",
@@ -180,16 +180,16 @@ export const trustAr: typeof trustEn = {
     },
   },
   rateHistory: {
-    lineWithDriver: "{{date}} · {{driver}} · {{service}}",
-    rateOneDay: "قيّم {{name}} · يوم واحد متبقٍ",
-    rateTwoDays: "قيّم {{name}} · يومان متبقيان",
-    rateDays: "قيّم {{name}} · {{count}} أيام متبقية",
+    lineWithDriver: "{{date}} · \u2068{{driver}}\u2069 · {{service}}",
+    rateOneDay: "قيّم \u2068{{name}}\u2069 · يوم واحد متبقٍ",
+    rateTwoDays: "قيّم \u2068{{name}}\u2069 · يومان متبقيان",
+    rateDays: "قيّم \u2068{{name}}\u2069 · {{count}} أيام متبقية",
     youRated: "تقييمك: {{score}}",
     windowClosed: "انتهت مهلة التقييم",
   },
   report: {
     title: "الإبلاغ عن \u2068{{name}}\u2069",
-    rideLine: "رحلة {{date}} · {{place}}",
+    rideLine: "رحلة {{date}} · \u2068{{place}}\u2069",
     question: "ماذا حدث؟",
     categories: {
       unsafe_driving: "قيادة غير آمنة",
@@ -204,7 +204,7 @@ export const trustAr: typeof trustEn = {
     addPhoto: "إضافة صورة",
     removePhoto: "إزالة الصورة",
     footnote:
-      "يراجع فريقنا كل بلاغ مع مسار الرحلة والمحادثة. لا يُبلَّغ {{name}} بهوية من أبلغ عنه. سنُعلمك بالنتيجة.",
+      "يراجع فريقنا كل بلاغ مع مسار الرحلة والمحادثة. لا يُبلَّغ \u2068{{name}}\u2069 بهوية من أبلغ عنه. سنُعلمك بالنتيجة.",
     send: "إرسال البلاغ",
     viewReports: "بلاغاتك",
     errors: {

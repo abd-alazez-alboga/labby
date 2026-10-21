@@ -28,7 +28,7 @@ import { useOptionalNotifications } from "../notifications/notifications-context
 import { UnreadBadge } from "../notifications/unread-badge";
 import { useOptionalRegion } from "../region/region-context";
 import { useOptionalActiveRide } from "../ride/ride-context";
-import { placeLabel } from "../ride/ride-format";
+import { placeCoordsLabel, placeLabel } from "../ride/ride-format";
 import { formatScheduleDay } from "../ride/schedule-format";
 import { useSavedPlaces } from "../ride/use-saved-places";
 import { colors, radius, spacing } from "../theme/tokens";
@@ -264,7 +264,7 @@ function WhereToHome() {
                     </AppText>
                     <AppText variant="caption" weight={400} tone="secondary">
                       {t("scheduled.homeSubtitle", {
-                        place: placeLabel(next.destination),
+                        place: placeLabel(next.destination, t),
                         status:
                           next.scheduled.claimState === "claimed"
                             ? t("scheduled.claimed")
@@ -310,7 +310,7 @@ function WhereToHome() {
                     </AppText>
                     <AppText variant="caption" weight={400} tone="secondary">
                       {t("shared.openSubtitle", {
-                        place: placeLabel(openShared.destination),
+                        place: placeLabel(openShared.destination, t),
                         taken: openShared.seatsTaken,
                         total: openShared.totalSeats,
                         departure: departureShort(
@@ -343,7 +343,7 @@ function WhereToHome() {
                       key={place.id}
                       icon={savedPlaceIcon(place.name)}
                       title={place.name}
-                      subtitle={place.address ?? placeLabel(place)}
+                      subtitle={place.address ?? placeCoordsLabel(place)}
                       last={i === list.length - 1}
                       onPress={() =>
                         router.push(

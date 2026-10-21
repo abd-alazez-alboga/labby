@@ -210,7 +210,7 @@ export default function ReportScreen({ rideId }: { rideId: string }) {
         <AppText variant="secondary" tone="secondary" style={styles.rideLine}>
           {t("report.rideLine", {
             date: formatDateTime(at, locale),
-            place: placeLabel(ride.destination),
+            place: placeLabel(ride.destination, t),
           })}
         </AppText>
 

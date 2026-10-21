@@ -33,7 +33,7 @@ import {
 import { useLocale } from "../../i18n/locale-context";
 import { useCurrentPosition } from "../../location/use-current-position";
 import type { LatLng } from "../../map/geo";
-import { placeLabel } from "../../ride/ride-format";
+import { placeCoordsLabel, placeLabel } from "../../ride/ride-format";
 import { rideErrorMessage } from "../../ride/ride-errors";
 import { useSavedPlaces } from "../../ride/use-saved-places";
 import { colors, radius, spacing, typography } from "../../theme/tokens";
@@ -105,6 +105,10 @@ export function RoutePlanner({
   const current = useCurrentPosition();
 
   const [chosenPickup, setPickup] = useState<Place | null>(initialPickup);
+  // The pickup is the rider's own position (auto or "Use current location"):
+  // named "Current location" here, but sent with `label: null` (L-W2) so the
+  // stored ride never carries this app's UI language.
+  const [pickupIsCurrent, setPickupIsCurrent] = useState(false);
   const [stops, setStops] = useState<(Place | null)[]>(() => {
     const list: (Place | null)[] = [...initialStops];
     if (initialFocus === "stop" && list.length < MAX_STOPS) list.push(null);
@@ -127,8 +131,10 @@ export function RoutePlanner({
   const pickup: Place | null =
     chosenPickup ??
     (mode === "book" && current.position
-      ? { ...current.position, label: t("booking.currentLocation") }
+      ? { ...current.position, label: null }
       : null);
+  const showsCurrent =
+    pickupIsCurrent || (!chosenPickup && mode === "book" && !!current.position);
 
   const valueOf = (key: FieldKey): Place | null => {
     if (key === "pickup") return pickup;
@@ -139,8 +145,10 @@ export function RoutePlanner({
   const assign = (key: FieldKey, place: Place) => {
     setError(null);
     setQuery("");
-    if (key === "pickup") setPickup(place);
-    else if (key === "destination") setDestination(place);
+    if (key === "pickup") {
+      setPickup(place);
+      setPickupIsCurrent(false);
+    } else if (key === "destination") setDestination(place);
     else {
       const index = stopIndex(key) ?? 0;
       setStops((list) => list.map((item, i) => (i === index ? place : item)));
@@ -207,7 +215,7 @@ export function RoutePlanner({
         initial={valueOf(pinTarget) ?? reference}
         onBack={() => setPinTarget(null)}
         onConfirm={(point) => {
-          assign(pinTarget, { ...point, label: t("booking.pinnedPlace") });
+          assign(pinTarget, { ...point, label: null });
           setPinTarget(null);
         }}
       />
@@ -222,6 +230,10 @@ export function RoutePlanner({
 
   const renderField = (key: FieldKey, label: string, removable?: number) => {
     const place = valueOf(key);
+    const shown =
+      key === "pickup" && showsCurrent
+        ? t("booking.currentLocation")
+        : placeLabel(place, t);
     const isActive = key === active;
     const locked = mode === "route" && key === "pickup";
     return (
@@ -239,10 +251,10 @@ export function RoutePlanner({
             {label}
           </AppText>
           {locked ? (
-            <AppText variant="bodyStrong">{placeLabel(place)}</AppText>
+            <AppText variant="bodyStrong">{shown}</AppText>
           ) : (
             <TextInput
-              value={isActive && query ? query : place ? placeLabel(place) : ""}
+              value={isActive && query ? query : place ? shown : ""}
               placeholder={
                 key === "pickup" && current.status === "locating"
                   ? t("booking.locating")
@@ -412,7 +424,7 @@ export function RoutePlanner({
                         key={place.id}
                         icon={savedPlaceIcon(place.name)}
                         title={place.name}
-                        subtitle={place.address ?? placeLabel(place)}
+                        subtitle={place.address ?? placeCoordsLabel(place)}
                         onPress={() => assign(active, savedToPlace(place))}
                         testID={`${testID}-match-${place.id}`}
                       />
@@ -431,13 +443,11 @@ export function RoutePlanner({
                 <ListRow
                   icon="navigate-outline"
                   title={t("booking.useCurrentLocation")}
-                  onPress={() =>
-                    current.position &&
-                    assign("pickup", {
-                      ...current.position,
-                      label: t("booking.currentLocation"),
-                    })
-                  }
+                  onPress={() => {
+                    if (!current.position) return;
+                    assign("pickup", { ...current.position, label: null });
+                    setPickupIsCurrent(true);
+                  }}
                   testID={`${testID}-use-current`}
                 />
               ) : null}

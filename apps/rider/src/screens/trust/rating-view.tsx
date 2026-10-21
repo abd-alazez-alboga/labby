@@ -59,7 +59,7 @@ export function ratingRideLine(
   const at = ride.timeline.completedAt ?? ride.timeline.requestedAt;
   return t("rating.rideLine", {
     date: formatDateTime(at, locale),
-    place: placeLabel(ride.destination),
+    place: placeLabel(ride.destination, t),
   });
 }
 

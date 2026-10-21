@@ -325,7 +325,10 @@ export default function ScheduleScreen() {
             {t("booking.chooseTitle")}
           </AppText>
           <View style={styles.chipRow}>{pickupChip}</View>
-          <ScrollView contentContainerStyle={styles.options}>
+          <ScrollView
+            contentContainerStyle={styles.options}
+            keyboardShouldPersistTaps="handled"
+          >
             <View
               style={[styles.priced, { flexDirection: row }]}
               testID="schedule-priced-at-ride-time"

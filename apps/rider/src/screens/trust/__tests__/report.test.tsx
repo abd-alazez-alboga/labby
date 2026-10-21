@@ -95,8 +95,8 @@ describe("report flow (UC-S-18)", () => {
     mockApi({ [RIDE]: { status: 200, body: completedRide() } });
     await renderReport();
 
-    expect(await screen.findByText("Report Samer")).toBeOnTheScreen();
-    expect(screen.getByText(/^Ride .*Umayyad Square$/)).toBeOnTheScreen();
+    expect(await screen.findByText("Report \u2068Samer\u2069")).toBeOnTheScreen();
+    expect(screen.getByText(/^Ride .*\u2068Umayyad Square\u2069$/)).toBeOnTheScreen();
     expect(screen.getByText("What happened?")).toBeOnTheScreen();
     for (const label of [
       "Unsafe driving",
@@ -109,7 +109,7 @@ describe("report flow (UC-S-18)", () => {
     // The driver → rider categories never appear here.
     expect(screen.queryByText("Unsafe behavior")).toBeNull();
     expect(screen.queryByText("Vehicle damage")).toBeNull();
-    expect(screen.getByText(/Samer is not told who reported them/)).toBeOnTheScreen();
+    expect(screen.getByText(/\u2068Samer\u2069 is not told who reported them/)).toBeOnTheScreen();
 
     expect(screen.getByTestId("report-send")).toBeDisabled();
     await fireEvent.press(screen.getByTestId("report-category-vehicle_condition"));

@@ -26,7 +26,7 @@
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -303,6 +303,10 @@ export default function BookingScreen({
   const [promo, setPromo] = useState<PromoValidation | null>(null);
   // M13 review W9: a promo refused at BOOKING is dropped, explained on the row.
   const [promoRefusal, setPromoRefusal] = useState<string | null>(null);
+  // L-I6: once a promo is applied, the options scroll to the end so its chip
+  // (incl. the "≈ −SYP … on this estimate" line) is fully in view.
+  const optionsScroll = useRef<ScrollView>(null);
+  const revealPromo = useRef(false);
   // M12: the rider's upcoming scheduled rides (for the 60-min warning).
   const [scheduledRides, setScheduledRides] = useState<Ride[]>([]);
   const [warning, setWarning] = useState<Ride | null>(null);
@@ -568,7 +572,17 @@ export default function BookingScreen({
           <AppText variant="heading" align="center">
             {t("booking.chooseTitle")}
           </AppText>
-          <ScrollView contentContainerStyle={styles.options}>
+          <ScrollView
+            ref={optionsScroll}
+            contentContainerStyle={styles.options}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => {
+              if (!revealPromo.current) return;
+              revealPromo.current = false;
+              optionsScroll.current?.scrollToEnd({ animated: true });
+            }}
+            testID="booking-options"
+          >
             {surge ? <SurgeBanner estimate={estimate} /> : null}
             {estimate.options.length === 0 ? (
               <AppText
@@ -706,6 +720,7 @@ export default function BookingScreen({
                 variant="onDemand"
                 promo={promo}
                 onChange={(next) => {
+                  revealPromo.current = !!next;
                   setPromo(next);
                   setPromoRefusal(null);
                 }}

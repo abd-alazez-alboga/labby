@@ -67,7 +67,7 @@ export function ScheduledWarningSheet({
             <AppText variant="bodyStrong" weight={800}>
               {t("scheduled.warnRide", {
                 when: formatScheduleDay(at, locale, t),
-                place: placeLabel(ride.destination),
+                place: placeLabel(ride.destination, t),
               })}
             </AppText>
             <AppText variant="caption" weight={400} tone="secondary">

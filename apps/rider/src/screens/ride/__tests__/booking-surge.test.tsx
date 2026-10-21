@@ -272,7 +272,7 @@ describe("price changed at booking (409 surge_changed)", () => {
       expect.objectContaining({ expectedSurgeMultiplier: 1.5 }),
     );
     expect(bookings[1].body).toEqual({
-      pickup: { ...HERE, label: "Current location" },
+      pickup: { ...HERE, label: null },
       stops: [],
       destination: { lat: savedWork.lat, lng: savedWork.lng, label: "Work" },
       serviceTypeId: ECONOMY_ID,

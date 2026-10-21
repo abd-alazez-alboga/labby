@@ -330,7 +330,7 @@ describe("saved places (UC-R-01)", () => {
 
     await fireEvent.press(screen.getByTestId("saved-save"));
     expect(await screen.findByTestId("saved-name-error")).toHaveTextContent(
-      "You already have a place called “Home”. Try another name.",
+      "You already have a place called “\u2068Home\u2069”. Try another name.",
     );
     expect(api.callsTo("POST", "/api/v1/rider/saved-locations")[0].body).toEqual({
       name: "Home",

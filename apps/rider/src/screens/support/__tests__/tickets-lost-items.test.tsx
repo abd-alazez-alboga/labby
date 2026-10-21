@@ -9,13 +9,16 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import * as Notifications from "expo-notifications";
 import React from "react";
 import * as mockReact from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import {
   LANGUAGE_STORAGE_KEY,
@@ -59,6 +62,12 @@ jest.mock("expo-image-picker", () => ({
   launchImageLibraryAsync: (...args: unknown[]) =>
     mockLaunchImageLibraryAsync(...args),
 }));
+
+// The thread listens for support pushes (L-W7); remote push is "supported" here.
+jest.mock("../../../notifications/push-support", () => ({
+  isRemotePushSupported: () => true,
+}));
+const notificationsMock = Notifications as jest.Mocked<typeof Notifications>;
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const secureStoreMock = require("expo-secure-store") as { __reset: () => void };
@@ -577,6 +586,102 @@ describe("ticket thread (SUP-02)", () => {
   });
 });
 
+describe("ticket thread stays fresh (L-W7)", () => {
+  const reads = (api: ReturnType<typeof mockApi>) =>
+    api.callsTo("GET", `/api/v1/tickets/${TICKET_ID}`).length;
+  const reply = {
+    messageId: "m4m4m4m4-0000-4000-8000-000000000004",
+    ticketId: TICKET_ID,
+    senderSide: "support",
+    senderName: "Labby support",
+    body: "Refund issued to your wallet.",
+    createdAt: "2026-10-19T11:00:00Z",
+  };
+  const withReply = () => {
+    const base = detail();
+    return { ...base, messages: [...base.messages, reply] };
+  };
+  const push = (data: Record<string, unknown>) =>
+    ({ request: { identifier: "n", content: { data } } }) as never;
+
+  it("reloads when a support push for this ticket arrives, not for another", async () => {
+    let onReceive: ((notification: never) => void) | null = null;
+    const remove = jest.fn();
+    notificationsMock.addNotificationReceivedListener.mockImplementation(
+      (listener) => {
+        onReceive = listener as (notification: never) => void;
+        return { remove } as never;
+      },
+    );
+    const api = mockApi({
+      [DETAIL]: [
+        { status: 200, body: detail() },
+        { status: 200, body: withReply() },
+      ],
+    });
+    const view = await render(
+      <LocaleProvider>
+        <TicketThreadScreen ticketId={TICKET_ID} />
+      </LocaleProvider>,
+    );
+    await screen.findByText("Could you send a photo of the receipt screen?");
+    expect(reads(api)).toBe(1);
+
+    await act(async () =>
+      onReceive?.(
+        push({ screen: "ticket", params: { ticketId: "another-ticket" } }),
+      ),
+    );
+    expect(reads(api)).toBe(1);
+
+    await act(async () =>
+      onReceive?.(
+        push({
+          event: "support.message_added",
+          link: JSON.stringify({ screen: "ticket", params: { ticketId: TICKET_ID } }),
+        }),
+      ),
+    );
+    expect(await screen.findByText("Refund issued to your wallet.")).toBeOnTheScreen();
+    expect(reads(api)).toBe(2);
+
+    await view.unmount();
+    expect(remove).toHaveBeenCalled();
+  });
+
+  it("reloads when the app returns to the foreground", async () => {
+    const listeners: ((state: AppStateStatus) => void)[] = [];
+    const original = AppState.addEventListener;
+    AppState.addEventListener = ((
+      _type: string,
+      listener: (state: AppStateStatus) => void,
+    ) => {
+      listeners.push(listener);
+      return { remove: () => {} };
+    }) as unknown as typeof AppState.addEventListener;
+    try {
+      const api = mockApi({
+        [DETAIL]: [
+          { status: 200, body: detail() },
+          { status: 200, body: withReply() },
+        ],
+      });
+      await render(
+        <LocaleProvider>
+          <TicketThreadScreen ticketId={TICKET_ID} />
+        </LocaleProvider>,
+      );
+      await screen.findByText("Could you send a photo of the receipt screen?");
+      await act(async () => listeners.forEach((listener) => listener("background")));
+      await act(async () => listeners.forEach((listener) => listener("active")));
+      expect(await screen.findByText("Refund issued to your wallet.")).toBeOnTheScreen();
+      expect(reads(api)).toBe(2);
+    } finally {
+      AppState.addEventListener = original;
+    }
+  });
+});
+
 describe("lost items (UC-R-20, LOST-01/02)", () => {
   it("reports an item on a completed ride and opens the case", async () => {
     const api = mockApi({
@@ -677,7 +782,7 @@ describe("lost items (UC-R-20, LOST-01/02)", () => {
       screen.getByTestId("lost-case-step-driver_contacted-done"),
     ).toBeOnTheScreen();
     expect(screen.getByTestId("lost-case-step-found-todo")).toBeOnTheScreen();
-    expect(screen.getByText("Chat with Samer")).toBeOnTheScreen();
+    expect(screen.getByText("Chat with \u2068Samer\u2069")).toBeOnTheScreen();
     expect(
       screen.getByText("Open while the case is open"),
     ).toBeOnTheScreen();
