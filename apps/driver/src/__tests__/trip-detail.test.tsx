@@ -17,6 +17,7 @@ import {
   cancelledNoFeeFixture,
   feeOnlyEarningFixture,
   okBalanceView,
+  tripDetailFixture,
   tripDetailRoute,
   tripEarningFixture,
 } from "../test-utils/money";
@@ -94,6 +95,61 @@ describe("trip detail (W43)", () => {
     );
     expect(screen.queryByTestId("trip-detail-cancelled")).toBeNull();
     expect(screen.queryByTestId("trip-line-fee")).toBeNull();
+  });
+
+  it("draws the route map on a completed trip: the trace, a ring at the pickup, a square at the drop-off, framed", async () => {
+    await openTrip(tripDetailFixture());
+
+    expect(await screen.findByTestId("trip-detail-map")).toHaveStyle({
+      height: 150,
+      borderRadius: 16,
+    });
+    const html: string = screen.getByTestId("trip-detail-map-webview").props
+      .source.html;
+    // Leaflet order ([lat, lng]); framed to fit, and a picture, not a control.
+    expect(html).toContain(
+      '"route":[[33.5164,36.2873],[33.5149,36.282],[33.5131,36.2765]]',
+    );
+    expect(html).toContain(
+      '{"id":"pickup","kind":"pickup","position":[33.5164,36.2873]}',
+    );
+    expect(html).toContain(
+      '{"id":"dropoff","kind":"dropoff","position":[33.5131,36.2765]}',
+    );
+    expect(html).toContain('"fit":true');
+    expect(html).toContain('"static":true');
+    expect(html).toContain('"route":"#59128A"');
+  });
+
+  it("still places the pins when the trace is too short for a line", async () => {
+    await openTrip(tripDetailFixture({ route: null }));
+
+    expect(await screen.findByTestId("trip-detail-map")).toBeTruthy();
+    const html: string = screen.getByTestId("trip-detail-map-webview").props
+      .source.html;
+    expect(html).toContain('"route":null');
+    expect(html).toContain('"kind":"pickup"');
+    expect(html).toContain('"kind":"dropoff"');
+  });
+
+  it("no route map when the route and pins are missing", async () => {
+    await openTrip(tripEarningFixture());
+    expect(await screen.findByTestId("trip-detail-meta")).toBeTruthy();
+    expect(screen.queryByTestId("trip-detail-map")).toBeNull();
+  });
+
+  it("no route map on a cancelled trip (board V1FDriverTripDetailCancelled)", async () => {
+    // Even if a cancelled row carried points, the cancelled board has no map.
+    const fixture = tripDetailFixture();
+    await openTrip(
+      cancelledNoFeeFixture({
+        pickup: fixture.pickup,
+        destination: fixture.destination,
+        route: fixture.route,
+      }),
+    );
+    expect(await screen.findByTestId("trip-detail-cancelled")).toBeTruthy();
+    expect(screen.queryByTestId("trip-detail-map")).toBeNull();
   });
 
   it("offers Report rider while canReport and opens the report flow for this trip", async () => {

@@ -52,8 +52,34 @@ export function tripEarningFixture(
     cancellationFeeCharged: null,
     myReport: null,
     canReport: true,
+    // The route map is on the detail only (tripDetailFixture).
+    pickup: null,
+    destination: null,
+    route: null,
     ...overrides,
   };
+}
+
+/**
+ * The artboard's cash trip as `GET /driver/earnings/rides/{rideId}` returns
+ * it: the route map's pins and the in_ride trace ([lng, lat]).
+ */
+export function tripDetailFixture(
+  overrides: Partial<TripEarning> = {},
+): TripEarning {
+  return tripEarningFixture({
+    pickup: { lat: 33.5164, lng: 36.2873, label: "Abu Rummaneh" },
+    destination: { lat: 33.5131, lng: 36.2765, label: "Umayyad Square" },
+    route: {
+      type: "LineString",
+      coordinates: [
+        [36.2873, 33.5164],
+        [36.282, 33.5149],
+        [36.2765, 33.5131],
+      ],
+    },
+    ...overrides,
+  });
 }
 
 /** The artboard's wallet trip: fare 31,500, 25% → −7,875, net +23,625. */

@@ -55,6 +55,10 @@ export interface OsmMapProps {
   zones?: BridgeZone[];
   /** Keep the `self` marker centered as it moves (until the user pans). */
   followMe?: boolean;
+  /** Frame the route and markers instead of `center` / `zoom`. */
+  fitBounds?: boolean;
+  /** false = a picture of the map: no pan, zoom or tap. */
+  interactive?: boolean;
   height?: number;
   /** Fill the parent (full-bleed map screens) instead of a fixed-height card. */
   fill?: boolean;
@@ -82,6 +86,8 @@ function toViewState(props: OsmMapProps): MapViewState {
     route: props.route ? lineStringToLatLngs(props.route) : null,
     followMe: !!props.followMe,
     zones: props.zones ?? [],
+    fit: !!props.fitBounds,
+    static: props.interactive === false,
   };
 }
 
@@ -147,6 +153,7 @@ export function OsmMap(props: OsmMapProps) {
           point: colors.text,
           route: colors.accent,
           background: colors.surfaceMap,
+          ring: colors.textSecondary,
         },
         zoneStyles: zoneStyles(),
       },

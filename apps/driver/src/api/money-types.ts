@@ -5,6 +5,8 @@
  * can depend on them without cycles.
  */
 
+import type { GeoJsonLineString } from "../map/geojson";
+import type { Place } from "./ride-types";
 import type { ReportCategory, ReportStatus } from "./trust-types";
 
 /** The ride's final state on a trip row (money-v1 `TripEarning.rideState`). */
@@ -82,6 +84,14 @@ export interface TripEarning {
   myReport?: TripReport | null;
   /** True while the driver has not reported this row's rider. */
   canReport: boolean;
+  /**
+   * Board V1FDriverTripDetail route map — set only on the trip DETAIL of a
+   * completed ride; null on cancelled rows and on every list row.
+   */
+  pickup?: Place | null;
+  destination?: Place | null;
+  /** The in_ride trace ([lng, lat]); may be shorter than two points. */
+  route?: GeoJsonLineString | null;
 }
 
 /** W43: a row of a ride cancelled after the driver accepted it. */

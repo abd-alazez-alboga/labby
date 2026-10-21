@@ -1,5 +1,11 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
@@ -38,6 +44,8 @@ import {
   useDirection,
 } from "../ui";
 import type { Tone } from "../ui";
+import { OsmMap } from "../map/osm-map";
+import type { MapMarker } from "../map/osm-map";
 import { FareLine, RiderAvatar } from "../ride/ride-parts";
 
 /** Report outcome chips on the trip (board V1FDriverTripDetailCancelled). */
@@ -46,6 +54,9 @@ const REPORT_TONES: Record<ReportStatus, Tone> = {
   substantiated: "success",
   unsubstantiated: "neutral",
 };
+
+/** The board's route card height. */
+const MAP_HEIGHT = 150;
 
 type Load =
   | { status: "loading" }
@@ -78,6 +89,38 @@ function metaLine(
     ),
   );
   return parts.join(" · ");
+}
+
+/**
+ * Board V1FDriverTripDetail: the route map of a completed trip — the in_ride
+ * trace in the accent, a ring at the pickup and an accent square at the
+ * drop-off, framed to fit. A picture, not a control. None on a cancelled
+ * trip (board V1FDriverTripDetailCancelled) or without the pins.
+ */
+function RouteMap({ trip }: { trip: TripEarning }) {
+  const { pickup, destination } = trip;
+  const markers = useMemo<MapMarker[]>(
+    () =>
+      pickup && destination
+        ? [
+            { id: "pickup", kind: "pickup", position: pickup },
+            { id: "dropoff", kind: "dropoff", position: destination },
+          ]
+        : [],
+    [pickup, destination],
+  );
+  if (isCancelledTrip(trip) || !pickup || !destination) return null;
+  return (
+    <OsmMap
+      center={pickup}
+      markers={markers}
+      route={trip.route ?? null}
+      fitBounds
+      interactive={false}
+      height={MAP_HEIGHT}
+      testID="trip-detail-map"
+    />
+  );
 }
 
 /** Pickup (ring) and drop-off (accent square) labels. */
@@ -375,6 +418,7 @@ export function TripDetailScreen({
           >
             {metaLine(t, trip, language)}
           </AppText>
+          <RouteMap trip={trip} />
           {cancellation ? (
             <Banner
               tone="danger"

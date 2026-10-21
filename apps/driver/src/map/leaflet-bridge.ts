@@ -30,7 +30,8 @@ const LEAFLET_CSS = {
   integrity: "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=",
 };
 
-export type MapMarkerKind = "self" | "point";
+/** `pickup` = hollow ring, `dropoff` = accent square (route-map pins). */
+export type MapMarkerKind = "self" | "point" | "pickup" | "dropoff";
 
 export interface BridgeMarker {
   id: string;
@@ -70,6 +71,10 @@ export interface MapViewState {
   followMe: boolean;
   /** Heatmap zones, drawn under the route and markers. */
   zones?: BridgeZone[];
+  /** Frame the route and markers (instead of center/zoom) whenever they change. */
+  fit?: boolean;
+  /** A picture, not a control: no pan, zoom or tap (read once, at page build). */
+  static?: boolean;
 }
 
 export interface MapPageOptions {
@@ -84,6 +89,8 @@ export interface MapPageOptions {
     point: string;
     route: string;
     background: string;
+    /** The pickup ring (defaults to `point`). */
+    ring?: string;
   };
   /** Heatmap tier looks, keyed "1".."3" (only maps that draw zones). */
   zoneStyles?: Record<string, BridgeZoneStyle>;
@@ -148,7 +155,12 @@ function labbyPost(message){
   if (typeof L === 'undefined') { labbyPost({type:'loadFailed'}); return; }
   var config = ${toScriptJson(config)};
   var state = ${toScriptJson(initial)};
-  var map = L.map('map', { zoomControl: false, attributionControl: false });
+  var still = !!state.static;
+  var map = L.map('map', {
+    zoomControl: false, attributionControl: false,
+    dragging: !still, touchZoom: !still, doubleClickZoom: !still, scrollWheelZoom: !still,
+    boxZoom: !still, keyboard: !still, tap: !still
+  });
   L.control.attribution({ position: config.attributionPosition, prefix: false }).addTo(map);
   var tilesOk = true;
   var tiles = L.tileLayer(config.tileUrl, { maxZoom: 19, attribution: config.attribution });
@@ -202,6 +214,23 @@ function labbyPost(message){
     markerLayer.clearLayers();
     for (var i = 0; i < s.markers.length; i++) {
       var m = s.markers[i];
+      if (m.kind === 'pickup') {
+        L.circleMarker(m.position, {
+          radius: 7, color: config.colors.ring || config.colors.point, weight: 3,
+          fillColor: config.colors.selfBorder, fillOpacity: 1, interactive: false
+        }).addTo(markerLayer);
+        continue;
+      }
+      if (m.kind === 'dropoff') {
+        var square = document.createElement('span');
+        square.style.cssText = 'display:block;width:14px;height:14px;box-sizing:content-box;transform:translate(-50%,-50%);'
+          + 'background:' + config.colors.self + ';border:3px solid ' + config.colors.selfBorder + ';';
+        L.marker(m.position, {
+          icon: L.divIcon({ html: square, className: '', iconSize: [0, 0] }),
+          interactive: false, keyboard: false
+        }).addTo(markerLayer);
+        continue;
+      }
       var self = m.kind === 'self';
       L.circleMarker(m.position, {
         radius: self ? 9 : 7,
@@ -215,9 +244,26 @@ function labbyPost(message){
     if (s.route && s.route.length > 1) {
       routeLayer = L.polyline(s.route, { color: config.colors.route, weight: 5, opacity: 0.85 }).addTo(map);
     }
+    // Pins sit on the line, never under it.
+    markerLayer.eachLayer(function(layer){ if (layer.bringToFront) layer.bringToFront(); });
   }
   function sameCenter(a, b){ return a[0] === b[0] && a[1] === b[1]; }
-  map.setView((following && selfPosition(state)) || state.center, state.zoom);
+  // Frames the route and every marker; a lone point is shown at the zoom.
+  var framed = null;
+  function frame(s){
+    var points = (s.route || []).slice();
+    for (var i = 0; i < s.markers.length; i++) points.push(s.markers[i].position);
+    var key = JSON.stringify(points);
+    if (key === framed) return;
+    framed = key;
+    if (points.length > 1) {
+      map.fitBounds(L.latLngBounds(points), { padding: [24, 24], maxZoom: 17 });
+    } else {
+      map.setView(points[0] || s.center, s.zoom);
+    }
+  }
+  if (state.fit) frame(state);
+  else map.setView((following && selfPosition(state)) || state.center, state.zoom);
   draw(state);
   window.labbyMap = {
     apply: function(next){
@@ -227,7 +273,9 @@ function labbyPost(message){
       if (previous.followMe && !next.followMe) following = false;
       draw(next);
       var self = selfPosition(next);
-      if (following && self) {
+      if (next.fit) {
+        frame(next);
+      } else if (following && self) {
         map.panTo(self, { animate: true });
       } else if (!sameCenter(previous.center, next.center) || previous.zoom !== next.zoom) {
         map.setView(next.center, next.zoom);
