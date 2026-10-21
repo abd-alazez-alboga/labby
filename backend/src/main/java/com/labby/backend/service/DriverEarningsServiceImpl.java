@@ -3,19 +3,32 @@ package com.labby.backend.service;
 import com.labby.backend.dto.DriverBalanceViewDto;
 import com.labby.backend.dto.EarningsSummaryDto;
 import com.labby.backend.dto.TripEarningDto;
+import com.labby.backend.dto.TripEarningDto.TripReportDto;
 import com.labby.backend.dto.TripEarningPageDto;
 import com.labby.backend.enums.DriverLedgerType;
+import com.labby.backend.enums.PaymentMethod;
+import com.labby.backend.enums.RideKind;
+import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.DriverLedgerEntry;
 import com.labby.backend.model.Region;
 import com.labby.backend.model.Ride;
+import com.labby.backend.model.ServiceType;
+import com.labby.backend.model.SharedRideMember;
+import com.labby.backend.model.User;
 import com.labby.backend.repository.DriverLedgerRepository;
+import com.labby.backend.repository.DriverTripRepository;
+import com.labby.backend.repository.DriverTripRepository.DriverReport;
+import com.labby.backend.repository.DriverTripRepository.TripRow;
 import com.labby.backend.repository.PromoRedemptionRepository;
 import com.labby.backend.repository.RideRepository;
+import com.labby.backend.repository.ServiceTypeRepository;
 import com.labby.backend.repository.SharedRideMemberRepository;
+import com.labby.backend.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
@@ -24,21 +37,22 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * UC-D-15/16 views built from the ledger: the earnings page anchors on one entry per ride (the
  * COM-01 fare posting, or the collected cancellation-fee credit of a cancelled ride) with its tip
- * and its M13 promo compensation attached; the summary totals the operating region's currency over
- * the period; the balance view evaluates each currency against the operating region's floor.
+ * and its M13 promo compensation attached — plus (V1 conformance W43) every ride the driver
+ * accepted that was later cancelled without such an entry, so any past trip can be opened and its
+ * rider reported; the summary totals the operating region's currency over the period; the balance
+ * view evaluates each currency against the operating region's floor.
  */
 @Service
 @Transactional(readOnly = true)
@@ -69,6 +83,9 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
   private final RideRepository rideRepository;
   private final PromoRedemptionRepository promoRedemptionRepository;
   private final SharedRideMemberRepository sharedRideMemberRepository;
+  private final DriverTripRepository driverTripRepository;
+  private final UserRepository userRepository;
+  private final ServiceTypeRepository serviceTypeRepository;
   private final MoneyFloors moneyFloors;
   private final CommissionService commissionService;
   private final Clock clock;
@@ -76,11 +93,41 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
   @Override
   public TripEarningPageDto earnings(UUID driverUserId, int page, int size) {
     rideAccess.requireDriver(driverUserId);
-    Page<DriverLedgerEntry> anchors =
-        driverLedgerRepository.findByDriverUserIdAndTypeInOrderByCreatedAtDescIdDesc(
-            driverUserId, TRIP_ANCHORS, PageRequest.of(page, size));
-    List<UUID> rideIds =
-        anchors.getContent().stream().map(DriverLedgerEntry::getRideId).distinct().toList();
+    long total = driverTripRepository.count(driverUserId);
+    List<TripRow> rows = driverTripRepository.page(driverUserId, size, (long) page * size);
+    return new TripEarningPageDto(
+        toTrips(driverUserId, rows), page, size, total, (int) ((total + size - 1) / size));
+  }
+
+  @Override
+  public TripEarningDto trip(UUID driverUserId, UUID rideId, UUID memberId) {
+    rideAccess.requireDriver(driverUserId);
+    List<TripRow> rows =
+        driverTripRepository.ofRide(driverUserId, rideId).stream()
+            .filter(row -> memberId == null || memberId.equals(row.memberId()))
+            .toList();
+    if (rows.isEmpty()) {
+      throw new ResourceNotFoundException("Trip not found");
+    }
+    if (rows.stream().map(TripRow::memberId).distinct().count() > 1) {
+      throw (InvalidRequestException)
+          new InvalidRequestException("memberId is required on a shared ride")
+              .withCode("member_required");
+    }
+    return toTrips(driverUserId, List.of(rows.get(0))).get(0);
+  }
+
+  /** Builds the rows with one query per related table (never per row). */
+  private List<TripEarningDto> toTrips(UUID driverUserId, List<TripRow> rows) {
+    if (rows.isEmpty()) {
+      return List.of();
+    }
+    Map<UUID, DriverLedgerEntry> anchors =
+        driverLedgerRepository
+            .findAllById(rows.stream().map(TripRow::anchorId).filter(Objects::nonNull).toList())
+            .stream()
+            .collect(Collectors.toMap(DriverLedgerEntry::getId, Function.identity()));
+    List<UUID> rideIds = rows.stream().map(TripRow::rideId).distinct().toList();
     Map<UUID, Ride> rides =
         rideRepository.findAllById(rideIds).stream()
             .collect(Collectors.toMap(Ride::getId, Function.identity()));
@@ -91,14 +138,129 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     Map<AnchorKey, DriverLedgerEntry> compensations =
         byAnchor(driverUserId, DriverLedgerType.PROMO_COMPENSATION, rideIds);
     attachLegacySharedCompensations(compensations);
-    return new TripEarningPageDto(
-        anchors.getContent().stream()
-            .map(anchor -> toTrip(anchor, rides.get(anchor.getRideId()), tips, compensations))
-            .toList(),
-        anchors.getNumber(),
-        anchors.getSize(),
-        anchors.getTotalElements(),
-        anchors.getTotalPages());
+    Map<UUID, SharedRideMember> members =
+        sharedRideMemberRepository
+            .findAllById(rows.stream().map(TripRow::memberId).filter(Objects::nonNull).toList())
+            .stream()
+            .collect(Collectors.toMap(SharedRideMember::getId, Function.identity()));
+    Map<UUID, String> names =
+        userRepository
+            .findAllById(
+                rows.stream()
+                    .map(row -> riderOf(row, rides.get(row.rideId()), members))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet()))
+            .stream()
+            .collect(
+                Collectors.toMap(User::getId, user -> RideAssembler.firstName(user.getName())));
+    Map<UUID, ServiceType> serviceTypes =
+        serviceTypeRepository
+            .findAllById(rides.values().stream().map(Ride::getServiceTypeId).distinct().toList())
+            .stream()
+            .collect(Collectors.toMap(ServiceType::getId, Function.identity()));
+    Map<ReportKey, DriverReport> reports = new HashMap<>();
+    for (DriverReport report : driverTripRepository.reportsOn(driverUserId, rideIds)) {
+      reports.put(new ReportKey(report.rideId(), report.reportedUserId()), report);
+    }
+    return rows.stream()
+        .map(
+            row -> {
+              Ride ride = rides.get(row.rideId());
+              SharedRideMember member = row.memberId() == null ? null : members.get(row.memberId());
+              UUID riderUserId = riderOf(row, ride, members);
+              DriverReport report =
+                  riderUserId == null
+                      ? null
+                      : reports.get(new ReportKey(ride.getId(), riderUserId));
+              DriverLedgerEntry anchor =
+                  row.anchorId() == null ? null : anchors.get(row.anchorId());
+              Money money =
+                  anchor == null
+                      ? Money.none(row, ride, member)
+                      : money(anchor, ride, tips, compensations);
+              ServiceType serviceType = serviceTypes.get(ride.getServiceTypeId());
+              boolean reportable =
+                  report == null
+                      && riderUserId != null
+                      && (ride.getKind() != RideKind.SHARED || member != null);
+              return new TripEarningDto(
+                  ride.getId(),
+                  money.at(),
+                  money.currency(),
+                  money.fareTotal(),
+                  money.paymentMethod(),
+                  money.commissionRate(),
+                  money.commissionAmount(),
+                  money.tip(),
+                  money.cancellationFee(),
+                  money.promoCompensation(),
+                  money.net(),
+                  row.memberId(),
+                  ride.getState(),
+                  ride.getKind(),
+                  riderUserId == null ? null : names.get(riderUserId),
+                  ride.getPickupLabel(),
+                  ride.getDestinationLabel(),
+                  serviceType == null ? null : serviceType.getNameEn(),
+                  serviceType == null ? null : serviceType.getNameAr(),
+                  ride.getAcceptedAt(),
+                  ride.getStartedAt(),
+                  ride.getCancelledAt(),
+                  member != null && member.getCancellationReason() != null
+                      ? member.getCancellationReason()
+                      : ride.getCancellationReason(),
+                  member != null ? member.getCancellationFee() : ride.getCancellationFee(),
+                  report == null
+                      ? null
+                      : new TripReportDto(
+                          report.reportId(),
+                          report.category(),
+                          report.status(),
+                          report.createdAt()),
+                  reportable);
+            })
+        .toList();
+  }
+
+  /** The rider a row is about: the member's rider on a shared ride, else the ride's rider. */
+  private static UUID riderOf(TripRow row, Ride ride, Map<UUID, SharedRideMember> members) {
+    if (row.memberId() != null && members.containsKey(row.memberId())) {
+      return members.get(row.memberId()).getRiderUserId();
+    }
+    return ride.getKind() == RideKind.SHARED ? null : ride.getRiderUserId();
+  }
+
+  /** The driver's report on one rider of one ride (REP-01: at most one). */
+  private record ReportKey(UUID rideId, UUID reportedUserId) {}
+
+  /** The money fields of one row. */
+  private record Money(
+      Instant at,
+      String currency,
+      BigDecimal fareTotal,
+      PaymentMethod paymentMethod,
+      BigDecimal commissionRate,
+      BigDecimal commissionAmount,
+      BigDecimal tip,
+      BigDecimal cancellationFee,
+      BigDecimal promoCompensation,
+      BigDecimal net) {
+
+    /** W43: a ride cancelled after acceptance that moved no money for the driver. */
+    static Money none(TripRow row, Ride ride, SharedRideMember member) {
+      BigDecimal zero = BigDecimal.ZERO.setScale(2);
+      return new Money(
+          row.at(),
+          ride.getCurrency(),
+          zero,
+          member != null ? member.getPaymentMethod() : ride.getPaymentMethod(),
+          zero,
+          zero,
+          null,
+          null,
+          null,
+          zero);
+    }
   }
 
   private Map<AnchorKey, DriverLedgerEntry> byAnchor(
@@ -138,7 +300,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     }
   }
 
-  private TripEarningDto toTrip(
+  private Money money(
       DriverLedgerEntry anchor,
       Ride ride,
       Map<AnchorKey, DriverLedgerEntry> tips,
@@ -146,8 +308,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     BigDecimal zero = BigDecimal.ZERO.setScale(2);
     if (!FARE_TYPES.contains(anchor.getType())) {
       // A cancelled ride whose fee was credited to this driver: no fare, no commission.
-      return new TripEarningDto(
-          anchor.getRideId(),
+      return new Money(
           anchor.getCreatedAt(),
           anchor.getCurrency(),
           zero,
@@ -170,8 +331,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     if (compensationAmount != null) {
       net = net.add(compensationAmount);
     }
-    return new TripEarningDto(
-        anchor.getRideId(),
+    return new Money(
         ride.getCompletedAt(),
         anchor.getCurrency(),
         anchor.getFareAmount(),

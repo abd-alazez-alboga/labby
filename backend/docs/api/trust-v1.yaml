@@ -252,6 +252,12 @@ paths:
     post:
       tags: [Reports]
       summary: Report the counterpart of a ride (UC-S-18)
+      description: >
+        V1 conformance W43: the driver app also reaches this from a PAST trip — the earnings trip
+        rows and the trip detail (money-v1 `GET /driver/earnings`, `GET
+        /driver/earnings/rides/{rideId}`, whose `canReport` / `myReport` mirror the "once per ride
+        per reporter" rule here), including rides cancelled after acceptance. The rules are
+        unchanged: no time limit, one report per ride per reported rider.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/RideId' }]
       requestBody:

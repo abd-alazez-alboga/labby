@@ -177,7 +177,13 @@ paths:
   /driver/earnings:
     get:
       summary: Per-trip earnings, newest first (COM-01, UC-D-15)
-      description: Driver role. One entry per completed ride with money posted, fully itemized.
+      description: >
+        Driver role. One entry per ride with money posted for the driver, fully itemized — and
+        (V1 conformance W43, REP-01 / UC-S-18; boards V1FDriverEarningsTrips) one entry per ride
+        the driver ACCEPTED that was later cancelled (`cancelled_by_rider` /
+        `cancelled_by_driver`) with no money posted for them, so every past trip can be opened
+        and its rider reported. On a shared ride, rows are per member. Ordered by the row moment
+        (`completedAt`), newest first.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
@@ -188,6 +194,32 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TripEarningPage' }
+
+  /driver/earnings/rides/{rideId}:
+    get:
+      summary: One trip's detail with the driver's report status (V1 conformance W43, UC-D-15, REP-01)
+      description: >
+        Driver role. The `TripEarning` row of a ride this driver drove (money posted) or accepted
+        before it was cancelled — boards V1FDriverTripDetail / TripDetailCancelled. `canReport`
+        drives the "Report rider" action (trust-v1 POST /rides/{rideId}/reports, with
+        `memberId` on a shared ride); `myReport` the "You reported …" block. 404 for any other
+        ride (not this driver's, never accepted, still live).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: rideId, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: memberId
+          in: query
+          description: The shared-ride member the row is about; 400 `member_required` when omitted on a ride with several member rows
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The trip
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripEarning' }
+        '400': { description: '`member_required`' }
+        '403': { description: Not an approved driver }
+        '404': { description: No such trip of this driver }
 
   /driver/earnings/summary:
     get:
@@ -422,8 +454,11 @@ components:
         collection moment as `completedAt`. A completed SHARED ride has one row per member
         (that member's share); each row carries that member's own `tip` and, for the member who
         redeemed the promo, the `promoCompensation` — never repeated on every share (V1 audit H6).
+        V1 conformance W43: a ride the driver ACCEPTED that was later cancelled without money for
+        them is a row too — fareTotal / commissionRate / commissionAmount / net 0, tip /
+        cancellationFee / promoCompensation null, `completedAt` = the cancellation moment.
       required: [rideId, completedAt, currency, fareTotal, paymentMethod, commissionRate,
-                 commissionAmount, net]
+                 commissionAmount, net, rideState, kind, canReport]
       properties:
         rideId: { type: string, format: uuid }
         completedAt: { type: string, format: date-time, description: Completion (or fee collection) moment }
@@ -446,6 +481,38 @@ components:
             compensation); cash ride −commission (+ tip + promo compensation) — the driver kept
             the cash fare. (Dues collected in cash through this driver pass outside the trip rows;
             they show in the admin ledger.)
+        memberId: { type: [string, 'null'], format: uuid, description: The shared-ride member the row is about (null on a one-rider ride) }
+        rideState: { type: string, enum: [completed, cancelled_by_rider, cancelled_by_driver] }
+        kind: { type: string, enum: [on_demand, scheduled, shared] }
+        riderFirstName: { type: [string, 'null'], description: "The rider's first name (the member's on a shared ride)" }
+        pickupLabel: { type: [string, 'null'] }
+        destinationLabel: { type: [string, 'null'] }
+        serviceTypeNameEn: { type: [string, 'null'] }
+        serviceTypeNameAr: { type: [string, 'null'] }
+        acceptedAt: { type: [string, 'null'], format: date-time }
+        startedAt: { type: [string, 'null'], format: date-time, description: Trip start (completed rides) }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        cancellationReason:
+          type: [string, 'null']
+          description: The ride's (or the member's) cancellation reason (rides-v1 values)
+        cancellationFeeCharged:
+          type: [number, 'null']
+          description: >
+            The fee the rider (member) was charged for the cancellation; null = no fee (e.g.
+            inside the free window, or a driver cancellation). What reached the driver is
+            `cancellationFee`.
+        myReport:
+          type: [object, 'null']
+          description: The driver's own report on this row's rider (REP-01 — one per ride per rider)
+          required: [id, category, status, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            category: { type: string, enum: [unsafe_behavior, inappropriate_behavior, vehicle_damage, other] }
+            status: { type: string, enum: [open, substantiated, unsubstantiated] }
+            createdAt: { type: string, format: date-time }
+        canReport:
+          type: boolean
+          description: True while the driver has not reported this row's rider (false on a shared row without a member)
     TripEarningPage:
       type: object
       required: [items, page, size, totalItems, totalPages]

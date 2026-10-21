@@ -2,6 +2,7 @@ package com.labby.backend.service;
 
 import com.labby.backend.dto.DriverBalanceViewDto;
 import com.labby.backend.dto.EarningsSummaryDto;
+import com.labby.backend.dto.TripEarningDto;
 import com.labby.backend.dto.TripEarningPageDto;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -18,6 +19,19 @@ public interface DriverEarningsService {
    * @return the page
    */
   TripEarningPageDto earnings(UUID driverUserId, int page, int size);
+
+  /**
+   * One trip row (V1 conformance W43, the trip detail): the earnings row of a ride the driver drove
+   * or accepted before it was cancelled, with the driver's own report on its rider.
+   *
+   * @param driverUserId the driver
+   * @param rideId the ride
+   * @param memberId the shared-ride member the row is about (needed when the ride has several)
+   * @return the row
+   * @throws com.labby.backend.exception.ResourceNotFoundException no such trip of this driver
+   * @throws com.labby.backend.exception.InvalidRequestException {@code member_required}
+   */
+  TripEarningDto trip(UUID driverUserId, UUID rideId, UUID memberId);
 
   /**
    * The weekly (Monday-start, operating region time zone) or monthly summary containing {@code
