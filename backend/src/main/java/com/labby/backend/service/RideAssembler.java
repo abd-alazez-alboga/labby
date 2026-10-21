@@ -219,7 +219,9 @@ public class RideAssembler {
                   mine == null ? null : memberView(ride, mine, false),
                   riderView
                       ? List.of()
-                      : members.stream().map(m -> memberView(ride, m, true)).toList(),
+                      : members.stream()
+                          .map(m -> memberView(ride, m, true, audience == Audience.ADMIN))
+                          .toList(),
                   shared.getSplitSeats() == null
                       ? null
                       : new SplitSummaryDto(
@@ -274,13 +276,28 @@ public class RideAssembler {
    *
    * @param ride the shared ride
    * @param member the party
-   * @param withName whether to include the first name (driver view only)
+   * @param withName whether to include the first name (driver and admin views)
    * @return the view
    */
   public MemberViewDto memberView(Ride ride, SharedRideMember member, boolean withName) {
+    return memberView(ride, member, withName, false);
+  }
+
+  /**
+   * One party as the API shows it.
+   *
+   * @param ride the shared ride
+   * @param member the party
+   * @param withName whether to include the first name (driver and admin views)
+   * @param withUserId whether to include the member's rider user id (admin view only)
+   * @return the view
+   */
+  public MemberViewDto memberView(
+      Ride ride, SharedRideMember member, boolean withName, boolean withUserId) {
     RideMoneyService.RideMoney money = rideMoneyService.memberMoney(ride, member);
     return new MemberViewDto(
         member.getId(),
+        withUserId ? member.getRiderUserId() : null,
         withName
             ? userRepository
                 .findById(member.getRiderUserId())

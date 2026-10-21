@@ -241,6 +241,12 @@ class SharedRideIntegrationTest extends AbstractRideIntegrationTest {
     assertThat(driverView.get("shared").get("members")).hasSize(3);
     assertThat(driverView.get("shared").get("members").get(0).get("firstName").asText())
         .isNotBlank();
+    // Rider user ids are for the admin ride detail only (review V1 W28).
+    assertThat(driverView.get("shared").get("members").get(0).get("riderUserId").isNull()).isTrue();
+    JsonNode adminView = ok(get("/api/v1/admin/rides/" + rideId, admin), HttpStatus.OK);
+    assertThat(
+            adminView.get("ride").get("shared").get("members").get(1).get("riderUserId").asText())
+        .isEqualTo(cashMember.userId().toString());
     UUID absentMember = memberId(rideId, absent.userId());
     ResponseEntity<JsonNode> early = noShow(driver, rideId, absentMember);
     assertThat(code(early)).isEqualTo("wait_grace_running");
@@ -288,6 +294,7 @@ class SharedRideIntegrationTest extends AbstractRideIntegrationTest {
     JsonNode memberView = riderRide(cashMember, rideId);
     assertThat(memberView.get("shared").get("me").get("status").asText()).isEqualTo("completed");
     assertThat(memberView.get("shared").get("members")).isEmpty();
+    assertThat(memberView.get("shared").get("me").get("riderUserId").isNull()).isTrue();
     JsonNode history = ok(get("/api/v1/rides", cashMember.token()), HttpStatus.OK);
     assertThat(history.get("items").get(0).get("id").asText()).isEqualTo(rideId.toString());
   }

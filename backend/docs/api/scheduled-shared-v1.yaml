@@ -917,11 +917,13 @@ components:
       type: object
       description: >
         One party. Rider views show only the caller's own (`me`); the driver view lists every
-        party with first name (UC-D-13) — never phones.
+        party with first name (UC-D-13) — never phones. The admin ride detail lists every party
+        with first name and rider user id (review V1 W28).
       required: [memberId, partySize, status, paymentMethod, isCreator]
       properties:
         memberId: { type: string, format: uuid }
-        firstName: { type: [string, 'null'], description: Driver view only }
+        riderUserId: { type: [string, 'null'], format: uuid, description: Admin view only }
+        firstName: { type: [string, 'null'], description: Driver and admin views only }
         isCreator: { type: boolean }
         partySize: { type: integer }
         status: { type: string, enum: [joined, left, cancelled, no_show, completed] }
