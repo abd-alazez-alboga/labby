@@ -248,7 +248,7 @@ export interface CarriedDue {
 export interface Ride {
   id: string;
   state: RideState;
-  kind: "on_demand" | "scheduled" | "shared";
+  kind: RideKind;
   regionId: string;
   serviceTypeId: string;
   serviceTypeNameEn: string;
@@ -332,6 +332,25 @@ export interface RideSummary {
    * "Cancelled by you").
    */
   cancellationReason?: CancellationReason | null;
+  /** V1 audit W41: the row's ride kind (labels + the history filter). */
+  kind?: RideKind;
+  /** W41: the rider's own seats on a shared ride; null otherwise. */
+  partySize?: number | null;
+}
+
+export type RideKind = "on_demand" | "scheduled" | "shared";
+
+/**
+ * `GET /rides` filters (V1 audit W41, UC-R-16), each optional and combined:
+ * `state` groups completed / cancelled (cancelled_by_rider, _by_driver,
+ * no_driver_found); `from` / `to` are inclusive region-local days
+ * (`YYYY-MM-DD`).
+ */
+export interface RideHistoryFilters {
+  state?: "completed" | "cancelled";
+  kind?: RideKind;
+  from?: string;
+  to?: string;
 }
 
 export interface RideSummaryPage {
@@ -567,10 +586,20 @@ export function getReceipt(rideId: string): Promise<Receipt> {
 
 export const RIDE_HISTORY_PAGE_SIZE = 20;
 
-/** `GET /rides` — history, newest first. */
-export function listRides(page = 0): Promise<RideSummaryPage> {
-  return apiFetch<RideSummaryPage>(
-    `${RIDES}?page=${page}&size=${RIDE_HISTORY_PAGE_SIZE}`,
-    { auth: true },
-  );
+/** `GET /rides` — history, newest first, optionally filtered (W41). */
+export function listRides(
+  page = 0,
+  filters: RideHistoryFilters = {},
+): Promise<RideSummaryPage> {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(RIDE_HISTORY_PAGE_SIZE),
+  });
+  for (const key of ["state", "kind", "from", "to"] as const) {
+    const value = filters[key];
+    if (value) params.set(key, value);
+  }
+  return apiFetch<RideSummaryPage>(`${RIDES}?${params.toString()}`, {
+    auth: true,
+  });
 }

@@ -93,7 +93,8 @@ export default function AppLayout() {
             name="receipt/[rideId]"
             options={{ headerShown: false }}
           />
-          <Stack.Screen name="rides" options={{ title: t("history.title") }} />
+          {/* W41: history draws its own header (the "Dates" pill on the title row). */}
+          <Stack.Screen name="rides" options={{ headerShown: false }} />
           {/* M8: wallet, routed from Settings like the ride screens. */}
           <Stack.Screen name="wallet" options={{ title: t("wallet.title") }} />
           <Stack.Screen
