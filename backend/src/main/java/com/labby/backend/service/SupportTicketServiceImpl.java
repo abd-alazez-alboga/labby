@@ -51,6 +51,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -500,8 +501,9 @@ public class SupportTicketServiceImpl implements SupportTicketService {
         sosEventRepository
             .findById(sosEventId)
             .orElseThrow(() -> new ResourceNotFoundException("SOS event not found"));
-    if (supportTicketRepository.findBySosEventId(sosEventId).isPresent()) {
-      throw alreadyLinked();
+    Optional<SupportTicket> linked = supportTicketRepository.findBySosEventId(sosEventId);
+    if (linked.isPresent()) {
+      throw alreadyLinked().withDetail("ticketId", linked.get().getId());
     }
     TicketCategory category = pickableCategory(request.categoryId());
     Instant now = clock.instant();

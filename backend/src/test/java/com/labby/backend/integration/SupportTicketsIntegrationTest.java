@@ -498,6 +498,7 @@ class SupportTicketsIntegrationTest extends AbstractSupportIntegrationTest {
     ResponseEntity<JsonNode> again = post(url, body, handler);
     assertThat(again.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(code(again)).isEqualTo("ticket_already_linked");
+    assertThat(again.getBody().get("details").get("ticketId").asText()).isEqualTo(ticketId);
     // The caller follows it like any ticket of theirs; an explicit priority wins over the default.
     assertThat(
             ok(get("/api/v1/tickets/" + ticketId, rider.token()), HttpStatus.OK)
