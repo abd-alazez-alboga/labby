@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import type { MemberView } from "../../api/scheduled-types";
 import { useOptionalDriverRide } from "../../rides/DriverRideProvider";
+import { placeLabel } from "../../rides/format";
 import { colors } from "../../theme/tokens";
 import { isReported } from "../../trust/reported-members";
 import { AppText, Icon, ListRow, Screen, useDirection } from "../ui";
@@ -31,7 +32,8 @@ export function ReportMemberScreen() {
   const when = shown
     ? (shown.timeline.startedAt ?? shown.timeline.acceptedAt ?? null)
     : null;
-  const place = shown?.destination.label?.trim() || null;
+  // L-W2: a pinned / current-location point reads as the localized fallback.
+  const place = shown ? placeLabel(t, shown.destination) : null;
 
   const subtitle = (member: MemberView): string => {
     const party =

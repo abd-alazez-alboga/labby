@@ -14,6 +14,7 @@ import { useOptionalAuth } from "../../auth/AuthProvider";
 import { chatWritable, useOptionalChat } from "../../chat/ChatProvider";
 import { useOptionalAvailability } from "../../realtime/AvailabilityProvider";
 import { useOptionalRegion } from "../../region/RegionProvider";
+import { placeLabel } from "../../rides/format";
 import { getShareUrl } from "../../safety/share-trip";
 import { sendSosEvent, sosSample } from "../../safety/sos";
 import { colors, radius, shadows, spacing } from "../../theme/tokens";
@@ -112,7 +113,8 @@ export function SafetyRow({ ride }: { ride: Ride }) {
     useOptionalAuth()?.driverAccess === "accountSuspended";
   const reportWhen =
     ride.timeline.startedAt ?? ride.timeline.acceptedAt ?? null;
-  const reportPlace = ride.destination.label?.trim() || null;
+  // L-W2: a pinned / current-location point reads as the localized fallback.
+  const reportPlace = placeLabel(t, ride.destination);
 
   // M12 (ruling 2026-10-16): a shared ride has one private thread per
   // member — the row opens their list instead of a single thread / call.
@@ -213,7 +215,7 @@ export function SafetyRow({ ride }: { ride: Ride }) {
                 rideId: ride.id,
                 name: ride.rider?.firstName ?? "",
                 ...(reportWhen ? { when: reportWhen } : {}),
-                ...(reportPlace ? { place: reportPlace } : {}),
+                place: reportPlace,
               },
             })
           }

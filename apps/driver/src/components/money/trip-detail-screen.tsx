@@ -123,14 +123,20 @@ function RouteMap({ trip }: { trip: TripEarning }) {
   );
 }
 
-/** Pickup (ring) and drop-off (accent square) labels. */
+/**
+ * Pickup (ring) and drop-off (accent square) labels. L-W2: a current-location
+ * or pinned point carries no label — it reads as the localized "Pinned
+ * location", never vanishes from the trip.
+ */
 function Places({ trip }: { trip: TripEarning }) {
+  const { t } = useTranslation();
   const { flipRows } = useDirection();
+  const named = (label: string | null | undefined) =>
+    label?.trim() || t("ride.pinnedLocation");
   const rows = [
-    { key: "pickup", label: trip.pickupLabel, final: false },
-    { key: "destination", label: trip.destinationLabel, final: true },
-  ].filter((row) => !!row.label);
-  if (rows.length === 0) return null;
+    { key: "pickup", label: named(trip.pickupLabel), final: false },
+    { key: "destination", label: named(trip.destinationLabel), final: true },
+  ];
   return (
     <View style={styles.places}>
       {rows.map((row) => (

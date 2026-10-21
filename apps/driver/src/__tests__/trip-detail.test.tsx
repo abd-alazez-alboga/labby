@@ -292,6 +292,18 @@ describe("trip detail (W43)", () => {
     );
   });
 
+  it("a current-location / pinned point (label null) reads as the localized fallback (L-W2)", async () => {
+    await setAppLanguage("ar");
+    await openTrip(tripEarningFixture({ pickupLabel: null }), { language: "ar" });
+
+    expect(await screen.findByTestId("trip-detail-pickup")).toHaveTextContent(
+      "موقع محدد على الخريطة",
+    );
+    expect(screen.getByTestId("trip-detail-destination")).toHaveTextContent(
+      "Umayyad Square",
+    );
+  });
+
   it("renders in Arabic with Western digits and ل.س", async () => {
     await setAppLanguage("ar");
     await openTrip(tripEarningFixture(), { language: "ar" });
