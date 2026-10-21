@@ -980,6 +980,13 @@ input[type='radio'] {
   font-weight: 700;
 }
 
+.table__confirm-note {
+  inline-size: 240px;
+  max-inline-size: 100%;
+  color: var(--labby-text);
+  font-weight: 500;
+}
+
 .table__muted {
   color: var(--labby-text-secondary);
 }
@@ -2165,6 +2172,131 @@ input[type='radio'] {
 .status-page__body {
   margin: 0;
   color: var(--labby-text-muted);
+}
+
+/* ---------- Access deactivated (USR-06, V1 W5 / I31) ---------- */
+
+.access-blocked {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100vh;
+  background: var(--labby-surface-page);
+  color: var(--labby-text);
+}
+
+.access-blocked__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--labby-space-4);
+  min-block-size: 68px;
+  padding: 0 var(--labby-space-8);
+  background: var(--labby-surface);
+  border-block-end: 1px solid var(--labby-line);
+}
+
+.access-blocked__brand {
+  padding: 0;
+}
+
+.access-blocked__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.access-blocked__who {
+  display: flex;
+  flex-direction: column;
+}
+
+.access-blocked__name {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.access-blocked__phone {
+  font-size: 12px;
+  color: var(--labby-text-muted);
+}
+
+.access-blocked__main {
+  display: flex;
+  justify-content: center;
+  padding: 48px var(--labby-space-4) 40px;
+}
+
+.access-blocked__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-5);
+  inline-size: 560px;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+  padding: 36px;
+  border: 1px solid var(--labby-line);
+  border-radius: 20px;
+  background: var(--labby-surface);
+}
+
+.access-blocked__icon {
+  inline-size: 64px;
+  block-size: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--labby-radius-round);
+  background: var(--labby-surface-fill);
+  color: var(--labby-text);
+}
+
+.access-blocked__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-2);
+}
+
+.access-blocked__title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.access-blocked__body,
+.access-blocked__hint {
+  margin: 0;
+  color: var(--labby-text-secondary);
+  line-height: 1.55;
+}
+
+.access-blocked__body {
+  font-size: 15px;
+}
+
+.access-blocked__hint {
+  font-size: 14px;
+}
+
+.access-blocked__note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--labby-space-4) 18px;
+  border: 1.5px solid var(--labby-line);
+  border-radius: var(--labby-radius-card);
+}
+
+.access-blocked__note-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--labby-text-muted);
+}
+
+.access-blocked__note-text {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .fatal-error {
@@ -4115,5 +4247,253 @@ rect.rides-chart__bar--other {
 }
 
 .table__strong {
+  font-weight: 800;
+}
+
+/* ---------- Users search (V1 H8, board V1FAdminUsersSearch) ---------- */
+
+.user-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-2);
+  padding: var(--labby-space-4) var(--labby-space-5);
+  border: 1px solid var(--labby-line);
+  border-radius: var(--labby-radius-card);
+  background: var(--labby-surface);
+}
+
+.user-search__title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.user-search__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.user-search__icon {
+  position: absolute;
+  inset-inline-start: 14px;
+  display: flex;
+  color: var(--labby-text-muted);
+  pointer-events: none;
+}
+
+.user-search__input {
+  inline-size: 100%;
+  block-size: 48px;
+  box-sizing: border-box;
+  padding-inline: 42px 48px;
+  border: 1.5px solid var(--labby-grab-handle);
+  border-radius: var(--labby-radius-button-lg);
+  background: var(--labby-surface);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--labby-text);
+}
+
+.user-search__input:focus-visible {
+  outline: none;
+  border: 2px solid var(--labby-accent);
+}
+
+.user-search__clear {
+  position: absolute;
+  inset-inline-end: 6px;
+  inline-size: 36px;
+  block-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--labby-radius-round);
+  background: var(--labby-surface-fill);
+  color: var(--labby-text-secondary);
+  cursor: pointer;
+}
+
+.user-search__hint {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--labby-text-muted);
+}
+
+.search-hit {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: var(--labby-accent-tint);
+  color: var(--labby-accent-pressed);
+}
+
+.search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-empty__title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--labby-text);
+}
+
+.search-empty__body {
+  max-inline-size: 420px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---------- Ride detail · Related (V1 W15, board V1FAdminRideRelated) ---------- */
+
+.related {
+  gap: 0;
+}
+
+.related__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.related__group-title {
+  padding-block-start: var(--labby-space-2);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--labby-text-muted);
+}
+
+.related__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.related__row {
+  display: flex;
+  align-items: center;
+  gap: var(--labby-space-3);
+  padding: var(--labby-space-3) 0;
+  border-block-start: 1px solid var(--labby-line);
+  color: var(--labby-text);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+a.related__row:hover .related__title {
+  color: var(--labby-accent);
+}
+
+.related__icon {
+  inline-size: 36px;
+  block-size: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--labby-radius-control);
+  background: var(--labby-surface-fill);
+  color: var(--labby-text-secondary);
+}
+
+.related__text {
+  flex-grow: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.related__title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.related__sub {
+  font-size: 13px;
+  color: var(--labby-text-muted);
+}
+
+.related__open {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--labby-accent);
+}
+
+.related__none {
+  margin: 0;
+  padding: var(--labby-space-2) 0 2px;
+  font-size: 13px;
+  color: var(--labby-text-muted);
+}
+
+.kind-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1.5px solid var(--labby-line-strong);
+  border-radius: 12px;
+  color: var(--labby-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---------- Region floor preview (V1 W3, board V1FRegionFloorSettings) ---------- */
+
+.form-field__hint {
+  max-inline-size: 320px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--labby-text-muted);
+}
+
+.floor-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-1);
+  padding: var(--labby-space-3) var(--labby-space-4);
+  border-radius: var(--labby-radius-button-lg);
+  background: var(--labby-surface-fill);
+}
+
+.floor-preview__title {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.floor-preview__line {
+  font-size: 14px;
+}
+
+.floor-preview__note {
+  font-size: 12.5px;
+  color: var(--labby-text-muted);
+}
+
+/* ---------- Profile driver ledger card (V1 W4, board V1FAdminUserReportsLedger) ---------- */
+
+.ledger-card__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--labby-space-2);
+  margin: 0;
+}
+
+.ledger-card__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--labby-space-3);
+}
+
+.ledger-card__line dt {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--labby-text-muted);
+}
+
+.ledger-card__line dd {
+  margin: 0;
   font-weight: 800;
 }

@@ -154,6 +154,8 @@ export interface AdminTransaction {
 
 export interface UserFilter {
   role?: UserRole;
+  /** Search: a user id, part of the name, or a phone in any format (V1 H8). */
+  q?: string;
   /** createdAt ≥ (ISO date-time). */
   from?: string;
   /** createdAt < (ISO date-time). */

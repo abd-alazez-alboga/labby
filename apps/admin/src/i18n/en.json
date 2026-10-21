@@ -219,7 +219,8 @@
       "conflict": "Not allowed: this would leave Labby without an active Super Admin.",
       "validation": "The request was rejected — check the values and try again.",
       "generic": "Something went wrong. Please try again."
-    }
+    },
+    "deactivateNoteLabel": "Note to the admin · optional"
   },
   "roles": {
     "title": "Roles",
@@ -372,7 +373,16 @@
       "metricWindowDays": "Window",
       "metricWindowUnset": "Not set",
       "metricWindowOption": "{{days}} days",
-      "metricMinSample": "Minimum sample"
+      "metricMinSample": "Minimum sample",
+      "timeZone": "Time zone",
+      "driverBalanceFloor": "Driver debt floor ({{currency}})",
+      "driverBalanceFloorNoCurrency": "Driver debt floor",
+      "floorWarningMargin": "Warn drivers when within ({{currency}})",
+      "floorWarningMarginNoCurrency": "Warn drivers when within",
+      "reminderFirstMin": "First reminder before pickup (min)",
+      "reminderSecondMin": "Second reminder before pickup (min)",
+      "fallbackLeadMin": "Fallback to live dispatch (min)",
+      "minLeadMin": "Earliest booking (min)"
     },
     "activation": {
       "title": "Activation",
@@ -419,13 +429,36 @@
       "boundaryOverlap": "The boundary overlaps another region. Redraw it so the regions don't overlap.",
       "zonesOutside": "The new boundary would leave these surge zones outside the region: {{zones}}. Move or delete them first.",
       "zonesOutsideUnnamed": "The new boundary would leave surge zones outside the region. Move or delete them first.",
-      "activeIncomplete": "An active region must keep its mandatory configuration. This save would remove: {{missing}}."
+      "activeIncomplete": "An active region must keep its mandatory configuration. This save would remove: {{missing}}.",
+      "floorAboveZero": "The floor can't be above 0.",
+      "marginNotPositive": "The warning amount must be more than 0.",
+      "incompleteScheduled": "Fill in all four scheduled-ride fields, or leave them all blank.",
+      "scheduledReminderOrder": "The second reminder must be earlier than the first reminder and later than the fallback.",
+      "scheduledMinLead": "The earliest booking must be longer than the fallback."
     },
     "warnHint": "Flag levels (optional): below this live average an account is flagged for review — never suspended. Must be above the suspension level; blank = suspension level + 0.5.",
     "metricWarningsTitle": "Driver metric warnings",
     "metricWarningsHint": "Warn only, never suspend. Blank fields keep the region's saved values; a region that never set them uses the defaults (acceptance below 50%, cancellation above 15%, over 30 days, at least 20 offers or rides).",
     "defaultsNotice": "New region: unset values start at the SRS defaults. Amounts are in currency units — scale them to the region's currency. The peak-hour bonus starts empty: set it together with a peak window.",
-    "saveConfiguration": "Save configuration"
+    "saveConfiguration": "Save configuration",
+    "timeZoneHint": "Surcharge windows, peak-hour windows and the incentive week run on this clock.",
+    "floorTitle": "Driver balance",
+    "floorHint": "0 or below. At this balance the driver stops getting ride offers and scheduled rides (board, claims and claimed rides) until they settle at the office.",
+    "floorMarginHint": "Above 0. Drivers are warned once their balance gets this close to the floor.",
+    "floorPreview": {
+      "title": "What drivers in {{region}} get",
+      "warning": "Warning from",
+      "blocked": "Blocked at",
+      "note": "Both amounts are in this region's currency."
+    },
+    "scheduledTitle": "Scheduled rides",
+    "scheduledHint": "Minutes before pickup. Rules: first reminder > second reminder > fallback, and earliest booking > fallback. Edits apply to rides already scheduled from the next check.",
+    "scheduledDefault": {
+      "reminderFirstMin": "Default 1440 (24 h).",
+      "reminderSecondMin": "Default 60 (1 h).",
+      "fallbackLeadMin": "Default 15. Unclaimed rides go to live dispatch and claimed rides go live this long before pickup.",
+      "minLeadMin": "Default 30. Riders schedule at least this far ahead."
+    }
   },
   "serviceTypes": {
     "title": "Service types",
@@ -1349,11 +1382,20 @@
       "driver": "Driver",
       "route": "Route",
       "state": "State",
-      "fare": "Fare"
+      "fare": "Fare",
+      "kind": "Kind"
     },
     "errors": {
       "loadFailed": "Couldn't load the rides."
-    }
+    },
+    "kindLabel": "Kind",
+    "allKinds": "All kinds",
+    "kind": {
+      "on_demand": "On-demand",
+      "scheduled": "Scheduled",
+      "shared": "Shared"
+    },
+    "riderPlus": "{{name}} + {{others}}"
   },
   "rideDetail": {
     "title": "Ride {{ref}}",
@@ -1495,6 +1537,27 @@
       "action": "Refund rider",
       "pickTitle": "Refund which member?",
       "memberUnavailable": "Only the creator's wallet opens from here for now. Find the other members under Users."
+    },
+    "related": {
+      "title": "Related",
+      "reports": "Reports · {{n}}",
+      "tickets": "Support tickets · {{n}}",
+      "lostItems": "Lost-item cases · {{n}}",
+      "sos": "SOS · {{n}}",
+      "noReports": "No reports on this ride.",
+      "noTickets": "No support tickets on this ride.",
+      "noLostItems": "No lost-item cases on this ride.",
+      "noSos": "No SOS on this ride.",
+      "empty": "No reports, support tickets, lost-item cases or SOS for this ride.",
+      "reportTitle": "{{category}} · by {{role}} {{name}}",
+      "reportSub": "About {{role}} {{name}} · filed {{when}}",
+      "recordSub": "{{ref}} · by {{role}} {{name}} · {{when}}",
+      "sosTitle": "SOS by {{role}} {{name}}",
+      "role": {
+        "rider": "rider",
+        "driver": "driver"
+      },
+      "open": "Open"
     }
   },
   "reports": {
@@ -1646,7 +1709,8 @@
       "label": "Profile sections",
       "trust": "Ratings, reports & flags",
       "wallet": "Wallet",
-      "history": "History"
+      "history": "History",
+      "ledger": "Driver ledger"
     },
     "role": {
       "rider": "rider",
@@ -1696,7 +1760,10 @@
       "flags": "Open flags · {{role}}",
       "warnings": "Metric warnings · {{role}}",
       "reports": "Reports against · {{role}}",
-      "reportsCount": "{{total}} total · {{substantiated}} substantiated"
+      "reportsCount": "{{total}} total · {{substantiated}} substantiated",
+      "reportsMade": "Reports made",
+      "reportsMadeCount": "Reports this user filed, as rider or driver · {{total}} total",
+      "reportsMadeEmpty": "This user hasn't filed any reports."
     },
     "actions": {
       "reactivateRole": "Reactivate {{role}} role",
@@ -1728,6 +1795,22 @@
       "account_deleted": "This account was deleted and can't be suspended.",
       "validation": "The server rejected this. Check the required text and its length.",
       "conflict": "This changed in the meantime. The page is refreshed."
+    },
+    "reportsMade": {
+      "category": "Category",
+      "about": "About",
+      "ride": "Ride",
+      "status": "Status",
+      "filed": "Filed"
+    },
+    "ledgerCard": {
+      "title": "Driver ledger",
+      "balance": "Balance",
+      "floorIn": "Floor · {{region}}",
+      "floorDefault": "Floor",
+      "status": "Status",
+      "empty": "No ledger entries yet.",
+      "open": "Open driver ledger"
     }
   },
   "history": {
@@ -2357,6 +2440,22 @@
         "active": "Active",
         "suspended": "Suspended",
         "deleted": "Deleted"
+      },
+      "search": {
+        "title": "Find a user",
+        "label": "Search users by name or phone",
+        "placeholder": "Name or phone number",
+        "clearLabel": "Clear search",
+        "hint": "Searches every account by name or phone number. A pasted user ID opens that user directly.",
+        "matches_zero": "{{total}} users match “{{query}}”",
+        "matches_one": "{{total}} user matches “{{query}}”",
+        "matches_two": "{{total}} users match “{{query}}”",
+        "matches_few": "{{total}} users match “{{query}}”",
+        "matches_many": "{{total}} users match “{{query}}”",
+        "matches_other": "{{total}} users match “{{query}}”",
+        "noMatchTitle": "No users match “{{query}}”",
+        "noMatchBody": "Check the spelling or search by phone number. Search covers every account, including people who have never taken a ride.",
+        "clear": "Clear search"
       }
     },
     "drivers": {
@@ -2407,5 +2506,22 @@
         "balanceAfter": "Balance after"
       }
     }
+  },
+  "accessBlocked": {
+    "admin": {
+      "title": "Your admin access is deactivated",
+      "body": "You can't use the Labby Admin dashboard while your admin access is deactivated. Any other Labby role on your account, such as riding, is not affected.",
+      "noteLabel": "Note from the Super Admin · deactivated {{date}}",
+      "noteLabelUndated": "Note from the Super Admin",
+      "hint": "Think this is a mistake? Ask a Super Admin to reactivate your access, then sign in again."
+    },
+    "account": {
+      "title": "Your Labby account is suspended",
+      "body": "You can't use the Labby Admin dashboard while your Labby account is suspended.",
+      "noteLabel": "Reason given · suspended {{date}}",
+      "noteLabelUndated": "Reason given"
+    },
+    "quoted": "“{{note}}”",
+    "noNote": "No note was recorded."
   }
 }

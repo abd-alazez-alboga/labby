@@ -398,8 +398,8 @@ describe('user trust profile', () => {
         'Every account, newest first. Open a user for trust, wallet and roles.',
       ),
     ).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Phone or user ID'), SAMER_ID);
-    await user.click(screen.getByRole('button', { name: 'Search' }));
+    // Board V1FAdminUsersSearch (V1 audit H8): the search box opens a pasted ID on Enter.
+    await user.type(screen.getByLabelText('Search users by name or phone'), `${SAMER_ID}{Enter}`);
 
     expect(await screen.findByRole('region', { name: 'Driver role' })).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/users/${SAMER_ID}/trust`);

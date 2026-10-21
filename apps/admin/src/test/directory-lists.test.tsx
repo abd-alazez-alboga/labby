@@ -41,7 +41,8 @@ describe('admin directory lists', () => {
     renderShell();
     const user = userEvent.setup();
 
-    expect(await screen.findByLabelText('Phone or user ID')).toBeInTheDocument();
+    // V1 audit H8 (board V1FAdminUsersSearch): the name/phone search box replaces the lookup.
+    expect(await screen.findByLabelText('Search users by name or phone')).toBeInTheDocument();
     const rows = (await screen.findAllByRole('row')).slice(1);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent('Rana Khoury');
