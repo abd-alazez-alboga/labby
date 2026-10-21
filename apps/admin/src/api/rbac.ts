@@ -138,9 +138,21 @@ export function changeAdminRole(
   return client.put<AdminAccount>(`/api/v1/admin/admins/${userId}/role`, { roleId });
 }
 
-/** POST /admin/admins/{userId}/deactivate — requires admins:manage; 409 = last active Super Admin. */
-export function deactivateAdmin(client: ApiClient, userId: string): Promise<AdminAccount> {
-  return client.post<AdminAccount>(`/api/v1/admin/admins/${userId}/deactivate`);
+/**
+ * POST /admin/admins/{userId}/deactivate — requires admins:manage; 409 = last
+ * active Super Admin. The optional `note` (≤ 500) is shown to the admin in the
+ * notification and on their "access deactivated" screen (V1 W5 / I31).
+ */
+export function deactivateAdmin(
+  client: ApiClient,
+  userId: string,
+  note?: string,
+): Promise<AdminAccount> {
+  const trimmed = note?.trim();
+  return client.post<AdminAccount>(
+    `/api/v1/admin/admins/${userId}/deactivate`,
+    trimmed ? { note: trimmed } : undefined,
+  );
 }
 
 /** POST /admin/admins/{userId}/reactivate — requires admins:manage. */

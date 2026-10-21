@@ -18,3 +18,37 @@ export function adminPermissions(user: UserProfile | null): ReadonlySet<string> 
   const assignment = user?.roles.find((r) => r.role === 'admin' && r.state === 'active');
   return new Set(assignment?.permissions ?? []);
 }
+
+/**
+ * Why the signed-in admin may not use the dashboard at all (USR-06, V1 W5 /
+ * I31, board V1FAdminAccessDeactivated): a whole-account suspension, or a
+ * deactivated `admin` role assignment — with the note and date shown to
+ * them. Null while the account and the admin role are active.
+ */
+export interface AccessBlock {
+  kind: 'account' | 'admin';
+  note: string | null;
+  since: string | null;
+}
+
+export function accessBlock(user: UserProfile | null): AccessBlock | null {
+  if (!user) {
+    return null;
+  }
+  if (user.state === 'suspended') {
+    return {
+      kind: 'account',
+      note: user.suspensionNote?.trim() || null,
+      since: user.suspendedAt ?? null,
+    };
+  }
+  const assignment = user.roles.find((r) => r.role === 'admin');
+  if (assignment?.state === 'suspended') {
+    return {
+      kind: 'admin',
+      note: assignment.suspensionNote?.trim() || null,
+      since: assignment.suspendedAt ?? null,
+    };
+  }
+  return null;
+}

@@ -6,6 +6,7 @@ import type { AdminAccount, Role } from '../api/rbac';
 import i18n from '../i18n/i18n';
 import {
   adminUser,
+  callsTo,
   jsonResponse,
   renderShell,
   seedStoredSession,
@@ -206,6 +207,29 @@ describe('admins page', () => {
 
     expect(await within(row).findByText('Deactivated')).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Reactivate' })).toBeInTheDocument();
+  });
+
+  it('sends the optional deactivation note, trimmed', async () => {
+    seedStoredSession(sessionFor(MANAGER));
+    const fetchMock = stubAdminRoutes(MANAGER, (method, path) =>
+      method === 'POST' && path === '/api/v1/admin/admins/user-2/deactivate'
+        ? jsonResponse(200, { ...ADMIN_TWO, state: 'suspended' })
+        : null,
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    const row = (await screen.findByText('Sami Haddad')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: 'Deactivate' }));
+    await user.type(
+      within(row).getByRole('textbox', { name: 'Note to the admin · optional' }),
+      '  Contract ended.  ',
+    );
+    await user.click(within(row).getByRole('button', { name: 'Confirm' }));
+
+    expect(await within(row).findByText('Deactivated')).toBeInTheDocument();
+    const [call] = callsTo(fetchMock, '/api/v1/admin/admins/user-2/deactivate');
+    expect(JSON.parse(String(call[1]?.body))).toEqual({ note: 'Contract ended.' });
   });
 
   it('surfaces the last-Super-Admin conflict on deactivation', async () => {

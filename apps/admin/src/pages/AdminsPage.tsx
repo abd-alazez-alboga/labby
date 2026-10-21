@@ -59,6 +59,7 @@ export default function AdminsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deactivateNote, setDeactivateNote] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -154,8 +155,10 @@ export default function AdminsPage() {
   }
 
   function handleDeactivate(admin: AdminAccount) {
+    const note = deactivateNote;
     setConfirmingId(null);
-    void runRowAction(admin.id, () => deactivateAdmin(apiClient, admin.id));
+    setDeactivateNote('');
+    void runRowAction(admin.id, () => deactivateAdmin(apiClient, admin.id, note));
   }
 
   function handleReactivate(admin: AdminAccount) {
@@ -296,6 +299,15 @@ export default function AdminsPage() {
                       confirmingId === admin.id ? (
                         <span className="table__confirm">
                           {t('admins.deactivateConfirm')}
+                          <input
+                            className="table__confirm-note"
+                            aria-label={t('admins.deactivateNoteLabel')}
+                            placeholder={t('admins.deactivateNoteLabel')}
+                            maxLength={500}
+                            dir="auto"
+                            value={deactivateNote}
+                            onChange={(event) => setDeactivateNote(event.target.value)}
+                          />
                           <button
                             className="btn btn--small btn--danger"
                             type="button"
@@ -307,7 +319,10 @@ export default function AdminsPage() {
                           <button
                             className="btn btn--small"
                             type="button"
-                            onClick={() => setConfirmingId(null)}
+                            onClick={() => {
+                              setConfirmingId(null);
+                              setDeactivateNote('');
+                            }}
                           >
                             {t('common.cancel')}
                           </button>
@@ -316,7 +331,10 @@ export default function AdminsPage() {
                         <button
                           className="btn btn--small btn--danger-text"
                           type="button"
-                          onClick={() => setConfirmingId(admin.id)}
+                          onClick={() => {
+                            setConfirmingId(admin.id);
+                            setDeactivateNote('');
+                          }}
                           disabled={busyId === admin.id}
                         >
                           {t('admins.deactivate')}

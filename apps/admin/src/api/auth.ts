@@ -12,6 +12,15 @@ export type Role = 'rider' | 'driver' | 'admin';
 export interface RoleAssignment {
   role: Role;
   state: 'active' | 'suspended';
+  /** Why the role is suspended (USR-04), present only while it is. */
+  suspensionReason?: 'document_expired' | 'low_rating' | 'manual' | null;
+  /**
+   * The admin's reason shown to the user; on a deactivated `admin`
+   * assignment, the Super Admin's optional deactivation note (V1 W5 / I31).
+   */
+  suspensionNote?: string | null;
+  /** When the role was suspended — the deactivation date on the admin role. */
+  suspendedAt?: string | null;
   /**
    * RBAC fields, present on the `admin` assignment once the M3-T2 backend
    * lands: the single RBAC role and its `domain:action` permission codes.
@@ -29,6 +38,10 @@ export interface UserProfile {
   language: 'en' | 'ar';
   photoUrl?: string | null;
   state: 'active' | 'suspended' | 'deleted';
+  /** The admin's reason for a whole-account suspension (USR-06), shown to the user. */
+  suspensionNote?: string | null;
+  /** When the whole account was suspended; null while it is not. */
+  suspendedAt?: string | null;
   roles: RoleAssignment[];
 }
 
