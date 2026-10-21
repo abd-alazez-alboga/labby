@@ -209,6 +209,44 @@ describe("suspension ticket, pre-filled (W39)", () => {
     );
   });
 
+  it("names the suspension date when the profile has it (V1FRiderSuspendedTicket)", async () => {
+    const role = riderRoleSuspended("manual", NOTE);
+    const user: UserProfile = {
+      ...role,
+      roles: [{ ...role.roles[0], suspendedAt: "2026-10-14T09:00:00Z" }],
+    };
+    mockApi({
+      [ME]: { status: 200, body: user },
+      [CATEGORIES]: { status: 200, body: [accountSuspend] },
+      [RIDES]: { status: 200, body: emptyRides },
+    });
+    await renderSignedIn(user, "manual");
+
+    expect(await screen.findByText("Account & suspension")).toBeOnTheScreen();
+    expect(screen.getByTestId("ticket-description").props.value).toBe(
+      `My rider account was suspended on Oct 14. Reason shown: “${NOTE}” I'd like my account to be reviewed.`,
+    );
+  });
+
+  it("names the date of a whole-account suspension in Arabic", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    const user: UserProfile = {
+      ...accountSuspended(null),
+      suspendedAt: "2026-10-14T09:00:00Z",
+    };
+    mockApi({
+      [ME]: { status: 200, body: user },
+      [CATEGORIES]: { status: 200, body: [accountSuspend] },
+      [RIDES]: { status: 200, body: emptyRides },
+    });
+    await renderSignedIn(user);
+
+    expect(await screen.findByText("الحساب والإيقاف")).toBeOnTheScreen();
+    expect(screen.getByTestId("ticket-description").props.value).toBe(
+      "تم إيقاف حسابي في لبي بتاريخ 14 أكتوبر. أرجو مراجعة حسابي.",
+    );
+  });
+
   it("an ordinary ticket is not pre-filled", async () => {
     mockApi({
       [CATEGORIES]: { status: 200, body: [payments, accountSuspend] },

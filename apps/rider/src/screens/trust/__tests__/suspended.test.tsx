@@ -164,6 +164,36 @@ describe("suspended screen (USR-04..06)", () => {
     );
   });
 
+  it("dates the reason card from the profile's suspendedAt (V1FRiderSuspendedAppeal)", async () => {
+    const role = riderRoleSuspended(
+      "manual",
+      "Repeated abusive messages to drivers in ride chat.",
+    );
+    const user: UserProfile = {
+      ...role,
+      roles: [{ ...role.roles[0], suspendedAt: "2026-10-14T09:00:00Z" }],
+    };
+    mockApi({ [ME]: { status: 200, body: user }, [ACTIVE]: { status: 204 } });
+    await renderHome(user);
+
+    expect(await screen.findByTestId("suspended-note")).toHaveTextContent(
+      "Reason · from the Labby team · Oct 14“Repeated abusive messages to drivers in ride chat.”",
+    );
+  });
+
+  it("dates a whole-account suspension too", async () => {
+    const user: UserProfile = {
+      ...accountSuspended("Payment fraud under investigation."),
+      suspendedAt: "2026-10-12T09:00:00Z",
+    };
+    mockApi({ [ME]: { status: 200, body: user }, [ACTIVE]: { status: 204 } });
+    await renderHome(user);
+
+    expect(await screen.findByTestId("suspended-note")).toHaveTextContent(
+      /^Reason · from the Labby team · Oct 12“Payment fraud/,
+    );
+  });
+
   it("a 403 account_suspended from any call re-reads the profile", async () => {
     const suspended = accountSuspended("Abuse reports confirmed.");
     const api = mockApi({
@@ -234,6 +264,20 @@ describe("suspended screen (USR-04..06)", () => {
       ),
     ).toBeOnTheScreen();
     expect(screen.getByTestId("suspended-settings")).toHaveTextContent("الإعدادات");
+  });
+
+  it("dates the rating rule in Arabic with Western digits (V1FRiderSuspendedAppealAr)", async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    const role = riderRoleSuspended("low_rating");
+    const user: UserProfile = {
+      ...role,
+      roles: [{ ...role.roles[0], suspendedAt: "2026-10-14T09:00:00Z" }],
+    };
+    mockApi({ [ME]: { status: 200, body: user }, [ACTIVE]: { status: 204 } });
+    await renderHome(user);
+    expect(await screen.findByTestId("suspended-rule")).toHaveTextContent(
+      /^السبب · 14 أكتوبر/,
+    );
   });
 });
 

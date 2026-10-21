@@ -4,7 +4,9 @@
  * of booking while the rider role or the whole account is suspended. The
  * reason card carries the admin's note ("from the Labby team", manual
  * suspensions and whole-account suspensions) or the rating rule
- * (`low_rating`); without a known reason the card is left out. "Contact
+ * (`low_rating`); without a known reason the card is left out. The card's
+ * label carries the suspension date when the profile has it (auth-v1
+ * `suspendedAt`, "Reason · from the Labby team · 14 Oct"). "Contact
  * support" opens the create-ticket flow pre-filled about the suspension
  * (UC-R-04 E3 appeal); the Settings link keeps language and log out
  * reachable.
@@ -26,7 +28,10 @@ import {
 import { useLocale } from "../../i18n/locale-context";
 import { colors, radius, spacing } from "../../theme/tokens";
 import type { RiderSuspension } from "../../trust/suspension";
-import { suspensionTicketHref } from "../../trust/suspension-ticket";
+import {
+  suspensionDate,
+  suspensionTicketHref,
+} from "../../trust/suspension-ticket";
 import { QuietLink } from "./suspension-support";
 
 export default function SuspendedScreen({
@@ -34,8 +39,9 @@ export default function SuspendedScreen({
 }: {
   suspension: RiderSuspension;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
+  const date = suspensionDate(suspension, locale);
   const lowRating = suspension.scope === "role" && suspension.reason === "low_rating";
 
   return (
@@ -59,7 +65,9 @@ export default function SuspendedScreen({
         {suspension.note ? (
           <View style={styles.reasonCard} testID="suspended-note">
             <AppText variant="caption" weight={700} tone="muted">
-              {t("suspended.reasonFromTeam")}
+              {date
+                ? t("suspended.reasonFromTeamDated", { date })
+                : t("suspended.reasonFromTeam")}
             </AppText>
             <AppText variant="bodyStrong" style={styles.lines}>
               {t("suspended.quoted", { note: suspension.note })}
@@ -69,7 +77,9 @@ export default function SuspendedScreen({
         {lowRating ? (
           <View style={styles.reasonCard} testID="suspended-rule">
             <AppText variant="caption" weight={700} tone="muted">
-              {t("suspended.reasonLabel")}
+              {date
+                ? t("suspended.reasonLabelDated", { date })
+                : t("suspended.reasonLabel")}
             </AppText>
             <AppText variant="bodyStrong" style={styles.lines}>
               {t("suspended.lowRating")}

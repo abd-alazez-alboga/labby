@@ -21,6 +21,8 @@ export interface RiderSuspension {
   reason: SuspensionReason | null;
   /** The admin's reason (manual suspensions), else null. */
   note: string | null;
+  /** When it started (auth-v1 `suspendedAt`), null when unknown. */
+  suspendedAt: string | null;
 }
 
 export function riderSuspension(
@@ -32,6 +34,7 @@ export function riderSuspension(
       scope: "account",
       reason: "manual",
       note: user.suspensionNote?.trim() || null,
+      suspendedAt: user.suspendedAt ?? null,
     };
   }
   const role = user?.roles.find((assignment) => assignment.role === "rider");
@@ -43,13 +46,14 @@ export function riderSuspension(
         role.suspensionReason === "manual"
           ? role.suspensionNote?.trim() || null
           : null,
+      suspendedAt: role.suspendedAt ?? null,
     };
   }
   if (signal === "account_suspended") {
-    return { scope: "account", reason: null, note: null };
+    return { scope: "account", reason: null, note: null, suspendedAt: null };
   }
   if (signal === "rider_suspended") {
-    return { scope: "role", reason: null, note: null };
+    return { scope: "role", reason: null, note: null, suspendedAt: null };
   }
   return null;
 }

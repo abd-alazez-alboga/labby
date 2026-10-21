@@ -8,6 +8,8 @@
 import type { TranslateOptions } from "i18n-js";
 
 import type { SuspensionReason } from "../api/auth";
+import type { AppLocale } from "../i18n/translations";
+import { formatDate } from "../ride/ride-format";
 import type { RiderSuspension } from "./suspension";
 
 type T = (key: string, options?: TranslateOptions) => string;
@@ -48,18 +50,38 @@ export function suspensionReasonText(
   return null;
 }
 
+/** The suspension date ("14 Oct"), or null when the profile has none. */
+export function suspensionDate(
+  suspension: RiderSuspension | null,
+  locale: AppLocale,
+): string | null {
+  return suspension?.suspendedAt
+    ? formatDate(suspension.suspendedAt, locale)
+    : null;
+}
+
 /** The pre-filled ticket description (editable before sending). */
 export function suspensionTicketDescription(
   suspension: RiderSuspension | null,
   t: T,
+  locale: AppLocale,
 ): string {
   const reason = suspensionReasonText(suspension, t);
+  const date = suspensionDate(suspension, locale);
+  const account = suspension?.scope === "account";
   return [
-    t(
-      suspension?.scope === "account"
-        ? "suspended.ticket.accountLine"
-        : "suspended.ticket.roleLine",
-    ),
+    date
+      ? t(
+          account
+            ? "suspended.ticket.accountLineDated"
+            : "suspended.ticket.roleLineDated",
+          { date },
+        )
+      : t(
+          account
+            ? "suspended.ticket.accountLine"
+            : "suspended.ticket.roleLine",
+        ),
     reason ? t("suspended.ticket.reasonLine", { reason }) : null,
     t("suspended.ticket.reviewLine"),
   ]
@@ -77,7 +99,12 @@ export function withFallbackReason(
   suspension: RiderSuspension | null,
   fallbackReason: string | null | undefined,
 ): RiderSuspension {
-  const base = suspension ?? { scope: "role" as const, reason: null, note: null };
+  const base = suspension ?? {
+    scope: "role" as const,
+    reason: null,
+    note: null,
+    suspendedAt: null,
+  };
   return base.reason
     ? base
     : { ...base, reason: knownSuspensionReason(fallbackReason) };

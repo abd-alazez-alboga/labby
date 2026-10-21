@@ -93,6 +93,7 @@ export default function TicketCreateScreen({
           aboutSuspension.reason,
         ),
         t,
+        locale,
       )
     : "";
   const [categories, setCategories] = useState<TicketCategory[]>([]);
