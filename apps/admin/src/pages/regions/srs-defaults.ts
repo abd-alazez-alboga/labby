@@ -6,6 +6,9 @@ import type { Region } from '../../api/regions';
  * (V1 audit I24 / I26 / I27 / I28). Never applied to an existing record: an
  * edit form always shows what is stored. Money values are the SRS figures in
  * region currency units; the admin adjusts them to the currency's scale.
+ * The driver balance floor and its warning margin are never prefilled: the
+ * SRS figures (-50 / 10) mean nothing in SYP (V1 audit W3), so the admin
+ * enters them in the region's currency.
  */
 export const SRS_REGION_DEFAULTS = {
   cancellationGraceMin: 2,
@@ -46,6 +49,13 @@ export const SRS_REGION_DEFAULTS = {
     windowDays: 30,
     minSample: 20,
   },
+  /** RIDE-S (§9): reminders 24 h and 1 h before, fallback 15 min, earliest booking 30 min. */
+  scheduledSettings: {
+    reminderFirstMin: 1440,
+    reminderSecondMin: 60,
+    fallbackLeadMin: 15,
+    minLeadMin: 30,
+  },
 } satisfies Partial<Region>;
 
 /** PRC-01: the minimum fare a new service type starts with. */
@@ -74,5 +84,6 @@ export function withSrsDefaults(region: Region): Region {
     incentiveValues: region.incentiveValues ?? SRS_REGION_DEFAULTS.incentiveValues,
     suspensionThresholds: region.suspensionThresholds ?? SRS_REGION_DEFAULTS.suspensionThresholds,
     metricWarnings: region.metricWarnings ?? SRS_REGION_DEFAULTS.metricWarnings,
+    scheduledSettings: region.scheduledSettings ?? SRS_REGION_DEFAULTS.scheduledSettings,
   };
 }

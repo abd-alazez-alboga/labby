@@ -13,7 +13,9 @@ import { useAuth } from '../../auth/AuthContext';
 import { PeakHourBonusSection, type PeakWindowRow } from './PeakHourBonusSection';
 import { PolygonMapEditor } from './PolygonMapEditor';
 import { regionConflictMessage, type UiMessage } from './region-errors';
+import { formatMoney } from '../money/money-format';
 import { withSrsDefaults } from './srs-defaults';
+import { timeZoneOptions, utcOffset } from './time-zones';
 import { toContractTime, toTimeInput } from './timeWindows';
 
 interface TierRow {
@@ -73,7 +75,11 @@ function mapSaveError(error: unknown, t: TFunction, language: string): UiMessage
  * button is hidden. Right after the region is created (`prefillDefaults`),
  * every unset value starts at its SRS §9 default — editable, saved only with
  * the bundle — except the peak-hour bonus, which starts empty (owner ruling
- * 2026-10-20); an existing region always shows what is stored.
+ * 2026-10-20); an existing region always shows what is stored. Board
+ * V1FRegionFloorSettings (V1 audit W3 / I23 / I18) adds the time zone, the
+ * driver balance floor + warning margin in the region's currency (never
+ * prefilled) and the scheduled-ride timing; each of them is sent only when
+ * set (or, for the zone, changed), since an omitted value keeps the stored one.
  */
 export function BundleForm({
   region,
@@ -96,6 +102,26 @@ export function BundleForm({
   const [currency, setCurrency] = useState(region.currency ?? '');
   const [emergencyNumber, setEmergencyNumber] = useState(region.emergencyNumber ?? '');
   const [boundary, setBoundary] = useState<GeoJsonPolygon | null>(region.boundary ?? null);
+  const [timeZone, setTimeZone] = useState(region.timeZone);
+
+  // COM-03 floor + warning margin (V1 audit W3): never prefilled — the SRS
+  // figures are not in the region's currency scale. Blank keeps the stored value.
+  const [driverBalanceFloor, setDriverBalanceFloor] = useState(toInput(region.driverBalanceFloor));
+  const [floorWarningMargin, setFloorWarningMargin] = useState(toInput(region.floorWarningMargin));
+
+  // RIDE-S scheduled timing (V1 audit I18) — all four or none.
+  const [reminderFirstMin, setReminderFirstMin] = useState(
+    toInput(initial.scheduledSettings?.reminderFirstMin ?? null),
+  );
+  const [reminderSecondMin, setReminderSecondMin] = useState(
+    toInput(initial.scheduledSettings?.reminderSecondMin ?? null),
+  );
+  const [fallbackLeadMin, setFallbackLeadMin] = useState(
+    toInput(initial.scheduledSettings?.fallbackLeadMin ?? null),
+  );
+  const [minLeadMin, setMinLeadMin] = useState(
+    toInput(initial.scheduledSettings?.minLeadMin ?? null),
+  );
 
   const [cancellationGraceMin, setCancellationGraceMin] = useState(
     toInput(initial.cancellationGraceMin),
@@ -257,6 +283,34 @@ export function BundleForm({
       return null;
     }
 
+    // COM-03: the floor is never above 0, the warning margin always above 0.
+    if (driverBalanceFloor.trim() !== '' && !(Number(driverBalanceFloor) <= 0)) {
+      setSaveError({ key: 'regionDetail.errors.floorAboveZero' });
+      return null;
+    }
+    if (floorWarningMargin.trim() !== '' && !(Number(floorWarningMargin) > 0)) {
+      setSaveError({ key: 'regionDetail.errors.marginNotPositive' });
+      return null;
+    }
+
+    const scheduledFields = [reminderFirstMin, reminderSecondMin, fallbackLeadMin, minLeadMin];
+    const scheduledTouched = scheduledFields.some((field) => field.trim() !== '');
+    if (scheduledTouched && !scheduledFields.every((field) => field.trim() !== '')) {
+      setSaveError({ key: 'regionDetail.errors.incompleteScheduled' });
+      return null;
+    }
+    if (scheduledTouched) {
+      const [first, second, fallback, minLead] = scheduledFields.map(Number);
+      if (!(first > second && second > fallback)) {
+        setSaveError({ key: 'regionDetail.errors.scheduledReminderOrder' });
+        return null;
+      }
+      if (!(minLead > fallback)) {
+        setSaveError({ key: 'regionDetail.errors.scheduledMinLead' });
+        return null;
+      }
+    }
+
     const metricFields = [
       minAcceptancePercent,
       maxCancellationPercent,
@@ -274,12 +328,17 @@ export function BundleForm({
       boundary,
       currency: currency.trim() === '' ? null : currency.trim().toUpperCase(),
       emergencyNumber: emergencyNumber.trim() === '' ? null : emergencyNumber.trim(),
+      // Omitted keeps the stored zone (contract): only a change is sent.
+      timeZone: timeZone !== region.timeZone ? timeZone : undefined,
       cancellationGraceMin: toNumberOrNull(cancellationGraceMin),
       cancellationFee: toNumberOrNull(cancellationFee),
       waitGraceMin: toNumberOrNull(waitGraceMin),
       waitPerMinRate: toNumberOrNull(waitPerMinRate),
       pickupFeeThresholdKm: toNumberOrNull(pickupFeeThresholdKm),
       pickupFeePerKm: toNumberOrNull(pickupFeePerKm),
+      // Blank = omitted, which keeps the stored value (contract).
+      driverBalanceFloor: toNumberOrNull(driverBalanceFloor) ?? undefined,
+      floorWarningMargin: toNumberOrNull(floorWarningMargin) ?? undefined,
       surgeCap: toNumberOrNull(surgeCap),
       commissionTiers:
         tiers.length === 0
@@ -336,6 +395,14 @@ export function BundleForm({
             minSample: Number(metricMinSample),
           }
         : undefined,
+      scheduledSettings: scheduledTouched
+        ? {
+            reminderFirstMin: Number(reminderFirstMin),
+            reminderSecondMin: Number(reminderSecondMin),
+            fallbackLeadMin: Number(fallbackLeadMin),
+            minLeadMin: Number(minLeadMin),
+          }
+        : undefined,
     };
   }
 
@@ -372,23 +439,51 @@ export function BundleForm({
     labelKey: string,
     value: string,
     onChange: (next: string) => void,
-    options: { min?: number; step?: string } = {},
+    options: {
+      /** null = no lower bound (the floor is negative). */
+      min?: number | null;
+      step?: string;
+      labelValues?: Record<string, string>;
+      hint?: string;
+    } = {},
   ) {
     return (
       <div className="form-field">
-        <label htmlFor={id}>{t(labelKey)}</label>
+        <label htmlFor={id}>{t(labelKey, options.labelValues)}</label>
         <input
           id={id}
           type="number"
           inputMode="decimal"
-          min={options.min ?? 0}
+          min={options.min === null ? undefined : (options.min ?? 0)}
           step={options.step ?? 'any'}
           value={value}
+          aria-describedby={options.hint ? `${id}-hint` : undefined}
           onChange={(event) => onChange(event.target.value)}
         />
+        {options.hint ? (
+          <span id={`${id}-hint`} className="form-field__hint">
+            {options.hint}
+          </span>
+        ) : null}
       </div>
     );
   }
+
+  const currencyCode = /^[A-Za-z]{3}$/.test(currency.trim()) ? currency.trim().toUpperCase() : null;
+  const currencyLabel = currencyCode ? t(`money.currency.${currencyCode}`, currencyCode) : null;
+  const floorValue = driverBalanceFloor.trim() === '' ? null : Number(driverBalanceFloor);
+  const marginValue = floorWarningMargin.trim() === '' ? null : Number(floorWarningMargin);
+  const floorPreview =
+    currencyLabel &&
+    floorValue !== null &&
+    floorValue <= 0 &&
+    marginValue !== null &&
+    marginValue > 0
+      ? {
+          warnFrom: formatMoney(floorValue + marginValue, currencyLabel, i18n.language),
+          blockedAt: formatMoney(floorValue, currencyLabel, i18n.language),
+        }
+      : null;
 
   return (
     <form id={BUNDLE_FORM_ID} className="card panel" onSubmit={(event) => void handleSave(event)}>
@@ -442,6 +537,27 @@ export function BundleForm({
               dir="ltr"
             />
           </div>
+          <div className="form-field">
+            <label htmlFor="bundle-time-zone">{t('regionDetail.fields.timeZone')}</label>
+            <select
+              id="bundle-time-zone"
+              value={timeZone}
+              aria-describedby="bundle-time-zone-hint"
+              onChange={(event) => setTimeZone(event.target.value)}
+            >
+              {timeZoneOptions(region.timeZone).map((zone) => {
+                const offset = utcOffset(zone);
+                return (
+                  <option key={zone} value={zone}>
+                    {offset ? `${zone} · ${offset}` : zone}
+                  </option>
+                );
+              })}
+            </select>
+            <span id="bundle-time-zone-hint" className="form-field__hint">
+              {t('regionDetail.timeZoneHint')}
+            </span>
+          </div>
         </div>
 
         <h3 className="bundle__section">{t('regionDetail.feesTitle')}</h3>
@@ -490,6 +606,51 @@ export function BundleForm({
             min: 1,
           })}
         </div>
+
+        <h3 className="bundle__section">{t('regionDetail.floorTitle')}</h3>
+        <div className="panel__row">
+          {numberField(
+            'bundle-balance-floor',
+            currencyCode
+              ? 'regionDetail.fields.driverBalanceFloor'
+              : 'regionDetail.fields.driverBalanceFloorNoCurrency',
+            driverBalanceFloor,
+            setDriverBalanceFloor,
+            {
+              min: null,
+              labelValues: { currency: currencyLabel ?? '' },
+              hint: t('regionDetail.floorHint'),
+            },
+          )}
+          {numberField(
+            'bundle-floor-margin',
+            currencyCode
+              ? 'regionDetail.fields.floorWarningMargin'
+              : 'regionDetail.fields.floorWarningMarginNoCurrency',
+            floorWarningMargin,
+            setFloorWarningMargin,
+            {
+              labelValues: { currency: currencyLabel ?? '' },
+              hint: t('regionDetail.floorMarginHint'),
+            },
+          )}
+        </div>
+        {floorPreview ? (
+          <div className="floor-preview" role="status">
+            <span className="floor-preview__title">
+              {t('regionDetail.floorPreview.title', { region: name.trim() || region.name })}
+            </span>
+            <span className="floor-preview__line">
+              {t('regionDetail.floorPreview.warning')}{' '}
+              <strong dir="ltr">{floorPreview.warnFrom}</strong>
+            </span>
+            <span className="floor-preview__line">
+              {t('regionDetail.floorPreview.blocked')}{' '}
+              <strong dir="ltr">{floorPreview.blockedAt}</strong>
+            </span>
+            <span className="floor-preview__note">{t('regionDetail.floorPreview.note')}</span>
+          </div>
+        ) : null}
 
         <h3 className="bundle__section">{t('regionDetail.commissionTitle')}</h3>
         <p className="panel__hint">{t('regionDetail.commissionHint')}</p>
@@ -682,6 +843,39 @@ export function BundleForm({
             metricMinSample,
             setMetricMinSample,
             { min: 1, step: '1' },
+          )}
+        </div>
+
+        <h3 className="bundle__section">{t('regionDetail.scheduledTitle')}</h3>
+        <p className="panel__hint">{t('regionDetail.scheduledHint')}</p>
+        <div className="panel__row">
+          {numberField(
+            'bundle-reminder-first',
+            'regionDetail.fields.reminderFirstMin',
+            reminderFirstMin,
+            setReminderFirstMin,
+            { min: 1, step: '1', hint: t('regionDetail.scheduledDefault.reminderFirstMin') },
+          )}
+          {numberField(
+            'bundle-reminder-second',
+            'regionDetail.fields.reminderSecondMin',
+            reminderSecondMin,
+            setReminderSecondMin,
+            { min: 1, step: '1', hint: t('regionDetail.scheduledDefault.reminderSecondMin') },
+          )}
+          {numberField(
+            'bundle-fallback-lead',
+            'regionDetail.fields.fallbackLeadMin',
+            fallbackLeadMin,
+            setFallbackLeadMin,
+            { min: 1, step: '1', hint: t('regionDetail.scheduledDefault.fallbackLeadMin') },
+          )}
+          {numberField(
+            'bundle-min-lead',
+            'regionDetail.fields.minLeadMin',
+            minLeadMin,
+            setMinLeadMin,
+            { min: 1, step: '1', hint: t('regionDetail.scheduledDefault.minLeadMin') },
           )}
         </div>
       </fieldset>

@@ -61,6 +61,16 @@ export interface SuspensionThreshold {
   warnAvgRating?: number | null;
 }
 
+/** RIDE-S timing (M12): minutes before the scheduled pickup. */
+export interface ScheduledSettings {
+  reminderFirstMin: number;
+  reminderSecondMin: number;
+  /** Fallback to live dispatch AND conversion of claimed rides. */
+  fallbackLeadMin: number;
+  /** Earliest bookable lead. */
+  minLeadMin: number;
+}
+
 /** DRV-07 driver metric warnings (M11) — warn only, never suspend. */
 export interface MetricWarnings {
   minAcceptancePercent: number;
@@ -99,12 +109,18 @@ export interface Region {
   waitPerMinRate?: number | null;
   pickupFeeThresholdKm?: number | null;
   pickupFeePerKm?: number | null;
+  /** COM-03, ≤ 0, in the region's currency; null = the SRS default -50. */
+  driverBalanceFloor?: number | null;
+  /** COM-03 "warn when within", > 0, region currency; null = the global margin (10). */
+  floorWarningMargin?: number | null;
   surgeCap?: number | null;
   commissionTiers?: CommissionTier[] | null;
   incentiveValues?: IncentiveValues | null;
   suspensionThresholds?: SuspensionThresholds | null;
   /** Null = the SRS defaults 50 / 15 / 30 days / 20. */
   metricWarnings?: MetricWarnings | null;
+  /** RIDE-S; null = the SRS defaults 1440 / 60 / 15 / 30. */
+  scheduledSettings?: ScheduledSettings | null;
   serviceTypeCount: number;
   surgeZoneCount: number;
 }
@@ -115,18 +131,26 @@ export interface RegionUpsertRequest {
   boundary?: GeoJsonPolygon | null;
   currency?: string | null;
   emergencyNumber?: string | null;
+  /** IANA zone id; omitted KEEPS the current zone (a new region starts at Asia/Damascus). */
+  timeZone?: string;
   cancellationGraceMin?: number | null;
   cancellationFee?: number | null;
   waitGraceMin?: number | null;
   waitPerMinRate?: number | null;
   pickupFeeThresholdKm?: number | null;
   pickupFeePerKm?: number | null;
+  /** ≤ 0; omitted/null KEEPS the stored floor (contract). */
+  driverBalanceFloor?: number | null;
+  /** > 0; omitted/null KEEPS the stored margin (contract). */
+  floorWarningMargin?: number | null;
   surgeCap?: number | null;
   commissionTiers?: CommissionTier[] | null;
   incentiveValues?: IncentiveValues | null;
   suspensionThresholds?: SuspensionThresholds | null;
   /** Omitted/null KEEPS the stored value (contract); a new region starts unset. */
   metricWarnings?: MetricWarnings | null;
+  /** Omitted/null KEEPS the stored value; first > second > fallback, minLead > fallback. */
+  scheduledSettings?: ScheduledSettings | null;
 }
 
 export interface ServiceType {
