@@ -223,6 +223,43 @@ describe('SOS-linked support ticket (V1 audit W16)', () => {
     );
   });
 
+  it('opens the winner’s ticket named by details.ticketId without re-reading the alerts', async () => {
+    const fetchMock = stub(HANDLER, [OPEN_SOS], (method, path) =>
+      method === 'POST' && path === TICKET_PATH
+        ? jsonResponse(409, {
+            status: 409,
+            code: 'ticket_already_linked',
+            message: 'This SOS event already has its ticket',
+            details: { ticketId: TICKET_ID },
+          })
+        : null,
+    );
+    const user = userEvent.setup();
+    renderShell();
+
+    await screen.findByRole('heading', { name: 'SOS alerts' });
+    await user.click(await screen.findByRole('button', { name: 'Open support ticket' }));
+    await user.type(await screen.findByLabelText('Description · required'), 'Following up.');
+    const sosReadsBefore = callsTo(fetchMock, SOS_PATH).filter(
+      ([input]) => !String(input).includes('/ticket'),
+    ).length;
+    await user.click(screen.getByRole('button', { name: 'Open ticket' }));
+
+    expect(await screen.findByRole('link', { name: 'View ticket T-3F9A21C0' })).toHaveAttribute(
+      'href',
+      `/support/${TICKET_ID}`,
+    );
+    expect(
+      screen.getByText(
+        'Another admin already opened a ticket for this SOS. Your description was not sent.',
+      ),
+    ).toHaveAttribute('role', 'alert');
+    const sosReadsAfter = callsTo(fetchMock, SOS_PATH).filter(
+      ([input]) => !String(input).includes('/ticket'),
+    ).length;
+    expect(sosReadsAfter).toBe(sosReadsBefore);
+  });
+
   it('keeps the form open on an inactive category (other 409s)', async () => {
     stub(HANDLER, [OPEN_SOS], (method, path) =>
       method === 'POST' && path === TICKET_PATH

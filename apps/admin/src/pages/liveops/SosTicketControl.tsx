@@ -35,7 +35,8 @@ type FormError =
  * one), priority (starts at the category's default) and a description; the
  * ticket belongs to the SOS caller, starts in progress and assigned to the
  * admin. A 409 `ticket_already_linked` (another admin was faster) shows
- * their ticket instead of a dead end.
+ * their ticket instead of a dead end — named by the error's
+ * `details.ticketId`, else looked up on the alert list.
  */
 export function SosTicketControl({
   event,
@@ -140,10 +141,17 @@ export function SosTicketControl({
     onLinked?.(ticketId);
   }
 
-  /** Another admin opened the ticket first: find it on the alert list (best effort). */
-  async function showWinner() {
+  /**
+   * Another admin opened the ticket first: the 409's `details.ticketId` names
+   * it; without it, find it on the alert list (best effort).
+   */
+  async function showWinner(winnerId: string | null) {
     setAlreadyLinked(true);
     setFormOpen(false);
+    if (winnerId) {
+      linked(winnerId, null);
+      return;
+    }
     try {
       const page = await listSosEvents(apiClient, {
         status: 'all',
@@ -180,7 +188,8 @@ export function SosTicketControl({
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 409) {
         if (failure.code === 'ticket_already_linked') {
-          await showWinner();
+          const winnerId = failure.details?.ticketId;
+          await showWinner(typeof winnerId === 'string' && winnerId !== '' ? winnerId : null);
         } else {
           // category_inactive / category_reserved: the form stays open.
           setError('liveOps.sosTicket.errors.categoryUnavailable');
