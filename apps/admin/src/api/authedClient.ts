@@ -18,24 +18,55 @@ export interface AuthedClientHooks {
 
 /**
  * Wraps the plain API client with bearer auth: every request carries the
- * access token; a 401 triggers exactly ONE refresh attempt (single-flight,
- * so parallel 401s share it) and one retry with the rotated token. A failed
- * refresh — or a retry that is still 401 — expires the session, which the
- * auth context turns into a forced logout to the login page.
+ * access token; a 401 triggers at most ONE refresh attempt and one retry
+ * with the rotated token. A failed refresh — or a retry that is still 401 —
+ * expires the session, which the auth context turns into a forced logout to
+ * the login page.
+ *
+ * Parallel requests (a page load fires several) capture the same expired
+ * pair, and their 401s can arrive after another request's refresh already
+ * settled. Replaying the captured refresh token then would look like token
+ * reuse to the backend, which revokes the whole family (live test L-H1). So
+ * after a 401 the client re-reads the stored pair: if another request has
+ * rotated it, the retry just uses the current access token; a refresh is
+ * sent only for the stored refresh token, single-flight per refresh token
+ * (the settled promise is kept, so a late 401 shares its result).
  */
 export function createAuthedApiClient(config: RuntimeConfig, hooks: AuthedClientHooks): ApiClient {
   const raw = createApiClient(config);
-  let refreshInFlight: Promise<AuthTokensResponse> | null = null;
+  let refresh: { refreshToken: string; promise: Promise<AuthTokensResponse> } | null = null;
 
   function refreshOnce(refreshToken: string): Promise<AuthTokensResponse> {
-    refreshInFlight ??= refreshSession(raw, refreshToken).finally(() => {
-      refreshInFlight = null;
-    });
-    return refreshInFlight;
+    if (refresh?.refreshToken !== refreshToken) {
+      const promise = refreshSession(raw, refreshToken).then((rotated) => {
+        hooks.onRotated(rotated);
+        return rotated;
+      });
+      refresh = { refreshToken, promise };
+    }
+    return refresh.promise;
   }
 
   function withBearer(init: RequestInit, accessToken: string): RequestInit {
     return { ...init, headers: { ...init.headers, Authorization: `Bearer ${accessToken}` } };
+  }
+
+  /** The access token to retry with after a 401, refreshing only when nobody else has. */
+  async function freshAccessToken(captured: SessionTokens): Promise<string | null> {
+    const current = hooks.getTokens();
+    if (!current) {
+      return null;
+    }
+    if (
+      current.accessToken !== captured.accessToken ||
+      current.refreshToken !== captured.refreshToken
+    ) {
+      // Another request already rotated the pair — reuse it, never replay
+      // the captured (now stale) refresh token.
+      return current.accessToken;
+    }
+    const rotated = await refreshOnce(current.refreshToken);
+    return rotated.accessToken;
   }
 
   async function execute<T>(
@@ -54,16 +85,18 @@ export function createAuthedApiClient(config: RuntimeConfig, hooks: AuthedClient
       if (!(error instanceof ApiError) || error.status !== 401) {
         throw error;
       }
-      let rotated: AuthTokensResponse;
+      let accessToken: string | null;
       try {
-        rotated = await refreshOnce(tokens.refreshToken);
+        accessToken = await freshAccessToken(tokens);
       } catch {
+        accessToken = null;
+      }
+      if (accessToken === null) {
         hooks.onSessionExpired();
         throw error;
       }
-      hooks.onRotated(rotated);
       try {
-        return await run(withBearer(init, rotated.accessToken));
+        return await run(withBearer(init, accessToken));
       } catch (retryError) {
         if (retryError instanceof ApiError && retryError.status === 401) {
           hooks.onSessionExpired();
