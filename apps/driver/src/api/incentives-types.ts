@@ -45,9 +45,13 @@ export interface RatingProgress {
   amount: number;
   minAvgRating: number;
   minWeeklyTrips: number;
-  /** 2 decimals; null without ratings this week. */
+  /**
+   * The nightly snapshot of this week's average (2 decimals, rounded down);
+   * null until a nightly pass saw at least 5 ratings. Never a count (RATE-02).
+   */
   average?: number | null;
-  ratingCount: number;
+  /** When the nightly pass computed `average` (null with it). */
+  averageAsOf?: string | null;
   trips: number;
   qualifies: boolean;
 }

@@ -298,7 +298,11 @@ function PeakCard({
   );
 }
 
-/** Weekly rating reward — average and trip floor for the week (ruling Q4). */
+/**
+ * Weekly rating reward (ruling Q4) — the nightly average only, never a
+ * count, so a single rating cannot be traced to a ride (RATE-02, owner
+ * ruling 2026-10-20; board "V1FD15IncentivesNightly").
+ */
 function RatingCard({
   rating,
   currency,
@@ -308,6 +312,16 @@ function RatingCard({
 }) {
   const { t } = useTranslation();
   const { language, flipRows } = useDirection();
+  const missing = Math.max(0, rating.minWeeklyTrips - rating.trips);
+  const status = rating.qualifies
+    ? t("incentives.rating.qualifies")
+    : missing > 0
+      ? t("incentives.rating.notYetTrips", {
+          more: countCopy(t, "incentives.weekly.more", missing, language),
+        })
+      : t("incentives.rating.notYet");
+  const averageMet =
+    rating.average != null && rating.average >= rating.minAvgRating;
   return (
     <View style={styles.card} testID="incentives-rating">
       <CardHead
@@ -320,31 +334,64 @@ function RatingCard({
         chip={formatMoney(rating.amount, currency, language)}
         testID="incentives-rating"
       />
-      <View style={[styles.spread, flipRows && styles.rowReverse]}>
+      <View style={[styles.statusRow, flipRows && styles.rowReverse]}>
+        <View
+          style={[styles.statusChip, rating.qualifies && styles.statusChipMet]}
+        >
+          <AppText
+            variant="caption"
+            weight="800"
+            color={rating.qualifies ? colors.success : colors.textSecondary}
+            testID="incentives-rating-status"
+          >
+            {status}
+          </AppText>
+        </View>
         <AppText
           variant="caption"
           weight="800"
+          color={colors.textSecondary}
+          testID="incentives-rating-target"
+        >
+          {t("incentives.rating.target", {
+            rating: formatThreshold(rating.minAvgRating, language),
+          })}
+        </AppText>
+      </View>
+      <View style={[styles.spread, flipRows && styles.rowReverse]}>
+        <View
+          style={[styles.secured, flipRows && styles.rowReverse]}
           testID="incentives-rating-average"
         >
-          {rating.average != null
-            ? t("incentives.rating.average", {
-                average: formatRating(rating.average, language),
-                ratings: countCopy(
-                  t,
-                  "incentives.ratings",
-                  rating.ratingCount,
-                  language,
-                ),
-              })
-            : t("incentives.rating.noRatings")}
-        </AppText>
+          {rating.average != null ? (
+            <>
+              <AppText variant="caption" color={colors.textSecondary}>
+                {t("incentives.rating.average")}
+              </AppText>
+              <AppText weight="800">
+                {formatRating(rating.average, language)}
+              </AppText>
+              {averageMet ? (
+                <Icon
+                  name="checkmark"
+                  size={14}
+                  color={colors.success}
+                  testID="incentives-rating-average-met"
+                />
+              ) : null}
+            </>
+          ) : (
+            <AppText variant="caption" color={colors.textSecondary}>
+              {t("incentives.rating.noAverage")}
+            </AppText>
+          )}
+        </View>
         <AppText
           variant="caption"
-          weight="400"
-          color={colors.textMuted}
+          color={colors.textSecondary}
           testID="incentives-rating-trips"
         >
-          {t("incentives.of", {
+          {t("incentives.rating.trips", {
             n: formatCount(rating.trips, language),
             d: tripsCopy(t, rating.minWeeklyTrips, language),
           })}
@@ -360,6 +407,17 @@ function RatingCard({
         })}
         testID="incentives-rating-progress"
       />
+      <View style={[styles.secured, flipRows && styles.rowReverse]}>
+        <Icon name="time-outline" size={14} color={colors.textMuted} />
+        <AppText
+          variant="caption"
+          color={colors.textMuted}
+          style={styles.grow}
+          testID="incentives-rating-note"
+        >
+          {t("incentives.rating.nightly")}
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -383,10 +441,7 @@ function AwardRow({
           date: formatCalendarDay(t, award.weekStart, language),
         });
   return (
-    <View
-      style={[styles.award, flipRows && styles.rowReverse]}
-      testID={testID}
-    >
+    <View style={[styles.award, flipRows && styles.rowReverse]} testID={testID}>
       <View style={styles.checkWell}>
         <Icon name="checkmark" size={16} color={colors.success} />
       </View>
@@ -635,6 +690,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.online,
   },
   secured: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  statusChip: {
+    backgroundColor: colors.surfaceFill,
+    borderRadius: radius.chip,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: 10,
+  },
+  statusChipMet: { backgroundColor: colors.successBg },
   windows: { gap: 6 },
   windowRow: {
     flexDirection: "row",

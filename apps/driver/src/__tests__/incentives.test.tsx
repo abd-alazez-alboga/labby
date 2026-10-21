@@ -140,16 +140,30 @@ describe("incentives (DRV-08)", () => {
 
     // Rating reward.
     expect(screen.getByTestId("incentives-rating")).toHaveTextContent(
-      /Avg 4\.8\+ with 30\+ trips this week/,
+      /Weekly average 4\.8\+ with 30\+ trips/,
     );
     expect(screen.getByTestId("incentives-rating-chip")).toHaveTextContent(
       "SYP 20,000",
     );
-    expect(screen.getByTestId("incentives-rating-average")).toHaveTextContent(
-      "4.86 average · 21 ratings",
+    // Nightly average only — never a count (RATE-02, V1FD15IncentivesNightly).
+    expect(screen.getByTestId("incentives-rating-status")).toHaveTextContent(
+      "Not yet · 4 more trips",
     );
+    expect(screen.getByTestId("incentives-rating-target")).toHaveTextContent(
+      "Target 4.8",
+    );
+    expect(screen.getByTestId("incentives-rating-average")).toHaveTextContent(
+      /^Weekly average\s*4\.86/,
+    );
+    expect(screen.getByTestId("incentives-rating-average-met")).toBeTruthy();
     expect(screen.getByTestId("incentives-rating-trips")).toHaveTextContent(
-      "26 of 30 trips",
+      "26 / 30 trips",
+    );
+    expect(screen.getByTestId("incentives-rating-note")).toHaveTextContent(
+      "Average as of last night · updated daily, not after each ride.",
+    );
+    expect(screen.getByTestId("incentives-rating")).not.toHaveTextContent(
+      /ratings?\b/,
     );
     expect(
       screen.getByTestId("incentives-rating-progress").props.accessibilityValue
@@ -203,7 +217,7 @@ describe("incentives (DRV-08)", () => {
               },
             ],
           },
-          rating: { ...base.rating!, average: null, ratingCount: 0 },
+          rating: { ...base.rating!, average: null, averageAsOf: null },
           recentAwards: [
             {
               ...base.recentAwards[0],
@@ -245,8 +259,9 @@ describe("incentives (DRV-08)", () => {
     );
 
     expect(screen.getByTestId("incentives-rating-average")).toHaveTextContent(
-      "No ratings yet this week",
+      "No weekly average yet",
     );
+    expect(screen.queryByTestId("incentives-rating-average-met")).toBeNull();
     // An older award is named by its week, not "Last week".
     expect(screen.getByTestId("incentives-award-0-title")).toHaveTextContent(
       "Week of Mon 5 Oct · peak hours bonus",
@@ -310,9 +325,7 @@ describe("incentives (DRV-08)", () => {
       // The check icon sits on the start (right) side in RTL.
       expect(
         screen.getByTestId("incentives-weekly-secured").props.style,
-      ).toEqual(
-        expect.arrayContaining([{ flexDirection: "row-reverse" }]),
-      );
+      ).toEqual(expect.arrayContaining([{ flexDirection: "row-reverse" }]));
       expect(text("incentives-weekly-secured-text")).not.toMatch(
         NON_WESTERN_DIGITS,
       );
@@ -420,6 +433,43 @@ describe("incentives (DRV-08)", () => {
     } finally {
       Intl.DateTimeFormat = RealDateTimeFormat;
     }
+  });
+
+  it("the rating status follows qualifies and the live trips, never a count", async () => {
+    const base = incentivesFixture();
+    await renderIncentivesApp({
+      [INCENTIVES]: ok(
+        incentivesFixture({
+          rating: { ...base.rating!, trips: 31, qualifies: true },
+        }),
+      ),
+    });
+    expect(
+      await screen.findByTestId("incentives-rating-status"),
+    ).toHaveTextContent("Qualifies so far");
+    expect(screen.getByTestId("incentives-rating-trips")).toHaveTextContent(
+      "31 / 30 trips",
+    );
+  });
+
+  it("enough trips under the target average reads Not yet", async () => {
+    const base = incentivesFixture();
+    await renderIncentivesApp({
+      [INCENTIVES]: ok(
+        incentivesFixture({
+          rating: {
+            ...base.rating!,
+            average: 4.75,
+            trips: 34,
+            qualifies: false,
+          },
+        }),
+      ),
+    });
+    expect(
+      await screen.findByTestId("incentives-rating-status"),
+    ).toHaveTextContent(/^Not yet$/);
+    expect(screen.queryByTestId("incentives-rating-average-met")).toBeNull();
   });
 
   it("hides a card whose incentive is switched off", async () => {
@@ -549,10 +599,16 @@ describe("incentives (DRV-08)", () => {
       expect(screen.getByTestId("incentives-peak-window-0")).toHaveTextContent(
         "الاثنين – الخميس⁦07:00 – 09:30⁩",
       );
-      expect(text("incentives-rating-average")).toBe(
-        "متوسط ⁦4.86⁩ · ⁦21⁩ تقييماً",
+      expect(screen.getByTestId("incentives-rating-status")).toHaveTextContent(
+        "ليس بعد · ⁦4⁩ رحلات إضافية",
       );
-      expect(text("incentives-rating-trips")).toBe("⁦26⁩ من ⁦30⁩ رحلة");
+      expect(screen.getByTestId("incentives-rating-target")).toHaveTextContent(
+        "الهدف ⁦4.8⁩",
+      );
+      expect(screen.getByTestId("incentives-rating-average")).toHaveTextContent(
+        /^المتوسط الأسبوعي\s*⁦4\.86⁩/,
+      );
+      expect(text("incentives-rating-trips")).toBe("⁦26⁩ / ⁦30⁩ رحلة");
       expect(text("incentives-award-0-title")).toBe(
         "الأسبوع الماضي · مكافأة الرحلات",
       );

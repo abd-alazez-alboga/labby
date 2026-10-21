@@ -19,7 +19,7 @@ export const INCENTIVES = `GET /api/v1/driver/incentives?regionId=${REGION_ID}`;
 /**
  * The approved D15Incentives board state, on a real calendar week
  * (Mon 19 – Sun 25 Oct 2026): 26 trips toward the 40 → 50,000 tier, peak
- * live until 09:30 with 9 peak trips, a 4.86 average over 21 ratings, and
+ * live until 09:30 with 9 peak trips, a 4.86 nightly average, and
  * last week's weekly trip bonus paid Monday morning.
  */
 export function incentivesFixture(
@@ -58,7 +58,7 @@ export function incentivesFixture(
       minAvgRating: 4.8,
       minWeeklyTrips: 30,
       average: 4.86,
-      ratingCount: 21,
+      averageAsOf: "2026-10-20T21:00:00Z",
       trips: 26,
       qualifies: false,
     },
