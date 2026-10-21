@@ -11,7 +11,9 @@
  * bundle.
  *
  * Protocol
- * - RN → page: `window.labbyMap.apply(<MapViewState>)` via injectJavaScript.
+ * - RN → page: `window.labbyMap.apply(<MapViewState>)` via injectJavaScript,
+ *   and `window.labbyMap.relayout()` once ready and whenever the container
+ *   is resized (invalidateSize, then re-frame route ∪ markers — L-W3).
  * - page → RN: JSON messages through `window.ReactNativeWebView.postMessage`:
  *   `{type:'ready'}`, `{type:'tiles', ok}` (tile server reachable or not —
  *   NFR-A3 degrade notice) and `{type:'error', reason}` (Leaflet failed to
@@ -171,7 +173,8 @@ export function buildMapHtml(options: {
   });
   var markers = L.layerGroup().addTo(map);
   var routeLine = null;
-  var lastRouteKey = null;
+  var lastFrameKey = null;
+  var last = null;
   var first = true;
   var reportCenter = false;
   map.on('moveend', function () {
@@ -179,6 +182,39 @@ export function buildMapHtml(options: {
     var c = map.getCenter();
     post({ type: 'center', lat: c.lat, lng: c.lng });
   });
+  // What the map is framed to: the route and every fixed point (pickup,
+  // stops, destination). The driver / own-position markers count only by
+  // presence, so a GPS update never refits (the user may have panned).
+  function frameKey(s) {
+    return JSON.stringify([s.route, s.markers.map(function (m) {
+      return m.kind === 'driver' || m.kind === 'self' ? [m.id] : [m.id, m.latlng];
+    })]);
+  }
+  // Fit the route and all markers; a single point is centred instead.
+  function frame(s) {
+    var points = (s.route || []).slice();
+    s.markers.forEach(function (m) { points.push(m.latlng); });
+    if (points.length === 0) {
+      map.setView(s.center, s.zoom);
+      return;
+    }
+    var bounds = L.latLngBounds(points);
+    var ne = bounds.getNorthEast();
+    var sw = bounds.getSouthWest();
+    if (ne.lat === sw.lat && ne.lng === sw.lng) {
+      map.setView(points[0], s.zoom);
+    } else {
+      map.fitBounds(bounds, { padding: [48, 48], maxZoom: 17 });
+    }
+  }
+  // The WebView often has no final size when the page first lays out:
+  // re-measure, then re-frame the current state (never while following the
+  // user or picking a pin — those keep their own centre).
+  function relayout() {
+    map.invalidateSize();
+    if (last && !last.followMe && !last.reportCenter) frame(last);
+  }
+  window.addEventListener('resize', relayout);
   window.labbyMap = {
     apply: function (s) {
       reportCenter = !!s.reportCenter;
@@ -193,15 +229,19 @@ export function buildMapHtml(options: {
           dashArray: s.routeApproximate ? '8 8' : null
         }).addTo(map);
       }
-      var routeKey = s.route ? JSON.stringify(s.route) : null;
-      if (routeLine && routeKey !== lastRouteKey && !s.followMe) {
-        map.fitBounds(routeLine.getBounds(), { padding: [32, 32] });
-      } else if (s.followMe || first) {
+      var key = frameKey(s);
+      if (s.followMe) {
         map.setView(s.center, first ? s.zoom : map.getZoom());
+      } else if (s.reportCenter) {
+        if (first) map.setView(s.center, s.zoom);
+      } else if (first || key !== lastFrameKey) {
+        frame(s);
       }
-      lastRouteKey = routeKey;
+      lastFrameKey = key;
+      last = s;
       first = false;
-    }
+    },
+    relayout: relayout
   };
   window.labbyMap.apply(cfg.state);
   post({ type: 'ready' });
@@ -209,6 +249,11 @@ export function buildMapHtml(options: {
 </script>
 </body>
 </html>`;
+}
+
+/** The script that re-measures the page and re-frames it (container resized / ready). */
+export function buildRelayoutScript(): string {
+  return "window.labbyMap && window.labbyMap.relayout(); true;";
 }
 
 /** The script that pushes a new state into a loaded page. */

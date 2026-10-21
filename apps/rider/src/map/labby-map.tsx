@@ -24,6 +24,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  type LayoutChangeEvent,
   type StyleProp,
   StyleSheet,
   View,
@@ -43,6 +44,7 @@ import {
 import {
   buildApplyScript,
   buildMapHtml,
+  buildRelayoutScript,
   type MapMarker,
   parseMapEvent,
   toMapViewState,
@@ -138,6 +140,20 @@ export function LabbyMap({
     }
   }, [state, pageState]);
 
+  // L-W3: the page lays out before the WebView has its final size. Once it
+  // is ready, and on every container resize, it re-measures and re-frames
+  // the route and markers.
+  const [size, setSize] = useState<string | null>(null);
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setSize(`${Math.round(width)}x${Math.round(height)}`);
+  }, []);
+  useEffect(() => {
+    if (pageState === "ready") {
+      webView.current?.injectJavaScript(buildRelayoutScript());
+    }
+  }, [size, pageState]);
+
   const onMessage = useCallback((event: WebViewMessageEvent) => {
     const message = parseMapEvent(event.nativeEvent.data);
     if (!message) return;
@@ -155,7 +171,7 @@ export function LabbyMap({
   }, []);
 
   return (
-    <View style={[styles.container, style]} testID={testID}>
+    <View style={[styles.container, style]} testID={testID} onLayout={onLayout}>
       {pageState === "failed" ? (
         <View style={styles.failed} testID={`${testID}-failed`}>
           <AppText variant="bodyStrong" align="center">

@@ -91,6 +91,32 @@ describe("LabbyMap", () => {
     );
   });
 
+  it("re-frames the map once ready and whenever its container is resized (L-W3)", async () => {
+    await renderMap();
+    await screen.findByTestId("labby-map-webview");
+    const relayouts = () =>
+      webviewMock.__injectJavaScript.mock.calls.filter(([script]) =>
+        String(script).includes("labbyMap.relayout()"),
+      ).length;
+    expect(relayouts()).toBe(0);
+
+    await sendFromPage({ type: "ready" });
+    expect(relayouts()).toBe(1);
+
+    const layout = (width: number, height: number) =>
+      act(async () => {
+        fireEvent(screen.getByTestId("labby-map"), "layout", {
+          nativeEvent: { layout: { x: 0, y: 0, width, height } },
+        });
+      });
+    await layout(390, 500);
+    expect(relayouts()).toBe(2);
+    await layout(390, 500);
+    expect(relayouts()).toBe(2);
+    await layout(390, 844);
+    expect(relayouts()).toBe(3);
+  });
+
   it("converts a GeoJSON route once and draws it dashed when approximate", async () => {
     await renderMap({
       route: {
