@@ -16,7 +16,12 @@ import { useAuth } from "../../auth/AuthProvider";
 import { failureKindOf } from "../../onboarding/server-errors";
 import { useRemote } from "../../onboarding/use-remote";
 import { colors, radius, spacing } from "../../theme/tokens";
-import { countCopy, formatRating, formatThreshold } from "../../trust/format";
+import {
+  countCopy,
+  formatDayMonth,
+  formatRating,
+  formatThreshold,
+} from "../../trust/format";
 import { LanguagePill } from "../language-switch";
 import { NotificationsBell } from "../notifications/notifications-bell";
 import {
@@ -206,6 +211,30 @@ function GateCard({
 }
 
 /**
+ * The reason card's caption — "Reason · 14 Oct" (board
+ * V1FDriverSuspendedLanguageAr), "Reason · from the Labby team · 14 Oct"
+ * for an admin's note — with the suspension date when the profile has one.
+ */
+function reasonCaption(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  fromTeam: boolean,
+  suspendedAt: string | null,
+  language: string,
+): string {
+  if (!suspendedAt) {
+    return t(
+      fromTeam ? "trust.suspended.reasonFromTeam" : "trust.suspended.reason",
+    );
+  }
+  return t(
+    fromTeam
+      ? "trust.suspended.reasonFromTeamDated"
+      : "trust.suspended.reasonDated",
+    { date: formatDayMonth(suspendedAt, language) },
+  );
+}
+
+/**
  * USR-05 reason copy: the region's rule from `GET /driver/performance`
  * (readable while the role is suspended), with the snapshot average when it
  * agrees with the suspension (no suffix without one); a generic line when
@@ -259,11 +288,15 @@ function useLowRatingReason(enabled: boolean): string {
 function RoleSuspendedGate({
   reason,
   note,
+  suspendedAt,
 }: {
   reason: "low_rating" | "manual";
   note: string | null;
+  /** auth-v1 `RoleAssignment.suspendedAt` — the date on the reason card. */
+  suspendedAt: string | null;
 }) {
   const { t } = useTranslation();
+  const { language } = useDirection();
   const router = useRouter();
   const { user, refreshProfile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -304,10 +337,11 @@ function RoleSuspendedGate({
     >
       {reasonText ? (
         <GateCard
-          caption={t(
-            reason === "manual"
-              ? "trust.suspended.reasonFromTeam"
-              : "trust.suspended.reason",
+          caption={reasonCaption(
+            t,
+            reason === "manual",
+            suspendedAt,
+            language,
           )}
           text={reasonText}
           testID="gate-reason"
@@ -332,8 +366,16 @@ function RoleSuspendedGate({
  * note is shown. A ride already in flight never lands here (the ride
  * facade keeps the driver app open until it ends).
  */
-function AccountSuspendedGate({ note }: { note: string | null }) {
+function AccountSuspendedGate({
+  note,
+  suspendedAt,
+}: {
+  note: string | null;
+  /** auth-v1 `UserProfile.suspendedAt` — the date on the reason card. */
+  suspendedAt: string | null;
+}) {
   const { t } = useTranslation();
+  const { language } = useDirection();
   const { refreshProfile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   return (
@@ -354,7 +396,7 @@ function AccountSuspendedGate({ note }: { note: string | null }) {
     >
       {note ? (
         <GateCard
-          caption={t("trust.suspended.reasonFromTeam")}
+          caption={reasonCaption(t, true, suspendedAt, language)}
           text={t("trust.suspended.note", { note })}
           testID="gate-reason"
         />
@@ -549,7 +591,12 @@ export function ApplyToDriveScreen() {
     );
   }
   if (user?.state === "suspended") {
-    return <AccountSuspendedGate note={user.suspensionNote ?? null} />;
+    return (
+      <AccountSuspendedGate
+        note={user.suspensionNote ?? null}
+        suspendedAt={user.suspendedAt ?? null}
+      />
+    );
   }
   if (
     driverRole?.state === "suspended" &&
@@ -560,6 +607,7 @@ export function ApplyToDriveScreen() {
       <RoleSuspendedGate
         reason={driverRole.suspensionReason}
         note={driverRole.suspensionNote ?? null}
+        suspendedAt={driverRole.suspendedAt ?? null}
       />
     );
   }

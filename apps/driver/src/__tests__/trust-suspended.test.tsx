@@ -265,6 +265,62 @@ describe("suspended states (USR-04..06)", () => {
     expect(screen.getByTestId("gate-logout")).toBeTruthy();
   });
 
+  it("shows the suspension date on the reason card (auth-v1 suspendedAt)", async () => {
+    await openApp(
+      suspendedDriver({
+        suspensionReason: "low_rating",
+        suspendedAt: "2026-10-14T10:00:00Z",
+      }),
+      { [PERFORMANCE]: ok(performanceFixture()) },
+    );
+    expect(await screen.findByTestId("gate-reason")).toHaveTextContent(
+      "Reason · 14 Oct",
+      { exact: false },
+    );
+  });
+
+  it("dates an admin's role suspension and a whole-account suspension", async () => {
+    await openApp(
+      suspendedDriver({
+        suspensionReason: "manual",
+        suspensionNote: "Under review.",
+        suspendedAt: "2026-10-14T10:00:00Z",
+      }),
+    );
+    expect(await screen.findByTestId("gate-reason")).toHaveTextContent(
+      "Reason · from the Labby team · 14 Oct",
+      { exact: false },
+    );
+    screen.unmount();
+
+    await openApp(
+      driverUser({
+        state: "suspended",
+        suspensionNote: "Fraudulent payment disputes.",
+        suspendedAt: "2026-10-16T10:00:00Z",
+      }),
+      { "GET /api/v1/driver/offers/open": coded(403, "account_suspended") },
+    );
+    expect(await screen.findByTestId("gate-reason")).toHaveTextContent(
+      "Reason · from the Labby team · 16 Oct",
+      { exact: false },
+    );
+  });
+
+  it("Arabic: the date with Western digits (board V1FDriverSuspendedLanguageAr)", async () => {
+    await setAppLanguage("ar");
+    await openApp(
+      suspendedDriver(
+        { suspensionReason: "low_rating", suspendedAt: "2026-10-14T10:00:00Z" },
+        { language: "ar" },
+      ),
+      { [PERFORMANCE]: ok(performanceFixture()) },
+    );
+    const reason = await screen.findByTestId("gate-reason");
+    expect(reason).toHaveTextContent("السبب · 14 أكتوبر", { exact: false });
+    expect(reason).not.toHaveTextContent(/[٠-٩]/u);
+  });
+
   it("a ride in flight keeps working after the account was suspended (ride + SOS)", async () => {
     await openApp(driverUser({ state: "suspended", suspensionNote: "x" }), {
       "GET /api/v1/driver/rides/active": ok(inProgressRide()),

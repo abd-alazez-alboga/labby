@@ -23,6 +23,8 @@ export interface RoleAssignment {
   suspensionReason?: SuspensionReason | null;
   /** M11: the admin's reason, shown to the user — `manual` suspensions only. */
   suspensionNote?: string | null;
+  /** When the role was suspended — present only while it is (any reason). */
+  suspendedAt?: string | null;
 }
 
 export interface UserProfile {
@@ -38,6 +40,8 @@ export interface UserProfile {
   state: AccountState;
   /** M11: the admin's reason for a whole-account suspension. */
   suspensionNote?: string | null;
+  /** When the whole account was suspended (USR-06); null while it is not. */
+  suspendedAt?: string | null;
   roles: RoleAssignment[];
 }
 
