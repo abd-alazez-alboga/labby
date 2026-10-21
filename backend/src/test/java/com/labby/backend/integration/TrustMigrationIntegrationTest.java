@@ -66,7 +66,7 @@ class TrustMigrationIntegrationTest extends AbstractIntegrationTest {
   void cleanOwnRows() {
     // ratings and reports refuse DELETE by trigger; TRUNCATE bypasses row-level triggers (same
     // approach as sos_events and the money ledgers).
-    jdbcTemplate.execute("TRUNCATE ratings");
+    jdbcTemplate.execute("TRUNCATE rating_growth_evaluations, ratings");
     jdbcTemplate.execute("TRUNCATE report_photos, reports");
     jdbcTemplate.update(
         "DELETE FROM stored_files WHERE owner_user_id = ANY (?)",
