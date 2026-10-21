@@ -51,6 +51,9 @@ export default function LiveOpsPage() {
           ? requestedRegion
           : undefined) ?? regions[0]?.id);
 
+  // The SOS panel waits for the region to settle: listing before it is known
+  // would load twice and replace the cards (closing an open ticket form).
+  const regionResolved = regions !== null || regionsFailed !== null;
   const { snapshot, error, refresh } = useLiveOps(regionId);
   const [surgeOn, setSurgeOn] = useState(true);
   const [focus, setFocus] = useState<LatLng | null>(null);
@@ -275,7 +278,7 @@ export default function LiveOpsPage() {
         </div>
 
         <aside className="liveops-layout__aside">
-          {can('support:view') ? (
+          {can('support:view') && regionResolved ? (
             <SosAlertPanel
               regionId={regionId}
               openSosKey={openSosKey}
