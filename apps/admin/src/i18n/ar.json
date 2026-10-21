@@ -1385,7 +1385,7 @@
     "empty": "لا توجد رحلات مطابقة لهذه المرشحات.",
     "emptySos": "لا توجد رحلات بتنبيه استغاثة مفتوح.",
     "sosFlag": "استغاثة مفتوحة",
-    "routeFallback": "نقطة على الخريطة",
+    "pinnedLocation": "موقع محدد على الخريطة",
     "fareEstimate": "{{amount}} تقديري",
     "fareFee": "{{amount}} رسوم",
     "columns": {
@@ -2195,9 +2195,7 @@
       "unassigned": "ألغى إسنادها {{name}} · {{when}}",
       "caseStatus": "الحالة {{from}} ← {{to}} · {{when}} · أُخطِر الطرفان",
       "reminder": "أُرسل تذكير الانتظار · {{when}}"
-    },
-    "ridePickup": "نقطة الانطلاق",
-    "rideDestination": "الوجهة"
+    }
   },
   "lostItems": {
     "title": "حالات المفقودات",

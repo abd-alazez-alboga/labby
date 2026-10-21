@@ -25,7 +25,7 @@ import { BackLink, ReviewLayout, StatusChip } from '../ui';
 import { formatMoment, formatMoney } from './money/money-format';
 import { LoadFailure } from './onboarding/ReviewUi';
 import { classifyError, type FailureKind } from './onboarding/review-utils';
-import { rideRef } from './rides/ride-format';
+import { placeLabel, rideRef } from './rides/ride-format';
 import { isolateLtr } from './surge';
 import {
   localizedName,
@@ -345,10 +345,10 @@ export default function SupportTicketDetailPage() {
                   {linkedRide ? (
                     <>
                       {' · '}
-                      <bdi>{linkedRide.ride.pickup.label ?? t('ticketDetail.ridePickup')}</bdi>
+                      <bdi>{placeLabel(linkedRide.ride.pickup, t('rides.pinnedLocation'))}</bdi>
                       {' → '}
                       <bdi>
-                        {linkedRide.ride.destination.label ?? t('ticketDetail.rideDestination')}
+                        {placeLabel(linkedRide.ride.destination, t('rides.pinnedLocation'))}
                       </bdi>
                     </>
                   ) : null}

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { toLiveOpsOverlay } from '../pages/liveops/live-ops-overlay';
 import { refreshDelayMs } from '../pages/liveops/use-live-ops';
 import { buildTimeline, fareLines } from '../pages/rides/ride-detail-utils';
-import { liveOpsLink, rideRef, routeLabel } from '../pages/rides/ride-format';
+import { liveOpsLink, placeLabel, rideRef, routeLabel } from '../pages/rides/ride-format';
 import {
   chipStates,
   classifyQuery,
@@ -82,6 +82,16 @@ describe('M10 admin helpers', () => {
     expect(routeLabel(pickup, destination, '—')).toBe('Mazzeh → Old City');
     expect(routeLabel(pickup, destination, '—', 'rtl')).toBe('Mazzeh ← Old City');
     expect(routeLabel({}, destination, '—', 'ltr')).toBe('— → Old City');
+  });
+
+  it('falls back for null, missing or blank place labels (L-W2)', () => {
+    expect(placeLabel({ label: 'Mazzeh' }, 'Pinned location')).toBe('Mazzeh');
+    expect(placeLabel({ label: null }, 'Pinned location')).toBe('Pinned location');
+    expect(placeLabel({}, 'Pinned location')).toBe('Pinned location');
+    expect(placeLabel({ label: '   ' }, 'Pinned location')).toBe('Pinned location');
+    expect(routeLabel({ label: null }, { label: '' }, 'Pinned location')).toBe(
+      'Pinned location → Pinned location',
+    );
   });
 
   it('links an SOS alert to its region and ride on the live map (A-H3)', () => {

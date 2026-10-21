@@ -5,7 +5,7 @@ import { postWalletCredit, type WalletCreditType, type WalletTransaction } from 
 import type { AdminRideDetail, AdminRideSummary } from '../../api/rides';
 import { useAuth } from '../../auth/AuthContext';
 import { DecisionPanel, StatusChip } from '../../ui';
-import { rideRef } from '../rides/ride-format';
+import { placeLabel, rideRef } from '../rides/ride-format';
 import { classifyError } from '../onboarding/review-utils';
 import { formatMoment, formatMoney, isUuid, parseAmount, rejectionDetail } from './money-format';
 import { useCurrencyLabel } from './use-currency-label';
@@ -118,7 +118,7 @@ export function GrantRefundPanel({
 
   function rideOptionLabel(ride: AdminRideSummary): string {
     const when = formatMoment(ride.requestedAt, i18n.language);
-    const extra = ride.destination.label ?? t(`money.rideState.${ride.state}`);
+    const extra = placeLabel(ride.destination, t('rides.pinnedLocation'));
     return `${t('money.rideRef', { when })} · ${extra}`;
   }
 

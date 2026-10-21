@@ -302,4 +302,27 @@ describe('refund rider from the ride detail (V1 audit W28)', () => {
     expect(within(select).getAllByRole('option')).toHaveLength(4);
     expect(screen.getByText('Ride total SYP 27,250.')).toBeInTheDocument();
   });
+
+  it('names an unlabeled destination "Pinned location" in the linked-ride options (L-W2)', async () => {
+    const manager = adminUser(['wallets:view', 'wallets:manage', 'rides:view']);
+    seedStoredSession(sessionFor(manager));
+    const pinned = adminRide({ destination: { lat: 33.52, lng: 36.31, label: null } });
+    stubMoneyRoutes(manager, (method, path) => {
+      if (method === 'GET' && path === `/api/v1/admin/rides/${RIDE_1}`) {
+        return jsonResponse(200, paidRide());
+      }
+      if (method === 'GET' && path === '/api/v1/admin/rides') {
+        return jsonResponse(200, ridePage([pinned]));
+      }
+      return null;
+    });
+    window.history.pushState({}, '', `/users/${USER_ID}/wallet?refundRide=${RIDE_1}`);
+    renderShell();
+
+    await screen.findByText('From ride');
+    const options = within(screen.getByLabelText(/Linked ride/)).getAllByRole('option');
+    const option = options.find((item) => item.getAttribute('value') === RIDE_1);
+    expect(option).toHaveTextContent('Pinned location');
+    expect(option).not.toHaveTextContent('null');
+  });
 });

@@ -191,6 +191,33 @@ describe('ticket detail', () => {
     expect(card).toHaveTextContent('Paid wallet + cash');
   });
 
+  it('names an unlabeled linked-ride place "Pinned location" (L-W2)', async () => {
+    seedStoredSession(sessionFor(SUPPORT_ADMIN));
+    stubSupportRoutes(SUPPORT_ADMIN, (method, path) => {
+      if (method === 'GET' && path === `/api/v1/admin/tickets/${TICKET_1}`) {
+        return jsonResponse(200, adminTicketDetail());
+      }
+      if (method === 'GET' && path === `/api/v1/admin/rides/${RIDE_1}`) {
+        return jsonResponse(200, {
+          ...RIDE_DETAIL,
+          ride: {
+            ...RIDE_DETAIL.ride,
+            id: RIDE_1,
+            pickup: { lat: 33.51, lng: 36.29, label: null },
+            destination: { lat: 33.5, lng: 36.25, label: 'Mezzeh' },
+          },
+        });
+      }
+      return null;
+    });
+    renderShell();
+
+    const card = await screen.findByRole('region', { name: 'Linked ride' });
+    expect(await within(card).findByText('Pinned location')).toBeInTheDocument();
+    expect(card).toHaveTextContent('Mezzeh');
+    expect(card).not.toHaveTextContent('null');
+  });
+
   it('moves the status per the state machine and refetches', async () => {
     const { fetchMock, latest } = stubDetail();
     const user = userEvent.setup();

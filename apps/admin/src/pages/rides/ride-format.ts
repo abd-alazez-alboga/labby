@@ -32,6 +32,16 @@ export function rideStateTone(state: RideState): ChipTone {
 }
 
 /**
+ * A place's display name: its label, or the localized fallback ("Pinned
+ * location") when the rider sent none — current-location and map-pinned
+ * points carry `label: null` (live test L-W2).
+ */
+export function placeLabel(place: { label?: string | null }, fallback: string): string {
+  const label = place.label?.trim();
+  return label ? label : fallback;
+}
+
+/**
  * "Pickup → destination", from the places' labels. The arrow follows the
  * reading direction (`←` in RTL, the DriverApplicationDetailPage pattern),
  * so it always points from the pickup to the destination.
@@ -43,7 +53,7 @@ export function routeLabel(
   dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
   const arrow = dir === 'rtl' ? '←' : '→';
-  return `${pickup.label ?? fallback} ${arrow} ${destination.label ?? fallback}`;
+  return `${placeLabel(pickup, fallback)} ${arrow} ${placeLabel(destination, fallback)}`;
 }
 
 /**

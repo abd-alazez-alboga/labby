@@ -1385,7 +1385,7 @@
     "empty": "No rides match these filters.",
     "emptySos": "No rides with an open SOS alert.",
     "sosFlag": "Open SOS",
-    "routeFallback": "Map point",
+    "pinnedLocation": "Pinned location",
     "fareEstimate": "{{amount}} est.",
     "fareFee": "{{amount}} fee",
     "columns": {
@@ -2195,9 +2195,7 @@
       "unassigned": "Unassigned by {{name}} · {{when}}",
       "caseStatus": "Case {{from}} → {{to}} · {{when}} · both parties notified",
       "reminder": "Waiting reminder sent · {{when}}"
-    },
-    "ridePickup": "Pickup",
-    "rideDestination": "Destination"
+    }
   },
   "lostItems": {
     "title": "Lost-item cases",

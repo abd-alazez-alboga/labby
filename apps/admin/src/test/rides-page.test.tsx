@@ -316,6 +316,29 @@ describe('rides search page (UC-A-18)', () => {
     expect(rows[0]).toHaveTextContent('Abu Rummaneh ← Umayyad Sq');
   });
 
+  it('names unlabeled (current-location / pinned) places "Pinned location" in EN and AR (L-W2)', async () => {
+    const pinned = rideSummary({
+      pickup: { lat: 33.51, lng: 36.29, label: null },
+      destination: { lat: 33.52, lng: 36.31, label: 'Umayyad Sq' },
+    });
+    stubRides(SUPPORT_VIEWER, { rides: () => [pinned] });
+    const { unmount } = renderShell();
+
+    let rows = within(await screen.findByRole('table'))
+      .getAllByRole('row')
+      .slice(1);
+    expect(rows[0]).toHaveTextContent('Pinned location → Umayyad Sq');
+    expect(rows[0]).not.toHaveTextContent('null');
+    unmount();
+
+    await i18n.changeLanguage('ar');
+    renderShell();
+    rows = within(await screen.findByRole('table'))
+      .getAllByRole('row')
+      .slice(1);
+    expect(rows[0]).toHaveTextContent('موقع محدد على الخريطة ← Umayyad Sq');
+  });
+
   it("reads each member state's leading rows for a grouped chip's later page (A-W3)", async () => {
     const fetchMock = stubRides(SUPPORT_VIEWER, { rides: () => [] });
     window.history.pushState({}, '', '/rides?state=cancelled&page=1');

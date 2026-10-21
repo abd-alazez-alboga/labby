@@ -2,6 +2,7 @@ import 'leaflet/dist/leaflet.css';
 
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CircleMarker,
   MapContainer,
@@ -17,6 +18,7 @@ import type { Place, TracePoint } from '../../api/rides';
 import { useConfig } from '../../config/ConfigContext';
 import { DEFAULT_MAP_TILE_URL } from '../../config/runtime-config';
 import { MAP_COLORS } from '../../theme/map-colors';
+import { placeLabel } from './ride-format';
 
 const ACCENT = MAP_COLORS.accent;
 const MUTED = MAP_COLORS.muted;
@@ -62,7 +64,9 @@ export function RideTraceMap({
   stops,
   sosEvents,
 }: RideTraceMapProps) {
+  const { t } = useTranslation();
   const { mapTileUrl } = useConfig();
+  const pinned = t('rides.pinnedLocation');
   const toPickup = trace.filter((point) => point.phase === 'to_pickup');
   const inRide = trace.filter((point) => point.phase === 'in_ride');
 
@@ -90,7 +94,7 @@ export function RideTraceMap({
           radius={8}
           pathOptions={{ color: MUTED, weight: 3, fillColor: SURFACE, fillOpacity: 1 }}
         >
-          {pickup.label ? <Tooltip>{pickup.label}</Tooltip> : null}
+          <Tooltip>{placeLabel(pickup, pinned)}</Tooltip>
         </CircleMarker>
         {stops.map((stop, index) => (
           <CircleMarker
@@ -99,7 +103,7 @@ export function RideTraceMap({
             radius={6}
             pathOptions={{ color: ACCENT, weight: 2, fillColor: SURFACE, fillOpacity: 1 }}
           >
-            {stop.label ? <Tooltip>{stop.label}</Tooltip> : null}
+            <Tooltip>{placeLabel(stop, pinned)}</Tooltip>
           </CircleMarker>
         ))}
         <CircleMarker
@@ -107,7 +111,7 @@ export function RideTraceMap({
           radius={8}
           pathOptions={{ color: SURFACE, weight: 3, fillColor: ACCENT, fillOpacity: 1 }}
         >
-          {destination.label ? <Tooltip>{destination.label}</Tooltip> : null}
+          <Tooltip>{placeLabel(destination, pinned)}</Tooltip>
         </CircleMarker>
         {sosEvents.map((event) => (
           <Marker key={event.sosEventId} position={[event.lat, event.lng]} icon={sosIcon()} />

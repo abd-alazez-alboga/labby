@@ -459,7 +459,7 @@ export default function RidesPage() {
                       {routeLabel(
                         row.pickup,
                         row.destination,
-                        t('rides.routeFallback'),
+                        t('rides.pinnedLocation'),
                         i18n.dir(),
                       )}
                     </td>
