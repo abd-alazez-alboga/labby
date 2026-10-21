@@ -42,7 +42,16 @@ export interface AdminRideSummary {
   riderName: string;
   driverUserId?: string | null;
   driverName?: string | null;
+  /** Shared rides only ("Shared · 3 seats", V1 W15): the seats split over / held. */
+  sharedSeats?: number | null;
+  /** Shared rides only ("Nour S. + 2"): the parties riding, the creator included. */
+  sharedParties?: number | null;
 }
+
+export type RideKind = AdminRideSummary['kind'];
+
+/** Every ride kind, in the rides list's Kind filter order (V1 W15). */
+export const RIDE_KINDS: readonly RideKind[] = ['on_demand', 'scheduled', 'shared'];
 
 export interface AdminRideSummaryPage {
   items: AdminRideSummary[];
@@ -55,6 +64,8 @@ export interface AdminRideQuery {
   regionId?: string;
   /** ONE state — the contract's filter takes a single value. */
   state?: RideState;
+  /** Omitted = every kind (V1 W15). */
+  kind?: RideKind;
   /** Rider OR driver. */
   userId?: string;
   /** Rider or driver phone — exact, E.164. */
@@ -78,6 +89,9 @@ export function searchAdminRides(
   }
   if (query.state) {
     params.set('state', query.state);
+  }
+  if (query.kind) {
+    params.set('kind', query.kind);
   }
   if (query.userId) {
     params.set('userId', query.userId);
@@ -194,6 +208,8 @@ export interface AdminSharedInfo {
 /** One party of a shared ride as the admin view lists it (scheduled-shared-v1 MemberView). */
 export interface AdminSharedMember {
   memberId: string;
+  /** The member's account (admin view only) — the refund target (V1 audit W28). */
+  riderUserId?: string | null;
   firstName?: string | null;
   isCreator: boolean;
   partySize: number;
@@ -250,4 +266,81 @@ export interface AdminRideDetail {
 /** GET /admin/rides/{rideId} — the full truth of one ride; rides:view. */
 export function getAdminRide(client: ApiClient, rideId: string): Promise<AdminRideDetail> {
   return client.get<AdminRideDetail>(`/api/v1/admin/rides/${rideId}`);
+}
+
+/* ---------- Related records (UC-A-18, V1 audit W15) ---------- */
+
+/** A party of a related record, on the side they acted on. */
+export interface AdminRelatedParty {
+  userId: string;
+  name: string;
+  role: 'rider' | 'driver';
+}
+
+export interface AdminRelatedReport {
+  id: string;
+  /** The id's first 8 hex digits, upper-case. */
+  ref: string;
+  /** trust-v1 ReportCategory. */
+  category: string;
+  status: 'open' | 'substantiated' | 'unsubstantiated';
+  reporter: AdminRelatedParty;
+  reported: AdminRelatedParty;
+  createdAt: string;
+}
+
+export interface AdminRelatedTicket {
+  id: string;
+  ref: string;
+  categoryId: string;
+  categoryNameEn: string;
+  categoryNameAr: string;
+  /** The description's first line, at most 120 characters. */
+  summary: string;
+  /** support-v1 TicketStatus. */
+  status: string;
+  priority: string;
+  user: AdminRelatedParty;
+  sosEventId?: string | null;
+  createdAt: string;
+}
+
+export interface AdminRelatedLostItem {
+  id: string;
+  ref: string;
+  summary: string;
+  /** support-v1 CaseStatus. */
+  caseStatus: string;
+  status: string;
+  user: AdminRelatedParty;
+  createdAt: string;
+}
+
+export interface AdminRelatedSos {
+  id: string;
+  ref: string;
+  triggeredBy: AdminRelatedParty;
+  triggeredAt: string;
+  acknowledged: boolean;
+  acknowledgedAt?: string | null;
+  /** The SOS-linked support ticket. */
+  ticketId?: string | null;
+}
+
+/**
+ * The ride's related records. Each section is present only when the caller
+ * holds its permission (`reports` → reports:view; `tickets`, `lostItems`,
+ * `sos` → support:view) and may be empty. Lists are newest first.
+ */
+export interface AdminRideRelated {
+  rideId: string;
+  reports?: AdminRelatedReport[];
+  tickets?: AdminRelatedTicket[];
+  lostItems?: AdminRelatedLostItem[];
+  sos?: AdminRelatedSos[];
+}
+
+/** GET /admin/rides/{rideId}/related — reports, tickets, lost items, SOS; rides:view. */
+export function getAdminRideRelated(client: ApiClient, rideId: string): Promise<AdminRideRelated> {
+  return client.get<AdminRideRelated>(`/api/v1/admin/rides/${rideId}/related`);
 }

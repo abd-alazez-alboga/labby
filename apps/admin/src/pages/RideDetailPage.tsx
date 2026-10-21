@@ -17,6 +17,7 @@ import { bdiMark, Section, StatusChip, withBdi, type ChipTone } from '../ui';
 import { formatMoment, formatMoney, formatNumber } from './money/money-format';
 import { SosTicketControl } from './liveops/SosTicketControl';
 import { ChatLogCard } from './rides/ChatLogCard';
+import { RelatedCard } from './rides/RelatedCard';
 import {
   buildTimeline,
   fareLines,
@@ -39,7 +40,9 @@ import { formatClock, formatMultiplier, isolateLtr } from './surge';
  * separators around them (V1 audit I107), and link to the user's profile
  * with users:view. "Refund rider" (wallets:manage + wallets:view, V1 audit
  * W28, board V1FAdminRideRefund) opens the rider's wallet with Refund and
- * this ride pre-selected; on a shared ride it first asks which member.
+ * this ride pre-selected; on a shared ride it first asks which member (any
+ * member, by MemberView.riderUserId). The Related card (V1 audit W15, board
+ * V1FAdminRideRelated) lists the ride's reports, tickets, lost items and SOS.
  */
 export default function RideDetailPage() {
   const { t, i18n } = useTranslation();
@@ -387,8 +390,8 @@ export default function RideDetailPage() {
           <h2 className="section__heading">{t('rideDetail.refund.pickTitle')}</h2>
           <ul className="refund-picker__list">
             {parties.map((member, index) => {
-              // The admin view names members but serves only the creator's account id.
-              const userId = member.isCreator ? detail.riderUserId : null;
+              // MemberView.riderUserId (admin view) names every member's account.
+              const userId = member.riderUserId ?? (member.isCreator ? detail.riderUserId : null);
               const name =
                 member.firstName?.trim() || t('rideDetail.chat.memberFallback', { n: index + 1 });
               const label = (
@@ -404,7 +407,7 @@ export default function RideDetailPage() {
                     <Link
                       className="btn refund-picker__member"
                       to={refundLink(userId)}
-                      state={{ name: detail.riderName }}
+                      state={member.isCreator ? { name: detail.riderName } : undefined}
                     >
                       {label}
                     </Link>
@@ -417,7 +420,7 @@ export default function RideDetailPage() {
               );
             })}
           </ul>
-          {parties.some((member) => !member.isCreator) ? (
+          {parties.some((member) => !member.isCreator && !member.riderUserId) ? (
             <p className="panel__hint">{t('rideDetail.refund.memberUnavailable')}</p>
           ) : null}
         </section>
@@ -588,6 +591,8 @@ export default function RideDetailPage() {
               <p className="panel__hint">{t('rideDetail.noTrace')}</p>
             )}
           </section>
+
+          <RelatedCard rideId={ride.id} />
 
           {canSupportView ? (
             <ChatLogCard

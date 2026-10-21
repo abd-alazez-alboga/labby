@@ -7,15 +7,25 @@ import { listSosEvents } from '../api/comms';
 import { listRegions, type RegionSummary } from '../api/regions';
 import {
   getAdminRide,
+  RIDE_KINDS,
   searchAdminRides,
   type AdminRideQuery,
   type AdminRideSummary,
   type AdminRideSummaryPage,
+  type RideKind,
   type RideState,
 } from '../api/rides';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
-import { DataTable, FilterChips, PageHeader, StatusChip, TablePager } from '../ui';
+import {
+  bdiMark,
+  DataTable,
+  FilterChips,
+  PageHeader,
+  StatusChip,
+  TablePager,
+  withBdi,
+} from '../ui';
 import { useRegionsViewTitle } from './regions/use-regions-view-title';
 import { ExportCsvButton, ExportFailureBanner } from './exports/CsvExport';
 import { exportNote, useCsvExport } from './exports/use-csv-export';
@@ -47,8 +57,10 @@ interface SearchResult {
  * (pasted ride/user ID, or exact phone), region + day filters and the state
  * chips. Chips that group several contract states (Active, Cancelled) merge
  * one search per member state; the SOS chip (support:view, since it reads
- * the alert list) shows the rides with an OPEN SOS event. Filters live in
- * the URL so returning from a detail keeps them.
+ * the alert list) shows the rides with an OPEN SOS event. The Kind filter
+ * (V1 audit W15, board V1FAdminRidesKind) combines with all of them and
+ * with Export CSV, and each row names its kind ("Shared · 3 seats"). Filters
+ * live in the URL so returning from a detail keeps them.
  */
 export default function RidesPage() {
   const { t, i18n } = useTranslation();
@@ -63,6 +75,8 @@ export default function RidesPage() {
   const query = params.get('q') ?? '';
   const regionId = params.get('region') ?? '';
   const day = params.get('day') ?? '';
+  const kindParam = params.get('kind');
+  const kind: RideKind | undefined = RIDE_KINDS.find((value) => value === kindParam);
   const chipParam = params.get('state') as RideFilterChip | null;
   const chip: RideFilterChip =
     chipParam && RIDE_FILTER_CHIPS.includes(chipParam) && (chipParam !== 'sos' || canSeeSos)
@@ -83,12 +97,13 @@ export default function RidesPage() {
     return {
       regionId: regionId || undefined,
       state: states[0],
+      kind,
       userId: classified.kind === 'id' ? classified.value : undefined,
       phone: classified.kind === 'phone' ? classified.value : undefined,
       from: bounds?.from,
       to: bounds?.to,
     };
-  }, [chip, query, regionId, day]);
+  }, [chip, query, regionId, day, kind]);
   const exportable = exportFilter !== null;
   const exporter = useCsvExport('rides', exportFilter ?? NO_FILTER);
 
@@ -149,6 +164,7 @@ export default function RidesPage() {
         const details = await Promise.all(rideIds.map((id) => getAdminRide(apiClient, id)));
         const rows = details
           .map(detailToSummary)
+          .filter((row) => !kind || row.kind === kind)
           .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
         if (!cancelled) {
           setResult({ rows, totalItems: rows.length, totalPages: 1 });
@@ -175,6 +191,7 @@ export default function RidesPage() {
       const bounds = day ? dayBounds(day) : null;
       const base: AdminRideQuery = {
         regionId: regionId || undefined,
+        kind,
         userId: classified.kind === 'id' ? classified.value : undefined,
         phone: classified.kind === 'phone' ? classified.value : undefined,
         from: bounds?.from,
@@ -232,7 +249,7 @@ export default function RidesPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiClient, chip, query, regionId, day, page, navigate, attempt]);
+  }, [apiClient, chip, query, regionId, day, kind, page, navigate, attempt]);
 
   function update(changes: Record<string, string>) {
     const next = new URLSearchParams(params);
@@ -283,6 +300,13 @@ export default function RidesPage() {
     return <span className="table__muted">—</span>;
   }
 
+  /** "On-demand", "Scheduled", or "Shared · 3 seats" when the seats are known. */
+  function kindLabel(row: RideRow): string {
+    return row.kind === 'shared' && row.sharedSeats
+      ? t('rideDetail.sharedChip', { count: row.sharedSeats })
+      : t(`rides.kind.${row.kind}`);
+  }
+
   const lastPage = result ? Math.max(0, result.totalPages - 1) : 0;
 
   return (
@@ -319,6 +343,18 @@ export default function RidesPage() {
           {regions.map((region) => (
             <option key={region.id} value={region.id}>
               {region.name}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={t('rides.kindLabel')}
+          value={kind ?? ''}
+          onChange={(event) => update({ kind: event.target.value, page: '' })}
+        >
+          <option value="">{t('rides.allKinds')}</option>
+          {RIDE_KINDS.map((value) => (
+            <option key={value} value={value}>
+              {t(`rides.kind.${value}`)}
             </option>
           ))}
         </select>
@@ -380,6 +416,7 @@ export default function RidesPage() {
             <thead>
               <tr>
                 <th>{t('rides.columns.ride')}</th>
+                <th>{t('rides.columns.kind')}</th>
                 <th>{t('rides.columns.when')}</th>
                 <th>{t('rides.columns.rider')}</th>
                 <th>{t('rides.columns.driver')}</th>
@@ -401,8 +438,22 @@ export default function RidesPage() {
                         ) : null}
                       </Link>
                     </td>
+                    <td>
+                      <span className="kind-chip">{kindLabel(row)}</span>
+                    </td>
                     <td className="table__muted">{formatMoment(row.requestedAt, language)}</td>
-                    <td>{row.riderName}</td>
+                    <td>
+                      {row.kind === 'shared' && row.sharedParties && row.sharedParties > 1 ? (
+                        withBdi(
+                          t('rides.riderPlus', {
+                            name: bdiMark(row.riderName),
+                            others: row.sharedParties - 1,
+                          }),
+                        )
+                      ) : (
+                        <bdi>{row.riderName}</bdi>
+                      )}
+                    </td>
                     <td>{row.driverName ?? <span className="table__muted">—</span>}</td>
                     <td className="table__muted">
                       {routeLabel(

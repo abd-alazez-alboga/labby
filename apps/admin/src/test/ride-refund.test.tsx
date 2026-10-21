@@ -90,6 +90,7 @@ const SHARED: AdminRideDetail = {
       members: [
         {
           memberId: 'm-rana',
+          riderUserId: 'user-lina',
           firstName: 'Rana',
           isCreator: true,
           partySize: 2,
@@ -98,6 +99,7 @@ const SHARED: AdminRideDetail = {
         },
         {
           memberId: 'm-omar',
+          riderUserId: 'user-omar',
           firstName: 'Omar',
           isCreator: false,
           partySize: 1,
@@ -106,6 +108,7 @@ const SHARED: AdminRideDetail = {
         },
         {
           memberId: 'm-left',
+          riderUserId: 'user-sami',
           firstName: 'Sami',
           isCreator: false,
           partySize: 1,
@@ -184,7 +187,38 @@ describe('refund rider from the ride detail (V1 audit W28)', () => {
       'href',
       `/users/user-lina/wallet?refundRide=${encodeURIComponent(SOS_RIDE_ID)}`,
     );
-    // Other members' accounts are not served on the admin ride view yet.
+    // MemberView.riderUserId: any member's wallet opens, not only the creator's.
+    expect(within(picker).getByRole('link', { name: /Omar/ })).toHaveAttribute(
+      'href',
+      `/users/user-omar/wallet?refundRide=${encodeURIComponent(SOS_RIDE_ID)}`,
+    );
+    expect(
+      within(picker).queryByText(
+        "Only the creator's wallet opens from here for now. Find the other members under Users.",
+      ),
+    ).toBeNull();
+  });
+
+  it('keeps a member without a served account id unavailable', async () => {
+    const members = SHARED.ride.shared!.members.map((member) => ({
+      ...member,
+      riderUserId: null,
+    }));
+    stubRide(REFUNDER, {
+      ...SHARED,
+      ride: { ...SHARED.ride, shared: { ...SHARED.ride.shared!, members } },
+    });
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(await screen.findByRole('button', { name: 'Refund rider' }));
+
+    const picker = screen.getByRole('region', { name: 'Refund which member?' });
+    // The creator falls back to the ride's rider account.
+    expect(within(picker).getByRole('link', { name: /Rana · creator/ })).toHaveAttribute(
+      'href',
+      `/users/user-lina/wallet?refundRide=${encodeURIComponent(SOS_RIDE_ID)}`,
+    );
     expect(within(picker).getByText(/Omar/).closest('[aria-disabled]')).toHaveAttribute(
       'aria-disabled',
       'true',
