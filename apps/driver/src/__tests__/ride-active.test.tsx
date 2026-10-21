@@ -103,6 +103,36 @@ describe("active ride (UC-D-07..10)", () => {
     expect(screen.getByTestId("to-pickup-sheet")).toBeTruthy();
   });
 
+  it("a newer own fix inside the fence clears the stale geofence hint (L-I4)", async () => {
+    await withActiveRide(rideFixture(), {
+      [ARRIVE]: {
+        status: 422,
+        body: {
+          status: 422,
+          message: "Too far from the pickup",
+          code: "outside_geofence",
+          details: { distanceMeters: 268, geofenceMeters: 100 },
+        },
+      },
+    });
+    fireEvent.press(await screen.findByTestId("ride-arrived"));
+    expect(await screen.findByTestId("geofence-hint-text")).toHaveTextContent(
+      "You're 268 m away.",
+      { exact: false },
+    );
+
+    // Still outside (≈ 1.1 km from the 33.5 / 36.28 pickup): the hint stays.
+    emitPosition(33.49, 36.27);
+    expect(screen.getByTestId("geofence-hint")).toBeTruthy();
+
+    // ≈ 30 m from the pickup — inside the 100 m fence: the hint goes away.
+    emitPosition(33.5, 36.2803);
+    await waitFor(() =>
+      expect(screen.queryByTestId("geofence-hint")).toBeNull(),
+    );
+    expect(screen.getByTestId("ride-arrived")).toBeTruthy();
+  });
+
   it("arrive without a fresh server position explains no_position", async () => {
     await withActiveRide(rideFixture(), {
       [ARRIVE]: {

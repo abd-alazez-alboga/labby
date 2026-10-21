@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
@@ -9,10 +9,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import type { LocationSample } from "../../api/realtime-types";
 import type { DriverCancelReason, Ride } from "../../api/ride-types";
 import type { Route } from "../../api/routing";
 import { useOptionalAvailability } from "../../realtime/AvailabilityProvider";
-import type { DriverRideContextValue } from "../../rides/DriverRideProvider";
+import type {
+  DriverRideContextValue,
+  RideActionError,
+} from "../../rides/DriverRideProvider";
 import {
   distanceMeters,
   formatDistance,
@@ -157,6 +161,27 @@ export function RideScreen({ ctx }: { ctx: DriverRideContextValue }) {
       setStopsPassed({ rideId, count: passed + 1 });
     }
   }, [rideId, nextStopDistance, passed]);
+
+  // L-I4: the 422 outside-geofence hint carries the server's distance at tap
+  // time. Once a NEWER own fix lands inside the fence that hint is stale —
+  // clear it so the driver isn't told "268 m away" while at the pickup.
+  const geofenceError =
+    ctx.error?.kind === "outsideGeofence" ? ctx.error : null;
+  const clearError = ctx.clearError;
+  const errorSeen = useRef<{
+    error: RideActionError;
+    position: LocationSample | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!geofenceError || !ride || ride.state !== "accepted") return;
+    if (errorSeen.current?.error !== geofenceError) {
+      errorSeen.current = { error: geofenceError, position };
+      return;
+    }
+    if (!position || position === errorSeen.current.position) return;
+    if (distanceMeters(position, ride.pickup) <= geofenceError.geofenceMeters)
+      clearError();
+  }, [geofenceError, position, ride, clearError]);
 
   // ------------------------------------------------------------- offer
   if (ctx.offer) {
