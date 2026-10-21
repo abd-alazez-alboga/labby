@@ -141,23 +141,19 @@ pre {
   inline-size: 32px;
   block-size: 32px;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9px;
-  background: var(--labby-accent);
-  color: var(--labby-on-accent);
-  font-family: var(--labby-font-latin);
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1;
+  display: block;
+  object-fit: contain;
 }
 
 .brand__mark--lg {
   inline-size: 48px;
   block-size: 48px;
-  border-radius: 13px;
-  font-size: 24px;
+}
+
+.brand__logo {
+  display: block;
+  block-size: 36px;
+  inline-size: auto;
 }
 
 .brand__name {

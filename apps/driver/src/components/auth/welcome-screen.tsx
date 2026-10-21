@@ -1,9 +1,8 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 
-import { fontFamilyFor } from "../../theme/fonts";
 import { colors, radius, shadows, spacing } from "../../theme/tokens";
 import { LanguagePill } from "../language-switch";
 import {
@@ -51,14 +50,14 @@ function BrandPill() {
       style={[styles.brand, flipRows && styles.rowReverse]}
       testID="welcome-brand"
     >
-      <View style={styles.mark}>
-        {/* The mark's letter is Latin in both languages (board). */}
-        <Text
-          style={[styles.markText, { fontFamily: fontFamilyFor("800", "en") }]}
-        >
-          L
-        </Text>
-      </View>
+      {/* The real Labby icon (owner-approved boards LFLogoDriverWelcome(Ar), 2026-10-21). */}
+      <Image
+        source={require("../../../assets/images/labby-icon.png")}
+        style={styles.mark}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
+        accessible={false}
+      />
       <AppText variant="label" weight="800">
         {t("auth.welcome.brand")}
       </AppText>
@@ -166,15 +165,7 @@ const styles = StyleSheet.create({
     ...shadows.floating,
   },
   rowReverse: { flexDirection: "row-reverse" },
-  mark: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  markText: { color: colors.onAccent, fontSize: 16, lineHeight: 20 },
+  mark: { width: 32, height: 32 },
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.sheet,

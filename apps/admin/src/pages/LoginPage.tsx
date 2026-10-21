@@ -77,8 +77,7 @@ export default function LoginPage() {
     <div className="login">
       <form className="login__card" onSubmit={(event) => void handleSubmit(event)}>
         <div className="login__brand">
-          <BrandMark size="lg" />
-          <span className="brand__name">{t('app.title')}</span>
+          <BrandMark variant="logo" />
         </div>
         <div>
           <h1 className="login__title">{t('auth.loginTitle')}</h1>
