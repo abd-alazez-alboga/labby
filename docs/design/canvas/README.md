@@ -275,3 +275,16 @@ Tokens and rules live in [../design-system.md](../design-system.md); this folder
 - [Rider · Your rides · filters (AR, RTL)](V1FRiderHistoryFiltersAr.dc.html)
 - [Rider · Your rides · date range sheet](V1FRiderHistoryDates.dc.html)
 - [Rider · Your rides · no match](V1FRiderHistoryEmpty.dc.html)
+
+## Live-test fixes · Logo (owner-approved 2026-10-21)
+
+The drawn purple "L" square is replaced by the real brand assets from `/assets/images`
+(embedded in each board as `data:` URIs so the files stay self-contained).
+
+- [Admin · Sidebar · Labby icon](LFLogoAdminSidebar.dc.html)
+- [Admin · Sidebar · Labby icon (AR, RTL)](LFLogoAdminSidebarAr.dc.html)
+- [Admin · Sign in · full Labby logo](LFLogoAdminLogin.dc.html)
+- [Driver · Welcome · Labby icon](LFLogoDriverWelcome.dc.html)
+- [Driver · Welcome · Labby icon (AR, RTL)](LFLogoDriverWelcomeAr.dc.html)
+- [Rider · Boot screen · Labby icon (Android 12+ safe circle)](LFLogoSplashRider.dc.html)
+- [Driver · Boot screen · white Labby icon on purple](LFLogoSplashDriver.dc.html)

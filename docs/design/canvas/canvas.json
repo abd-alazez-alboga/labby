@@ -1716,6 +1716,65 @@
    "h": 844,
    "title": "Rider · Your rides · no match",
    "page": "v1fix"
+  },
+  "LFLogoAdminSidebar.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1600,
+   "title": "Admin · Sidebar · Labby icon",
+   "page": "lflogo",
+   "expand": "fill"
+  },
+  "LFLogoAdminSidebarAr.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 1600,
+   "title": "Admin · Sidebar · Labby icon (AR, RTL)",
+   "page": "lflogo",
+   "expand": "fill"
+  },
+  "LFLogoAdminLogin.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "Admin · Sign in · full Labby logo",
+   "page": "lflogo",
+   "expand": "fill"
+  },
+  "LFLogoDriverWelcome.dc.html": {
+   "x": 0,
+   "y": 1760,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Welcome · Labby icon",
+   "page": "lflogo"
+  },
+  "LFLogoDriverWelcomeAr.dc.html": {
+   "x": 470,
+   "y": 1760,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Welcome · Labby icon (AR, RTL)",
+   "page": "lflogo"
+  },
+  "LFLogoSplashRider.dc.html": {
+   "x": 940,
+   "y": 1760,
+   "w": 390,
+   "h": 844,
+   "title": "Rider · Boot screen · Labby icon (Android 12+ safe circle)",
+   "page": "lflogo"
+  },
+  "LFLogoSplashDriver.dc.html": {
+   "x": 1410,
+   "y": 1760,
+   "w": 390,
+   "h": 844,
+   "title": "Driver · Boot screen · white Labby icon on purple",
+   "page": "lflogo"
   }
  },
  "createdOnFiles": {
@@ -2085,6 +2144,22 @@
    "x": 0,
    "y": 10006,
    "page": "v1fix"
+  },
+  "lfLogoAdminTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Admin · Labby icon in the sidebar, full logo on sign in (owner decision 2026-10-21)",
+   "x": 0,
+   "y": -50,
+   "page": "lflogo"
+  },
+  "lfLogoMobileTitle": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "Driver welcome + boot screens · Labby icon (owner decision 2026-10-21)",
+   "x": 0,
+   "y": 1710,
+   "page": "lflogo"
   }
  },
  "order": [
@@ -2294,7 +2369,14 @@
   "V1FRiderHistoryFilters.dc.html",
   "V1FRiderHistoryFiltersAr.dc.html",
   "V1FRiderHistoryDates.dc.html",
-  "V1FRiderHistoryEmpty.dc.html"
+  "V1FRiderHistoryEmpty.dc.html",
+  "LFLogoAdminSidebar.dc.html",
+  "LFLogoAdminSidebarAr.dc.html",
+  "LFLogoAdminLogin.dc.html",
+  "LFLogoDriverWelcome.dc.html",
+  "LFLogoDriverWelcomeAr.dc.html",
+  "LFLogoSplashRider.dc.html",
+  "LFLogoSplashDriver.dc.html"
  ],
  "pages": [
   {
@@ -2348,6 +2430,10 @@
   {
    "id": "v1fix",
    "name": "V1 audit fixes"
+  },
+  {
+   "id": "lflogo",
+   "name": "Live-test fixes · Logo"
   }
  ],
  "title": "Labby UI Redesign"
