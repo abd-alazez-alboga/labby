@@ -127,4 +127,15 @@ class SuspendedSupportIntegrationTest extends AbstractSupportIntegrationTest {
     assertThat(pickable(rider)).isNotEmpty();
     followsTicket(rider, category("Payments", "normal"));
   }
+
+  @Test
+  @DisplayName("a role-suspended rider opens a ticket in the account_suspend category (W39)")
+  void shouldLetASuspendedRiderPickTheAccountSuspendCategory() {
+    Account rider = newRider();
+    jdbcTemplate.update(
+        "UPDATE role_assignments SET state = 'suspended', suspension_reason = 'low_rating',"
+            + " suspended_at = now() WHERE user_id = ? AND role = 'rider'",
+        rider.userId());
+    followsTicket(rider, UUID.fromString(ACCOUNT_SUSPEND_ID));
+  }
 }

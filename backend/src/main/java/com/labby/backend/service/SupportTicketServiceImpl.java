@@ -146,13 +146,16 @@ public class SupportTicketServiceImpl implements SupportTicketService {
     return assembler.ticket(ticket);
   }
 
-  /** An active, non-system category a user (or an SOS ticket) may pick. */
+  /**
+   * An active category a user (or an SOS ticket) may pick: admin-made or a user-pickable system one
+   * (W39).
+   */
   public TicketCategory pickableCategory(UUID categoryId) {
     TicketCategory category =
         ticketCategoryRepository
             .findById(categoryId)
             .orElseThrow(() -> new ResourceNotFoundException("Ticket category not found"));
-    if (category.isSystem()) {
+    if (category.isSystem() && !TicketCategoryCodes.userPickable(category.getSystemCode())) {
       throw conflict("This category is reserved for system-opened cases", "category_reserved");
     }
     if (!category.isActive()) {
