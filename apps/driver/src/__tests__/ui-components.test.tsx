@@ -66,6 +66,7 @@ describe("UI kit", () => {
         textAlign: "left",
       });
       expect(styleOf("t").fontWeight).toBeUndefined();
+      expect(styleOf("t").writingDirection).toBeUndefined();
     });
 
     it("uses IBM Plex Sans Arabic (800 → 700) right-aligned in Arabic", async () => {
@@ -82,6 +83,19 @@ describe("UI kit", () => {
         fontFamily: "IBMPlexSansArabic_700Bold",
         textAlign: "right",
       });
+    });
+
+    it("sets an RTL base direction in Arabic so phone isolates render \"+963…\" (L-I3)", async () => {
+      await setAppLanguage("ar");
+      render(
+        inLocale(
+          "ar",
+          <AppText testID="t">
+            {"أرسلنا رمزاً إلى \u2066+963935123431\u2069"}
+          </AppText>,
+        ),
+      );
+      expect(styleOf("t").writingDirection).toBe("rtl");
     });
 
     it("honours a fontWeight given in style", () => {

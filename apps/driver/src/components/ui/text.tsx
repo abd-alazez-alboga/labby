@@ -51,7 +51,7 @@ export function AppText({
   style,
   ...props
 }: AppTextProps) {
-  const { language, textAlign } = useDirection();
+  const { language, rtl, textAlign } = useDirection();
   const scale = typography[variant];
   const flat = StyleSheet.flatten(style) ?? {};
   const resolvedWeight = normalizeWeight(
@@ -67,6 +67,11 @@ export function AppText({
         ? scale.letterSpacing
         : undefined,
     textAlign: align ?? textAlign,
+    // L-I3: an explicit RTL base direction, as the rider app does, so bidi
+    // isolates (U+2066…U+2069 around a "+963…" phone) resolve inside an Arabic
+    // sentence instead of leaking the "+" to the wrong end. A caller's own
+    // writingDirection (style) still wins.
+    writingDirection: rtl ? "rtl" : undefined,
   };
   return (
     <Text
