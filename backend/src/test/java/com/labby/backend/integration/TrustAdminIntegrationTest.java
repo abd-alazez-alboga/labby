@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.labby.backend.enums.ClientType;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,51 @@ import org.springframework.http.ResponseEntity;
  * audited and notified; permission gating ({@code users:view} / {@code users:suspend}).
  */
 class TrustAdminIntegrationTest extends AbstractTrustIntegrationTest {
+
+  @Test
+  @DisplayName(
+      "V1 conformance: the rider/driver profile carries the suspension date of the account and of"
+          + " a suspended role; reactivation clears it")
+  void shouldExposeSuspensionDatesOnTheProfile() {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    String path = "/api/v1/admin/users/" + driver.userId();
+    JsonNode active = ok(get("/api/v1/users/me", driver.token()), HttpStatus.OK);
+    assertThat(active.get("suspendedAt").isNull()).isTrue();
+
+    Instant roleAt = CLOCK.instant();
+    ok(
+        post(path + "/roles/driver/suspend", Map.of("note", "Vehicle checks"), admin),
+        HttpStatus.OK);
+    JsonNode role = roleOf(ok(get("/api/v1/users/me", driver.token()), HttpStatus.OK), "driver");
+    assertThat(role.get("state").asText()).isEqualTo("suspended");
+    assertThat(Instant.parse(role.get("suspendedAt").asText())).isEqualTo(roleAt);
+    assertThat(
+            roleOf(ok(get("/api/v1/users/me", driver.token()), HttpStatus.OK), "rider")
+                .has("suspendedAt"))
+        .isFalse();
+
+    advance(Duration.ofMinutes(5));
+    Instant accountAt = CLOCK.instant();
+    ok(post(path + "/suspend", Map.of("note", "Fraud investigation"), admin), HttpStatus.OK);
+    JsonNode suspended = ok(get("/api/v1/users/me", driver.token()), HttpStatus.OK);
+    assertThat(suspended.get("state").asText()).isEqualTo("suspended");
+    assertThat(Instant.parse(suspended.get("suspendedAt").asText())).isEqualTo(accountAt);
+
+    ok(post(path + "/reactivate", Map.of("note", "Cleared"), admin), HttpStatus.OK);
+    ok(post(path + "/roles/driver/reactivate", Map.of("note", "Checked"), admin), HttpStatus.OK);
+    JsonNode cleared = ok(get("/api/v1/users/me", driver.token()), HttpStatus.OK);
+    assertThat(cleared.get("suspendedAt").isNull()).isTrue();
+    assertThat(roleOf(cleared, "driver").has("suspendedAt")).isFalse();
+  }
+
+  private static JsonNode roleOf(JsonNode profile, String role) {
+    for (JsonNode assignment : profile.get("roles")) {
+      if (role.equals(assignment.get("role").asText())) {
+        return assignment;
+      }
+    }
+    throw new AssertionError("No " + role + " assignment");
+  }
 
   @Test
   @DisplayName(

@@ -505,8 +505,9 @@ components:
           type: [string, 'null']
           format: date-time
           description: >
-            When the role was suspended, present only while it is (V1 conformance W5 / I31: the
-            admin dashboard's "access deactivated" screen shows it as the deactivation date).
+            When the role was suspended, present only while it is (any reason). The rider and
+            driver apps' suspended screens show it as the suspension date; the admin dashboard's
+            "access deactivated" screen as the deactivation date (V1 conformance W5 / I31).
         rbacRole:
           type: [object, 'null']
           required: [id, name]
@@ -537,7 +538,9 @@ components:
         suspendedAt:
           type: [string, 'null']
           format: date-time
-          description: When the whole account was suspended; null while it is not (V1 conformance W5)
+          description: >
+            When the whole account was suspended (USR-06), shown with `suspensionNote` on every
+            app's suspended screen; null while it is not (V1 conformance W5)
         roles:
           type: array
           items: { $ref: '#/components/schemas/RoleAssignment' }
