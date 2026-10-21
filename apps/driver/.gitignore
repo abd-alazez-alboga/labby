@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# The repo-root .gitignore ignores every .env; this app's .env holds only the
+# non-secret EXPO_PUBLIC_USE_RN_FETCH build flag (L-C1) and must be committed.
+!.env
