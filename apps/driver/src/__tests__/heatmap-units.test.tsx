@@ -604,7 +604,7 @@ describe("levels → tiers, looks and labels", () => {
       html.lastIndexOf("<script>") + "<script>".length,
       html.lastIndexOf("</script>"),
     );
-    const layers: { clearLayers: jest.Mock }[] = [];
+    const layers: { clearLayers: jest.Mock; eachLayer: jest.Mock }[] = [];
     const addable = () => ({ addTo: () => addable(), on: () => undefined });
     const L = {
       map: () => ({
@@ -616,7 +616,7 @@ describe("levels → tiers, looks and labels", () => {
       control: { attribution: () => addable() },
       tileLayer: () => addable(),
       layerGroup: () => {
-        const layer = { clearLayers: jest.fn() };
+        const layer = { clearLayers: jest.fn(), eachLayer: jest.fn() };
         layers.push(layer);
         return { addTo: () => layer };
       },
