@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { ApiError } from "../../api/client";
 import { getEarningsSummary, getTripEarnings } from "../../api/money";
-import { isFeeOnlyEarning } from "../../api/money-types";
+import { isCancelledTrip, isFeeOnlyEarning } from "../../api/money-types";
 import type {
   CommissionStatus,
   EarningsPeriod,
@@ -22,9 +22,16 @@ import {
 } from "../../money/format";
 import { useOptionalDriverMoney } from "../../money/DriverMoneyProvider";
 import { localRange, periodLabel, samePeriod, stepAnchor } from "../../money/periods";
+import {
+  cancellationOf,
+  formatTripDay,
+  localDayKey,
+  tripPlace,
+  tripRowKey,
+} from "../../money/trips";
 import { failureKindOf } from "../../onboarding/server-errors";
 import type { FailureKind } from "../../onboarding/server-errors";
-import { formatDate, todayIso } from "../../onboarding/dates";
+import { todayIso } from "../../onboarding/dates";
 import { formatTime } from "../../rides/format";
 import { colors, radius, spacing } from "../../theme/tokens";
 import {
@@ -41,7 +48,6 @@ import {
   useDirection,
 } from "../ui";
 import { ProgressBar } from "../ride/ride-parts";
-import { rememberTripEarning } from "./trip-earnings-screen";
 import type { PendingRating } from "../../api/trust-types";
 import { useOptionalRatingPrompt } from "../../trust/RatingPromptProvider";
 import { countCopy, daysLeft } from "../../trust/format";
@@ -238,7 +244,10 @@ function TierCard({ commission }: { commission: CommissionStatus }) {
   );
 }
 
-/** A fare row's itemized subtitle: method · fare · commission (· tip · promo top-up). */
+/**
+ * A fare row's subtitle parts: method · fare (· tip · promo top-up). The
+ * commission is itemized on the trip detail (board V1FDriverEarningsTrips).
+ */
 function tripParts(
   t: Translate,
   earning: TripEarning,
@@ -248,12 +257,6 @@ function tripParts(
     t(earning.paymentMethod === "cash" ? "earnings.rowCash" : "earnings.rowWallet"),
     t("earnings.rowFare", {
       amount: isolateDigits(formatAmountValue(earning.fareTotal), language),
-    }),
-    t("earnings.rowCommission", {
-      amount: isolateDigits(
-        `${MINUS}${formatAmountValue(earning.commissionAmount)}`,
-        language,
-      ),
     }),
   ];
   if (earning.tip) {
@@ -321,7 +324,38 @@ function RateChip({ pending }: { pending: PendingRating }) {
   );
 }
 
-/** One per-trip row: time + date, itemized subtitle, signed net. */
+/**
+ * W43 (board V1FDriverEarningsTrips): the row subtitle — the rider's name,
+ * then the fare items, the credited fee, or how a cancelled-after-accept
+ * trip ended ("· no fee" when the rider was charged nothing).
+ */
+function tripSubtitle(
+  t: Translate,
+  earning: TripEarning,
+  language: string,
+): string {
+  const name = earning.riderFirstName?.trim();
+  const parts = name ? [name] : [];
+  const cancellation = cancellationOf(earning);
+  if (cancellation) {
+    parts.push(t(`earnings.rowCancelled.${cancellation}`));
+    if (
+      cancellation === "rider" &&
+      !earning.cancellationFee &&
+      !earning.cancellationFeeCharged
+    ) {
+      parts.push(t("earnings.rowNoFee"));
+    }
+  } else if (isFeeOnlyEarning(earning)) {
+    // W17: a credited cancellation fee is one item — no fare/commission lines.
+    parts.push(t("earnings.rowFee"));
+  } else {
+    parts.push(...tripParts(t, earning, language));
+  }
+  return parts.join(" · ");
+}
+
+/** One per-trip row: time · place, rider + items, signed net (— if none). */
 function TripRow({
   earning,
   last,
@@ -335,34 +369,45 @@ function TripRow({
   const { t } = useTranslation();
   const { language } = useDirection();
   const router = useRouter();
-  // W17: a credited cancellation fee is one item — no fare/commission lines.
-  const parts = isFeeOnlyEarning(earning)
-    ? [t("earnings.rowFee")]
-    : tripParts(t, earning, language);
+  const place = tripPlace(earning);
+  const time = formatTime(earning.completedAt, language);
+  // A cancelled trip that moved no money shows a muted dash, not "SYP 0".
+  const noMoney = isCancelledTrip(earning) && earning.net === 0;
   return (
     <ListRow
-      title={`${formatTime(earning.completedAt, language)} · ${formatDate(earning.completedAt, language)}`}
-      subtitle={parts.join(" · ")}
+      title={place ? `${time} · ${place}` : time}
+      subtitle={tripSubtitle(t, earning, language)}
       trailing={
         <AppText
           variant="body"
           weight="800"
-          color={earning.net > 0 ? colors.accent : colors.text}
+          color={
+            noMoney
+              ? colors.textMuted
+              : earning.net > 0
+                ? colors.accent
+                : colors.text
+          }
           testID={`trip-net-${earning.rideId}`}
         >
-          {formatSignedMoney(earning.net, earning.currency, language, {
-            alwaysSign: true,
-          })}
+          {noMoney
+            ? "—"
+            : formatSignedMoney(earning.net, earning.currency, language, {
+                alwaysSign: true,
+              })}
         </AppText>
       }
-      // I59 (board DriverEarnings): a trip row opens its Trip earnings.
-      onPress={() => {
-        rememberTripEarning(earning);
+      chevron
+      // W43 (board V1FDriverEarningsTrips): a trip row opens its trip detail.
+      onPress={() =>
         router.push({
-          pathname: "/trip-earnings",
-          params: { rideId: earning.rideId },
-        });
-      }}
+          pathname: "/trip-detail",
+          params: {
+            rideId: earning.rideId,
+            ...(earning.memberId ? { memberId: earning.memberId } : {}),
+          },
+        })
+      }
       last={last}
       testID={`trip-row-${earning.rideId}`}
     >
@@ -548,8 +593,16 @@ export function EarningsScreen() {
         />
       ) : null}
 
-      <AppText variant="rowTitle" weight="800" style={styles.tripsHeading}>
-        {t("earnings.tripsHeading")}
+      <AppText
+        variant="rowTitle"
+        weight="800"
+        style={styles.tripsHeading}
+        testID="earnings-trips-heading"
+      >
+        {t("earnings.tripsHeading")}{" "}
+        <AppText variant="caption" weight="600" color={colors.textMuted}>
+          {`· ${t("earnings.tripsHint")}`}
+        </AppText>
       </AppText>
       {tripsLoad.status === "loading" ? (
         <LoadingState testID="earnings-trips-loading" />
@@ -566,18 +619,43 @@ export function EarningsScreen() {
           <Muted testID="earnings-empty">{t("earnings.empty")}</Muted>
         ) : (
           <View testID="earnings-trips">
-            {tripsLoad.items.map((earning, index) => (
-              <TripRow
-                key={earning.rideId}
-                earning={earning}
-                last={index === tripsLoad.items.length - 1}
-                pending={
-                  ratingPrompts?.pending.find(
-                    (item) => item.rideId === earning.rideId,
-                  ) ?? null
-                }
-              />
-            ))}
+            {tripsLoad.items.map((earning, index) => {
+              const day = localDayKey(earning.completedAt);
+              const items = tripsLoad.items;
+              const firstOfDay =
+                index === 0 || localDayKey(items[index - 1].completedAt) !== day;
+              const lastOfDay =
+                index === items.length - 1 ||
+                localDayKey(items[index + 1].completedAt) !== day;
+              return (
+                <React.Fragment key={tripRowKey(earning)}>
+                  {firstOfDay ? (
+                    <AppText
+                      variant="caption"
+                      weight="800"
+                      color={colors.textMuted}
+                      style={styles.dayHeading}
+                      testID={`earnings-day-${day}`}
+                    >
+                      {formatTripDay(earning.completedAt, language)}
+                    </AppText>
+                  ) : null}
+                  <TripRow
+                    earning={earning}
+                    last={lastOfDay}
+                    pending={
+                      ratingPrompts?.pending.find(
+                        (item) =>
+                          item.rideId === earning.rideId &&
+                          (!item.memberId ||
+                            !earning.memberId ||
+                            item.memberId === earning.memberId),
+                      ) ?? null
+                    }
+                  />
+                </React.Fragment>
+              );
+            })}
             {tripsLoad.page + 1 < tripsLoad.totalPages ? (
               <TextButton
                 title={t("earnings.loadMore")}
@@ -654,6 +732,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm + 2,
   },
   tripsHeading: { marginTop: spacing.xs },
+  dayHeading: { paddingTop: 10 },
   rateChip: {
     alignSelf: "flex-start",
     flexDirection: "row",

@@ -35,16 +35,6 @@ import { FareLine } from "../ride/ride-parts";
 /** Secondary text on the near-black card. */
 const ON_DARK_MUTED = colors.lineStrong;
 
-/**
- * I59: the earnings list hands the tapped row's entry to the Trip earnings
- * route, so an older trip (beyond the first page) still itemizes.
- */
-const knownEarnings = new Map<string, TripEarning>();
-
-export function rememberTripEarning(earning: TripEarning): void {
-  knownEarnings.set(earning.rideId, earning);
-}
-
 type Load =
   | { status: "loading" }
   | { status: "loaded"; earning: TripEarning }
@@ -64,12 +54,9 @@ type Load =
 export function TripEarningsScreen({
   ride,
   onDone,
-  fromEarnings = false,
 }: {
   ride: Ride;
   onDone: () => void;
-  /** I59: opened from the earnings list — no "See this week's earnings". */
-  fromEarnings?: boolean;
 }) {
   const { t } = useTranslation();
   const { flipRows, language } = useDirection();
@@ -95,9 +82,7 @@ export function TripEarningsScreen({
         moneyReload ? moneyReload() : Promise.resolve(),
       ]);
       if (!mounted.current) return;
-      const earning =
-        page.items.find((item) => item.rideId === ride.id) ??
-        knownEarnings.get(ride.id);
+      const earning = page.items.find((item) => item.rideId === ride.id);
       setLoad(earning ? { status: "loaded", earning } : { status: "missing" });
     } catch (caught) {
       if (mounted.current)
@@ -321,16 +306,14 @@ export function TripEarningsScreen({
           onPress={onDone}
           testID="trip-earnings-done"
         />
-        {fromEarnings ? null : (
-          <TextButton
-            title={t("tripEarnings.seeWeek")}
-            onPress={() => {
-              onDone();
-              router.push("/earnings");
-            }}
-            testID="trip-earnings-see-week"
-          />
-        )}
+        <TextButton
+          title={t("tripEarnings.seeWeek")}
+          onPress={() => {
+            onDone();
+            router.push("/earnings");
+          }}
+          testID="trip-earnings-see-week"
+        />
       </View>
     </View>
   );

@@ -3,8 +3,10 @@
  * (artboard "Driver Earnings") — weekly summary totals, the Week/Month
  * toggle, the period stepper (anchor stepping, future disabled), the
  * commission-tier card with next-tier progress math (COM-02), the per-trip
- * list (cash vs wallet nets), paging, the empty state, and Arabic with
- * Western digits.
+ * list (cash vs wallet nets; V1 conformance W43, board
+ * V1FDriverEarningsTrips: day headings, the rider's name, cancelled-after-
+ * accept trips, rows open the trip detail), paging, the empty state, and
+ * Arabic with Western digits.
  */
 import { fireEvent } from "@testing-library/react-native";
 
@@ -15,6 +17,7 @@ import { stepAnchor, weekStartIso } from "../money/periods";
 import {
   BALANCE,
   balanceEntryFixture,
+  cancelledNoFeeFixture,
   balanceViewFixture,
   blockedBalanceView,
   commissionFixture,
@@ -24,11 +27,11 @@ import {
   okBalanceView,
   summaryFixture,
   summaryRoute,
+  tripDetailRoute,
   tripEarningFixture,
   walletEarningFixture,
 } from "../test-utils/money";
 import { renderMoneyScreens } from "../test-utils/money-harness";
-import { completedRide } from "../test-utils/rides";
 import { NON_WESTERN_DIGITS, simulateArabicIndicIcu } from "../test-utils/intl";
 import { screen } from "../test-utils/ride-harness";
 import type { MockResponse } from "../test-utils/contract";
@@ -249,49 +252,132 @@ describe("earnings screen (UC-D-15)", () => {
     ).toHaveLength(1);
   });
 
-  it("lists per-trip earnings: itemized cash debit and wallet credit", async () => {
+  it("lists per-trip earnings: the rider, place, items and signed net (board V1FDriverEarningsTrips)", async () => {
     await renderMoneyScreens(baseRoutes(), { initialUrl: "/earnings" });
 
+    expect(await screen.findByTestId("earnings-trips-heading")).toHaveTextContent(
+      "Trips · tap a trip for details",
+    );
     const cashRow = await screen.findByTestId(
       `trip-row-${tripEarningFixture().rideId}`,
     );
+    expect(cashRow).toHaveTextContent("· Umayyad Square", { exact: false });
     expect(cashRow).toHaveTextContent(
-      "cash · fare 28,000 · commission −7,000 · tip +5,000",
+      "Rana · cash · fare 28,000 · tip +5,000",
       { exact: false },
     );
+    // The board moves the commission to the trip detail.
+    expect(cashRow).not.toHaveTextContent("commission", { exact: false });
     expect(cashRow).toHaveTextContent("−SYP 2,000", { exact: false });
 
     const walletRow = screen.getByTestId(
       `trip-row-${walletEarningFixture().rideId}`,
     );
-    expect(walletRow).toHaveTextContent(
-      "wallet · fare 31,500 · commission −7,875",
-      { exact: false },
-    );
+    expect(walletRow).toHaveTextContent("Omar · wallet · fare 31,500", {
+      exact: false,
+    });
     expect(walletRow).toHaveTextContent("+SYP 23,625", { exact: false });
   });
 
-  it("a trip row opens its Trip earnings breakdown (I59)", async () => {
-    const earning = tripEarningFixture();
+  it("groups the trips under one heading per day", async () => {
     await renderMoneyScreens(
       {
         ...baseRoutes(),
-        [`GET /api/v1/driver/rides/${earning.rideId}`]: ok(
-          completedRide({ id: earning.rideId, paymentStatus: "paid_cash" }),
+        [EARNINGS]: ok(
+          earningPage([
+            tripEarningFixture(),
+            walletEarningFixture(),
+            cancelledNoFeeFixture(),
+          ]),
         ),
+      },
+      { initialUrl: "/earnings" },
+    );
+    expect(await screen.findByTestId("earnings-day-2026-10-11")).toHaveTextContent(
+      "Sun 11 Oct",
+    );
+    expect(screen.getByTestId("earnings-day-2026-10-10")).toHaveTextContent(
+      "Sat 10 Oct",
+    );
+    expect(screen.getAllByText(/^(Sun 11|Sat 10) Oct$/u)).toHaveLength(2);
+  });
+
+  it("lists a trip cancelled after acceptance: no fee → a muted dash (W43)", async () => {
+    const cancelled = cancelledNoFeeFixture();
+    await renderMoneyScreens(
+      { ...baseRoutes(), [EARNINGS]: ok(earningPage([cancelled])) },
+      { initialUrl: "/earnings" },
+    );
+    const row = await screen.findByTestId(`trip-row-${cancelled.rideId}`);
+    // A cancelled trip is told by its pickup.
+    expect(row).toHaveTextContent("· Kafr Sousa", { exact: false });
+    expect(row).toHaveTextContent(
+      "Hadi · rider cancelled after you accepted · no fee",
+      { exact: false },
+    );
+    expect(screen.getByTestId(`trip-net-${cancelled.rideId}`)).toHaveTextContent(
+      "—",
+    );
+  });
+
+  it("says how a driver cancellation or a no-show ended", async () => {
+    const mine = cancelledNoFeeFixture({ rideState: "cancelled_by_driver" });
+    const noShow = cancelledNoFeeFixture({
+      rideId: "5b1d3f0e-1111-4c4c-9a9a-000000000006",
+      rideState: "cancelled_by_driver",
+      cancellationReason: "rider_no_show",
+    });
+    await renderMoneyScreens(
+      { ...baseRoutes(), [EARNINGS]: ok(earningPage([mine, noShow])) },
+      { initialUrl: "/earnings" },
+    );
+    const row = await screen.findByTestId(`trip-row-${mine.rideId}`);
+    expect(row).toHaveTextContent("Hadi · you cancelled after accepting", {
+      exact: false,
+    });
+    expect(row).not.toHaveTextContent("no fee", { exact: false });
+    expect(screen.getByTestId(`trip-row-${noShow.rideId}`)).toHaveTextContent(
+      "Hadi · rider no-show",
+      { exact: false },
+    );
+  });
+
+  it("a trip row opens its trip detail (W43)", async () => {
+    const earning = tripEarningFixture();
+    const contract = await renderMoneyScreens(
+      {
+        ...baseRoutes(),
+        [tripDetailRoute(earning.rideId)]: ok(earning),
       },
       { initialUrl: "/earnings" },
     );
 
     fireEvent.press(await screen.findByTestId(`trip-row-${earning.rideId}`));
 
-    expect(await screen.findByTestId("trip-earnings-screen")).toBeTruthy();
-    expect(await screen.findByTestId("earning-line-commission")).toHaveTextContent(
+    expect(await screen.findByTestId("trip-detail-screen")).toBeTruthy();
+    expect(await screen.findByTestId("trip-line-commission")).toHaveTextContent(
       "−SYP 7,000",
       { exact: false },
     );
-    // Opened from the list: no link back to the week.
-    expect(screen.queryByTestId("trip-earnings-see-week")).toBeNull();
+    expect(contract.requestsTo(tripDetailRoute(earning.rideId))).toHaveLength(1);
+  });
+
+  it("a shared member's row opens that member's trip detail", async () => {
+    const memberId = "8a000000-0000-4000-8000-000000000001";
+    const earning = tripEarningFixture({ kind: "shared", memberId });
+    const contract = await renderMoneyScreens(
+      {
+        ...baseRoutes(),
+        [EARNINGS]: ok(earningPage([earning])),
+        [tripDetailRoute(earning.rideId, memberId)]: ok(earning),
+      },
+      { initialUrl: "/earnings" },
+    );
+    fireEvent.press(await screen.findByTestId(`trip-row-${earning.rideId}`));
+    expect(await screen.findByTestId("trip-detail-screen")).toBeTruthy();
+    expect(
+      contract.requestsTo(tripDetailRoute(earning.rideId, memberId)),
+    ).toHaveLength(1);
   });
 
   it("pages the trip list with Show more", async () => {
@@ -335,21 +421,36 @@ describe("earnings screen (UC-D-15)", () => {
     expect(screen.queryByTestId("earnings-total-card")).toBeNull();
   });
 
-  it("renders a fee-only row as one 'Cancellation fee · all yours' item (W17)", async () => {
+  it("renders a cancelled ride's credited fee as how it ended, no fare items (W17, board V1FDriverEarningsTrips)", async () => {
     const fee = feeOnlyEarningFixture();
     await renderMoneyScreens(
       { ...baseRoutes(), [EARNINGS]: ok(earningPage([fee])) },
       { initialUrl: "/earnings" },
     );
     const row = await screen.findByTestId(`trip-row-${fee.rideId}`);
-    expect(row).toHaveTextContent("Cancellation fee · all yours", {
+    expect(row).toHaveTextContent("Nour · rider cancelled after you accepted", {
       exact: false,
     });
+    expect(row).not.toHaveTextContent("no fee", { exact: false });
     expect(row).not.toHaveTextContent("fare", { exact: false });
     expect(row).not.toHaveTextContent("commission", { exact: false });
     expect(screen.getByTestId(`trip-net-${fee.rideId}`)).toHaveTextContent(
       "+SYP 10,000",
     );
+  });
+
+  it("keeps 'Cancellation fee · all yours' for a fee row on a completed ride (W17)", async () => {
+    // A shared member's collected fee: the ride itself completed.
+    const fee = feeOnlyEarningFixture({ rideState: "completed" });
+    await renderMoneyScreens(
+      { ...baseRoutes(), [EARNINGS]: ok(earningPage([fee])) },
+      { initialUrl: "/earnings" },
+    );
+    const row = await screen.findByTestId(`trip-row-${fee.rideId}`);
+    expect(row).toHaveTextContent("Nour · Cancellation fee · all yours", {
+      exact: false,
+    });
+    expect(row).not.toHaveTextContent("commission", { exact: false });
   });
 
   it("shows a promo ride's platform top-up on the row and inside its net (M13 ruling 1)", async () => {
@@ -361,7 +462,6 @@ describe("earnings screen (UC-D-15)", () => {
     );
     const row = await screen.findByTestId(`trip-row-${promo.rideId}`);
     expect(row).toHaveTextContent("promo top-up +2,800", { exact: false });
-    expect(row).toHaveTextContent("commission −7,000", { exact: false });
     expect(screen.getByTestId(`trip-net-${promo.rideId}`)).toHaveTextContent(
       "+SYP 800",
     );

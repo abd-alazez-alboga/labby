@@ -37,6 +37,21 @@ export function tripEarningFixture(
     tip: 5000,
     cancellationFee: null,
     net: -2000,
+    memberId: null,
+    rideState: "completed",
+    kind: "on_demand",
+    riderFirstName: "Rana",
+    pickupLabel: "Abu Rummaneh",
+    destinationLabel: "Umayyad Square",
+    serviceTypeNameEn: "Economy",
+    serviceTypeNameAr: "اقتصادي",
+    acceptedAt: "2026-10-11T12:05:00Z",
+    startedAt: "2026-10-11T12:10:00Z",
+    cancelledAt: null,
+    cancellationReason: null,
+    cancellationFeeCharged: null,
+    myReport: null,
+    canReport: true,
     ...overrides,
   };
 }
@@ -48,6 +63,7 @@ export function walletEarningFixture(
   return tripEarningFixture({
     rideId: "5b1d3f0e-1111-4c4c-9a9a-000000000002",
     completedAt: "2026-10-11T11:02:00Z",
+    riderFirstName: "Omar",
     paymentMethod: "wallet",
     fareTotal: 31500,
     commissionAmount: 7875,
@@ -78,8 +94,9 @@ export function mixedWalletEarningFixture(
 }
 
 /**
- * A FEE-ONLY row (contract shape): a cancelled ride whose 10,000 fee was
- * credited to this driver — no fare, no commission, net = the fee.
+ * A FEE-ONLY row (contract shape): a ride the rider cancelled after the
+ * driver accepted, whose 10,000 fee was credited to this driver — no fare,
+ * no commission, net = the fee (board V1FDriverEarningsTrips, "Nour").
  */
 export function feeOnlyEarningFixture(
   overrides: Partial<TripEarning> = {},
@@ -87,14 +104,57 @@ export function feeOnlyEarningFixture(
   return tripEarningFixture({
     rideId: "5b1d3f0e-1111-4c4c-9a9a-000000000004",
     completedAt: "2026-10-11T09:40:00Z",
+    riderFirstName: "Nour",
+    pickupLabel: "Baramkeh",
+    destinationLabel: "Mazzeh",
     fareTotal: 0,
     commissionRate: 0,
     commissionAmount: 0,
     tip: null,
     cancellationFee: 10000,
+    cancellationFeeCharged: 10000,
     net: 10000,
+    rideState: "cancelled_by_rider",
+    acceptedAt: "2026-10-11T09:30:00Z",
+    startedAt: null,
+    cancelledAt: "2026-10-11T09:36:00Z",
+    cancellationReason: "changed_mind",
     ...overrides,
   });
+}
+
+/**
+ * W43: a ride the rider cancelled after the driver accepted, inside the
+ * free window — no money for the driver (board "Hadi", Fri 10 Oct).
+ */
+export function cancelledNoFeeFixture(
+  overrides: Partial<TripEarning> = {},
+): TripEarning {
+  return tripEarningFixture({
+    rideId: "5b1d3f0e-1111-4c4c-9a9a-000000000005",
+    completedAt: "2026-10-10T18:46:00Z",
+    riderFirstName: "Hadi",
+    pickupLabel: "Kafr Sousa",
+    destinationLabel: "Mezzeh Villas",
+    fareTotal: 0,
+    commissionRate: 0,
+    commissionAmount: 0,
+    tip: null,
+    cancellationFee: null,
+    net: 0,
+    rideState: "cancelled_by_rider",
+    acceptedAt: "2026-10-10T18:40:00Z",
+    startedAt: null,
+    cancelledAt: "2026-10-10T18:46:00Z",
+    cancellationReason: "changed_mind",
+    ...overrides,
+  });
+}
+
+export function tripDetailRoute(rideId: string, memberId?: string): string {
+  return `GET /api/v1/driver/earnings/rides/${rideId}${
+    memberId ? `?memberId=${memberId}` : ""
+  }`;
 }
 
 export function earningPage(

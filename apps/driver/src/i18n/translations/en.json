@@ -761,6 +761,7 @@
     "tierNext": "{{trips}} so far this week. Finish {{needed}} and next week's commission drops to {{percent}}.",
     "tierBest": "{{trips}} so far this week. You're on your best commission rate.",
     "tripsHeading": "Trips",
+    "tripsHint": "tap a trip for details",
     "rowCash": "cash",
     "rowWallet": "wallet",
     "rowFare": "fare {{amount}}",
@@ -768,6 +769,12 @@
     "rowTip": "tip {{amount}}",
     "rowPromo": "promo top-up {{amount}}",
     "rowFee": "Cancellation fee · all yours",
+    "rowCancelled": {
+      "rider": "rider cancelled after you accepted",
+      "driver": "you cancelled after accepting",
+      "noShow": "rider no-show"
+    },
+    "rowNoFee": "no fee",
     "loadMore": "Show more",
     "empty": "No earnings yet — your completed rides will show up here.",
     "summaryEmpty": "No earnings to show yet — your completed rides will add up here."
@@ -806,7 +813,6 @@
     "boardBlockedBody": "Your debt is past the limit, so the board is closed and you can't claim scheduled rides. It reopens the moment your balance is back above the limit."
   },
   "tripEarnings": {
-    "title": "Trip earnings",
     "collectedCash": "You collected in cash",
     "credited": "Credited to you",
     "cashRide": "cash ride",
@@ -829,6 +835,26 @@
     "seeWeek": "See this week's earnings",
     "pending": "Loading this ride's earnings…",
     "missing": "This ride's earnings aren't ready yet. Try again in a moment."
+  },
+  "tripDetail": {
+    "title": "Trip",
+    "yourRider": "Your rider",
+    "fareCash": "Fare · you kept the cash",
+    "tipFrom": "Tip from {{name}}",
+    "cancellationFee": "Cancellation fee",
+    "feeNone": "None",
+    "feeNoneFreeWindow": "None · inside the free window",
+    "feeNotCollected": "{{amount}} · not collected yet",
+    "cancelled": {
+      "rider": "Rider cancelled after you accepted · {{time}}",
+      "driver": "You cancelled after accepting · {{time}}",
+      "noShow": "Rider no-show · {{time}}"
+    },
+    "reportRider": "Report rider",
+    "reportPrivacy": "{{name}} is not told who reported them.",
+    "reported": "You reported {{name}}",
+    "reportedMeta": "{{category}} · sent {{date}}",
+    "seeReports": "See your reports"
   },
   "chat": {
     "title": "Chat",
@@ -1088,6 +1114,8 @@
       "body": "You can't go online or receive offers. Your earnings and balance are unchanged.",
       "reason": "Reason",
       "reasonFromTeam": "Reason · from the Labby team",
+      "reasonDated": "Reason · {{date}}",
+      "reasonFromTeamDated": "Reason · from the Labby team · {{date}}",
       "lowRatingRule": "Your average rating fell below {{min}} after {{rides}}.",
       "lowRatingRuleWith": "Your average rating fell below {{min}} after {{rides}} (your average: {{average}}).",
       "lowRatingGeneric": "Your average rating fell below the minimum for your region.",

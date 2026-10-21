@@ -151,10 +151,22 @@ export function ProgressBar({
   );
 }
 
-/** 56 px round avatar with the rider's initial (no photo for riders). */
-export function RiderAvatar({ firstName }: { firstName: string }) {
+/** Round avatar with the rider's initial (no photo for riders). */
+export function RiderAvatar({
+  firstName,
+  size,
+}: {
+  firstName: string;
+  /** Diameter; 56 by default (the trip detail uses 44). */
+  size?: number;
+}) {
   return (
-    <View style={styles.avatar}>
+    <View
+      style={[
+        styles.avatar,
+        size ? { width: size, height: size, borderRadius: size / 2 } : null,
+      ]}
+    >
       <AppText variant="heading" color={colors.accent} align="center">
         {firstName.trim().charAt(0).toUpperCase()}
       </AppText>

@@ -4,7 +4,9 @@ import React from "react";
 import { AuthProvider } from "../auth/AuthProvider";
 import { BalanceScreen } from "../components/money/balance-screen";
 import { EarningsScreen } from "../components/money/earnings-screen";
-import { TripEarningsRoute } from "../components/money/trip-earnings-route";
+import ReportRiderRoute from "../app/report-rider";
+import ReportsRoute from "../app/reports";
+import TripDetailRoute from "../app/trip-detail";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { DriverMoneyProvider } from "../money/DriverMoneyProvider";
 import { driverUser, installContractFetch, seedSession } from "./contract";
@@ -17,7 +19,7 @@ import type { ContractFetch, MockResponse } from "./contract";
  */
 export async function renderMoneyScreens(
   routes: Record<string, MockResponse | MockResponse[]>,
-  options: { language?: "en" | "ar"; initialUrl: "/earnings" | "/balance" },
+  options: { language?: "en" | "ar"; initialUrl: string },
 ): Promise<ContractFetch> {
   await seedSession(driverUser());
   const contract = installContractFetch(routes);
@@ -38,7 +40,9 @@ export async function renderMoneyScreens(
       },
       earnings: () => <EarningsScreen />,
       balance: () => <BalanceScreen />,
-      "trip-earnings": () => <TripEarningsRoute />,
+      "trip-detail": () => <TripDetailRoute />,
+      "report-rider": () => <ReportRiderRoute />,
+      reports: () => <ReportsRoute />,
     },
     { initialUrl: options.initialUrl },
   );

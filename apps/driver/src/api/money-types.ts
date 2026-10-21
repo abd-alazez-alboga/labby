@@ -1,11 +1,32 @@
 /**
  * Types mirroring the M8 money contract (backend/docs/api/money-v1.yaml) —
  * the DRIVER slice: per-trip earnings, period summaries, balance + floor
- * status and the weekly commission tier. Import-free so every layer can
- * depend on them without cycles.
+ * status and the weekly commission tier. Type-only imports, so every layer
+ * can depend on them without cycles.
  */
 
-/** COM-01 itemization for one completed ride (`TripEarning`). */
+import type { ReportCategory, ReportStatus } from "./trust-types";
+
+/** The ride's final state on a trip row (money-v1 `TripEarning.rideState`). */
+export type TripRideState =
+  "completed" | "cancelled_by_rider" | "cancelled_by_driver";
+
+/**
+ * V1 conformance W43 — the driver's own report on a trip row's rider
+ * (REP-01: one per ride per rider; money-v1 `TripEarning.myReport`).
+ */
+export interface TripReport {
+  id: string;
+  category: ReportCategory;
+  status: ReportStatus;
+  createdAt: string;
+}
+
+/**
+ * COM-01 itemization for one ride (`TripEarning`): a completed ride, a
+ * cancelled ride whose fee was credited to this driver, or (W43) a ride the
+ * driver accepted that was later cancelled without money for them.
+ */
 export interface TripEarning {
   rideId: string;
   completedAt: string;
@@ -36,6 +57,39 @@ export interface TripEarning {
    * fare.
    */
   net: number;
+  /** The shared-ride member the row is about (null on a one-rider ride). */
+  memberId?: string | null;
+  rideState: TripRideState;
+  kind: "on_demand" | "scheduled" | "shared";
+  /** The rider's first name (the member's on a shared ride). */
+  riderFirstName?: string | null;
+  pickupLabel?: string | null;
+  destinationLabel?: string | null;
+  serviceTypeNameEn?: string | null;
+  serviceTypeNameAr?: string | null;
+  acceptedAt?: string | null;
+  /** Trip start (completed rides). */
+  startedAt?: string | null;
+  cancelledAt?: string | null;
+  /** The ride's (or the member's) cancellation reason (rides-v1 values). */
+  cancellationReason?: string | null;
+  /**
+   * The fee the rider (member) was charged for the cancellation; null = no
+   * fee. What reached the driver is `cancellationFee`.
+   */
+  cancellationFeeCharged?: number | null;
+  /** The driver's own report on this row's rider, if any. */
+  myReport?: TripReport | null;
+  /** True while the driver has not reported this row's rider. */
+  canReport: boolean;
+}
+
+/** W43: a row of a ride cancelled after the driver accepted it. */
+export function isCancelledTrip(earning: TripEarning): boolean {
+  return (
+    earning.rideState === "cancelled_by_rider" ||
+    earning.rideState === "cancelled_by_driver"
+  );
 }
 
 /** A cancellation-fee credit row (no fare, no commission) — money-v1 D. */

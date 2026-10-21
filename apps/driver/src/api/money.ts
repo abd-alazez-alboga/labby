@@ -3,6 +3,7 @@ import type {
   DriverBalanceView,
   EarningsPeriod,
   EarningsSummary,
+  TripEarning,
   TripEarningPage,
 } from "./money-types";
 
@@ -18,6 +19,21 @@ export function getTripEarnings(
 ): Promise<TripEarningPage> {
   return authFetch<TripEarningPage>(
     `/api/v1/driver/earnings?page=${page}&size=${size}`,
+  );
+}
+
+/**
+ * `GET /driver/earnings/rides/{rideId}` — one trip with the driver's report
+ * status (V1 conformance W43); `memberId` names the shared-ride member row.
+ * 404 for a ride that is not this driver's past trip.
+ */
+export function getTripDetail(
+  rideId: string,
+  memberId: string | null = null,
+): Promise<TripEarning> {
+  const query = memberId ? `?memberId=${encodeURIComponent(memberId)}` : "";
+  return authFetch<TripEarning>(
+    `/api/v1/driver/earnings/rides/${encodeURIComponent(rideId)}${query}`,
   );
 }
 
