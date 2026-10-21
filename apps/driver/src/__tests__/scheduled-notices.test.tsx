@@ -4,7 +4,13 @@
  * what the event costs. Payload fields are optional: a push that names only
  * the ride falls back to the ride read, then to a generic title.
  */
-import { act, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import * as Notifications from "expo-notifications";
 
 import { clearSession } from "../auth/session";
@@ -17,8 +23,22 @@ import {
 } from "../notifications/deep-links";
 import type { MockResponse } from "../test-utils/contract";
 import { MockSocket } from "../test-utils/realtime";
-import { mockLocationGranted, renderDriverApp } from "../test-utils/ride-harness";
+import {
+  ACTIVE_RIDE,
+  CLAIM_BOARD_SUMMARY,
+  mockLocationGranted,
+  NONE,
+  renderDriverApp,
+} from "../test-utils/ride-harness";
 import { rideFixture, RIDE_ID } from "../test-utils/rides";
+import {
+  BOARD,
+  boardPage,
+  CLAIMS,
+  claimedRide,
+  inHours,
+  WINDOWS_GET,
+} from "../test-utils/scheduled";
 
 // A dev/production build (not Expo Go) so foreground pushes are delivered.
 jest.mock("expo", () => ({
@@ -272,6 +292,63 @@ describe("scheduled notice from a foreground push (W22)", () => {
     expect(
       contract.requestsTo(`GET /api/v1/driver/rides/${RIDE_ID}`),
     ).toHaveLength(0);
+  });
+
+  it("a scheduled.converted push takes a driver on the Scheduled board to the live ride (L-W6)", async () => {
+    let received: ((notification: Notifications.Notification) => void) | null =
+      null;
+    jest
+      .mocked(Notifications.addNotificationReceivedListener)
+      .mockImplementation((listener) => {
+        received = listener;
+        return { remove: jest.fn() } as unknown as Notifications.EventSubscription;
+      });
+    const live = rideFixture({
+      kind: "scheduled",
+      scheduled: {
+        scheduledAt: inHours(0.25),
+        claimState: "converted",
+        pricedAtRideTime: false,
+      },
+    });
+    const contract = await renderDriverApp(
+      {
+        // No live ride until the claim converts.
+        [ACTIVE_RIDE]: [NONE, ok(live)],
+        [BOARD]: ok(boardPage([])),
+        [CLAIMS]: ok([claimedRide()]),
+        [CLAIM_BOARD_SUMMARY]: ok({ items: [], page: 0, size: 1, totalItems: 0 }),
+        [WINDOWS_GET]: ok({ windows: [] }),
+      },
+    );
+    await waitFor(() =>
+      expect(contract.requestsTo(ACTIVE_RIDE).length).toBeGreaterThanOrEqual(1),
+    );
+    // The driver opens the Scheduled board (a stack route above home).
+    fireEvent.press(await screen.findByTestId("scheduled-entry"));
+    expect(await screen.findByTestId("scheduled-rides-screen")).toBeTruthy();
+    await waitFor(() => expect(received).not.toBeNull());
+
+    await act(async () => {
+      received?.({
+        request: {
+          content: {
+            data: {
+              event: "scheduled.converted",
+              category: "scheduled",
+              screen: "ride",
+              params: JSON.stringify({ rideId: RIDE_ID }),
+            },
+          },
+        },
+      } as unknown as Notifications.Notification);
+    });
+
+    // Resync picks the converted ride up, then the driver lands on it.
+    expect(await screen.findByTestId("to-pickup-sheet")).toBeTruthy();
+    expect(screen.getByTestId("ride-notice-scheduledLive")).toBeTruthy();
+    expect(screen.queryByTestId("scheduled-rides-screen")).toBeNull();
+    expect(contract.requestsTo(ACTIVE_RIDE).length).toBeGreaterThanOrEqual(2);
   });
 
   it("a scheduled.claim_lost push shows the vehicle-changed notice", async () => {

@@ -43,7 +43,11 @@ import { refreshUnread } from "./unread-store";
  * - refreshes the unread badge when a push arrives in the foreground, and
  *   re-reads balance + availability on a `driver.balance_*` push (W16);
  * - re-reads the profile on an M11 account push (role / account suspended
- *   or reactivated), so the gate follows without a restart.
+ *   or reactivated), so the gate follows without a restart;
+ * - L-W6 (UC-D-12): when a claimed scheduled ride converts into the live
+ *   ride — picked up by the `scheduled.converted` push's resync, a ride
+ *   frame or any resync — takes the driver to the home route that shows it
+ *   (the same target as tapping a `ride` push), e.g. off the Scheduled board.
  */
 export function PushBridge() {
   const router = useRouter();
@@ -53,6 +57,11 @@ export function PushBridge() {
   const openRideLink = rides?.openLink;
   const showRideNotice = rides?.showNotice;
   const resyncRides = rides?.resync;
+  // The facade raises `scheduledLive` exactly when a converted ride first appears.
+  const convertedRideId =
+    isDriver && rides?.notice === "scheduledLive"
+      ? (rides.ride?.id ?? null)
+      : null;
   const reloadBalance = useOptionalDriverMoney()?.reload;
   const reloadAvailability = useOptionalAvailability()?.reload;
   const context = useRef({
@@ -79,6 +88,20 @@ export function PushBridge() {
   useEffect(() => {
     configureForegroundPresentation();
   }, []);
+
+  // L-W6: a converted live ride — bring the driver to it (once per ride).
+  const routedConversion = useRef<string | null>(null);
+  useEffect(() => {
+    if (!convertedRideId || routedConversion.current === convertedRideId)
+      return;
+    routedConversion.current = convertedRideId;
+    router.navigate(
+      hrefForLink(
+        { screen: "ride", params: { rideId: convertedRideId } },
+        { isDriver: true },
+      ),
+    );
+  }, [convertedRideId, router]);
 
   // Registration lifecycle.
   useEffect(() => {
