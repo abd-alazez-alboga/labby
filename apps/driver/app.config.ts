@@ -6,7 +6,6 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  * /assets/theme/colors.scss (mirrored in src/theme/tokens.ts).
  */
 const LABBY_PURPLE_700 = '#59128A'; // --labby-purple-700
-const LABBY_PURPLE_900 = '#3D0B57'; // --labby-purple-900
 
 /**
  * Default API base URL baked into the app config (`extra.apiBaseUrl`).
@@ -85,9 +84,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        image: './assets/images/labby-logo-white.png',
-        imageWidth: 220,
-        backgroundColor: LABBY_PURPLE_900,
+        // Board LFLogoSplashDriver (2026-10-21): the white icon padded so
+        // Android 12+'s circular splash mask never crops it (the wide
+        // wordmark was cut off).
+        image: './assets/images/labby-splash-white.png',
+        imageWidth: 200,
+        backgroundColor: LABBY_PURPLE_700,
       },
     ],
   ],

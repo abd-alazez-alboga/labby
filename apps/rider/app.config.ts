@@ -52,8 +52,10 @@ const config: ExpoConfig = {
     [
       'expo-splash-screen',
       {
-        image: './assets/branding/labby-icon.png',
-        imageWidth: 120,
+        // Board LFLogoSplashRider (2026-10-21): the icon padded so Android 12+'s
+        // circular splash mask never crops a spoke.
+        image: './assets/branding/labby-splash.png',
+        imageWidth: 200,
         backgroundColor: '#FAF7FC', // --labby-bg-light
       },
     ],
