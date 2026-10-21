@@ -212,6 +212,11 @@ export function HomeScreen() {
   const region = useOptionalRegion();
   const { height: windowHeight } = useWindowDimensions();
   const [sheetHeight, setSheetHeight] = useState(0);
+  // The settled zero-total ride whose "Nothing to collect" was acknowledged
+  // (its earnings breakdown shows next); a later settled ride starts over.
+  const [nothingAcknowledged, setNothingAcknowledged] = useState<
+    string | null
+  >(null);
   const regionBlocked =
     region && region.status !== "resolved" && region.status !== "loading"
       ? region
@@ -245,12 +250,19 @@ export function HomeScreen() {
       />
     );
   }
-  if (rides?.settled && isZeroTotalSettled(rides.settled)) {
-    // W29: a zero total settled at completion — nothing to collect.
+  if (
+    rides?.settled &&
+    isZeroTotalSettled(rides.settled) &&
+    nothingAcknowledged !== rides.settled.id
+  ) {
+    // W29: a zero total settled at completion — nothing to collect. Done
+    // moves on to the trip's earnings (the promo compensation is still
+    // paid, owner decision 2026-10-21); that screen's Done dismisses.
+    const settledId = rides.settled.id;
     return (
       <NothingToCollectScreen
         ride={rides.settled}
-        onDone={rides.dismissSettled}
+        onDone={() => setNothingAcknowledged(settledId)}
       />
     );
   }

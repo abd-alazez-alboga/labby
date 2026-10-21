@@ -2,7 +2,9 @@
  * V1 audit W29 (money-v1 "Zero total"): a promo covering the whole fare with
  * nothing carried in cash settles AT COMPLETION (`paid_cash` /
  * `paid_wallet`, `cashDue` null). The driver never sees "Collect SYP 0" or
- * a cash-confirm: a short "Nothing to collect" completion with one Done.
+ * a cash-confirm: a short "Nothing to collect" completion with one Done,
+ * which moves on to the trip's earnings breakdown (the promo compensation
+ * is still paid — owner decision 2026-10-21); that screen's Done finishes.
  * Per shared member, a 0 share with nothing due reads as settled.
  */
 import { fireEvent, waitFor } from "@testing-library/react-native";
@@ -10,6 +12,7 @@ import { fireEvent, waitFor } from "@testing-library/react-native";
 import { clearSession } from "../auth/session";
 import { initI18n, setAppLanguage } from "../i18n";
 import type { MockResponse } from "../test-utils/contract";
+import { EARNINGS, earningPage, tripEarningFixture } from "../test-utils/money";
 import { MockSocket } from "../test-utils/realtime";
 import {
   ACTIVE_RIDE,
@@ -53,9 +56,10 @@ const ZERO_FARE = {
 async function endRide(
   completed: unknown,
   language: "en" | "ar" = "en",
+  extra: Record<string, MockResponse> = {},
 ) {
   const contract = await renderDriverApp(
-    { [ACTIVE_RIDE]: ok(inProgressRide()), [COMPLETE]: ok(completed) },
+    { [ACTIVE_RIDE]: ok(inProgressRide()), [COMPLETE]: ok(completed), ...extra },
     { language },
   );
   await goLive();
@@ -79,13 +83,23 @@ describe("zero-total completion (W29)", () => {
     globalThis.WebSocket = originalWebSocket;
   });
 
-  it("a cash ride settled at 0 shows 'Nothing to collect', no cash-confirm; Done finishes", async () => {
+  it("a cash ride settled at 0 shows 'Nothing to collect', no cash-confirm; Done → its earnings → Done finishes", async () => {
+    // The promo covered the fare: commission −6,812.5, promo top-up +27,250.
+    const earning = tripEarningFixture({
+      fareTotal: 27250,
+      commissionAmount: 6812.5,
+      tip: null,
+      promoCompensation: 27250,
+      net: 20437.5,
+    });
     const contract = await endRide(
       completedRide({
         paymentStatus: "paid_cash",
         cashDue: null,
         fare: ZERO_FARE,
       }),
+      "en",
+      { [EARNINGS]: ok(earningPage([earning])) },
     );
     expect(await screen.findByTestId("nothing-to-collect-screen")).toBeTruthy();
     expect(screen.getByTestId("complete-title")).toHaveTextContent(
@@ -113,11 +127,21 @@ describe("zero-total completion (W29)", () => {
     expect(screen.queryByTestId("trip-earnings-screen")).toBeNull();
     expect(contract.requestsTo(`POST ${RIDE}/cash-confirm`)).toHaveLength(0);
 
+    // Owner decision 2026-10-21: Done moves on to the earnings breakdown.
     fireEvent.press(screen.getByTestId("nothing-to-collect-done"));
-    await waitFor(() =>
-      expect(screen.queryByTestId("nothing-to-collect-screen")).toBeNull(),
+    expect(await screen.findByTestId("trip-earnings-screen")).toBeTruthy();
+    expect(screen.queryByTestId("nothing-to-collect-screen")).toBeNull();
+    expect(await screen.findByTestId("earning-line-promo")).toHaveTextContent(
+      "+SYP 27,250",
+      { exact: false },
     );
-    expect(screen.queryByTestId("trip-earnings-screen")).toBeNull();
+    expect(contract.requestsTo(`POST ${RIDE}/cash-confirm`)).toHaveLength(0);
+
+    fireEvent.press(screen.getByTestId("trip-earnings-done"));
+    await waitFor(() =>
+      expect(screen.queryByTestId("trip-earnings-screen")).toBeNull(),
+    );
+    expect(screen.queryByTestId("nothing-to-collect-screen")).toBeNull();
   });
 
   it("a wallet ride settled at 0 (paid_wallet) also has nothing to collect", async () => {
