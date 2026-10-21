@@ -23,6 +23,10 @@ import java.util.UUID;
  * first name (the member's on a shared ride, with {@code memberId}), labels, moments, the ride's
  * state and kind, the fee the rider was charged, and the driver's own report on that rider — {@code
  * canReport} is true while none exists.
+ *
+ * <p>Board V1FDriverTripDetail (route map): only the trip DETAIL of a completed ride carries {@code
+ * pickup}, {@code destination} and {@code route} (the in_ride trace, as on the rider receipt); they
+ * are null on cancelled rows and on every row of the paged list, which stays light.
  */
 public record TripEarningDto(
     UUID rideId,
@@ -50,7 +54,51 @@ public record TripEarningDto(
     CancellationReason cancellationReason,
     BigDecimal cancellationFeeCharged,
     TripReportDto myReport,
-    boolean canReport) {
+    boolean canReport,
+    PlaceDto pickup,
+    PlaceDto destination,
+    GeoJsonLineStringDto route) {
+
+  /**
+   * This row with the route map of the trip detail.
+   *
+   * @param pickup the ride's pickup
+   * @param destination the ride's drop-off
+   * @param route the in_ride trace ([lng, lat])
+   * @return the row carrying the map
+   */
+  public TripEarningDto withMap(PlaceDto pickup, PlaceDto destination, GeoJsonLineStringDto route) {
+    return new TripEarningDto(
+        rideId,
+        completedAt,
+        currency,
+        fareTotal,
+        paymentMethod,
+        commissionRate,
+        commissionAmount,
+        tip,
+        cancellationFee,
+        promoCompensation,
+        net,
+        memberId,
+        rideState,
+        kind,
+        riderFirstName,
+        pickupLabel,
+        destinationLabel,
+        serviceTypeNameEn,
+        serviceTypeNameAr,
+        acceptedAt,
+        startedAt,
+        cancelledAt,
+        cancellationReason,
+        cancellationFeeCharged,
+        myReport,
+        canReport,
+        pickup,
+        destination,
+        route);
+  }
 
   /**
    * The driver's own report on this trip's rider (trust-v1 OwnReport subset).

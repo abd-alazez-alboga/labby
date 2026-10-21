@@ -8,6 +8,8 @@ import com.labby.backend.dto.TripEarningPageDto;
 import com.labby.backend.enums.DriverLedgerType;
 import com.labby.backend.enums.PaymentMethod;
 import com.labby.backend.enums.RideKind;
+import com.labby.backend.enums.RideState;
+import com.labby.backend.enums.SharedMemberStatus;
 import com.labby.backend.exception.InvalidRequestException;
 import com.labby.backend.exception.ResourceNotFoundException;
 import com.labby.backend.model.DriverLedgerEntry;
@@ -88,6 +90,8 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
   private final ServiceTypeRepository serviceTypeRepository;
   private final MoneyFloors moneyFloors;
   private final CommissionService commissionService;
+  private final RideAssembler rideAssembler;
+  private final RideLifecycle rideLifecycle;
   private final Clock clock;
 
   @Override
@@ -96,7 +100,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     long total = driverTripRepository.count(driverUserId);
     List<TripRow> rows = driverTripRepository.page(driverUserId, size, (long) page * size);
     return new TripEarningPageDto(
-        toTrips(driverUserId, rows), page, size, total, (int) ((total + size - 1) / size));
+        toTrips(driverUserId, rows, false), page, size, total, (int) ((total + size - 1) / size));
   }
 
   @Override
@@ -114,11 +118,14 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
           new InvalidRequestException("memberId is required on a shared ride")
               .withCode("member_required");
     }
-    return toTrips(driverUserId, List.of(rows.get(0))).get(0);
+    return toTrips(driverUserId, List.of(rows.get(0)), true).get(0);
   }
 
-  /** Builds the rows with one query per related table (never per row). */
-  private List<TripEarningDto> toTrips(UUID driverUserId, List<TripRow> rows) {
+  /**
+   * Builds the rows with one query per related table (never per row). With {@code detail} (one
+   * row), a completed trip also carries its route map: pickup, drop-off and the in_ride trace.
+   */
+  private List<TripEarningDto> toTrips(UUID driverUserId, List<TripRow> rows, boolean detail) {
     if (rows.isEmpty()) {
       return List.of();
     }
@@ -183,43 +190,62 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
                   report == null
                       && riderUserId != null
                       && (ride.getKind() != RideKind.SHARED || member != null);
-              return new TripEarningDto(
-                  ride.getId(),
-                  money.at(),
-                  money.currency(),
-                  money.fareTotal(),
-                  money.paymentMethod(),
-                  money.commissionRate(),
-                  money.commissionAmount(),
-                  money.tip(),
-                  money.cancellationFee(),
-                  money.promoCompensation(),
-                  money.net(),
-                  row.memberId(),
-                  ride.getState(),
-                  ride.getKind(),
-                  riderUserId == null ? null : names.get(riderUserId),
-                  ride.getPickupLabel(),
-                  ride.getDestinationLabel(),
-                  serviceType == null ? null : serviceType.getNameEn(),
-                  serviceType == null ? null : serviceType.getNameAr(),
-                  ride.getAcceptedAt(),
-                  ride.getStartedAt(),
-                  ride.getCancelledAt(),
-                  member != null && member.getCancellationReason() != null
-                      ? member.getCancellationReason()
-                      : ride.getCancellationReason(),
-                  member != null ? member.getCancellationFee() : ride.getCancellationFee(),
-                  report == null
-                      ? null
-                      : new TripReportDto(
-                          report.reportId(),
-                          report.category(),
-                          report.status(),
-                          report.createdAt()),
-                  reportable);
+              TripEarningDto trip =
+                  new TripEarningDto(
+                      ride.getId(),
+                      money.at(),
+                      money.currency(),
+                      money.fareTotal(),
+                      money.paymentMethod(),
+                      money.commissionRate(),
+                      money.commissionAmount(),
+                      money.tip(),
+                      money.cancellationFee(),
+                      money.promoCompensation(),
+                      money.net(),
+                      row.memberId(),
+                      ride.getState(),
+                      ride.getKind(),
+                      riderUserId == null ? null : names.get(riderUserId),
+                      ride.getPickupLabel(),
+                      ride.getDestinationLabel(),
+                      serviceType == null ? null : serviceType.getNameEn(),
+                      serviceType == null ? null : serviceType.getNameAr(),
+                      ride.getAcceptedAt(),
+                      ride.getStartedAt(),
+                      ride.getCancelledAt(),
+                      member != null && member.getCancellationReason() != null
+                          ? member.getCancellationReason()
+                          : ride.getCancellationReason(),
+                      member != null ? member.getCancellationFee() : ride.getCancellationFee(),
+                      report == null
+                          ? null
+                          : new TripReportDto(
+                              report.reportId(),
+                              report.category(),
+                              report.status(),
+                              report.createdAt()),
+                      reportable,
+                      null,
+                      null,
+                      null);
+              return detail && completed(ride, member) ? withMap(trip, ride) : trip;
             })
         .toList();
+  }
+
+  /** A completed ride — and, on a shared ride, a member who rode it to the end. */
+  private static boolean completed(Ride ride, SharedRideMember member) {
+    return ride.getState() == RideState.COMPLETED
+        && (member == null || member.getStatus() == SharedMemberStatus.COMPLETED);
+  }
+
+  /** Board V1FDriverTripDetail: the route map, built like the rider receipt's (UC-R-07). */
+  private TripEarningDto withMap(TripEarningDto trip, Ride ride) {
+    return trip.withMap(
+        rideAssembler.place(ride.getPickup(), ride.getPickupLabel()),
+        rideAssembler.place(ride.getDestination(), ride.getDestinationLabel()),
+        rideLifecycle.inRideLine(ride.getId()));
   }
 
   /** The rider a row is about: the member's rider on a shared ride, else the ride's rider. */

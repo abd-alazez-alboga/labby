@@ -202,8 +202,9 @@ paths:
         Driver role. The `TripEarning` row of a ride this driver drove (money posted) or accepted
         before it was cancelled — boards V1FDriverTripDetail / TripDetailCancelled. `canReport`
         drives the "Report rider" action (trust-v1 POST /rides/{rideId}/reports, with
-        `memberId` on a shared ride); `myReport` the "You reported …" block. 404 for any other
-        ride (not this driver's, never accepted, still live).
+        `memberId` on a shared ride); `myReport` the "You reported …" block. A completed trip also
+        carries its route map (`pickup`, `destination`, `route` — never on the paged list). 404
+        for any other ride (not this driver's, never accepted, still live).
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: rideId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -513,6 +514,49 @@ components:
         canReport:
           type: boolean
           description: True while the driver has not reported this row's rider (false on a shared row without a member)
+        pickup:
+          oneOf:
+            - $ref: '#/components/schemas/TripPlace'
+            - { type: 'null' }
+          description: >
+            Board V1FDriverTripDetail route map — the ride's pickup (hollow circle). Set only on
+            the trip DETAIL (`GET /driver/earnings/rides/{rideId}`) of a completed ride (on a
+            shared ride: a member who rode to the end); null on cancelled rows and on every row
+            of the paged list.
+        destination:
+          oneOf:
+            - $ref: '#/components/schemas/TripPlace'
+            - { type: 'null' }
+          description: The ride's drop-off (accent square); set like `pickup`
+        route:
+          oneOf:
+            - $ref: '#/components/schemas/TripRoute'
+            - { type: 'null' }
+          description: >
+            GeoJSON LineString of the in_ride trace, [lng, lat] — the same line as the rider
+            receipt's `route` (rides-v1 Receipt). Set like `pickup`; may hold fewer than two
+            points (a short trace), so the pins place the map.
+    TripPlace:
+      type: object
+      description: A position plus its display label — the rides-v1 Place shape
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+        label: { type: [string, 'null'], maxLength: 200 }
+    TripRoute:
+      type: object
+      description: GeoJSON LineString, coordinates in [lng, lat] order
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [LineString] }
+        coordinates:
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number }
     TripEarningPage:
       type: object
       required: [items, page, size, totalItems, totalPages]

@@ -81,6 +81,10 @@ class DriverTripsIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(money.get("serviceTypeNameEn").isNull()).isFalse();
     assertThat(money.get("startedAt").isNull()).isFalse();
     assertThat(money.get("canReport").asBoolean()).isTrue();
+    // The route map is the detail's only: the list stays light.
+    assertThat(money.get("route").isNull()).isTrue();
+    assertThat(money.get("pickup").isNull()).isTrue();
+    assertThat(money.get("destination").isNull()).isTrue();
 
     JsonNode paged =
         ok(get("/api/v1/driver/earnings?size=2&page=1", driver.token()), HttpStatus.OK);
@@ -104,8 +108,12 @@ class DriverTripsIntegrationTest extends AbstractTrustIntegrationTest {
             null,
             now.minus(Duration.ofDays(9)).plusSeconds(360));
     String detail = "/api/v1/driver/earnings/rides/" + cancelled;
-    assertThat(ok(get(detail, driver.token()), HttpStatus.OK).get("canReport").asBoolean())
-        .isTrue();
+    JsonNode before = ok(get(detail, driver.token()), HttpStatus.OK);
+    assertThat(before.get("canReport").asBoolean()).isTrue();
+    // Board V1FDriverTripDetailCancelled: no route map on a cancelled trip.
+    assertThat(before.get("route").isNull()).isTrue();
+    assertThat(before.get("pickup").isNull()).isTrue();
+    assertThat(before.get("destination").isNull()).isTrue();
 
     // REP-01 from a past trip (no time limit; cancelled after acceptance is reportable).
     ok(
@@ -135,6 +143,45 @@ class DriverTripsIntegrationTest extends AbstractTrustIntegrationTest {
     assertThat(
             get("/api/v1/driver/earnings/rides/" + neverAccepted, driver.token()).getStatusCode())
         .isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  @DisplayName("a completed trip's detail carries the route map: pickup, drop-off, in-ride trace")
+  void shouldCarryTheRouteMapOnACompletedTripDetail() {
+    Account driver = driverAt(PICKUP_LAT, PICKUP_LNG);
+    Account rana = rider();
+    JsonNode booked = ok(tryBook(rana, booking("cash")), HttpStatus.CREATED);
+    UUID rideId = UUID.fromString(booked.get("id").asText());
+    dispatchAndAccept(rideId, driver);
+    arriveAndStart(rideId, driver);
+    // The in_ride trace (the to-pickup leg is not on the map).
+    position(driver, 33.505, 36.305);
+    position(driver, DEST_LAT, DEST_LNG);
+    ok(driverAction(driver, rideId, "complete"), HttpStatus.OK);
+
+    JsonNode trip =
+        ok(get("/api/v1/driver/earnings/rides/" + rideId, driver.token()), HttpStatus.OK);
+    assertThat(trip.get("rideState").asText()).isEqualTo("completed");
+    JsonNode pickup = trip.get("pickup");
+    assertThat(pickup.get("lat").asDouble()).isEqualTo(PICKUP_LAT);
+    assertThat(pickup.get("lng").asDouble()).isEqualTo(PICKUP_LNG);
+    JsonNode destination = trip.get("destination");
+    assertThat(destination.get("lat").asDouble()).isEqualTo(DEST_LAT);
+    assertThat(destination.get("lng").asDouble()).isEqualTo(DEST_LNG);
+    JsonNode route = trip.get("route");
+    assertThat(route.get("type").asText()).isEqualTo("LineString");
+    JsonNode coordinates = route.get("coordinates");
+    assertThat(coordinates).hasSize(2);
+    // GeoJSON order: [lng, lat].
+    assertThat(coordinates.get(0).get(0).asDouble()).isEqualTo(36.305);
+    assertThat(coordinates.get(0).get(1).asDouble()).isEqualTo(33.505);
+    assertThat(coordinates.get(1).get(0).asDouble()).isEqualTo(DEST_LNG);
+    assertThat(coordinates.get(1).get(1).asDouble()).isEqualTo(DEST_LAT);
+    // The same line the rider's receipt draws.
+    assertThat(
+            ok(get("/api/v1/rides/" + rideId + "/receipt", rana.token()), HttpStatus.OK)
+                .get("route"))
+        .isEqualTo(route);
   }
 
   private static List<UUID> ids(JsonNode items) {
