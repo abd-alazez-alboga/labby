@@ -1,0 +1,44 @@
+# Render blueprint — investor-demo deployment of the backend (free plan).
+# Database is Neon (eu-central-1); admin is on Vercel; apps are sideloaded APKs.
+# Secrets are entered in the Render dashboard, never here (sync: false).
+services:
+  - type: web
+    name: labby-backend
+    runtime: docker
+    repo: https://github.com/abd-alazez-alboga/labby
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    autoDeployTrigger: off # demo stays stable; deploy manually from the dashboard
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_PORT
+        value: "8080"
+      # --- Neon (direct connection, not the pooler; Flyway needs it) ---
+      - key: DB_URL
+        sync: false # jdbc:postgresql://<neon-host>/neondb?sslmode=require
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # --- Secrets ---
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SMS_GATEWAY_TOKEN
+        sync: false
+      - key: FIREBASE_CREDENTIALS_JSON
+        sync: false
+      # --- Demo-specific ---
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false # https://<admin>.vercel.app
+      - key: PUBLIC_BASE_URL
+        sync: false # https://<this-service>.onrender.com
+      - key: STORAGE_DIR
+        value: /app/data/uploads # ephemeral on the free plan: wiped on every deploy/restart
+      - key: SPRINGDOC_API_DOCS_ENABLED
+        value: "false"
+      - key: SPRINGDOC_SWAGGER_UI_ENABLED
+        value: "false"
