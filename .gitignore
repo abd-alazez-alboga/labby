@@ -63,3 +63,4 @@ backend/data/
 
 # Firebase secrets must never land in the repo (keep them in ~/.config/labby).
 *firebase-adminsdk*.json
+dist-apk/
