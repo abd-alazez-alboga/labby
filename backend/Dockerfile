@@ -14,5 +14,5 @@ WORKDIR /app
 COPY --from=build /build/target/backend-*.jar app.jar
 # Render's free instance has 512 MB; cap the heap well below it.
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=70"
-EXPOSE 8080
+EXPOSE 10000
 ENTRYPOINT ["java", "-jar", "app.jar"]

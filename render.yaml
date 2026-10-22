@@ -16,7 +16,7 @@ services:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: SERVER_PORT
-        value: "8080"
+        value: "10000" # Render routes and health-checks port 10000
       # --- Neon (direct connection, not the pooler; Flyway needs it) ---
       - key: DB_URL
         sync: false # jdbc:postgresql://<neon-host>/neondb?sslmode=require
