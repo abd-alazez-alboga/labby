@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,7 +38,16 @@ const ENTRY_ADMIN_CREATE: AuditLogEntry = {
   createdAt: '2026-10-05T09:00:00Z',
 };
 
-const VIEWER = adminUser(['audit:view']);
+const VIEWER = adminUser(['audit:view', 'admins:view']);
+
+const ROOT_ADMIN = {
+  id: 'user-1',
+  phone: '+963900000004',
+  name: 'Root Admin',
+  state: 'active',
+  role: { id: 'role-super', name: 'Super Admin' },
+  grantedAt: '2026-09-01T00:00:00Z',
+};
 
 function stubAuditRoutes(items: AuditLogEntry[], totalItems = items.length) {
   return stubFetchRoutes((method, path) => {
@@ -47,6 +56,9 @@ function stubAuditRoutes(items: AuditLogEntry[], totalItems = items.length) {
     }
     if (method === 'GET' && path === '/api/v1/admin/audit-log') {
       return jsonResponse(200, { items, page: 0, size: 25, totalItems });
+    }
+    if (method === 'GET' && path === '/api/v1/admin/admins') {
+      return jsonResponse(200, [ROOT_ADMIN]);
     }
     return null;
   });
@@ -74,10 +86,11 @@ describe('audit log page', () => {
     stubAuditRoutes([ENTRY_ROLE_UPDATE, ENTRY_ADMIN_CREATE]);
     renderShell();
 
-    expect(await screen.findByText('role.update')).toBeInTheDocument();
-    expect(screen.getByText('admin.create')).toBeInTheDocument();
-    expect(screen.getAllByText('Root Admin').length).toBe(2);
-    expect(screen.getByText('role role-ops')).toBeInTheDocument();
+    const table = within(await screen.findByRole('table'));
+    expect(table.getByText('role.update')).toBeInTheDocument();
+    expect(table.getByText('admin.create')).toBeInTheDocument();
+    expect(table.getAllByText('Root Admin').length).toBe(2);
+    expect(table.getByText('role role-ops')).toBeInTheDocument();
     // Only the mutation with captured state offers the before/after view.
     expect(screen.getAllByText('Before / after').length).toBe(1);
   });
@@ -88,9 +101,16 @@ describe('audit log page', () => {
     const user = userEvent.setup();
     renderShell();
 
-    await screen.findByText('role.update');
-    await user.type(screen.getByLabelText('Action'), 'role.update');
-    await user.type(screen.getByLabelText('Actor ID'), 'user-1');
+    await screen.findByRole('table');
+    // The log opens unfiltered: only paging is sent.
+    const first = lastAuditQuery(fetchMock);
+    expect(first.get('action')).toBeNull();
+    expect(first.get('actorId')).toBeNull();
+    // Actor, action and target type are dropdowns, not typed keys.
+    await user.selectOptions(screen.getByLabelText('Action'), 'role.update');
+    await screen.findByRole('option', { name: 'Root Admin' });
+    await user.selectOptions(screen.getByLabelText('Actor ID'), 'user-1');
+    expect(screen.getByLabelText('Target type').tagName).toBe('SELECT');
     await user.click(screen.getByRole('button', { name: 'Apply filters' }));
 
     await vi.waitFor(() => {

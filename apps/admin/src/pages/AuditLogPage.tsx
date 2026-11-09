@@ -1,9 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { queryAuditLog, type AuditLogPage as AuditPage, type AuditLogQuery } from '../api/rbac';
+import {
+  listAdmins,
+  queryAuditLog,
+  type AdminAccount,
+  type AuditLogPage as AuditPage,
+  type AuditLogQuery,
+} from '../api/rbac';
 import { useAuth } from '../auth/AuthContext';
+import { usePermissions } from '../auth/usePermissions';
 import { DataTable, PageHeader, TablePager } from '../ui';
+import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from './audit/audit-filter-options';
 import { latinLocale } from './money/money-format';
 
 const PAGE_SIZE = 25;
@@ -15,12 +23,18 @@ function toIso(local: string): string | undefined {
 
 /**
  * UC-A-04: the append-only audit log, newest first, with combinable
- * filters and pagination. Read-only by design — no mutation exists
+ * filters and pagination. No filter is applied until the admin picks one, so
+ * the page opens on the whole log. Actor, action and target type are
+ * dropdowns (the admin list, the recorded action keys, the target kinds);
+ * only the target ID is typed. Read-only by design — no mutation exists
  * (RBAC-05). Requires audit:view (the route guard).
  */
 export default function AuditLogPage() {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
+  const { can } = usePermissions();
+  const canListAdmins = can('admins:view');
+  const [admins, setAdmins] = useState<AdminAccount[]>([]);
 
   const [actorId, setActorId] = useState('');
   const [action, setAction] = useState('');
@@ -32,6 +46,21 @@ export default function AuditLogPage() {
   const [query, setQuery] = useState<AuditLogQuery>({ page: 0, size: PAGE_SIZE });
   const [result, setResult] = useState<AuditPage | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+
+  // The actor dropdown lists the admin accounts (needs admins:view; without it
+  // the actor filter is simply not offered).
+  useEffect(() => {
+    if (!canListAdmins) {
+      return;
+    }
+    let cancelled = false;
+    listAdmins(apiClient)
+      .then((loaded) => !cancelled && setAdmins(loaded))
+      .catch(() => !cancelled && setAdmins([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, canListAdmins]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,33 +104,54 @@ export default function AuditLogPage() {
 
       <form className="card panel" onSubmit={handleFilter}>
         <div className="panel__row">
-          <div className="form-field">
-            <label htmlFor="audit-actor">{t('audit.filters.actorId')}</label>
-            <input
-              id="audit-actor"
-              dir="ltr"
-              value={actorId}
-              onChange={(event) => setActorId(event.target.value)}
-            />
-          </div>
+          {canListAdmins ? (
+            <div className="form-field">
+              <label htmlFor="audit-actor">{t('audit.filters.actorId')}</label>
+              <select
+                id="audit-actor"
+                value={actorId}
+                onChange={(event) => setActorId(event.target.value)}
+              >
+                <option value="">{t('audit.filters.anyActor')}</option>
+                {admins.map((admin) => (
+                  <option key={admin.id} value={admin.id}>
+                    {admin.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div className="form-field">
             <label htmlFor="audit-action">{t('audit.filters.action')}</label>
-            <input
+            <select
               id="audit-action"
               dir="ltr"
-              placeholder="role.update"
               value={action}
               onChange={(event) => setAction(event.target.value)}
-            />
+            >
+              <option value="">{t('audit.filters.anyAction')}</option>
+              {AUDIT_ACTIONS.map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="form-field">
             <label htmlFor="audit-target-type">{t('audit.filters.targetType')}</label>
-            <input
+            <select
               id="audit-target-type"
               dir="ltr"
               value={targetType}
               onChange={(event) => setTargetType(event.target.value)}
-            />
+            >
+              <option value="">{t('audit.filters.anyTargetType')}</option>
+              {AUDIT_TARGET_TYPES.map((kind) => (
+                <option key={kind} value={kind}>
+                  {kind}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="form-field">
             <label htmlFor="audit-target-id">{t('audit.filters.targetId')}</label>
