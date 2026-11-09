@@ -36,6 +36,13 @@ const KHALED: AdminUser = {
   createdAt: '2026-09-02T08:15:00Z',
 };
 
+const OTHER: AdminUser = {
+  ...KHALED,
+  userId: '11111111-2222-4333-8444-555555555555',
+  name: 'Maher Saleh',
+  phone: '+963955101999',
+};
+
 function usersQueries(fetchMock: ReturnType<typeof stubMoneyRoutes>): URL[] {
   return callsTo(fetchMock, '/api/v1/admin/users')
     .map(([input]) => new URL(String(input)))
@@ -49,6 +56,9 @@ function stub() {
       const q = url?.searchParams.get('q');
       if (q === 'darwish' || q === '0955 101 334') {
         return jsonResponse(200, page([KHALED]));
+      }
+      if (q === null) {
+        return jsonResponse(200, page([KHALED, OTHER]));
       }
       return jsonResponse(200, page([]));
     }
@@ -86,8 +96,12 @@ describe('driver ledgers name / phone search', () => {
         'Searches every driver by name or phone number. A pasted user ID opens that driver’s ledger directly.',
       ),
     ).toBeInTheDocument();
-    // A lookup: nothing is listed before a search.
-    expect(usersQueries(fetchMock)).toHaveLength(0);
+    // Every driver is listed before a search (owner decision 2026-11-09).
+    expect(await screen.findByText('2 drivers')).toBeInTheDocument();
+    expect(screen.getAllByRole('row').slice(1)).toHaveLength(2);
+    const initial = usersQueries(fetchMock).at(-1);
+    expect(initial?.searchParams.get('q')).toBeNull();
+    expect(initial?.searchParams.get('role')).toBe('driver');
 
     await user.type(box, 'darwish');
 
@@ -147,8 +161,9 @@ describe('driver ledgers name / phone search', () => {
     );
     await waitFor(() => expect(window.location.search).not.toContain('q='));
     expect(screen.queryByText('No drivers match “Yousef Kh”')).not.toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(usersQueries(fetchMock)).toHaveLength(1);
+    // Clearing goes back to the full list (opened on a search, so two fetches).
+    expect(await screen.findByText('2 drivers')).toBeInTheDocument();
+    expect(usersQueries(fetchMock)).toHaveLength(2);
   });
 
   it('opens a pasted user ID directly on Enter, without a search', async () => {
@@ -163,7 +178,8 @@ describe('driver ledgers name / phone search', () => {
 
     expect(await screen.findByRole('heading', { name: 'Ledger' })).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/driver-ledgers/${DRIVER_ID}`);
-    expect(usersQueries(fetchMock)).toHaveLength(0);
+    // Only the initial list was fetched; the ID was never searched.
+    expect(usersQueries(fetchMock)).toHaveLength(1);
   });
 
   it('renders the search in Arabic', async () => {

@@ -13,12 +13,12 @@ import { UserLookup } from './money/UserLookup';
 import { formatMoment, formatNumber, isUuid } from './money/money-format';
 
 /**
- * "Driver ledgers" section entry (UC-A-27): find a driver, open the ledger.
- * With users:view the driver is found by any part of the name or a phone in
- * any format over GET /admin/users `q` + `role=driver` — the Users page's
- * search (board V1FAdminUsersSearch), so a driver with no rides is found too;
- * a pasted user ID opens that ledger. Without users:view the ride-history
- * lookup stays.
+ * "Driver ledgers" section entry (UC-A-27): every driver is listed on open
+ * (owner decision 2026-11-09), newest account first; the search narrows the
+ * list by any part of the name or a phone in any format over GET /admin/users
+ * `q` + `role=driver` — the Users page's search (board V1FAdminUsersSearch),
+ * so a driver with no rides is found too; a pasted user ID opens that ledger.
+ * Without users:view the ride-history lookup stays.
  */
 export default function DriverLedgersPage() {
   const { can } = usePermissions();
@@ -56,13 +56,10 @@ function DriverSearch() {
     return () => window.clearTimeout(timer);
   }, [typed, query, update]);
 
-  // A lookup, not a list: nothing is fetched until there is something to find.
+  // The whole driver list on open; the search narrows it.
   useEffect(() => {
     setResult(null);
     setFailed(false);
-    if (filter.q === '') {
-      return;
-    }
     let cancelled = false;
     listAdminUsers(apiClient, filter, page, DIRECTORY_PAGE_SIZE)
       .then((loaded) => !cancelled && setResult(loaded))
@@ -89,17 +86,22 @@ function DriverSearch() {
 
   const totalPages = result ? Math.max(1, Math.ceil(result.totalItems / DIRECTORY_PAGE_SIZE)) : 1;
 
-  const emptySearch = (
-    <div className="search-empty">
-      <span className="search-empty__title" dir="auto">
-        {t('money.ledgerSearch.noMatchTitle', { query })}
-      </span>
-      <span className="search-empty__body">{t('money.ledgerSearch.noMatchBody')}</span>
-      <button className="btn" type="button" onClick={clearSearch}>
-        {t('directory.users.search.clear')}
-      </button>
-    </div>
-  );
+  const emptySearch =
+    query === '' ? (
+      <div className="search-empty">
+        <span className="search-empty__title">{t('money.ledgerSearch.none')}</span>
+      </div>
+    ) : (
+      <div className="search-empty">
+        <span className="search-empty__title" dir="auto">
+          {t('money.ledgerSearch.noMatchTitle', { query })}
+        </span>
+        <span className="search-empty__body">{t('money.ledgerSearch.noMatchBody')}</span>
+        <button className="btn" type="button" onClick={clearSearch}>
+          {t('directory.users.search.clear')}
+        </button>
+      </div>
+    );
 
   return (
     <section className="page">
@@ -118,7 +120,7 @@ function DriverSearch() {
         onClear={clearSearch}
       />
 
-      {query === '' ? null : failed ? (
+      {failed ? (
         <p className="banner banner--error" role="alert">
           {t('directory.loadFailed')}{' '}
           <button className="btn btn--small" type="button" onClick={() => setAttempt((n) => n + 1)}>
@@ -134,11 +136,16 @@ function DriverSearch() {
           footer={
             <TablePager
               status={[
-                t('money.ledgerSearch.matches', {
-                  count: result.totalItems,
-                  total: formatNumber(result.totalItems, language),
-                  query,
-                }),
+                query === ''
+                  ? t('money.ledgerSearch.all', {
+                      count: result.totalItems,
+                      total: formatNumber(result.totalItems, language),
+                    })
+                  : t('money.ledgerSearch.matches', {
+                      count: result.totalItems,
+                      total: formatNumber(result.totalItems, language),
+                      query,
+                    }),
                 totalPages > 1 ? t('money.pageOf', { page: page + 1, total: totalPages }) : null,
               ]
                 .filter(Boolean)
