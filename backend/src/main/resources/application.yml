@@ -168,6 +168,12 @@ labby:
     # online drivers) -> threshold step, capped; a manual override (UC-A-09) applies at the next
     # cycle. Spring cron (second minute hour day month weekday); "-" disables.
     cycle-cron: ${SURGE_CYCLE_CRON:0 */2 * * * *}
+  ops:
+    # Hosting knobs. KEEPALIVE_URL: this instance's own public health URL, requested every
+    # KEEPALIVE_INTERVAL_SECONDS so a free-tier host that idles out (Render) never sleeps. Blank
+    # (the default) disables the job; set only on the demo deployment.
+    keepalive-url: ${KEEPALIVE_URL:}
+    keepalive-interval-seconds: ${KEEPALIVE_INTERVAL_SECONDS:600}
   comms:
     # M10 comms & safety (comms-v1.yaml). The public origin trip-share urls are built on
     # (SHARE-01; no trailing slash), and the poll pace of the public share page and the admin

@@ -36,6 +36,8 @@ services:
         sync: false # https://<admin>.vercel.app
       - key: PUBLIC_BASE_URL
         sync: false # https://<this-service>.onrender.com
+      - key: KEEPALIVE_URL
+        sync: false # https://<this-service>.onrender.com/actuator/health — self-ping keeps the free instance awake
       - key: STORAGE_DIR
         value: /app/data/uploads # ephemeral on the free plan: wiped on every deploy/restart
       - key: SPRINGDOC_API_DOCS_ENABLED
