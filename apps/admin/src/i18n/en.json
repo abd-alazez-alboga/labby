@@ -270,7 +270,10 @@
       "targetType": "Target type",
       "targetId": "Target ID",
       "from": "From",
-      "to": "To"
+      "to": "To",
+      "anyActor": "Any admin",
+      "anyAction": "Any action",
+      "anyTargetType": "Any target type"
     },
     "columns": {
       "when": "When",
@@ -1030,6 +1033,8 @@
       "balanceAfter": "Balance after"
     },
     "rideState": {
+      "scheduled": "Scheduled",
+      "gathering": "Gathering riders",
       "requested": "Requested",
       "offering": "Finding a driver",
       "accepted": "Accepted",
@@ -1089,7 +1094,14 @@
       "matches_many": "{{total}} drivers match “{{query}}”",
       "matches_other": "{{total}} drivers match “{{query}}”",
       "noMatchTitle": "No drivers match “{{query}}”",
-      "noMatchBody": "Check the spelling or search by phone number. Search covers every driver, including drivers who have never completed a ride."
+      "noMatchBody": "Check the spelling or search by phone number. Search covers every driver, including drivers who have never completed a ride.",
+      "all_zero": "{{total}} drivers",
+      "all_one": "{{total}} driver",
+      "all_two": "{{total}} drivers",
+      "all_few": "{{total}} drivers",
+      "all_many": "{{total}} drivers",
+      "all_other": "{{total}} drivers",
+      "none": "No drivers yet."
     },
     "wallet": {
       "back": "Back to users",
