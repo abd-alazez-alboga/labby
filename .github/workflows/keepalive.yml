@@ -1,6 +1,7 @@
 # Keeps the Render free instance awake (it spins down after 15 min idle) and
-# keeps the Neon connection warm. Scheduled crons may drift a few minutes; that
-# is fine — one hit inside every 15-minute window is all that is needed.
+# keeps the Neon connection warm. GitHub runs this cron on a best-effort basis
+# (observed gaps of several hours on this private repo), so a ping must also
+# survive a full cold start (> 60 s): long timeout + retries.
 name: keepalive
 on:
   schedule:
@@ -11,4 +12,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping backend health
-        run: curl -sf -m 60 https://labby-backend-8j0c.onrender.com/actuator/health
+        run: curl -sf -m 240 --retry 3 --retry-all-errors --retry-delay 15 https://labby-backend-8j0c.onrender.com/actuator/health
