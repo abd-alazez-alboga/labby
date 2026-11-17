@@ -55,7 +55,7 @@ Accounts are the seeded ones: R1 / R3 = +963900000001 / 3 (rider); R2 = +9639000
 - **GEO** = the emulator's mock location.
 - **Damascus seed values:** SYP; cancellation grace 5 min / fee 5,000; wait grace 5 min, then 500 per minute; pickup fee beyond 10 km at 1,000 per km; morning rush surcharge Sun–Thu 07:00–09:30 at +25%.
 - **QA Aleppo** = the second region prepared in the ADM rows (ADM-098…112: active, with service type "QA Eco").
-- **OTP:** no row in this file sends a real OTP. Owner phones A = 0991877688 and B = 0935218431 are not needed here.
+- **OTP:** no row in this file sends a real OTP. Owner phones A = <owner-phone-A> and B = <owner-phone-B> are not needed here.
 
 | ID | App(s) | Screen(s) | Setup (accounts, DB/env/harness steps) | UI steps | Expected result | Source | Lang | OTP | Est.min |
 |---|---|---|---|---|---|---|---|---|---|

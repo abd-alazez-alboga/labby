@@ -20,7 +20,9 @@ Passwords are bcrypt-hashed at seed time.
 | `+963900000003` | `Password1!` | rider | Driver-app gate closed (no driver role) |
 | `+963900000004` | `Password1!` | admin | Admin-dashboard login (M2-T5); **Super Admin** RBAC role since M3 |
 
-These phone numbers are reserved dev fixtures (not real). The list grows in later milestones
+These phone numbers are reserved dev fixtures (not real). On the public demo deployment the same
+accounts carry different, unpublished passwords (rotated 2026-11-17; kept in the gitignored
+`backend/.env.demo`) — `Password1!` is for local dev only. The list grows in later milestones
 (vehicles, regions, rides) — each milestone's seeder additions are documented here.
 
 ## Demo region (M4-T5)
